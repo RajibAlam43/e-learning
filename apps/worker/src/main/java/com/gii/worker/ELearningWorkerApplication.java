@@ -1,13 +1,13 @@
-package com.gii.elearn;
+package com.gii.apps.worker;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class ELearningApplication {
+public class ELearningWorkerApplication {
 
 	public static void main(String[] args) {
-		SpringApplication.run(ELearningApplication.class, args);
+		SpringApplication.run(ELearningWorkerApplication.class, args);
 	}
 
 }

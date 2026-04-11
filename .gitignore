@@ -1,16 +1,35 @@
-# Compiled class file
+# =========================
+# Java / Gradle
+# =========================
+.gradle/
+build/
+**/build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Compiled class files
 *.class
 
-# Log file
+# =========================
+# Logs
+# =========================
 *.log
 
-# BlueJ files
-*.ctxt
+# =========================
+# IDE
+# =========================
+.idea/
+*.iml
+.vscode/
 
-# Mobile Tools for Java (J2ME)
-.mtj.tmp/
+# =========================
+# OS files
+# =========================
+.DS_Store
+Thumbs.db
 
-# Package Files #
+# =========================
+# Archives
+# =========================
 *.jar
 *.war
 *.nar
@@ -19,10 +38,21 @@
 *.tar.gz
 *.rar
 
-# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
+# =========================
+# Env / secrets
+# =========================
+.env
+.env.*
+application-prod.properties
+application-prod.yml
+
+# =========================
+# Docker (optional)
+# =========================
+docker-compose.override.yml
+
+# =========================
+# Misc
+# =========================
 hs_err_pid*
 replay_pid*
-
-.idea
-build
-.gradle
