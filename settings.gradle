@@ -1,1 +1,9 @@
-rootProject.name = 'e-learning'
+rootProject.name = 'e-learning-backend'
+
+include 'api'
+include 'common'
+include 'worker'
+
+project(':api').projectDir = file('apps/api')
+project(':common').projectDir = file('apps/common')
+project(':worker').projectDir = file('apps/worker')
