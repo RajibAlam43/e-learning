@@ -107,13 +107,7 @@ add_line_if_missing() {
 }
 
 install_aws_cli() {
-  # Prefer apt package if available; fallback to official AWS CLI v2 installer.
   if command -v aws >/dev/null 2>&1; then
-    return 0
-  fi
-
-  if apt-cache show awscli >/dev/null 2>&1; then
-    apt-get install -y awscli
     return 0
   fi
 
@@ -215,24 +209,24 @@ systemctl enable postgresql
 systemctl restart postgresql
 
 # Create/rotate role and create DB idempotently.
-sudo -u postgres psql -v app_db="${APP_DB_NAME}" -v app_user="${APP_DB_USER}" -v app_pass="${APP_DB_PASSWORD}" <<'SQL'
-DO $$
+sudo -u postgres psql <<SQL
+DO \$\$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'app_user') THEN
-    EXECUTE format('CREATE ROLE %I LOGIN PASSWORD %L', :'app_user', :'app_pass');
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${APP_DB_USER}') THEN
+    EXECUTE format('CREATE ROLE %I LOGIN PASSWORD %L', '${APP_DB_USER}', '${APP_DB_PASSWORD}');
   ELSE
-    EXECUTE format('ALTER ROLE %I WITH LOGIN PASSWORD %L', :'app_user', :'app_pass');
+    EXECUTE format('ALTER ROLE %I WITH LOGIN PASSWORD %L', '${APP_DB_USER}', '${APP_DB_PASSWORD}');
   END IF;
 END
-$$;
+\$\$;
 
-DO $$
+DO \$\$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = :'app_db') THEN
-    EXECUTE format('CREATE DATABASE %I OWNER %I', :'app_db', :'app_user');
+  IF NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = '${APP_DB_NAME}') THEN
+    EXECUTE format('CREATE DATABASE %I OWNER %I', '${APP_DB_NAME}', '${APP_DB_USER}');
   END IF;
 END
-$$;
+\$\$;
 SQL
 
 #######################################
@@ -286,7 +280,7 @@ if [[ -z "${VALKEY_SERVICE}" ]]; then
   exit 1
 fi
 
-systemctl enable "${VALKEY_SERVICE}"
+[[ "${VALKEY_SERVICE}" != "valkey" ]] && systemctl enable "${VALKEY_SERVICE}"
 systemctl restart "${VALKEY_SERVICE}"
 
 #######################################
