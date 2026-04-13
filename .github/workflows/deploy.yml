@@ -91,9 +91,17 @@ jobs:
           # Upload built artifact.
           scp api.jar deploy@${{ secrets.API_HOST }}:/opt/e-learning/releases/${RELEASE_ID}/api.jar
 
-          # Write runtime environment file from secret (must include DB/Valkey vars).
-          printf '%s\n' "${{ secrets.API_ENV_FILE }}" | ssh deploy@${{ secrets.API_HOST }} "cat > /opt/e-learning/.env && chmod 600 /opt/e-learning/.env"
-
+          # Write runtime environment file from shared secrets.
+          cat <<'EOF' | ssh deploy@${{ secrets.API_HOST }} "cat > /opt/e-learning/.env && chmod 600 /opt/e-learning/.env"
+          SPRING_PROFILES_ACTIVE=${{ secrets.SPRING_PROFILES_ACTIVE }}
+          SPRING_DATASOURCE_URL=${{ secrets.SPRING_DATASOURCE_URL }}
+          SPRING_DATASOURCE_USERNAME=${{ secrets.SPRING_DATASOURCE_USERNAME }}
+          SPRING_DATASOURCE_PASSWORD=${{ secrets.SPRING_DATASOURCE_PASSWORD }}
+          SPRING_DATA_VALKEY_HOST=${{ secrets.SPRING_DATA_VALKEY_HOST }}
+          SPRING_DATA_VALKEY_PORT=${{ secrets.SPRING_DATA_VALKEY_PORT }}
+          SPRING_DATA_VALKEY_PASSWORD=${{ secrets.SPRING_DATA_VALKEY_PASSWORD }}
+          EOF
+          
           # Atomically switch current release and restart service.
           ssh deploy@${{ secrets.API_HOST }} "ln -sfn /opt/e-learning/releases/${RELEASE_ID} /opt/e-learning/current && sudo systemctl restart e-learning-api && sudo systemctl is-active --quiet e-learning-api"
 
@@ -109,8 +117,16 @@ jobs:
           # Upload built artifact.
           scp worker.jar deploy@${{ secrets.WORKER_HOST }}:/opt/e-learning/releases/${RELEASE_ID}/worker.jar
 
-          # Write runtime environment file from secret (must include DB/Valkey vars).
-          printf '%s\n' "${{ secrets.WORKER_ENV_FILE }}" | ssh deploy@${{ secrets.WORKER_HOST }} "cat > /opt/e-learning/.env && chmod 600 /opt/e-learning/.env"
+          # Write runtime environment file from shared secrets.          
+          cat <<'EOF' | ssh deploy@${{ secrets.WORKER_HOST }} "cat > /opt/e-learning/.env && chmod 600 /opt/e-learning/.env"
+          SPRING_PROFILES_ACTIVE=${{ secrets.SPRING_PROFILES_ACTIVE }}
+          SPRING_DATASOURCE_URL=${{ secrets.SPRING_DATASOURCE_URL }}
+          SPRING_DATASOURCE_USERNAME=${{ secrets.SPRING_DATASOURCE_USERNAME }}
+          SPRING_DATASOURCE_PASSWORD=${{ secrets.SPRING_DATASOURCE_PASSWORD }}
+          SPRING_DATA_VALKEY_HOST=${{ secrets.SPRING_DATA_VALKEY_HOST }}
+          SPRING_DATA_VALKEY_PORT=${{ secrets.SPRING_DATA_VALKEY_PORT }}
+          SPRING_DATA_VALKEY_PASSWORD=${{ secrets.SPRING_DATA_VALKEY_PASSWORD }}
+          EOF
 
           # Atomically switch current release and restart service.
           ssh deploy@${{ secrets.WORKER_HOST }} "ln -sfn /opt/e-learning/releases/${RELEASE_ID} /opt/e-learning/current && sudo systemctl restart e-learning-worker && sudo systemctl is-active --quiet e-learning-worker"
