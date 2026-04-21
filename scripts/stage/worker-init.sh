@@ -7,6 +7,7 @@ set -euo pipefail
 
 # Name of the systemd service unit we create for the Worker app.
 APP_NAME="e-learning-worker"
+DEPLOY_PUBLIC_KEY="REPLACE_ME"
 
 # Make apt non-interactive (required for unattended cloud-init runs).
 export DEBIAN_FRONTEND=noninteractive
@@ -34,6 +35,14 @@ apt-get install -y temurin-25-jre
 # Create non-root deploy user if it does not exist.
 id -u deploy >/dev/null 2>&1 || useradd -m -s /bin/bash deploy
 
+# Configure SSH access for deploy user.
+install -d -o deploy -g deploy -m 700 /home/deploy/.ssh
+touch /home/deploy/.ssh/authorized_keys
+grep -qxF "${DEPLOY_PUBLIC_KEY}" /home/deploy/.ssh/authorized_keys || \
+  echo "${DEPLOY_PUBLIC_KEY}" >> /home/deploy/.ssh/authorized_keys
+chown deploy:deploy /home/deploy/.ssh/authorized_keys
+chmod 600 /home/deploy/.ssh/authorized_keys
+
 # Create app directories with least-privilege ownership/permissions:
 # /opt/e-learning/.env     -> runtime env vars (injected by deploy pipeline)
 # /opt/e-learning/releases -> immutable release dirs
@@ -43,7 +52,7 @@ install -d -o deploy -g deploy -m 0755 /opt/e-learning/releases
 
 # Allow deploy user to restart/check only Worker service via sudo.
 cat > /etc/sudoers.d/e-learning-worker <<'EOF'
-deploy ALL=(root) NOPASSWD: /bin/systemctl restart e-learning-worker, /bin/systemctl is-active e-learning-worker
+deploy ALL=(root) NOPASSWD: /usr/bin/systemctl restart e-learning-worker, /usr/bin/systemctl is-active e-learning-worker
 EOF
 chmod 440 /etc/sudoers.d/e-learning-worker
 
