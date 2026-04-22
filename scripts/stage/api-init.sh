@@ -68,7 +68,7 @@ install -d -o deploy -g deploy -m 0755 /opt/e-learning/releases
 
 # Allow deploy user to restart/check only API service via sudo (principle of least privilege).
 cat > /etc/sudoers.d/e-learning-api <<'EOF'
-deploy ALL=(root) NOPASSWD: /usr/bin/systemctl restart e-learning-api, /usr/bin/systemctl is-active e-learning-api
+deploy ALL=(root) NOPASSWD: /usr/bin/systemctl restart e-learning-api, /usr/bin/systemctl is-active --quiet e-learning-api
 EOF
 chmod 440 /etc/sudoers.d/e-learning-api
 
