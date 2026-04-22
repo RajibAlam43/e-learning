@@ -23,6 +23,8 @@ umask 027
 # Avoid hyphens in DB/user names to prevent quoting hassles.
 APP_DB_NAME="gii_stage_db"
 APP_DB_USER="gii_stage_app"
+APP_DB_PASSWORD="REPLACE_ME"
+VALKEY_PASSWORD="REPLACE_ME"
 
 # Allowed client CIDRs for app connections (use /32 for single droplet IP).
 # Example: "10.116.0.8/32"
@@ -69,6 +71,8 @@ required_vars=(
   R2_BUCKET
   R2_ACCESS_KEY_ID
   R2_SECRET_ACCESS_KEY
+  VALKEY_PASSWORD
+  APP_DB_PASSWORD
 )
 
 for v in "${required_vars[@]}"; do
@@ -161,9 +165,6 @@ fi
 # 5) GENERATE + STORE APP SECRETS
 #######################################
 
-APP_DB_PASSWORD="$(openssl rand -base64 36 | tr -d '\n')"
-VALKEY_PASSWORD="$(openssl rand -base64 36 | tr -d '\n')"
-
 install -d -m 0750 /etc/e-learning
 
 # Source-of-truth runtime values to copy into API/Worker GitHub env secrets.
@@ -208,7 +209,7 @@ fi
 systemctl enable postgresql
 systemctl restart postgresql
 
-# Create/rotate role and create DB idempotently.
+# Create/rotate role idempotently.
 sudo -u postgres psql <<SQL
 DO \$\$
 BEGIN
@@ -219,11 +220,17 @@ BEGIN
   END IF;
 END
 \$\$;
+SQL
 
+# Create DB idempotently outside transaction context.
 if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='${APP_DB_NAME}'" | grep -q 1; then
   sudo -u postgres psql -c "CREATE DATABASE ${APP_DB_NAME} OWNER ${APP_DB_USER}"
 fi
-SQL
+
+if sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='${APP_DB_NAME}'" | grep -q 1; then
+  sudo -u postgres psql -d "${APP_DB_NAME}" -c "ALTER SCHEMA public OWNER TO ${APP_DB_USER};"
+  sudo -u postgres psql -d "${APP_DB_NAME}" -c "GRANT ALL ON SCHEMA public TO ${APP_DB_USER};"
+fi
 
 #######################################
 # 7) CONFIGURE VALKEY/REDIS
@@ -276,7 +283,7 @@ if [[ -z "${VALKEY_SERVICE}" ]]; then
   exit 1
 fi
 
-[[ "${VALKEY_SERVICE}" != "valkey" ]] && systemctl enable "${VALKEY_SERVICE}"
+systemctl enable "${VALKEY_SERVICE}"
 systemctl restart "${VALKEY_SERVICE}"
 
 #######################################

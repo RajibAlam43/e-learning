@@ -9,6 +9,11 @@ set -euo pipefail
 APP_NAME="e-learning-worker"
 DEPLOY_PUBLIC_KEY="REPLACE_ME"
 
+if [[ -z "${DEPLOY_PUBLIC_KEY:-}" || "${DEPLOY_PUBLIC_KEY}" == "REPLACE_ME" ]]; then
+  echo "ERROR: DEPLOY_PUBLIC_KEY is not set. Edit script values first."
+  exit 1
+fi
+
 # Make apt non-interactive (required for unattended cloud-init runs).
 export DEBIAN_FRONTEND=noninteractive
 
@@ -37,11 +42,9 @@ id -u deploy >/dev/null 2>&1 || useradd -m -s /bin/bash deploy
 
 # Configure SSH access for deploy user.
 install -d -o deploy -g deploy -m 700 /home/deploy/.ssh
-touch /home/deploy/.ssh/authorized_keys
+install -o deploy -g deploy -m 600 /dev/null /home/deploy/.ssh/authorized_keys
 grep -qxF "${DEPLOY_PUBLIC_KEY}" /home/deploy/.ssh/authorized_keys || \
   echo "${DEPLOY_PUBLIC_KEY}" >> /home/deploy/.ssh/authorized_keys
-chown deploy:deploy /home/deploy/.ssh/authorized_keys
-chmod 600 /home/deploy/.ssh/authorized_keys
 
 # Create app directories with least-privilege ownership/permissions:
 # /opt/e-learning/.env     -> runtime env vars (injected by deploy pipeline)

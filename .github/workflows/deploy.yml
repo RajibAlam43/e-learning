@@ -103,7 +103,18 @@ jobs:
           EOF
           
           # Atomically switch current release and restart service.
-          ssh deploy@${{ vars.API_HOST }} "ln -sfn /opt/e-learning/releases/${RELEASE_ID} /opt/e-learning/current && sudo /usr/bin/systemctl restart e-learning-api && sudo /usr/bin/systemctl is-active --quiet e-learning-api"
+          ssh deploy@${{ vars.API_HOST }} "
+            ln -sfn /opt/e-learning/releases/${RELEASE_ID} /opt/e-learning/current &&
+            sudo /usr/bin/systemctl restart e-learning-api &&
+            for i in {1..24}; do
+            if curl -fsS http://127.0.0.1:8080/actuator/health | grep -q '\"status\":\"UP\"'; then
+            exit 0
+            fi
+            sleep 5
+            done
+            sudo journalctl -u e-learning-api -n 80 --no-pager
+            exit 1
+          "
 
       # Deploy Worker jar and Worker env file, then repoint "current" symlink and restart service.
       - name: Deploy Worker
@@ -129,4 +140,9 @@ jobs:
           EOF
 
           # Atomically switch current release and restart service.
-          ssh deploy@${{ vars.WORKER_HOST }} "ln -sfn /opt/e-learning/releases/${RELEASE_ID} /opt/e-learning/current && sudo /usr/bin/systemctl restart e-learning-worker && sudo /usr/bin/systemctl is-active --quiet e-learning-worker"
+          ssh deploy@${{ vars.WORKER_HOST }} "
+            ln -sfn /opt/e-learning/releases/${RELEASE_ID} /opt/e-learning/current &&
+            sudo /usr/bin/systemctl restart e-learning-worker &&
+            sleep 10 &&
+            sudo /usr/bin/systemctl is-active --quiet e-learning-worker
+          "
