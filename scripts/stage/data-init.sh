@@ -220,13 +220,9 @@ BEGIN
 END
 \$\$;
 
-DO \$\$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = '${APP_DB_NAME}') THEN
-    EXECUTE format('CREATE DATABASE %I OWNER %I', '${APP_DB_NAME}', '${APP_DB_USER}');
-  END IF;
-END
-\$\$;
+if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='${APP_DB_NAME}'" | grep -q 1; then
+  sudo -u postgres psql -c "CREATE DATABASE ${APP_DB_NAME} OWNER ${APP_DB_USER}"
+fi
 SQL
 
 #######################################
