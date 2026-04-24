@@ -10,7 +10,7 @@ on:
         type: choice
         options: [stage, prod]
 
-# Minimal token permissions (good security baseline).
+# Minimal token permissions.
 permissions:
   contents: read
 
@@ -24,7 +24,7 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
-    # Uses GitHub Environments ("stage"/"prod") so you can scope secrets per env.
+    # Uses GitHub Environments ("stage"/"prod") so secrets/vars are scoped per env.
     environment: ${{ inputs.target_env }}
 
     steps:
@@ -32,7 +32,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      # Install JDK 25 (Temurin) and enable Gradle dependency cache.
+      # Install JDK 25 and enable Gradle dependency cache.
       - name: Set up Java
         uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
         with:
@@ -45,15 +45,15 @@ jobs:
         run: ./gradlew clean test bootJar
 
       # Copy exactly one runnable API jar and one runnable Worker jar to stable names.
-      # This avoids accidental deployment of "*-plain.jar".
+      # This avoids accidentally deploying "*-plain.jar".
       - name: Prepare artifacts deterministically
         shell: bash
         run: |
           shopt -s nullglob
+
           api_jars=(apps/api/build/libs/*.jar)
           worker_jars=(apps/worker/build/libs/*.jar)
 
-          # Prefer runnable jar, avoid *-plain.jar
           api_jar=$(printf "%s\n" "${api_jars[@]}" | grep -v -- '-plain\.jar$' | head -n1)
           worker_jar=$(printf "%s\n" "${worker_jars[@]}" | grep -v -- '-plain\.jar$' | head -n1)
 
@@ -79,67 +79,106 @@ jobs:
           printf '%s\n' "${{ secrets.SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
           chmod 644 ~/.ssh/known_hosts
 
-      # Deploy API jar and API env file, then repoint "current" symlink and restart service.
-      - name: Deploy API
+      # Upload the new API jar before running Flyway.
+      # Important: Flyway must run from the new release jar, not /opt/e-learning/current/api.jar.
+      # Otherwise old deployed code may run instead of the new migration scripts.
+      - name: Upload API release artifact
         shell: bash
         run: |
           RELEASE_ID="${GITHUB_SHA::12}"
 
-          # Create immutable release directory.
           ssh deploy@${{ vars.API_HOST }} "mkdir -p /opt/e-learning/releases/${RELEASE_ID}"
-
-          # Upload built artifact.
           scp api.jar deploy@${{ vars.API_HOST }}:/opt/e-learning/releases/${RELEASE_ID}/api.jar
 
-          # Write runtime environment file from shared secrets.
+      # Run Flyway migration using the dedicated migration DB user.
+      #
+      # This starts the Spring Boot jar in non-web mode.
+      # It does NOT start the API web server, but it does create enough of the Spring context
+      # for Spring Boot's Flyway auto-configuration to run migrations.
+      #
+      # Best-practice DB separation:
+      # - Migration user: allowed to change schema.
+      # - API user: normal app runtime permissions only.
+      # - Worker user: worker runtime permissions only.
+      - name: Run Flyway migration from new API jar
+        shell: bash
+        run: |
+          RELEASE_ID="${GITHUB_SHA::12}"
+
+          ssh deploy@${{ vars.API_HOST }} "
+            SPRING_PROFILES_ACTIVE='${{ vars.SPRING_PROFILES_ACTIVE }}' \
+            SPRING_MAIN_WEB_APPLICATION_TYPE=none \
+            SPRING_FLYWAY_ENABLED=true \
+            SPRING_FLYWAY_URL='${{ secrets.SPRING_DATASOURCE_URL }}' \
+            SPRING_FLYWAY_USER='${{ vars.SPRING_DATASOURCE_USERNAME_MIGRATION }}' \
+            SPRING_FLYWAY_PASSWORD='${{ secrets.SPRING_DATASOURCE_PASSWORD_MIGRATION }}' \
+            SPRING_DATASOURCE_URL='' \
+            SPRING_DATASOURCE_USERNAME='' \
+            SPRING_DATASOURCE_PASSWORD='' \
+            java -jar /opt/e-learning/releases/${RELEASE_ID}/api.jar
+          "
+
+      # Deploy API env file, then repoint "current" symlink and restart service.
+      # This only happens if Flyway migration passes.
+      - name: Activate API release
+        shell: bash
+        run: |
+          RELEASE_ID="${GITHUB_SHA::12}"
+
+          # Write API runtime environment file.
+          # Uses the dedicated API DB user, not the migration user.
           cat <<'EOF' | ssh deploy@${{ vars.API_HOST }} "cat > /opt/e-learning/.env && chmod 600 /opt/e-learning/.env"
           SPRING_PROFILES_ACTIVE=${{ vars.SPRING_PROFILES_ACTIVE }}
           SPRING_DATASOURCE_URL=${{ secrets.SPRING_DATASOURCE_URL }}
-          SPRING_DATASOURCE_USERNAME=${{ vars.SPRING_DATASOURCE_USERNAME }}
-          SPRING_DATASOURCE_PASSWORD=${{ secrets.SPRING_DATASOURCE_PASSWORD }}
-          SPRING_DATA_VALKEY_HOST=${{ secrets.SPRING_DATA_VALKEY_HOST }}
-          SPRING_DATA_VALKEY_PORT=${{ vars.SPRING_DATA_VALKEY_PORT }}
-          SPRING_DATA_VALKEY_PASSWORD=${{ secrets.SPRING_DATA_VALKEY_PASSWORD }}
+          SPRING_DATASOURCE_USERNAME=${{ vars.SPRING_DATASOURCE_USERNAME_API }}
+          SPRING_DATASOURCE_PASSWORD=${{ secrets.SPRING_DATASOURCE_PASSWORD_API }}
+          SPRING_FLYWAY_ENABLED=false
+          SPRING_DATA_REDIS_HOST=${{ secrets.SPRING_DATA_REDIS_HOST }}
+          SPRING_DATA_REDIS_PORT=${{ vars.SPRING_DATA_REDIS_PORT }}
+          SPRING_DATA_REDIS_PASSWORD=${{ secrets.SPRING_DATA_REDIS_PASSWORD }}
           EOF
-          
-          # Atomically switch current release and restart service.
+
+          # Atomically switch current release and restart API service.
           ssh deploy@${{ vars.API_HOST }} "
             ln -sfn /opt/e-learning/releases/${RELEASE_ID} /opt/e-learning/current &&
             sudo /usr/bin/systemctl restart e-learning-api &&
             for i in {1..24}; do
-            if curl -fsS http://127.0.0.1:8080/actuator/health | grep -q '\"status\":\"UP\"'; then
-            exit 0
-            fi
-            sleep 5
+              if curl -fsS http://127.0.0.1:8080/actuator/health | grep -q '\"status\":\"UP\"'; then
+                exit 0
+              fi
+              sleep 5
             done
             sudo journalctl -u e-learning-api -n 80 --no-pager
             exit 1
           "
 
       # Deploy Worker jar and Worker env file, then repoint "current" symlink and restart service.
+      # This only happens after Flyway migration and API activation pass.
       - name: Deploy Worker
         shell: bash
         run: |
           RELEASE_ID="${GITHUB_SHA::12}"
 
-          # Create immutable release directory.
+          # Create immutable worker release directory.
           ssh deploy@${{ vars.WORKER_HOST }} "mkdir -p /opt/e-learning/releases/${RELEASE_ID}"
 
-          # Upload built artifact.
+          # Upload built worker artifact.
           scp worker.jar deploy@${{ vars.WORKER_HOST }}:/opt/e-learning/releases/${RELEASE_ID}/worker.jar
 
-          # Write runtime environment file from shared secrets.          
+          # Write Worker runtime environment file.
+          # Uses the dedicated Worker DB user, not the API or migration user.
           cat <<'EOF' | ssh deploy@${{ vars.WORKER_HOST }} "cat > /opt/e-learning/.env && chmod 600 /opt/e-learning/.env"
           SPRING_PROFILES_ACTIVE=${{ vars.SPRING_PROFILES_ACTIVE }}
           SPRING_DATASOURCE_URL=${{ secrets.SPRING_DATASOURCE_URL }}
-          SPRING_DATASOURCE_USERNAME=${{ vars.SPRING_DATASOURCE_USERNAME }}
-          SPRING_DATASOURCE_PASSWORD=${{ secrets.SPRING_DATASOURCE_PASSWORD }}
-          SPRING_DATA_VALKEY_HOST=${{ secrets.SPRING_DATA_VALKEY_HOST }}
-          SPRING_DATA_VALKEY_PORT=${{ vars.SPRING_DATA_VALKEY_PORT }}
-          SPRING_DATA_VALKEY_PASSWORD=${{ secrets.SPRING_DATA_VALKEY_PASSWORD }}
+          SPRING_DATASOURCE_USERNAME=${{ vars.SPRING_DATASOURCE_USERNAME_WORKER }}
+          SPRING_DATASOURCE_PASSWORD=${{ secrets.SPRING_DATASOURCE_PASSWORD_WORKER }}
+          SPRING_FLYWAY_ENABLED=false
+          SPRING_DATA_REDIS_HOST=${{ secrets.SPRING_DATA_REDIS_HOST }}
+          SPRING_DATA_REDIS_PORT=${{ vars.SPRING_DATA_REDIS_PORT }}
+          SPRING_DATA_REDIS_PASSWORD=${{ secrets.SPRING_DATA_REDIS_PASSWORD }}
           EOF
 
-          # Atomically switch current release and restart service.
+          # Atomically switch current release and restart Worker service.
           ssh deploy@${{ vars.WORKER_HOST }} "
             ln -sfn /opt/e-learning/releases/${RELEASE_ID} /opt/e-learning/current &&
             sudo /usr/bin/systemctl restart e-learning-worker &&
