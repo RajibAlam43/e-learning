@@ -112,9 +112,7 @@ jobs:
             SPRING_FLYWAY_URL='${{ secrets.SPRING_DATASOURCE_URL }}' \
             SPRING_FLYWAY_USER='${{ vars.SPRING_DATASOURCE_USERNAME_MIGRATION }}' \
             SPRING_FLYWAY_PASSWORD='${{ secrets.SPRING_DATASOURCE_PASSWORD_MIGRATION }}' \
-            SPRING_DATASOURCE_URL='' \
-            SPRING_DATASOURCE_USERNAME='' \
-            SPRING_DATASOURCE_PASSWORD='' \
+            SPRING_AUTOCONFIGURE_EXCLUDE='org.springframework.boot.hibernate.autoconfigure.HibernateJpaAutoConfiguration,org.springframework.boot.data.jpa.autoconfigure.JpaRepositoriesAutoConfiguration,org.springframework.boot.data.redis.autoconfigure.RedisAutoConfiguration,org.springframework.boot.data.redis.autoconfigure.RedisRepositoriesAutoConfiguration' \
             java -jar /opt/e-learning/releases/${RELEASE_ID}/api.jar
           "
 
