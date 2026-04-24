@@ -9,16 +9,16 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 @Service
-public class TestJobConsumerService {
+public class SqsListener {
 
-    private static final Logger log = LoggerFactory.getLogger(TestJobConsumerService.class);
+    private static final Logger log = LoggerFactory.getLogger(SqsListener.class);
     private static final String QUEUE_KEY = "jobs:test";
 
     private final StringRedisTemplate stringRedisTemplate;
     private final JobExecutionLogRepository jobExecutionLogRepository;
 
-    public TestJobConsumerService(StringRedisTemplate stringRedisTemplate,
-                                  JobExecutionLogRepository jobExecutionLogRepository) {
+    public SqsListener(StringRedisTemplate stringRedisTemplate,
+                       JobExecutionLogRepository jobExecutionLogRepository) {
         this.stringRedisTemplate = stringRedisTemplate;
         this.jobExecutionLogRepository = jobExecutionLogRepository;
     }
