@@ -80,7 +80,8 @@ jobs:
               -password='${{ secrets.SPRING_DATASOURCE_PASSWORD_MIGRATION }}' \
               -locations='filesystem:/opt/e-learning/flyway/releases/${RELEASE_ID}/migration' \
               -connectRetries=5 \
-              validate && \
+              -ignoreMigrationPatterns='*:pending' \
+              validate &&
             /opt/flyway/flyway \
               -url='${{ secrets.SPRING_DATASOURCE_URL }}' \
               -user='${{ vars.SPRING_DATASOURCE_USERNAME_MIGRATION }}' \
