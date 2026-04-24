@@ -60,7 +60,8 @@ if [[ ! -x "/opt/flyway/flyway" ]]; then
   cd /tmp
 
   # Download pinned Flyway version.
-  wget -q "https://repo1.maven.org/maven2/org/flywaydb/flyway-commandline/${FLYWAY_VERSION}/flyway-commandline-${FLYWAY_VERSION}-linux-x64.tar.gz"
+  wget -q -O "flyway-commandline-${FLYWAY_VERSION}-linux-x64.tar.gz" \
+    "https://github.com/flyway/flyway/releases/download/flyway-${FLYWAY_VERSION}/flyway-commandline-${FLYWAY_VERSION}-linux-x64.tar.gz"
 
   # Extract archive.
   tar -xzf "flyway-commandline-${FLYWAY_VERSION}-linux-x64.tar.gz"
@@ -69,6 +70,9 @@ if [[ ! -x "/opt/flyway/flyway" ]]; then
   rm -rf /opt/flyway
   mv "flyway-${FLYWAY_VERSION}" /opt/flyway
 
+  # Ensure Flyway CLI is executable.
+  chmod +x /opt/flyway/flyway
+
   # Make flyway available globally.
   ln -sfn /opt/flyway/flyway /usr/local/bin/flyway
 
@@ -76,8 +80,21 @@ if [[ ! -x "/opt/flyway/flyway" ]]; then
   rm -f "flyway-commandline-${FLYWAY_VERSION}-linux-x64.tar.gz"
 fi
 
+# Install PostgreSQL database plugin for Flyway 12+.
+# Flyway CLI loads database plugin modules from /opt/flyway/lib/flyway.
+cd /tmp
+wget -q -O "flyway-database-postgresql-${FLYWAY_VERSION}.jar" \
+  "https://repo1.maven.org/maven2/org/flywaydb/flyway-database-postgresql/${FLYWAY_VERSION}/flyway-database-postgresql-${FLYWAY_VERSION}.jar"
+
+mkdir -p /opt/flyway/lib/flyway
+cp "flyway-database-postgresql-${FLYWAY_VERSION}.jar" /opt/flyway/lib/flyway/
+chmod 644 "/opt/flyway/lib/flyway/flyway-database-postgresql-${FLYWAY_VERSION}.jar"
+
+# Clean up plugin download.
+rm -f "flyway-database-postgresql-${FLYWAY_VERSION}.jar"
+
 # Verify Flyway installation.
-flyway -v
+flyway --version
 
 # Create non-root deploy user if it does not exist.
 id -u deploy >/dev/null 2>&1 || useradd -m -s /bin/bash deploy
