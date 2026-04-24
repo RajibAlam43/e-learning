@@ -13,6 +13,9 @@ APP_NAME="e-learning-api"
 DOMAIN="stage-api.globalislamicinstitute.com"
 DEPLOY_PUBLIC_KEY="REPLACE_ME"
 
+# Pin Flyway version so server setup is deterministic and reproducible.
+FLYWAY_VERSION="12.4.0"
+
 if [[ -z "${DEPLOY_PUBLIC_KEY:-}" || "${DEPLOY_PUBLIC_KEY}" == "REPLACE_ME" ]]; then
   echo "ERROR: DEPLOY_PUBLIC_KEY is not set. Edit script values first."
   exit 1
@@ -23,7 +26,7 @@ export DEBIAN_FRONTEND=noninteractive
 
 # Install base tools needed to add HTTPS apt repositories and keys.
 apt-get update
-apt-get install -y ca-certificates curl gnupg lsb-release debian-keyring debian-archive-keyring apt-transport-https
+apt-get install -y ca-certificates curl wget gnupg lsb-release debian-keyring debian-archive-keyring apt-transport-https tar
 
 # Create dedicated keyring directory for external apt repo signing keys.
 install -m 0755 -d /etc/apt/keyrings
@@ -50,6 +53,32 @@ echo "deb [signed-by=/etc/apt/keyrings/caddy.gpg] https://dl.cloudsmith.io/publi
 apt-get update
 apt-get install -y temurin-25-jre caddy
 
+# Install Flyway CLI (one-time setup).
+# This allows running database migrations WITHOUT starting the Spring Boot app.
+# Used by a separate GitHub Actions workflow that SSHs into this droplet.
+if [[ ! -x "/opt/flyway/flyway" ]]; then
+  cd /tmp
+
+  # Download pinned Flyway version.
+  wget -q "https://repo1.maven.org/maven2/org/flywaydb/flyway-commandline/${FLYWAY_VERSION}/flyway-commandline-${FLYWAY_VERSION}-linux-x64.tar.gz"
+
+  # Extract archive.
+  tar -xzf "flyway-commandline-${FLYWAY_VERSION}-linux-x64.tar.gz"
+
+  # Install into /opt for consistency with other app tooling.
+  rm -rf /opt/flyway
+  mv "flyway-${FLYWAY_VERSION}" /opt/flyway
+
+  # Make flyway available globally.
+  ln -sfn /opt/flyway/flyway /usr/local/bin/flyway
+
+  # Clean up archive.
+  rm -f "flyway-commandline-${FLYWAY_VERSION}-linux-x64.tar.gz"
+fi
+
+# Verify Flyway installation.
+flyway -v
+
 # Create non-root deploy user if it does not exist.
 id -u deploy >/dev/null 2>&1 || useradd -m -s /bin/bash deploy
 
@@ -66,9 +95,14 @@ install -d -o deploy -g deploy -m 0750 /opt/e-learning
 install -o deploy -g deploy -m 0600 /dev/null /opt/e-learning/.env
 install -d -o deploy -g deploy -m 0755 /opt/e-learning/releases
 
+# Create directories for Flyway migration workflow:
+# /opt/e-learning/flyway/releases -> migration files uploaded per deploy
+install -d -o deploy -g deploy -m 0755 /opt/e-learning/flyway
+install -d -o deploy -g deploy -m 0755 /opt/e-learning/flyway/releases
+
 # Allow deploy user to restart/check only API service via sudo (principle of least privilege).
 cat > /etc/sudoers.d/e-learning-api <<'EOF'
-deploy ALL=(root) NOPASSWD: /usr/bin/systemctl restart e-learning-api, /usr/bin/systemctl is-active --quiet e-learning-api
+deploy ALL=(root) NOPASSWD: /usr/bin/systemctl restart e-learning-api, /usr/bin/systemctl is-active --quiet e-learning-api, /usr/bin/journalctl -u e-learning-api -n 80 --no-pager
 EOF
 chmod 440 /etc/sudoers.d/e-learning-api
 

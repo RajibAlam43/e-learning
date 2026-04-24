@@ -1,0 +1,91 @@
+name: Run Flyway Migration
+
+# Manual trigger from GitHub Actions UI.
+on:
+  workflow_dispatch:
+    inputs:
+      target_env:
+        description: Migration environment
+        required: true
+        type: choice
+        options: [stage, prod]
+
+# Minimal token permissions.
+permissions:
+  contents: read
+
+# Prevent overlapping migrations for same environment.
+concurrency:
+  group: flyway-${{ inputs.target_env }}
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+
+    # Use GitHub environment (stage/prod) for scoped secrets/vars.
+    environment: ${{ inputs.target_env }}
+
+    steps:
+      # Pull repository source code into the runner.
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Configure SSH key + known_hosts for secure non-interactive deployment.
+      - name: Setup SSH
+        shell: bash
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          # Private key used by runner to SSH/SCP into droplet.
+          printf '%s\n' "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+          # Pre-verified host keys to prevent MITM.
+          printf '%s\n' "${{ secrets.SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      # Upload Flyway SQL migration files to droplet.
+      # These are versioned under db/migration in your repo.
+      - name: Upload migration files
+        shell: bash
+        run: |
+          RELEASE_ID="${GITHUB_SHA::12}"
+
+          # Create clean release directory for this migration run.
+          ssh -o BatchMode=yes deploy@${{ vars.API_HOST }} "
+            rm -rf /opt/e-learning/flyway/releases/${RELEASE_ID} &&
+            mkdir -p /opt/e-learning/flyway/releases/${RELEASE_ID}
+          "
+
+          # Upload migration SQL files only.
+          scp -r \
+            -o BatchMode=yes \
+            apps/api/src/main/resources/db/migration \
+            deploy@${{ vars.API_HOST }}:/opt/e-learning/flyway/releases/${RELEASE_ID}/migration
+
+      # Run Flyway CLI on droplet.
+      # This uses ONLY the migration DB user.
+      # Does NOT start Spring Boot or load app context.
+      - name: Run Flyway migration
+        shell: bash
+        run: |
+          RELEASE_ID="${GITHUB_SHA::12}"
+          
+          ssh -o BatchMode=yes deploy@${{ vars.API_HOST }} "
+            flyway \
+              -url='${{ secrets.SPRING_DATASOURCE_URL }}' \
+              -user='${{ vars.SPRING_DATASOURCE_USERNAME_MIGRATION }}' \
+              -password='${{ secrets.SPRING_DATASOURCE_PASSWORD_MIGRATION }}' \
+              -locations='filesystem:/opt/e-learning/flyway/releases/${RELEASE_ID}/migration' \
+              -connectRetries=5 \
+              validate && \
+            flyway \
+              -url='${{ secrets.SPRING_DATASOURCE_URL }}' \
+              -user='${{ vars.SPRING_DATASOURCE_USERNAME_MIGRATION }}' \
+              -password='${{ secrets.SPRING_DATASOURCE_PASSWORD_MIGRATION }}' \
+              -locations='filesystem:/opt/e-learning/flyway/releases/${RELEASE_ID}/migration' \
+              -connectRetries=5 \
+              migrate
+          "
