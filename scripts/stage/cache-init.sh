@@ -14,10 +14,11 @@ umask 027
 # 0) EDIT THESE VALUES BEFORE RUNNING
 #######################################
 
-REDIS_PASSWORD="REPLACE_WITH_STRONG_PASSWORD"
+REDIS_PASSWORD="REPLACE_ME"
 
-API_ALLOWED_CIDR="10.104.16.2/32"
-WORKER_ALLOWED_CIDR="10.104.16.3/32"
+# Add /32 at the end of the private IP
+API_ALLOWED_CIDR="REPLACE_ME"
+WORKER_ALLOWED_CIDR="REPLACE_ME"
 
 #######################################
 # 1) AUTO-DETECT PRIVATE IP
@@ -41,7 +42,7 @@ required_vars=(
 )
 
 for v in "${required_vars[@]}"; do
-  if [[ -z "${!v:-}" || "${!v}" == "REPLACE_WITH_STRONG_PASSWORD" ]]; then
+  if [[ -z "${!v:-}" || "${!v}" == "REPLACE_ME" ]]; then
     echo "ERROR: ${v} is not set."
     exit 1
   fi
