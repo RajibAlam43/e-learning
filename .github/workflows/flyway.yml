@@ -74,18 +74,21 @@ jobs:
           RELEASE_ID="${GITHUB_SHA::12}"
           
           ssh -o BatchMode=yes deploy@${{ vars.API_HOST }} "
-            flyway \
+            /opt/flyway/flyway \
               -url='${{ secrets.SPRING_DATASOURCE_URL }}' \
               -user='${{ vars.SPRING_DATASOURCE_USERNAME_MIGRATION }}' \
               -password='${{ secrets.SPRING_DATASOURCE_PASSWORD_MIGRATION }}' \
               -locations='filesystem:/opt/e-learning/flyway/releases/${RELEASE_ID}/migration' \
               -connectRetries=5 \
               validate && \
-            flyway \
+            /opt/flyway/flyway \
               -url='${{ secrets.SPRING_DATASOURCE_URL }}' \
               -user='${{ vars.SPRING_DATASOURCE_USERNAME_MIGRATION }}' \
               -password='${{ secrets.SPRING_DATASOURCE_PASSWORD_MIGRATION }}' \
               -locations='filesystem:/opt/e-learning/flyway/releases/${RELEASE_ID}/migration' \
               -connectRetries=5 \
-              migrate
+            migrate && \
+            if [ -d /opt/e-learning/flyway/releases ]; then
+              find /opt/e-learning/flyway/releases -mindepth 1 -maxdepth 1 -type d -mtime +30 -print0 | xargs -0 rm -rf
+            fi
           "
