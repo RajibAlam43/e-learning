@@ -14,7 +14,7 @@ umask 027
 # 0) EDIT THESE VALUES BEFORE RUNNING
 #######################################
 
-VALKEY_PASSWORD="REPLACE_WITH_STRONG_PASSWORD"
+REDIS_PASSWORD="REPLACE_WITH_STRONG_PASSWORD"
 
 API_ALLOWED_CIDR="10.104.16.2/32"
 WORKER_ALLOWED_CIDR="10.104.16.3/32"
@@ -35,7 +35,7 @@ fi
 #######################################
 
 required_vars=(
-  VALKEY_PASSWORD
+  REDIS_PASSWORD
   API_ALLOWED_CIDR
   WORKER_ALLOWED_CIDR
 )
@@ -60,17 +60,17 @@ apt-get install -y \
   ufw \
   unattended-upgrades
 
-VALKEY_SERVICE=""
+REDIS_SERVICE=""
 
 if apt-cache show valkey >/dev/null 2>&1; then
   apt-get install -y valkey
-  VALKEY_SERVICE="valkey"
+  REDIS_SERVICE="valkey"
 elif apt-cache show valkey-server >/dev/null 2>&1; then
   apt-get install -y valkey-server
-  VALKEY_SERVICE="valkey-server"
+  REDIS_SERVICE="valkey-server"
 elif apt-cache show redis-server >/dev/null 2>&1; then
   apt-get install -y redis-server
-  VALKEY_SERVICE="redis-server"
+  REDIS_SERVICE="redis-server"
 else
   echo "ERROR: Could not find valkey/redis-server package."
   exit 1
@@ -83,68 +83,68 @@ fi
 install -d -m 0750 /etc/e-learning
 
 cat >/etc/e-learning/runtime.env <<EOF
-SPRING_DATA_VALKEY_HOST=${DATA_PRIVATE_IP}
-SPRING_DATA_VALKEY_PORT=6379
-SPRING_DATA_VALKEY_PASSWORD=${VALKEY_PASSWORD}
+SPRING_DATA_REDIS_HOST=${DATA_PRIVATE_IP}
+SPRING_DATA_REDIS_PORT=6379
+SPRING_DATA_REDIS_PASSWORD=${REDIS_PASSWORD}
 EOF
 
 chmod 0600 /etc/e-learning/runtime.env
 chown root:root /etc/e-learning/runtime.env
 
 #######################################
-# 5) CONFIGURE VALKEY / REDIS
+# 5) CONFIGURE REDIS / VALKEY
 #######################################
 
-VALKEY_CONF=""
+REDIS_CONF=""
 
 for c in /etc/valkey/valkey.conf /etc/valkey.conf /etc/redis/redis.conf; do
   if [[ -f "$c" ]]; then
-    VALKEY_CONF="$c"
+    REDIS_CONF="$c"
     break
   fi
 done
 
-if [[ -z "${VALKEY_CONF}" ]]; then
+if [[ -z "${REDIS_CONF}" ]]; then
   echo "ERROR: Could not locate Valkey/Redis config file."
   exit 1
 fi
 
 # Bind only loopback + private VPC IP.
-sed -i "s/^#\?bind .*/bind 127.0.0.1 ${DATA_PRIVATE_IP}/" "${VALKEY_CONF}"
-sed -i "s/^#\?protected-mode .*/protected-mode yes/" "${VALKEY_CONF}"
-sed -i "s/^#\?port .*/port 6379/" "${VALKEY_CONF}"
-sed -i "s/^#\?supervised .*/supervised systemd/" "${VALKEY_CONF}"
+sed -i "s/^#\?bind .*/bind 127.0.0.1 ${DATA_PRIVATE_IP}/" "${REDIS_CONF}"
+sed -i "s/^#\?protected-mode .*/protected-mode yes/" "${REDIS_CONF}"
+sed -i "s/^#\?port .*/port 6379/" "${REDIS_CONF}"
+sed -i "s/^#\?supervised .*/supervised systemd/" "${REDIS_CONF}"
 
 # Require password.
-if grep -q "^#\?requirepass " "${VALKEY_CONF}"; then
-  sed -i "s|^#\?requirepass .*|requirepass ${VALKEY_PASSWORD}|" "${VALKEY_CONF}"
+if grep -q "^#\?requirepass " "${REDIS_CONF}"; then
+  sed -i "s|^#\?requirepass .*|requirepass ${REDIS_PASSWORD}|" "${REDIS_CONF}"
 else
-  echo "requirepass ${VALKEY_PASSWORD}" >>"${VALKEY_CONF}"
+  echo "requirepass ${REDIS_PASSWORD}" >>"${REDIS_CONF}"
 fi
 
 # Enable AOF persistence.
-if grep -q "^#\?appendonly " "${VALKEY_CONF}"; then
-  sed -i "s/^#\?appendonly .*/appendonly yes/" "${VALKEY_CONF}"
+if grep -q "^#\?appendonly " "${REDIS_CONF}"; then
+  sed -i "s/^#\?appendonly .*/appendonly yes/" "${REDIS_CONF}"
 else
-  echo "appendonly yes" >>"${VALKEY_CONF}"
+  echo "appendonly yes" >>"${REDIS_CONF}"
 fi
 
 # Resolve service name defensively.
 if systemctl list-unit-files | grep -q '^valkey-server\.service'; then
-  VALKEY_SERVICE="valkey-server"
+  REDIS_SERVICE="valkey-server"
 elif systemctl list-unit-files | grep -q '^valkey\.service'; then
-  VALKEY_SERVICE="valkey"
+  REDIS_SERVICE="valkey"
 elif systemctl list-unit-files | grep -q '^redis-server\.service'; then
-  VALKEY_SERVICE="redis-server"
+  REDIS_SERVICE="redis-server"
 fi
 
-if [[ -z "${VALKEY_SERVICE}" ]]; then
+if [[ -z "${REDIS_SERVICE}" ]]; then
   echo "ERROR: Could not detect Valkey/Redis service name."
   exit 1
 fi
 
-systemctl enable "${VALKEY_SERVICE}"
-systemctl restart "${VALKEY_SERVICE}"
+systemctl enable "${REDIS_SERVICE}"
+systemctl restart "${REDIS_SERVICE}"
 
 #######################################
 # 6) FIREWALL RULES
@@ -166,11 +166,11 @@ ufw --force enable
 
 echo "Valkey bootstrap complete."
 echo "Valkey private IP: ${DATA_PRIVATE_IP}"
-echo "Valkey/Redis service: ${VALKEY_SERVICE}"
+echo "Valkey/Redis service: ${REDIS_SERVICE}"
 echo "Runtime app secrets file: /etc/e-learning/runtime.env"
 
 echo ""
 echo "Quick checks:"
 echo "  sudo ss -lntp | grep ':6379'"
-echo "  sudo systemctl status ${VALKEY_SERVICE} --no-pager"
+echo "  sudo systemctl status ${REDIS_SERVICE} --no-pager"
 echo "  sudo cat /etc/e-learning/runtime.env"

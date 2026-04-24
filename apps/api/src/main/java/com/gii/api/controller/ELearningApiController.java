@@ -1,38 +1,33 @@
 package com.gii.api.controller;
 
-import com.gii.api.model.TestJobRequest;
-import com.gii.api.service.TestJobService;
+import com.gii.api.service.SqsProducerService;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.Map;
-
 @RestController
 public class ELearningApiController {
 
-    private final TestJobService testJobService;
+    private final SqsProducerService sqsProducerService;
 
     @Autowired
-    public ELearningApiController(TestJobService testJobService) {
-        this.testJobService = testJobService;
+    public ELearningApiController(SqsProducerService sqsProducerService) {
+        this.sqsProducerService = sqsProducerService;
     }
 
-    @GetMapping("/api/public/ping")
+    @GetMapping("ping")
     public String ping() {
         return "pong";
     }
 
-    @PostMapping("/test")
-    public Map<String, String> enqueueTestJob(@RequestBody TestJobRequest request) {
-        String message = request.getMessage() == null ? "hello" : request.getMessage();
-        String jobId = testJobService.enqueue(message);
-        return Map.of(
-                "status", "queued",
-                "jobId", jobId,
-                "message", message
-        );
+    @PostMapping("/test-sqs")
+    public ResponseEntity<@NotNull HttpStatus> enqueueTestJob(@RequestBody String request) {
+        sqsProducerService.sendMessage(request, "gii-stage-email-jobs-queue", null);
+        return ResponseEntity.ok(HttpStatus.OK);
     }
 }
