@@ -1,6 +1,5 @@
 package com.gii.api.config;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
@@ -14,9 +13,6 @@ import java.net.URI;
 
 @Configuration
 public class SqsConfig {
-
-    @Value("${spring.cloud.aws.sqs.listener.auto-startup}")
-    private boolean autoStartup;
 
     @Bean
     @Profile("local")
