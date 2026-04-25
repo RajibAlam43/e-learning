@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:17
+    image: postgres:18
     container_name: elearning-postgres
     environment:
       POSTGRES_DB: elearning
@@ -16,18 +16,67 @@ services:
       timeout: 5s
       retries: 5
 
-  redis:
-    image: redis:7.4
-    container_name: elearning-redis
+  valkey:
+    image: valkey/valkey:8
+    container_name: elearning-valkey
     ports:
       - "6379:6379"
     volumes:
-      - redis_data:/data
+      - valkey_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "valkey-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+
+  localstack:
+    image: localstack/localstack:latest
+    container_name: elearning-localstack
+    environment:
+      SERVICES: sqs
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+    ports:
+      - "4566:4566"
+
+  sqs-init:
+    image: amazon/aws-cli:latest
+    container_name: elearning-sqs-init
+    depends_on:
+      - localstack
+    environment:
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: us-east-1
+    entrypoint: /bin/sh
+    command: >
+      -c "
+      until aws --endpoint-url=http://localstack:4566 sqs list-queues >/dev/null 2>&1; do
+        echo 'Waiting for LocalStack SQS...';
+        sleep 2;
+      done;
+      aws --endpoint-url=http://localstack:4566 sqs create-queue --queue-name elearning-local-jobs;
+      echo 'SQS queue ready.'
+      "
+
+  flyway:
+    image: flyway/flyway:12.4.0
+    container_name: elearning-flyway
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command:
+      [
+        "-url=jdbc:postgresql://postgres:5432/elearning",
+        "-user=postgres",
+        "-password=postgres",
+        "-locations=filesystem:/flyway/sql",
+        "-ignoreMigrationPatterns=*:pending",
+        "migrate"
+      ]
+    volumes:
+      - ./apps/api/src/main/resources/db/migration:/flyway/sql:ro
 
   api:
     build:
@@ -37,15 +86,27 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
-        condition: service_healthy
+      flyway:
+        condition: service_completed_successfully
+      sqs-init:
+        condition: service_completed_successfully
     environment:
       SPRING_PROFILES_ACTIVE: local
+      SPRING_FLYWAY_ENABLED: false
+
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/elearning
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
-      SPRING_DATA_REDIS_HOST: redis
+
+      SPRING_DATA_REDIS_HOST: valkey
       SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_PASSWORD: ""
+
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      APP_SQS_ENDPOINT: http://localstack:4566
+      APP_SQS_REQUIRED_QUEUE_URL: http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/elearning-local-jobs
     ports:
       - "8080:8080"
 
@@ -57,16 +118,28 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
-        condition: service_healthy
+      flyway:
+        condition: service_completed_successfully
+      sqs-init:
+        condition: service_completed_successfully
     environment:
       SPRING_PROFILES_ACTIVE: local
+      SPRING_FLYWAY_ENABLED: false
+
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/elearning
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
-      SPRING_DATA_REDIS_HOST: redis
+
+      SPRING_DATA_REDIS_HOST: valkey
       SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_PASSWORD: ""
+
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      APP_SQS_ENDPOINT: http://localstack:4566
+      APP_SQS_REQUIRED_QUEUE_URL: http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/elearning-local-jobs
 
 volumes:
   postgres_data:
-  redis_data:
+  valkey_data:
