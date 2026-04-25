@@ -11,5 +11,5 @@ public interface MediaAssetRepository extends JpaRepository<MediaAsset, UUID> {
 
     Optional<MediaAsset> findByProviderAndProviderAssetId(MediaProvider provider, String providerAssetId);
 
-    Optional<MediaAsset> findByPlaybackId(String playbackId);
+    Optional<MediaAsset> findByProviderAndPlaybackId(MediaProvider provider, String playbackId);
 }
