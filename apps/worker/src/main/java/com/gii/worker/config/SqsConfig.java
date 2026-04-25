@@ -26,7 +26,7 @@ public class SqsConfig {
     @Profile("local")
     public SqsAsyncClient sqsAsyncClientLocal() {
         return SqsAsyncClient.builder()
-                .endpointOverride(URI.create("http://localhost:4566"))
+                .endpointOverride(URI.create("http://elasticmq:9324"))
                 .region(Region.AP_SOUTHEAST_1)
                 .credentialsProvider(
                         StaticCredentialsProvider.create(

@@ -1,5 +1,6 @@
 package com.gii.common.repository.order;
 
+import com.gii.common.model.enums.OrderProvider;
 import com.gii.common.model.order.PaymentEvent;
 import com.gii.common.model.enums.PaymentEventStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -12,7 +13,7 @@ public interface PaymentEventRepository extends JpaRepository<PaymentEvent, UUID
 
     List<PaymentEvent> findByOrderId(UUID orderId);
 
-    Optional<PaymentEvent> findByProviderEventId(String providerEventId);
+    Optional<PaymentEvent> findByProviderAndProviderEventId(OrderProvider provider, String providerEventId);
 
     List<PaymentEvent> findByStatus(PaymentEventStatus status);
 }

@@ -38,6 +38,8 @@ public class SqsProducerService {
                 ))
                 .build();
 
+        log.info("{} sent to {}", message, queueName);
+
         return sqsClient.sendMessage(request)
                 .thenApply(SendMessageResponse::messageId);
     }
