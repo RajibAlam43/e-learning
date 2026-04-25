@@ -9,7 +9,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d elearning"]
       interval: 10s
@@ -29,54 +29,15 @@ services:
       timeout: 5s
       retries: 5
 
-  localstack:
-    image: localstack/localstack:latest
-    container_name: elearning-localstack
-    environment:
-      SERVICES: sqs
-      AWS_DEFAULT_REGION: us-east-1
-      AWS_ACCESS_KEY_ID: test
-      AWS_SECRET_ACCESS_KEY: test
+  elasticmq:
+    image: softwaremill/elasticmq:latest
+    container_name: elearning-elasticmq
     ports:
-      - "4566:4566"
-
-  sqs-init:
-    image: amazon/aws-cli:latest
-    container_name: elearning-sqs-init
-    depends_on:
-      - localstack
-    environment:
-      AWS_ACCESS_KEY_ID: test
-      AWS_SECRET_ACCESS_KEY: test
-      AWS_DEFAULT_REGION: us-east-1
-    entrypoint: /bin/sh
-    command: >
-      -c "
-      until aws --endpoint-url=http://localstack:4566 sqs list-queues >/dev/null 2>&1; do
-        echo 'Waiting for LocalStack SQS...';
-        sleep 2;
-      done;
-      aws --endpoint-url=http://localstack:4566 sqs create-queue --queue-name elearning-local-jobs;
-      echo 'SQS queue ready.'
-      "
-
-  flyway:
-    image: flyway/flyway:12.4.0
-    container_name: elearning-flyway
-    depends_on:
-      postgres:
-        condition: service_healthy
-    command:
-      [
-        "-url=jdbc:postgresql://postgres:5432/elearning",
-        "-user=postgres",
-        "-password=postgres",
-        "-locations=filesystem:/flyway/sql",
-        "-ignoreMigrationPatterns=*:pending",
-        "migrate"
-      ]
+      - "9324:9324"
     volumes:
-      - ./apps/api/src/main/resources/db/migration:/flyway/sql:ro
+      - ./elasticmq.conf:/opt/elasticmq.conf
+    command: >
+      -Dconfig.file=/opt/elasticmq.conf
 
   api:
     build:
@@ -86,13 +47,9 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      flyway:
-        condition: service_completed_successfully
-      sqs-init:
-        condition: service_completed_successfully
     environment:
       SPRING_PROFILES_ACTIVE: local
-      SPRING_FLYWAY_ENABLED: false
+      SPRING_FLYWAY_ENABLED: true
 
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/elearning
       SPRING_DATASOURCE_USERNAME: postgres
@@ -100,13 +57,12 @@ services:
 
       SPRING_DATA_REDIS_HOST: valkey
       SPRING_DATA_REDIS_PORT: 6379
-      SPRING_DATA_REDIS_PASSWORD: ""
 
       AWS_REGION: us-east-1
-      AWS_ACCESS_KEY_ID: test
-      AWS_SECRET_ACCESS_KEY: test
-      APP_SQS_ENDPOINT: http://localstack:4566
-      APP_SQS_REQUIRED_QUEUE_URL: http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/elearning-local-jobs
+      AWS_ACCESS_KEY_ID: dummy
+      AWS_SECRET_ACCESS_KEY: dummy
+      APP_SQS_ENDPOINT: http://elasticmq:9324
+      APP_SQS_REQUIRED_QUEUE_URL: http://elasticmq:9324/000000000000/elearning-local-jobs
     ports:
       - "8080:8080"
 
@@ -118,13 +74,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      flyway:
-        condition: service_completed_successfully
-      sqs-init:
-        condition: service_completed_successfully
     environment:
       SPRING_PROFILES_ACTIVE: local
-      SPRING_FLYWAY_ENABLED: false
 
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/elearning
       SPRING_DATASOURCE_USERNAME: postgres
@@ -132,13 +83,12 @@ services:
 
       SPRING_DATA_REDIS_HOST: valkey
       SPRING_DATA_REDIS_PORT: 6379
-      SPRING_DATA_REDIS_PASSWORD: ""
 
       AWS_REGION: us-east-1
-      AWS_ACCESS_KEY_ID: test
-      AWS_SECRET_ACCESS_KEY: test
-      APP_SQS_ENDPOINT: http://localstack:4566
-      APP_SQS_REQUIRED_QUEUE_URL: http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/elearning-local-jobs
+      AWS_ACCESS_KEY_ID: dummy
+      AWS_SECRET_ACCESS_KEY: dummy
+      APP_SQS_ENDPOINT: http://elasticmq:9324
+      APP_SQS_REQUIRED_QUEUE_URL: http://elasticmq:9324/000000000000/elearning-local-jobs
 
 volumes:
   postgres_data:
