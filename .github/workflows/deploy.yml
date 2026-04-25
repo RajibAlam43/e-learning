@@ -102,16 +102,26 @@ jobs:
           EOF
 
           # Atomically switch current release and restart service.
+          # Uses stop + start instead of restart to avoid restart timing weirdness.
+          # Health check waits longer because Spring Boot startup can take time on small droplets.
           ssh deploy@${{ vars.API_HOST }} "
             ln -sfn /opt/e-learning/releases/${RELEASE_ID} /opt/e-learning/current &&
-            sudo /usr/bin/systemctl restart e-learning-api &&
-            for i in {1..24}; do
+
+            sudo /usr/bin/systemctl stop e-learning-api || true
+            sleep 5
+            sudo /usr/bin/systemctl start e-learning-api &&
+
+            for i in {1..90}; do
               if curl -fsS http://127.0.0.1:8080/actuator/health | grep -q '\"status\":\"UP\"'; then
+                echo 'API is healthy.'
                 exit 0
               fi
               sleep 5
             done
-            sudo journalctl -u e-learning-api -n 80 --no-pager
+
+            echo 'API failed to become healthy.'
+            systemctl status e-learning-api --no-pager || true
+            sudo /usr/bin/journalctl -u e-learning-api -n 150 --no-pager
             exit 1
           "
 
