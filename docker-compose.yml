@@ -62,7 +62,7 @@ services:
       AWS_ACCESS_KEY_ID: dummy
       AWS_SECRET_ACCESS_KEY: dummy
       APP_SQS_ENDPOINT: http://elasticmq:9324
-      APP_SQS_REQUIRED_QUEUE_URL: http://elasticmq:9324/000000000000/elearning-local-jobs
+      APP_SQS_REQUIRED_QUEUE_URL: http://elasticmq:9324/000000000000/gii-local-email-jobs-queue
     ports:
       - "8080:8080"
 
@@ -88,7 +88,7 @@ services:
       AWS_ACCESS_KEY_ID: dummy
       AWS_SECRET_ACCESS_KEY: dummy
       APP_SQS_ENDPOINT: http://elasticmq:9324
-      APP_SQS_REQUIRED_QUEUE_URL: http://elasticmq:9324/000000000000/elearning-local-jobs
+      APP_SQS_REQUIRED_QUEUE_URL: http://elasticmq:9324/000000000000/gii-local-email-jobs-queue
 
 volumes:
   postgres_data:

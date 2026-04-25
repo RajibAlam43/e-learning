@@ -24,12 +24,12 @@ public class ELearningApiController {
         this.sqsProducerService = sqsProducerService;
     }
 
-    @GetMapping("ping")
+    @GetMapping("public/ping")
     public String ping() {
         return "pong";
     }
 
-    @PostMapping("/test-sqs")
+    @PostMapping("public/test-sqs")
     public ResponseEntity<@NotNull HttpStatus> enqueueTestJob(@RequestBody String request) {
         sqsProducerService.sendMessage(request, queueName, null);
         return ResponseEntity.ok(HttpStatus.OK);
