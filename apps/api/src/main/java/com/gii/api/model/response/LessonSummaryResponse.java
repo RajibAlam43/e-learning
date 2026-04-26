@@ -13,5 +13,6 @@ public record LessonSummaryResponse(
         Integer position,
         LessonType lessonType,
         Boolean isPreviewFree,
-        Integer durationSeconds
+        Integer durationSeconds,
+        LessonVideoResponse video
 ) {}

@@ -4,11 +4,15 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.gii.common.entity.common.BaseUuidEntity;
 import com.gii.common.enums.UserStatus;
 import jakarta.persistence.*;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.SuperBuilder;
 
 import java.time.Instant;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @SuperBuilder
 @Getter
@@ -38,11 +42,23 @@ public class User extends BaseUuidEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 30)
-    private UserStatus status;
+    @Builder.Default
+    private UserStatus status = UserStatus.active;
 
     @Column(name = "email_verified_at")
     private Instant emailVerifiedAt;
 
     @Column(name = "phone_verified_at")
     private Instant phoneVerifiedAt;
+
+    @JsonIgnore
+    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
+    @Builder.Default
+    private Set<UserRole> userRoles = new HashSet<>();
+
+    public Set<String> getRoleNames() {
+        return userRoles.stream()
+                .map(userRole -> userRole.getRole().getName())
+                .collect(Collectors.toSet());
+    }
 }

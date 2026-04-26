@@ -1,25 +1,19 @@
-package com.gii.common.entity.user;
+package com.gii.common.entity.common;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.gii.common.entity.common.BaseTokenEntity;
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.MappedSuperclass;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.SuperBuilder;
 
 import java.time.Instant;
 
-@SuperBuilder
+@MappedSuperclass
 @Getter
 @Setter
-@Entity
-@Table(name = "email_verification_tokens")
-public class EmailVerificationToken extends BaseTokenEntity {
-
-    @JsonIgnore
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+@SuperBuilder
+public abstract class BaseTokenEntity extends CreatedOnlyUuidEntity {
 
     @JsonIgnore
     @Column(name = "token_hash", nullable = false, unique = true)
@@ -30,4 +24,7 @@ public class EmailVerificationToken extends BaseTokenEntity {
 
     @Column(name = "used_at")
     private Instant usedAt;
+
+    @Column(name = "revoked_at")
+    private Instant revokedAt;
 }

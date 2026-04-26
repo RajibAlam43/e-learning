@@ -21,7 +21,7 @@ public class RefreshTokenService {
 
     public AuthResponse execute(String oldRefreshToken, HttpServletResponse response) {
 
-        // 🔥 validate + rotate
+        // validate and rotate
         User user = refreshTokenStoreService.validateAndRotate(oldRefreshToken);
 
         String newAccessToken = jwtService.generateAccessTokenFromUsername(user.getEmail());

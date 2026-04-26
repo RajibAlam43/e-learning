@@ -1,7 +1,7 @@
 package com.gii.common.entity.user;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.gii.common.entity.common.CreatedOnlyUuidEntity;
+import com.gii.common.entity.common.BaseTokenEntity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -14,7 +14,7 @@ import java.time.Instant;
 @Setter
 @Entity
 @Table(name = "password_reset_tokens")
-public class PasswordResetToken extends CreatedOnlyUuidEntity {
+public class PasswordResetToken extends BaseTokenEntity {
 
     @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

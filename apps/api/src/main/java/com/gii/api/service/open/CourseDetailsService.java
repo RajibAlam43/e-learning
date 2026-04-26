@@ -1,10 +1,7 @@
 package com.gii.api.service.open;
 
 import com.gii.api.model.response.*;
-import com.gii.common.entity.course.Category;
-import com.gii.common.entity.course.Course;
-import com.gii.common.entity.course.CourseSection;
-import com.gii.common.entity.course.Lesson;
+import com.gii.common.entity.course.*;
 import com.gii.common.enums.CourseStatus;
 import com.gii.common.enums.LessonStatus;
 import com.gii.common.entity.user.User;
@@ -81,6 +78,17 @@ public class CourseDetailsService {
     }
 
     private LessonSummaryResponse toLessonSummaryResponse(Lesson lesson) {
+        MediaAsset media = lesson.getMediaAsset();
+
+        LessonVideoResponse video = null;
+
+        if (Boolean.TRUE.equals(lesson.getIsPreviewFree()) && media != null) {
+            video = LessonVideoResponse.builder()
+                    .provider(media.getProvider())
+                    .sourceId(media.getProviderAssetId()) // YouTube ID
+                    .build();
+        }
+
         return LessonSummaryResponse.builder()
                 .id(lesson.getId())
                 .title(lesson.getTitle())
@@ -88,6 +96,8 @@ public class CourseDetailsService {
                 .position(lesson.getPosition())
                 .lessonType(lesson.getLessonType())
                 .isPreviewFree(lesson.getIsPreviewFree())
+                //.durationSeconds(media != null ? media.getDurationSeconds() : null)
+                .video(video)
                 .build();
     }
 

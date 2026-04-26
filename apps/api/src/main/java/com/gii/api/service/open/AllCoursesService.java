@@ -39,7 +39,7 @@ public class AllCoursesService {
                 .and(CourseSpecifications.hasLevel(level))
                 .and(CourseSpecifications.hasLanguage(language));
 
-        Page<Course> coursePage = courseRepository.findAll(spec, pageable);
+        Page<Course> coursePage = courseRepository.findAll(spec, sortedPageable);
 
         List<CourseSummaryResponse> courses = coursePage.getContent()
                 .stream()

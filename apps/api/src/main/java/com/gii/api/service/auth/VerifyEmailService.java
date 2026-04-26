@@ -33,7 +33,7 @@ public class VerifyEmailService {
 
         User user = verificationToken.getUser();
 
-        //user.setEmailVerified(true);
+        user.setEmailVerifiedAt(Instant.now());
         userRepository.save(user);
 
         verificationToken.setUsedAt(Instant.now());

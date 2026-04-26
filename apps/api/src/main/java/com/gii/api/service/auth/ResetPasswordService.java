@@ -24,23 +24,23 @@ public class ResetPasswordService {
         PasswordResetToken resetToken = tokenRepository.findByTokenHash(token)
                 .orElseThrow(() -> new RuntimeException("Invalid token"));
 
-        // 1. Check expiry
+        // Check expiry
         if (resetToken.getExpiresAt().isBefore(Instant.now())) {
             throw new RuntimeException("Token expired");
         }
 
-        // 2. Check already used
+        // Check already used
         if (resetToken.getUsedAt() != null) {
             throw new RuntimeException("Token already used");
         }
 
         User user = resetToken.getUser();
 
-        // 3. Update password
+        // Update password
         user.setPasswordHash(passwordEncoder.encode(newPassword));
         userRepository.save(user);
 
-        // 4. Mark token as used
+        // Mark token as used
         resetToken.setUsedAt(Instant.now());
         tokenRepository.save(resetToken);
     }
