@@ -1,7 +1,7 @@
 package com.gii.common.repository.course;
 
-import com.gii.common.model.course.MediaAsset;
-import com.gii.common.model.enums.MediaProvider;
+import com.gii.common.entity.course.MediaAsset;
+import com.gii.common.enums.MediaProvider;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;

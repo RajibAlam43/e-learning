@@ -1,6 +1,6 @@
 package com.gii.common.repository.quiz;
 
-import com.gii.common.model.quiz.Quiz;
+import com.gii.common.entity.quiz.Quiz;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;

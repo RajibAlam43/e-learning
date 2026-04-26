@@ -1,7 +1,7 @@
 package com.gii.common.repository.course;
 
-import com.gii.common.model.course.Lesson;
-import com.gii.common.model.enums.LessonStatus;
+import com.gii.common.entity.course.Lesson;
+import com.gii.common.enums.LessonStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;

@@ -1,7 +1,7 @@
 package com.gii.common.repository.enrollment;
 
-import com.gii.common.model.enrollment.Enrollment;
-import com.gii.common.model.enums.EnrollmentStatus;
+import com.gii.common.entity.enrollment.Enrollment;
+import com.gii.common.enums.EnrollmentStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
