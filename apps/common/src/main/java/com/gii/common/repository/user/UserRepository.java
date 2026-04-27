@@ -1,7 +1,7 @@
 package com.gii.common.repository.user;
 
-import com.gii.common.model.user.User;
-import com.gii.common.model.enums.UserStatus;
+import com.gii.common.entity.user.User;
+import com.gii.common.enums.UserStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;

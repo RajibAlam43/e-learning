@@ -16,7 +16,7 @@ dependencies {
 
     // Security
     implementation 'org.springframework.boot:spring-boot-starter-security'
-    implementation 'org.springframework.security:spring-security-oauth2-jose'
+    implementation 'io.jsonwebtoken:jjwt-api:0.13.0'
 
     // SQS
     implementation 'io.awspring.cloud:spring-cloud-aws-starter-sqs:4.0.0'

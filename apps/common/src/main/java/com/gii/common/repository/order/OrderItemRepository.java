@@ -1,6 +1,6 @@
 package com.gii.common.repository.order;
 
-import com.gii.common.model.order.OrderItem;
+import com.gii.common.entity.order.OrderItem;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;

@@ -1,6 +1,6 @@
 package com.gii.common.repository.audit;
 
-import com.gii.common.model.audit.AuditLog;
+import com.gii.common.entity.audit.AuditLog;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;

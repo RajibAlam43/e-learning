@@ -1,8 +1,8 @@
 package com.gii.common.repository.order;
 
-import com.gii.common.model.enums.OrderProvider;
-import com.gii.common.model.order.Order;
-import com.gii.common.model.enums.OrderStatus;
+import com.gii.common.enums.OrderProvider;
+import com.gii.common.entity.order.Order;
+import com.gii.common.enums.OrderStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;

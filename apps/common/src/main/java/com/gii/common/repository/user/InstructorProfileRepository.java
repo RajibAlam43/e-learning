@@ -1,6 +1,6 @@
 package com.gii.common.repository.user;
 
-import com.gii.common.model.user.InstructorProfile;
+import com.gii.common.entity.user.InstructorProfile;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;

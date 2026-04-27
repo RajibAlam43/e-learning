@@ -1,6 +1,6 @@
 package com.gii.common.repository.support;
 
-import com.gii.common.model.support.Faq;
+import com.gii.common.entity.support.Faq;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;

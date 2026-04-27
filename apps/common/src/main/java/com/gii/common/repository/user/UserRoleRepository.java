@@ -1,7 +1,7 @@
 package com.gii.common.repository.user;
 
-import com.gii.common.model.user.UserRole;
-import com.gii.common.model.user.UserRoleId;
+import com.gii.common.entity.user.UserRole;
+import com.gii.common.entity.user.UserRoleId;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;

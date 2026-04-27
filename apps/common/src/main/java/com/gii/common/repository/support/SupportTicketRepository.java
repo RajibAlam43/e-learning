@@ -1,7 +1,7 @@
 package com.gii.common.repository.support;
 
-import com.gii.common.model.support.SupportTicket;
-import com.gii.common.model.enums.SupportTicketStatus;
+import com.gii.common.entity.support.SupportTicket;
+import com.gii.common.enums.SupportTicketStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;

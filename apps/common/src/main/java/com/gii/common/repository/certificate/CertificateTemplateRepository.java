@@ -1,6 +1,6 @@
 package com.gii.common.repository.certificate;
 
-import com.gii.common.model.certificate.CertificateTemplate;
+import com.gii.common.entity.certificate.CertificateTemplate;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;

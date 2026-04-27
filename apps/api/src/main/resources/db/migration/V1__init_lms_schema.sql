@@ -1,503 +1,712 @@
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
+CREATE EXTENSION IF NOT EXISTS "citext";
+
 -- =========================
 -- USERS / AUTH
 -- =========================
-
 CREATE TABLE users (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    student_code VARCHAR(50) UNIQUE,
-    email VARCHAR(255) UNIQUE,
-    phone VARCHAR(20) UNIQUE,
-    phone_country_code VARCHAR(5),
-    full_name VARCHAR(255) NOT NULL,
-    password_hash TEXT NOT NULL,
-    status VARCHAR(30) NOT NULL DEFAULT 'active',
-    email_verified_at TIMESTAMPTZ,
-    phone_verified_at TIMESTAMPTZ,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-
-    CONSTRAINT chk_users_status
-        CHECK (status IN ('active', 'suspended', 'deleted')),
-
-    CONSTRAINT chk_users_email_or_phone
-        CHECK (email IS NOT NULL OR phone IS NOT NULL)
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid (),
+    student_code varchar(50) UNIQUE,
+    email citext UNIQUE,
+    phone varchar(20) UNIQUE,
+    phone_country_code varchar(5),
+    full_name text NOT NULL,
+    password_hash text NOT NULL,
+    status varchar(30) NOT NULL DEFAULT 'ACTIVE',
+    email_verified_at timestamptz,
+    phone_verified_at timestamptz,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT chk_users_status CHECK (status IN ('ACTIVE', 'SUSPENDED', 'DELETED')),
+    CONSTRAINT chk_users_email_or_phone CHECK (email IS NOT NULL OR phone IS NOT NULL)
 );
 
 CREATE TABLE email_verification_tokens (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    token_hash TEXT NOT NULL UNIQUE,
-    expires_at TIMESTAMPTZ NOT NULL,
-    used_at TIMESTAMPTZ,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid (),
+    user_id uuid NOT NULL,
+    token_hash text NOT NULL UNIQUE,
+    expires_at timestamptz NOT NULL,
+    used_at timestamptz,
+    revoked_at timestamptz,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT fk_email_verification_tokens_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+    CONSTRAINT chk_email_verification_token_used_or_revoked CHECK (used_at IS NULL OR revoked_at IS NULL)
 );
 
 CREATE TABLE password_reset_tokens (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    token_hash TEXT NOT NULL UNIQUE,
-    expires_at TIMESTAMPTZ NOT NULL,
-    used_at TIMESTAMPTZ,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid (),
+    user_id uuid NOT NULL,
+    token_hash text NOT NULL UNIQUE,
+    expires_at timestamptz NOT NULL,
+    used_at timestamptz,
+    revoked_at timestamptz,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT fk_password_reset_tokens_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+    CONSTRAINT chk_password_reset_token_used_or_revoked CHECK (used_at IS NULL OR revoked_at IS NULL)
 );
 
 CREATE TABLE refresh_tokens (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    token_hash TEXT NOT NULL UNIQUE,
-    session_id UUID NOT NULL,
-    expires_at TIMESTAMPTZ NOT NULL,
-    revoked_at TIMESTAMPTZ,
-    replaced_by_token_id UUID REFERENCES refresh_tokens(id),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    last_used_at TIMESTAMPTZ
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid (),
+    user_id uuid NOT NULL,
+    token_hash text NOT NULL UNIQUE,
+    session_id uuid NOT NULL,
+    expires_at timestamptz NOT NULL,
+    used_at timestamptz,
+    revoked_at timestamptz,
+    replaced_by_token_id uuid,
+    last_used_at timestamptz,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT fk_refresh_tokens_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+    CONSTRAINT fk_refresh_tokens_replaced_by FOREIGN KEY (replaced_by_token_id) REFERENCES refresh_tokens (id) ON DELETE SET NULL,
+    CONSTRAINT chk_refresh_token_used_or_revoked CHECK (used_at IS NULL OR revoked_at IS NULL)
 );
 
 CREATE TABLE roles (
-    id BIGSERIAL PRIMARY KEY,
-    name VARCHAR(50) NOT NULL UNIQUE
+    id bigserial PRIMARY KEY,
+    name varchar(50) NOT NULL UNIQUE
 );
 
-INSERT INTO roles (name)
-VALUES ('student'), ('instructor'), ('admin');
-
 CREATE TABLE user_roles (
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    role_id BIGINT NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
-    PRIMARY KEY (user_id, role_id)
+    user_id uuid NOT NULL,
+    role_id bigint NOT NULL,
+    PRIMARY KEY (user_id, role_id),
+    CONSTRAINT fk_user_roles_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+    CONSTRAINT fk_user_roles_role FOREIGN KEY (role_id) REFERENCES roles (id) ON DELETE CASCADE
 );
 
 CREATE TABLE user_profiles (
-    user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-    avatar_url TEXT,
-    locale VARCHAR(20) NOT NULL DEFAULT 'bn-BD',
-    timezone VARCHAR(100),
-    bio TEXT,
-    extra_json JSONB
+    user_id uuid PRIMARY KEY,
+    avatar_url text,
+    locale varchar(20) NOT NULL DEFAULT 'bn-BD',
+    timezone varchar(100),
+    bio text,
+    extra_json jsonb,
+    CONSTRAINT fk_user_profiles_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 );
-
--- =========================
--- INSTRUCTORS
--- =========================
 
 CREATE TABLE instructor_profiles (
-    user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-    display_name VARCHAR(255) NOT NULL,
-    headline VARCHAR(255),
-    institution VARCHAR(255),
-    expertise_area VARCHAR(255),
-    about TEXT,
-    photo_url TEXT,
-    is_public BOOLEAN NOT NULL DEFAULT true,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    user_id uuid PRIMARY KEY,
+    display_name text NOT NULL,
+    headline text,
+    institution text,
+    expertise_area text,
+    about text,
+    photo_url text,
+    is_public boolean NOT NULL DEFAULT TRUE,
+    credentials_text text,
+    specialties_json jsonb,
+    years_experience integer,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT fk_instructor_profiles_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+    CONSTRAINT chk_instructor_profiles_years_experience_non_negative CHECK (years_experience IS NULL OR years_experience >= 0)
 );
 
--- =========================
+-- =========================================================
 -- COURSE CATALOG
--- =========================
-
+-- =========================================================
 CREATE TABLE categories (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name VARCHAR(150) NOT NULL,
-    slug VARCHAR(180) NOT NULL UNIQUE,
-    parent_id UUID REFERENCES categories(id) ON DELETE SET NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid (),
+    name varchar(150) NOT NULL,
+    slug varchar(180) NOT NULL UNIQUE,
+    parent_id uuid,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT fk_categories_parent FOREIGN KEY (parent_id) REFERENCES categories (id) ON DELETE SET NULL
 );
 
 CREATE TABLE courses (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    title VARCHAR(255) NOT NULL,
-    slug VARCHAR(255) NOT NULL UNIQUE,
-    short_description TEXT,
-    description TEXT,
-    language VARCHAR(20) NOT NULL DEFAULT 'bn',
-    level VARCHAR(30) NOT NULL DEFAULT 'beginner',
-    category_id UUID REFERENCES categories(id) ON DELETE SET NULL,
-    thumbnail_url TEXT,
-    price_bdt INTEGER NOT NULL DEFAULT 0,
-    status VARCHAR(30) NOT NULL DEFAULT 'draft',
-    submitted_at TIMESTAMPTZ,
-    published_at TIMESTAMPTZ,
-    created_by UUID NOT NULL REFERENCES users(id),
-    approved_by UUID REFERENCES users(id),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid (),
+    title text NOT NULL,
+    slug text NOT NULL UNIQUE,
+    thumbnail_url text,
+    short_description text,
+    description text,
+    highlights jsonb,
+    price_bdt numeric(12, 2) NOT NULL DEFAULT 0,
+    course_outcomes jsonb,
+    requirements jsonb,
+    prerequisites text,
+    level varchar(30) NOT NULL DEFAULT 'BEGINNER',
+    language varchar(20) NOT NULL DEFAULT 'BN',
+    study_mode varchar(30) NOT NULL DEFAULT 'SCHEDULED',
+    status varchar(30) NOT NULL DEFAULT 'DRAFT',
+    published_at timestamptz,
+    is_free boolean NOT NULL DEFAULT FALSE,
+    live_session_count integer NOT NULL DEFAULT 0,
+    quiz_count integer NOT NULL DEFAULT 0,
+    recorded_hours_count integer NOT NULL DEFAULT 0,
+    created_by uuid NOT NULL,
+    preview_lesson_id uuid,
+    estimated_duration_minutes integer,
+    target_audience text,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT fk_courses_created_by FOREIGN KEY (created_by) REFERENCES users (id),
+    CONSTRAINT chk_course_language CHECK (LANGUAGE IN
+    ('BN', 'EN')),
+    CONSTRAINT chk_course_level CHECK (level IN ('BEGINNER', 'INTERMEDIATE', 'ADVANCED')),
+    CONSTRAINT chk_course_study_mode CHECK (study_mode IN ('SCHEDULED', 'SELF_PACED')),
+    CONSTRAINT chk_course_status CHECK (status IN ('DRAFT', 'PUBLISHED', 'ARCHIVED')),
+    CONSTRAINT chk_course_price CHECK (price_bdt >= 0),
+    CONSTRAINT chk_courses_estimated_duration_non_negative CHECK (estimated_duration_minutes IS NULL OR
+	estimated_duration_minutes >= 0),
+    CONSTRAINT chk_courses_counts_non_negative CHECK (live_session_count >= 0 AND quiz_count >= 0 AND recorded_hours_count >= 0)
+);
 
-    CONSTRAINT chk_course_language
-        CHECK (language IN ('bn', 'en')),
-
-    CONSTRAINT chk_course_level
-        CHECK (level IN ('beginner', 'intermediate', 'advanced')),
-
-    CONSTRAINT chk_course_price
-        CHECK (price_bdt >= 0),
-
-    CONSTRAINT chk_course_status
-        CHECK (status IN ('draft', 'published', 'archived'))
+CREATE TABLE course_categories (
+    course_id uuid NOT NULL,
+    category_id uuid NOT NULL,
+    PRIMARY KEY (course_id, category_id),
+    CONSTRAINT fk_course_categories_course FOREIGN KEY (course_id) REFERENCES courses (id) ON DELETE CASCADE,
+    CONSTRAINT fk_course_categories_category FOREIGN KEY (category_id) REFERENCES categories (id) ON DELETE CASCADE
 );
 
 CREATE TABLE course_instructors (
-    course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
-    instructor_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    role VARCHAR(50) NOT NULL DEFAULT 'primary',
-    PRIMARY KEY (course_id, instructor_user_id)
+    course_id uuid NOT NULL,
+    instructor_user_id uuid NOT NULL,
+    role VARCHAR(50) NOT NULL DEFAULT 'PRIMARY',
+    PRIMARY KEY (course_id, instructor_user_id),
+    CONSTRAINT chk_course_instructors_role CHECK (ROLE IN ('PRIMARY', 'ASSISTANT')),
+    CONSTRAINT fk_course_instructors_course FOREIGN KEY (course_id) REFERENCES courses (id) ON DELETE CASCADE,
+    CONSTRAINT fk_course_instructors_instructor FOREIGN KEY (instructor_user_id) REFERENCES users (id) ON DELETE CASCADE
 );
 
 CREATE TABLE course_sections (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
-    title VARCHAR(255) NOT NULL,
-    position INTEGER NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-
-    UNIQUE (course_id, position)
-);
-
--- =========================
--- MEDIA / LESSONS / NOTES
--- =========================
-
-CREATE TABLE media_assets (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    provider VARCHAR(30) NOT NULL,
-    asset_type VARCHAR(30) NOT NULL DEFAULT 'video',
-
-    provider_asset_id TEXT,
-    playback_id TEXT,
-    playback_policy VARCHAR(30),
-
-    file_url TEXT,
-    duration_sec INTEGER,
-    status VARCHAR(30) NOT NULL DEFAULT 'ready',
-
-    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-
-    CONSTRAINT chk_media_provider
-        CHECK (provider IN ('mux', 'youtube', 'r2', 'external')),
-
-    CONSTRAINT chk_media_asset_type
-        CHECK (asset_type IN ('video', 'pdf', 'image', 'audio', 'subtitle', 'other')),
-
-    CONSTRAINT chk_media_playback_policy
-        CHECK (playback_policy IS NULL OR playback_policy IN ('public', 'signed')),
-
-    CONSTRAINT chk_media_status
-        CHECK (status IN ('uploading', 'processing', 'ready', 'failed', 'deleted'))
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid (),
+    course_id uuid NOT NULL,
+    title text NOT NULL,
+    slug text NOT NULL,
+    position integer NOT NULL,
+    description text,
+    is_mandatory boolean NOT NULL DEFAULT FALSE,
+    is_free boolean NOT NULL DEFAULT FALSE,
+    status varchar(30) NOT NULL DEFAULT 'DRAFT',
+    published_at timestamptz,
+    release_type varchar(30) NOT NULL DEFAULT 'IMMEDIATE',
+    release_at timestamptz,
+    unlock_after_days integer,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT fk_course_sections_course FOREIGN KEY (course_id) REFERENCES courses (id) ON DELETE CASCADE,
+    CONSTRAINT uk_course_sections_course_position UNIQUE (course_id, position),
+    CONSTRAINT uk_course_sections_course_slug UNIQUE (course_id, slug),
+    CONSTRAINT chk_course_sections_status CHECK (status IN ('DRAFT', 'PUBLISHED', 'ARCHIVED')),
+    CONSTRAINT chk_course_sections_release_type CHECK (release_type IN ('IMMEDIATE', 'FIXED_DATE', 'RELATIVE_DAYS')),
+    CONSTRAINT chk_course_sections_unlock_after_days_non_negative CHECK (unlock_after_days IS NULL OR unlock_after_days >= 0),
+    CONSTRAINT uk_course_sections_id_course_id UNIQUE (id, course_id),
+    CONSTRAINT chk_course_sections_release_fields CHECK ((release_type = 'IMMEDIATE' AND release_at IS NULL AND
+	unlock_after_days IS NULL) OR (release_type = 'FIXED_DATE' AND release_at IS NOT NULL AND unlock_after_days
+	IS NULL) OR (release_type = 'RELATIVE_DAYS' AND release_at IS NULL AND unlock_after_days IS NOT NULL))
 );
 
 CREATE TABLE lessons (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
-    section_id UUID REFERENCES course_sections(id) ON DELETE SET NULL,
-    title VARCHAR(255) NOT NULL,
-    slug VARCHAR(255) NOT NULL,
-    position INTEGER NOT NULL,
-    lesson_type VARCHAR(30) NOT NULL DEFAULT 'video',
-
-    media_asset_id UUID REFERENCES media_assets(id) ON DELETE SET NULL,
-
-    is_preview_free BOOLEAN NOT NULL DEFAULT false,
-    status VARCHAR(30) NOT NULL DEFAULT 'draft',
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-
-    UNIQUE (course_id, slug),
-    UNIQUE (course_id, position),
-
-    CONSTRAINT chk_lesson_type
-        CHECK (lesson_type IN ('video', 'quiz', 'live', 'assignment', 'pdf')),
-
-    CONSTRAINT chk_lesson_status
-        CHECK (status IN ('draft', 'published'))
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid (),
+    course_id uuid NOT NULL,
+    section_id uuid NOT NULL,
+    title text NOT NULL,
+    slug text NOT NULL,
+    position integer NOT NULL,
+    is_mandatory boolean NOT NULL DEFAULT FALSE,
+    lesson_type varchar(30) NOT NULL DEFAULT 'VIDEO',
+    is_free boolean NOT NULL DEFAULT FALSE,
+    status varchar(30) NOT NULL DEFAULT 'DRAFT',
+    duration_seconds integer,
+    thumbnail_url text,
+    transcript_url text,
+    release_type varchar(30),
+    release_at timestamptz,
+    unlock_after_days integer,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT uk_lessons_id_course_id UNIQUE (id, course_id),
+    CONSTRAINT uk_lessons_course_slug UNIQUE (course_id, slug),
+    CONSTRAINT uk_lessons_section_position UNIQUE (section_id, position),
+    CONSTRAINT chk_lesson_type CHECK (lesson_type IN ('VIDEO', 'QUIZ', 'LIVE',
+	'ASSIGNMENT', 'PDF')),
+    CONSTRAINT chk_lesson_status CHECK (status IN ('DRAFT', 'PUBLISHED', 'ARCHIVED')),
+    CONSTRAINT chk_lessons_release_type CHECK (release_type IS NULL OR release_type IN ('IMMEDIATE',
+	'FIXED_DATE', 'RELATIVE_DAYS')),
+    CONSTRAINT chk_lessons_duration_seconds_non_negative CHECK (duration_seconds IS NULL OR duration_seconds >= 0),
+    CONSTRAINT chk_lessons_unlock_after_days_non_negative CHECK (unlock_after_days IS NULL OR unlock_after_days >= 0),
+    CONSTRAINT fk_lessons_course FOREIGN KEY (course_id) REFERENCES courses (id) ON DELETE CASCADE,
+    CONSTRAINT fk_lessons_section_course FOREIGN KEY (section_id, course_id) REFERENCES course_sections (id, course_id)
+	ON DELETE CASCADE,
+    CONSTRAINT chk_lessons_release_fields CHECK ((release_type IS NULL AND release_at IS NULL AND unlock_after_days IS
+	NULL) OR (release_type = 'IMMEDIATE' AND release_at IS NULL AND unlock_after_days IS NULL) OR (release_type
+	= 'FIXED_DATE' AND release_at IS NOT NULL AND unlock_after_days IS NULL) OR (release_type = 'RELATIVE_DAYS'
+	AND release_at IS NULL AND unlock_after_days IS NOT NULL)),
+    CONSTRAINT uk_lessons_id_section_course UNIQUE (id, section_id, course_id)
 );
 
-CREATE TABLE lesson_notes (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    lesson_id UUID NOT NULL UNIQUE REFERENCES lessons(id) ON DELETE CASCADE,
-    content_md TEXT,
-    content_html TEXT,
-    attachments_json JSONB,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+ALTER TABLE courses
+    ADD CONSTRAINT fk_courses_preview_lesson FOREIGN KEY (preview_lesson_id) REFERENCES lessons (id) ON DELETE SET NULL;
+
+CREATE TABLE live_classes (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid (),
+    course_id uuid NOT NULL,
+    section_id uuid NOT NULL,
+    lesson_id uuid NOT NULL,
+    instructor_id uuid REFERENCES users (id) ON DELETE SET NULL,
+    title text NOT NULL,
+    description text,
+    zoom_meeting_id text UNIQUE,
+    zoom_start_url text,
+    zoom_join_url text,
+    starts_at timestamptz NOT NULL,
+    ends_at timestamptz NOT NULL,
+    status varchar(30) NOT NULL DEFAULT 'SCHEDULED',
+    created_by uuid REFERENCES users (id) ON DELETE SET NULL,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT chk_live_class_status CHECK (status IN ('SCHEDULED', 'LIVE', 'COMPLETED',
+	'CANCELLED', 'FAILED')),
+    CONSTRAINT chk_live_class_time CHECK (ends_at > starts_at),
+    CONSTRAINT fk_live_classes_course FOREIGN KEY (course_id) REFERENCES courses (id) ON DELETE CASCADE,
+    CONSTRAINT fk_live_classes_section_course FOREIGN KEY (section_id, course_id) REFERENCES course_sections (id,
+	course_id) ON DELETE CASCADE,
+    CONSTRAINT fk_live_classes_lesson_section_course FOREIGN KEY (lesson_id, section_id, course_id) REFERENCES lessons
+	(id, section_id, course_id) ON DELETE CASCADE
 );
 
--- =========================
+CREATE TABLE live_class_registrants (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid (),
+    live_class_id uuid NOT NULL REFERENCES live_classes (id) ON DELETE CASCADE,
+    user_id uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    zoom_registrant_id text,
+    zoom_join_url text,
+    status varchar(30) NOT NULL DEFAULT 'PENDING',
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT uk_live_class_registrant_user UNIQUE (live_class_id, user_id),
+    CONSTRAINT chk_live_class_registrant_status CHECK (status IN ('PENDING', 'APPROVED', 'FAILED', 'CANCELLED'))
+);
+
+CREATE TABLE live_class_attendance (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid (),
+    live_class_id uuid NOT NULL REFERENCES live_classes (id) ON DELETE CASCADE,
+    user_id uuid REFERENCES users (id) ON DELETE SET NULL,
+    zoom_participant_id text,
+    participant_name text,
+    participant_email CITEXT,
+    joined_at timestamptz,
+    left_at timestamptz,
+    duration_sec integer,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT chk_live_class_attendance_duration CHECK (duration_sec IS NULL OR duration_sec >= 0),
+    CONSTRAINT chk_live_class_attendance_time CHECK (left_at IS NULL OR joined_at IS NULL OR left_at >= joined_at)
+);
+
+CREATE TABLE media_assets (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid (),
+    lesson_id uuid NOT NULL,
+    provider varchar(30) NOT NULL,
+    asset_type varchar(30) NOT NULL DEFAULT 'VIDEO',
+    provider_asset_id text,
+    provider_library_id text,
+    playback_id text,
+    playback_policy varchar(30),
+    file_url text,
+    title text NOT NULL,
+    max_resolution varchar(20),
+    duration_sec integer,
+    status varchar(30) NOT NULL DEFAULT 'READY',
+    created_by uuid,
+    preferred_playback_mode varchar(30),
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT fk_media_assets_lesson FOREIGN KEY (lesson_id) REFERENCES lessons (id) ON DELETE CASCADE,
+    CONSTRAINT fk_media_assets_created_by FOREIGN KEY (created_by) REFERENCES users (id) ON DELETE SET NULL,
+    CONSTRAINT uk_media_lesson UNIQUE (lesson_id),
+    CONSTRAINT chk_media_provider CHECK (provider IN ('MUX', 'YOUTUBE', 'BUNNY')),
+    CONSTRAINT chk_media_asset_type CHECK (asset_type IN ('VIDEO', 'PDF', 'IMAGE')),
+    CONSTRAINT chk_media_playback_policy CHECK (playback_policy IS NULL OR playback_policy IN ('PUBLIC', 'SIGNED')),
+    CONSTRAINT chk_media_status CHECK (status IN ('UPLOADING', 'PROCESSING', 'READY', 'FAILED', 'DELETED')),
+    CONSTRAINT chk_media_preferred_playback_mode CHECK (preferred_playback_mode IS NULL OR preferred_playback_mode IN
+	('IFRAME', 'HLS')),
+    CONSTRAINT chk_media_duration_non_negative CHECK (duration_sec IS NULL OR duration_sec >= 0),
+    CONSTRAINT chk_media_provider_required_fields CHECK ((asset_type = 'VIDEO' AND ((provider = 'YOUTUBE'
+	AND provider_asset_id IS NOT NULL AND length(trim(provider_asset_id)) > 0) OR (provider = 'MUX' AND
+	playback_id IS NOT NULL AND length(trim(playback_id)) > 0) OR (provider = 'BUNNY' AND provider_asset_id
+	IS NOT NULL AND length(trim(provider_asset_id)) > 0 AND provider_library_id IS NOT NULL AND
+	length(trim(provider_library_id)) > 0))) OR (asset_type IN ('PDF', 'IMAGE') AND file_url IS
+	NOT NULL AND length(trim(file_url)) > 0))
+);
+
+CREATE TABLE lesson_resources (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid (),
+    lesson_id uuid NOT NULL,
+    resource_type varchar(20) NOT NULL,
+    title text,
+    file_url text NOT NULL,
+    mime_type text,
+    position integer NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT fk_lesson_resources_lesson FOREIGN KEY (lesson_id) REFERENCES lessons (id) ON DELETE CASCADE,
+    CONSTRAINT uk_lesson_resources_lesson_position UNIQUE (lesson_id, position),
+    CONSTRAINT chk_lesson_resources_resource_type CHECK (resource_type IN ('PDF', 'IMAGE'))
+);
+
+-- =========================================================
 -- ENROLLMENT / PROGRESS
--- =========================
-
+-- =========================================================
 CREATE TABLE enrollments (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
-    status VARCHAR(30) NOT NULL DEFAULT 'active',
-    enrolled_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    revoked_at TIMESTAMPTZ,
-
-    UNIQUE (user_id, course_id),
-
-    CONSTRAINT chk_enrollment_status
-        CHECK (status IN ('active', 'refunded', 'revoked'))
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid (),
+    user_id uuid NOT NULL,
+    course_id uuid NOT NULL,
+    status varchar(30) NOT NULL DEFAULT 'ACTIVE',
+    enrolled_at timestamptz NOT NULL DEFAULT now(),
+    revoked_at timestamptz,
+    completed_at timestamptz,
+    expires_at timestamptz,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT fk_enrollments_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+    CONSTRAINT fk_enrollments_course FOREIGN KEY (course_id) REFERENCES courses (id) ON DELETE CASCADE,
+    CONSTRAINT uk_enrollments_user_course UNIQUE (user_id, course_id),
+    CONSTRAINT chk_enrollment_status CHECK (status IN ('ACTIVE', 'REFUNDED', 'REVOKED'))
 );
 
 CREATE TABLE lesson_progress (
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    lesson_id UUID NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,
-    completed BOOLEAN NOT NULL DEFAULT false,
-    completed_at TIMESTAMPTZ,
-    last_position_sec INTEGER,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-
-    PRIMARY KEY (user_id, lesson_id)
+    user_id uuid NOT NULL,
+    lesson_id uuid NOT NULL,
+    completed boolean NOT NULL DEFAULT FALSE,
+    completed_at timestamptz,
+    last_position_sec integer,
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (user_id, lesson_id),
+    CONSTRAINT fk_lesson_progress_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+    CONSTRAINT fk_lesson_progress_lesson FOREIGN KEY (lesson_id) REFERENCES lessons (id) ON DELETE CASCADE,
+    CONSTRAINT chk_lesson_progress_last_position_non_negative CHECK (last_position_sec IS NULL OR last_position_sec >= 0)
 );
 
--- =========================
+-- =========================================================
 -- QUIZZES
--- =========================
-
+-- =========================================================
 CREATE TABLE quizzes (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
-    lesson_id UUID REFERENCES lessons(id) ON DELETE CASCADE,
-    title VARCHAR(255) NOT NULL,
-    passing_score_pct INTEGER NOT NULL DEFAULT 60,
-    max_attempts INTEGER NOT NULL DEFAULT 3,
-    time_limit_sec INTEGER,
-    is_published BOOLEAN NOT NULL DEFAULT false,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-
-    CONSTRAINT chk_quiz_score
-        CHECK (passing_score_pct BETWEEN 0 AND 100),
-
-    CONSTRAINT chk_quiz_attempts
-        CHECK (max_attempts > 0)
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid (),
+    course_id uuid NOT NULL,
+    lesson_id uuid,
+    title text NOT NULL,
+    passing_score_pct integer NOT NULL DEFAULT 60,
+    max_attempts integer NOT NULL DEFAULT 3,
+    time_limit_sec integer,
+    is_published boolean NOT NULL DEFAULT FALSE,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT fk_quizzes_course FOREIGN KEY (course_id) REFERENCES courses (id) ON DELETE CASCADE,
+    CONSTRAINT chk_quiz_score CHECK (passing_score_pct BETWEEN 0 AND 100),
+    CONSTRAINT chk_quiz_attempts CHECK (max_attempts > 0),
+    CONSTRAINT chk_quiz_time_limit_non_negative CHECK (time_limit_sec IS NULL OR time_limit_sec >= 0),
+    CONSTRAINT fk_quizzes_lesson_course FOREIGN KEY (lesson_id, course_id) REFERENCES lessons (id, course_id) ON DELETE CASCADE
 );
 
 CREATE TABLE quiz_questions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    quiz_id UUID NOT NULL REFERENCES quizzes(id) ON DELETE CASCADE,
-    position INTEGER NOT NULL,
-    question_text TEXT NOT NULL,
-    question_type VARCHAR(30) NOT NULL DEFAULT 'mcq',
-    points INTEGER NOT NULL DEFAULT 1,
-
-    UNIQUE (quiz_id, position),
-
-    CONSTRAINT chk_question_type
-        CHECK (question_type IN ('mcq')),
-
-    CONSTRAINT chk_question_points
-        CHECK (points > 0)
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid (),
+    quiz_id uuid NOT NULL,
+    position integer NOT NULL,
+    question_text text NOT NULL,
+    question_type varchar(30) NOT NULL DEFAULT 'MCQ',
+    points integer NOT NULL DEFAULT 1,
+    explanation_text text,
+    CONSTRAINT fk_quiz_questions_quiz FOREIGN KEY (quiz_id) REFERENCES quizzes (id) ON DELETE CASCADE,
+    CONSTRAINT uk_quiz_questions_quiz_position UNIQUE (quiz_id, position),
+    CONSTRAINT chk_question_type CHECK (question_type IN ('MCQ')),
+    CONSTRAINT chk_question_points CHECK (points > 0)
 );
 
 CREATE TABLE quiz_choices (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    question_id UUID NOT NULL REFERENCES quiz_questions(id) ON DELETE CASCADE,
-    choice_text TEXT NOT NULL,
-    is_correct BOOLEAN NOT NULL DEFAULT false
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid (),
+    question_id uuid NOT NULL,
+    choice_text text NOT NULL,
+    is_correct boolean NOT NULL DEFAULT FALSE,
+    CONSTRAINT fk_quiz_choices_question FOREIGN KEY (question_id) REFERENCES quiz_questions (id) ON DELETE CASCADE,
+    CONSTRAINT uq_quiz_choices_question_id_id UNIQUE (question_id, id)
 );
 
 CREATE TABLE quiz_attempts (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    quiz_id UUID NOT NULL REFERENCES quizzes(id) ON DELETE CASCADE,
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    attempt_no INTEGER NOT NULL,
-    score_pct INTEGER,
-    passed BOOLEAN,
-    started_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    submitted_at TIMESTAMPTZ,
-
-    UNIQUE (quiz_id, user_id, attempt_no),
-
-    CONSTRAINT chk_attempt_no
-        CHECK (attempt_no > 0),
-
-    CONSTRAINT chk_attempt_score
-        CHECK (score_pct IS NULL OR score_pct BETWEEN 0 AND 100)
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid (),
+    quiz_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    attempt_no integer NOT NULL,
+    score_pct integer,
+    passed boolean,
+    started_at timestamptz NOT NULL DEFAULT now(),
+    submitted_at timestamptz,
+    CONSTRAINT fk_quiz_attempts_quiz FOREIGN KEY (quiz_id) REFERENCES quizzes (id) ON DELETE CASCADE,
+    CONSTRAINT fk_quiz_attempts_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+    CONSTRAINT uk_quiz_attempts_quiz_user_attempt UNIQUE (quiz_id, user_id, attempt_no),
+    CONSTRAINT chk_attempt_no CHECK (attempt_no > 0),
+    CONSTRAINT chk_attempt_score CHECK (score_pct IS NULL OR score_pct BETWEEN 0 AND 100),
+    CONSTRAINT chk_quiz_attempt_submitted_after_started CHECK (submitted_at IS NULL OR submitted_at >= started_at)
 );
 
 CREATE TABLE quiz_attempt_answers (
-    attempt_id UUID NOT NULL REFERENCES quiz_attempts(id) ON DELETE CASCADE,
-    question_id UUID NOT NULL REFERENCES quiz_questions(id) ON DELETE CASCADE,
-    choice_id UUID NOT NULL REFERENCES quiz_choices(id) ON DELETE CASCADE,
-
-    PRIMARY KEY (attempt_id, question_id)
+    attempt_id uuid NOT NULL,
+    question_id uuid NOT NULL,
+    choice_id uuid NOT NULL,
+    PRIMARY KEY (attempt_id, question_id),
+    CONSTRAINT fk_quiz_attempt_answers_attempt FOREIGN KEY (attempt_id) REFERENCES quiz_attempts (id) ON DELETE CASCADE,
+    CONSTRAINT fk_quiz_attempt_answers_question FOREIGN KEY (question_id) REFERENCES quiz_questions (id) ON DELETE CASCADE,
+    CONSTRAINT fk_quiz_attempt_answers_choice_for_question FOREIGN KEY (question_id, choice_id) REFERENCES quiz_choices
+	(question_id, id) ON DELETE CASCADE
 );
 
--- =========================
+-- =========================================================
 -- ORDERS / PAYMENTS
--- =========================
-
+-- =========================================================
 CREATE TABLE orders (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    amount_bdt INTEGER NOT NULL,
-    currency VARCHAR(10) NOT NULL DEFAULT 'BDT',
-    provider VARCHAR(50) NOT NULL,
-    provider_txn_id TEXT,
-    status VARCHAR(30) NOT NULL DEFAULT 'pending',
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    paid_at TIMESTAMPTZ,
-    refunded_at TIMESTAMPTZ,
-
-    CONSTRAINT chk_order_amount
-        CHECK (amount_bdt >= 0),
-
-    CONSTRAINT chk_order_provider
-        CHECK (provider IN ('bkash', 'nagad', 'card', 'manual', 'sslcommerz')),
-
-    CONSTRAINT chk_order_status
-        CHECK (status IN ('pending', 'paid', 'failed', 'refunded', 'cancelled'))
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid (),
+    user_id uuid NOT NULL,
+    amount_bdt numeric(12, 2) NOT NULL,
+    currency varchar(10) NOT NULL DEFAULT 'BDT',
+    provider varchar(50) NOT NULL,
+    provider_txn_id text,
+    status varchar(30) NOT NULL DEFAULT 'PENDING',
+    paid_at timestamptz,
+    refunded_at timestamptz,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT fk_orders_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+    CONSTRAINT chk_order_amount CHECK (amount_bdt >= 0),
+    CONSTRAINT chk_order_provider CHECK (provider IN ('SSLCOMMERZ', 'BKASH')),
+    CONSTRAINT chk_order_status CHECK (status IN ('PENDING', 'PAID', 'FAILED', 'REFUNDED', 'CANCELLED')),
+    CONSTRAINT chk_order_currency CHECK (currency IN ('BDT'))
 );
 
 CREATE TABLE order_items (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
-    course_id UUID NOT NULL REFERENCES courses(id),
-    price_bdt INTEGER NOT NULL,
-    discount_bdt INTEGER NOT NULL DEFAULT 0,
-
-    CONSTRAINT chk_order_item_price
-        CHECK (price_bdt >= 0),
-
-    CONSTRAINT chk_order_item_discount
-        CHECK (discount_bdt >= 0)
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid (),
+    order_id uuid NOT NULL,
+    course_id uuid NOT NULL,
+    price_bdt numeric(12, 2) NOT NULL,
+    discount_bdt numeric(12, 2) NOT NULL DEFAULT 0,
+    CONSTRAINT fk_order_items_order FOREIGN KEY (order_id) REFERENCES orders (id) ON DELETE CASCADE,
+    CONSTRAINT fk_order_items_course FOREIGN KEY (course_id) REFERENCES courses (id),
+    CONSTRAINT chk_order_item_price CHECK (price_bdt >= 0),
+    CONSTRAINT chk_order_item_discount CHECK (discount_bdt >= 0),
+    CONSTRAINT uk_order_items_order_course UNIQUE (order_id, course_id),
+    CONSTRAINT chk_order_item_discount_lte_price CHECK (discount_bdt <= price_bdt)
 );
 
 CREATE TABLE payment_events (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    order_id UUID REFERENCES orders(id) ON DELETE SET NULL,
-    provider VARCHAR(50) NOT NULL,
-    event_type VARCHAR(100) NOT NULL,
-    provider_event_id TEXT,
-    raw_payload_json JSONB NOT NULL,
-    status VARCHAR(30) NOT NULL DEFAULT 'received',
-    processed_at TIMESTAMPTZ,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-
-    CONSTRAINT chk_payment_event_status
-        CHECK (status IN ('received', 'processed', 'failed', 'ignored'))
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid (),
+    order_id uuid,
+    provider varchar(50) NOT NULL,
+    event_type varchar(100) NOT NULL,
+    provider_event_id text,
+    raw_payload_json jsonb NOT NULL,
+    status varchar(30) NOT NULL DEFAULT 'RECEIVED',
+    processed_at timestamptz,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT fk_payment_events_order FOREIGN KEY (order_id) REFERENCES orders (id) ON DELETE SET NULL,
+    CONSTRAINT chk_payment_event_provider CHECK (provider IN ('SSLCOMMERZ', 'BKASH')),
+    CONSTRAINT chk_payment_event_status CHECK (status IN ('RECEIVED', 'PROCESSED', 'FAILED', 'IGNORED'))
 );
 
--- =========================
+-- =========================================================
 -- CERTIFICATES
--- =========================
-
+-- =========================================================
 CREATE TABLE certificate_templates (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name VARCHAR(255) NOT NULL,
-    template_json JSONB NOT NULL,
-    is_active BOOLEAN NOT NULL DEFAULT true,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid (),
+    name text NOT NULL,
+    template_json jsonb NOT NULL,
+    is_active boolean NOT NULL DEFAULT TRUE,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE TABLE certificates (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    certificate_code VARCHAR(100) NOT NULL UNIQUE,
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
-    template_id UUID REFERENCES certificate_templates(id) ON DELETE SET NULL,
-    issued_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    revoked_at TIMESTAMPTZ,
-    pdf_url TEXT,
-    issued_by UUID REFERENCES users(id),
-
-    UNIQUE (user_id, course_id)
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid (),
+    certificate_code varchar(100) NOT NULL UNIQUE,
+    user_id uuid NOT NULL,
+    course_id uuid NOT NULL,
+    template_id uuid,
+    issued_at timestamptz NOT NULL DEFAULT now(),
+    revoked_at timestamptz,
+    pdf_url text,
+    issued_by uuid,
+    recipient_name text NOT NULL,
+    course_title text NOT NULL,
+    CONSTRAINT fk_certificates_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+    CONSTRAINT fk_certificates_course FOREIGN KEY (course_id) REFERENCES courses (id) ON DELETE CASCADE,
+    CONSTRAINT fk_certificates_template FOREIGN KEY (template_id) REFERENCES certificate_templates (id) ON DELETE SET NULL,
+    CONSTRAINT fk_certificates_issued_by FOREIGN KEY (issued_by) REFERENCES users (id) ON DELETE SET NULL,
+    CONSTRAINT uk_certificates_user_course UNIQUE (user_id, course_id)
 );
 
--- =========================
+-- =========================================================
 -- SUPPORT / FAQ / AUDIT
--- =========================
-
+-- =========================================================
 CREATE TABLE support_tickets (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
-    name VARCHAR(255),
-    email VARCHAR(255),
-    phone VARCHAR(30),
-    subject VARCHAR(255) NOT NULL,
-    message TEXT NOT NULL,
-    status VARCHAR(30) NOT NULL DEFAULT 'open',
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    closed_at TIMESTAMPTZ,
-
-    CONSTRAINT chk_support_status
-        CHECK (status IN ('open', 'closed'))
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid (),
+    user_id uuid,
+    name text,
+    email citext,
+    phone varchar(30),
+    subject text NOT NULL,
+    message text NOT NULL,
+    status varchar(30) NOT NULL DEFAULT 'OPEN',
+    closed_at timestamptz,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT fk_support_tickets_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL,
+    CONSTRAINT chk_support_status CHECK (status IN ('OPEN', 'CLOSED'))
 );
 
 CREATE TABLE faqs (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    question TEXT NOT NULL,
-    answer TEXT NOT NULL,
-    position INTEGER NOT NULL DEFAULT 0,
-    is_published BOOLEAN NOT NULL DEFAULT true,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid (),
+    question text NOT NULL,
+    answer text NOT NULL,
+    position integer NOT NULL DEFAULT 0,
+    is_published boolean NOT NULL DEFAULT TRUE,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE TABLE audit_logs (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    actor_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
-    action VARCHAR(100) NOT NULL,
-    entity_type VARCHAR(100) NOT NULL,
-    entity_id TEXT,
-    metadata_json JSONB,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid (),
+    actor_user_id uuid,
+    action varchar(100) NOT NULL,
+    entity_type varchar(100) NOT NULL,
+    entity_id text,
+    metadata_json jsonb,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT fk_audit_logs_actor FOREIGN KEY (actor_user_id) REFERENCES users (id) ON DELETE SET NULL
 );
 
--- =========================
+-- =========================================================
+-- SEED DATA
+-- =========================================================
+INSERT INTO roles (name)
+VALUES
+    ('STUDENT'),
+    ('INSTRUCTOR'),
+    ('ADMIN');
+
+-- =========================================================
 -- INDEXES
--- =========================
+-- =========================================================
+CREATE INDEX idx_user_roles_role_id ON user_roles (role_id);
 
-CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_users_phone ON users(phone);
+CREATE INDEX idx_email_verification_tokens_user_id ON email_verification_tokens (user_id);
 
-CREATE INDEX idx_refresh_tokens_user_id ON refresh_tokens(user_id);
-CREATE INDEX idx_refresh_tokens_session_id ON refresh_tokens(session_id);
+CREATE INDEX idx_password_reset_tokens_user_id ON password_reset_tokens (user_id);
 
-CREATE INDEX idx_courses_status_published_at ON courses(status, published_at);
-CREATE INDEX idx_courses_category_id ON courses(category_id);
-CREATE INDEX idx_courses_created_by ON courses(created_by);
+CREATE INDEX idx_refresh_tokens_user_id ON refresh_tokens (user_id);
 
-CREATE INDEX idx_course_sections_course_position ON course_sections(course_id, position);
+CREATE INDEX idx_refresh_tokens_session_id ON refresh_tokens (session_id);
 
-CREATE INDEX idx_media_assets_provider_asset_id ON media_assets(provider, provider_asset_id);
-CREATE INDEX idx_media_assets_created_by ON media_assets(created_by);
+CREATE INDEX idx_refresh_tokens_replaced_by_token_id ON refresh_tokens (replaced_by_token_id);
 
-CREATE INDEX idx_lessons_course_position ON lessons(course_id, position);
-CREATE INDEX idx_lessons_section_id ON lessons(section_id);
-CREATE INDEX idx_lessons_media_asset_id ON lessons(media_asset_id);
+CREATE INDEX idx_categories_parent_id ON categories (parent_id);
 
-CREATE INDEX idx_enrollments_user_id ON enrollments(user_id);
-CREATE INDEX idx_enrollments_course_id ON enrollments(course_id);
-CREATE INDEX idx_enrollments_status ON enrollments(status);
+CREATE INDEX idx_courses_status_published_at ON courses (status, published_at);
 
-CREATE INDEX idx_lesson_progress_user_id ON lesson_progress(user_id);
-CREATE INDEX idx_lesson_progress_lesson_id ON lesson_progress(lesson_id);
+CREATE INDEX idx_courses_created_by ON courses (created_by);
 
-CREATE INDEX idx_quizzes_course_id ON quizzes(course_id);
-CREATE INDEX idx_quiz_attempts_user_quiz ON quiz_attempts(user_id, quiz_id);
+CREATE INDEX idx_courses_preview_lesson_id ON courses (preview_lesson_id);
 
-CREATE INDEX idx_orders_user_status ON orders(user_id, status);
-CREATE INDEX idx_orders_provider_txn_id ON orders(provider_txn_id);
+CREATE INDEX idx_course_categories_category_id ON course_categories (category_id);
 
-CREATE INDEX idx_order_items_order_id ON order_items(order_id);
-CREATE INDEX idx_order_items_course_id ON order_items(course_id);
+CREATE INDEX idx_course_instructors_instructor_user_id ON course_instructors (instructor_user_id);
 
-CREATE INDEX idx_payment_events_order_id ON payment_events(order_id);
-CREATE INDEX idx_payment_events_provider_event_id ON payment_events(provider_event_id);
+CREATE INDEX idx_course_sections_course_id ON course_sections (course_id);
 
-CREATE INDEX idx_certificates_code ON certificates(certificate_code);
-CREATE INDEX idx_certificates_user_id ON certificates(user_id);
+CREATE INDEX idx_lessons_course_id ON lessons (course_id);
 
-CREATE INDEX idx_faqs_published_position ON faqs(is_published, position);
+CREATE INDEX idx_lessons_section_id ON lessons (section_id);
 
-CREATE INDEX idx_audit_logs_actor ON audit_logs(actor_user_id);
-CREATE INDEX idx_audit_logs_entity ON audit_logs(entity_type, entity_id);
+CREATE INDEX idx_lesson_resources_lesson_id ON lesson_resources (lesson_id);
 
-CREATE INDEX idx_email_verification_tokens_user_id ON email_verification_tokens(user_id);
+CREATE INDEX idx_enrollments_user_id ON enrollments (user_id);
+
+CREATE INDEX idx_enrollments_course_id ON enrollments (course_id);
+
+CREATE INDEX idx_enrollments_status ON enrollments (status);
+
+CREATE INDEX idx_enrollments_expires_at ON enrollments (expires_at);
+
+CREATE INDEX idx_lesson_progress_lesson_id ON lesson_progress (lesson_id);
+
+CREATE INDEX idx_quizzes_course_id ON quizzes (course_id);
+
+CREATE INDEX idx_quizzes_lesson_id ON quizzes (lesson_id);
+
+CREATE UNIQUE INDEX uk_quizzes_lesson_id_not_null ON quizzes (lesson_id)
+WHERE
+    lesson_id IS NOT NULL;
+
+CREATE UNIQUE INDEX uk_quizzes_course_id_when_lesson_null ON quizzes (course_id)
+WHERE
+    lesson_id IS NULL;
+
+CREATE INDEX idx_quiz_questions_quiz_id ON quiz_questions (quiz_id);
+
+CREATE INDEX idx_quiz_choices_question_id ON quiz_choices (question_id);
+
+CREATE INDEX idx_quiz_attempts_user_quiz ON quiz_attempts (user_id, quiz_id);
+
+CREATE INDEX idx_orders_user_status ON orders (user_id, status);
+
+CREATE INDEX idx_orders_provider_txn_id ON orders (provider_txn_id);
+
+CREATE UNIQUE INDEX uk_orders_provider_provider_txn_id_not_null ON orders (provider, provider_txn_id)
+WHERE
+    provider_txn_id IS NOT NULL;
+
+CREATE INDEX idx_order_items_order_id ON order_items (order_id);
+
+CREATE INDEX idx_order_items_course_id ON order_items (course_id);
+
+CREATE INDEX idx_payment_events_order_id ON payment_events (order_id);
+
+CREATE INDEX idx_payment_events_provider_event_id ON payment_events (provider_event_id);
+
+CREATE UNIQUE INDEX uk_payment_events_provider_provider_event_id_not_null ON payment_events (provider, provider_event_id)
+WHERE
+    provider_event_id IS NOT NULL;
+
+CREATE INDEX idx_certificates_user_id ON certificates (user_id);
+
+CREATE INDEX idx_certificates_course_id ON certificates (course_id);
+
+CREATE INDEX idx_support_tickets_status ON support_tickets (status);
+
+CREATE INDEX idx_faqs_published_position ON faqs (is_published, position);
+
+CREATE INDEX idx_audit_logs_actor ON audit_logs (actor_user_id);
+
+CREATE INDEX idx_audit_logs_entity ON audit_logs (entity_type, entity_id);
+
+CREATE INDEX idx_media_assets_created_by ON media_assets (created_by);
+
+CREATE UNIQUE INDEX uk_media_assets_provider_asset_id_not_null ON media_assets (provider, provider_asset_id)
+WHERE
+    provider_asset_id IS NOT NULL;
+
+CREATE UNIQUE INDEX uk_media_assets_provider_playback_id_not_null ON media_assets (provider, playback_id)
+WHERE
+    playback_id IS NOT NULL;
+
+CREATE INDEX idx_live_classes_course_id ON live_classes (course_id);
+
+CREATE INDEX idx_live_classes_section_id ON live_classes (section_id);
+
+CREATE INDEX idx_live_classes_lesson_id ON live_classes (lesson_id);
+
+CREATE INDEX idx_live_classes_instructor_id ON live_classes (instructor_id);
+
+CREATE INDEX idx_live_classes_starts_at ON live_classes (starts_at);
+
+CREATE INDEX idx_live_classes_status ON live_classes (status);
+
+CREATE INDEX idx_live_class_registrants_user_id ON live_class_registrants (user_id);
+
+CREATE INDEX idx_live_class_registrants_live_class_id ON live_class_registrants (live_class_id);
+
+CREATE INDEX idx_live_class_attendance_live_class_id ON live_class_attendance (live_class_id);
+
+CREATE INDEX idx_live_class_attendance_user_id ON live_class_attendance (user_id);
+
+CREATE INDEX idx_live_class_attendance_email ON live_class_attendance (participant_email);

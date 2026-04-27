@@ -1,8 +1,8 @@
 package com.gii.common.repository.order;
 
-import com.gii.common.model.enums.OrderProvider;
-import com.gii.common.model.order.PaymentEvent;
-import com.gii.common.model.enums.PaymentEventStatus;
+import com.gii.common.enums.OrderProvider;
+import com.gii.common.entity.order.PaymentEvent;
+import com.gii.common.enums.PaymentEventStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;

@@ -1,25 +1,18 @@
 package com.gii.common.repository.course;
 
-import com.gii.common.model.course.Course;
-import com.gii.common.model.enums.CourseStatus;
+import com.gii.common.entity.course.Course;
+import com.gii.common.enums.PublishStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import java.util.Optional;
 import java.util.UUID;
 
-public interface CourseRepository extends JpaRepository<Course, UUID> {
+public interface CourseRepository extends JpaRepository<Course, UUID>, JpaSpecificationExecutor<Course> {
 
-    Optional<Course> findBySlug(String slug);
+    Optional<Course> findBySlugAndStatus(String slug, PublishStatus status);
 
-    boolean existsBySlug(String slug);
-
-    Page<Course> findByStatus(CourseStatus status, Pageable pageable);
-
-    Page<Course> findByCategoryIdAndStatus(UUID categoryId, CourseStatus status, Pageable pageable);
-
-    Page<Course> findByCreatedById(UUID createdById, Pageable pageable);
-
-    long countByStatus(CourseStatus status);
+    Page<Course> findByStatus(PublishStatus status, Pageable pageable);
 }
