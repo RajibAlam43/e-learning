@@ -2,9 +2,9 @@ package com.gii.common.entity.user;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -12,6 +12,8 @@ import java.util.UUID;
 @Builder
 @Getter
 @Setter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Entity
 @Table(name = "instructor_profiles")
 public class InstructorProfile {
@@ -26,16 +28,16 @@ public class InstructorProfile {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @Column(name = "display_name", nullable = false, length = 255)
+    @Column(name = "display_name", nullable = false)
     private String displayName;
 
-    @Column(name = "headline", length = 255)
+    @Column(name = "headline")
     private String headline;
 
-    @Column(name = "institution", length = 255)
+    @Column(name = "institution")
     private String institution;
 
-    @Column(name = "expertise_area", length = 255)
+    @Column(name = "expertise_area")
     private String expertiseArea;
 
     @Column(name = "about")
@@ -53,6 +55,16 @@ public class InstructorProfile {
 
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
+
+    @Column(name = "credentials_text", columnDefinition = "text")
+    private String credentialsText;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "specialties_json", columnDefinition = "jsonb")
+    private java.util.List<String> specialties;
+
+    @Column(name = "years_experience")
+    private Integer yearsExperience;
 
     @PrePersist
     protected void onCreate() {

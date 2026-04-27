@@ -1,7 +1,6 @@
 package com.gii.common.entity.course;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.gii.common.entity.user.User;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -11,12 +10,12 @@ import lombok.*;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Entity
-@Table(name = "course_instructors")
-public class CourseInstructor {
+@Table(name = "course_categories")
+public class CourseCategory {
 
     @EmbeddedId
     @Builder.Default
-    private CourseInstructorId id = new CourseInstructorId();
+    private CourseCategoryId id = new CourseCategoryId();
 
     @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -26,11 +25,7 @@ public class CourseInstructor {
 
     @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @MapsId("instructorUserId")
-    @JoinColumn(name = "instructor_user_id", nullable = false)
-    private User instructor;
-
-    @Column(name = "role", nullable = false, length = 50)
-    @Builder.Default
-    private String role = "primary";
+    @MapsId("categoryId")
+    @JoinColumn(name = "category_id", nullable = false)
+    private Category category;
 }

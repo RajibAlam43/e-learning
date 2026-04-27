@@ -3,13 +3,15 @@ package com.gii.common.entity.order;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.gii.common.entity.course.Course;
 import jakarta.persistence.*;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
+
+import java.math.BigDecimal;
 
 @Builder
 @Getter
 @Setter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Entity
 @Table(name = "order_items")
 public class OrderItem {
@@ -30,8 +32,9 @@ public class OrderItem {
     private Course course;
 
     @Column(name = "price_bdt", nullable = false)
-    private Integer priceBdt;
+    private BigDecimal priceBdt;
 
     @Column(name = "discount_bdt", nullable = false)
-    private Integer discountBdt = 0;
+    @Builder.Default
+    private BigDecimal discountBdt = BigDecimal.ZERO;
 }

@@ -3,9 +3,9 @@ package com.gii.api.service.open;
 import com.gii.common.entity.course.Course;
 import com.gii.common.enums.CourseLanguage;
 import com.gii.common.enums.CourseLevel;
-import com.gii.common.enums.CourseStatus;
 import com.gii.api.model.response.CourseSummaryResponse;
 import com.gii.api.model.response.PageResponse;
+import com.gii.common.enums.PublishStatus;
 import com.gii.common.repository.course.CourseRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -34,7 +34,7 @@ public class AllCoursesService {
         );
 
         Specification<Course> spec = Specification
-                .where(CourseSpecifications.hasStatus(CourseStatus.published))
+                .where(CourseSpecifications.hasStatus(PublishStatus.PUBLISHED))
                 .and(CourseSpecifications.hasCategory(categoryId))
                 .and(CourseSpecifications.hasLevel(level))
                 .and(CourseSpecifications.hasLanguage(language));

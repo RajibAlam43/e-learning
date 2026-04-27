@@ -1,7 +1,8 @@
 package com.gii.common.enums;
 
 public enum MediaProvider {
-    mux,
-    youtube,
-    r2
+    MUX,
+    YOUTUBE,
+    R2,
+    BUNNY
 }

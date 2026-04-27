@@ -1,6 +1,8 @@
 package com.gii.api.controller;
 
 import com.gii.api.model.response.LessonPlaybackResponse;
+import com.gii.api.processor.StudentApiProcessingService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -11,8 +13,11 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.UUID;
 
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/student")
 public class StudentApiController {
+
+    private final StudentApiProcessingService studentApiProcessingService;
 
     @GetMapping("/lessons/{lessonId}/playback")
     public ResponseEntity<LessonPlaybackResponse> getPlayback(
@@ -20,7 +25,8 @@ public class StudentApiController {
             Authentication authentication
     ) {
         return ResponseEntity.ok(
-                lessonPlaybackService.execute(lessonId, authentication)
+        //        studentApiProcessingService.execute(lessonId, authentication)
+                null
         );
     }
 }

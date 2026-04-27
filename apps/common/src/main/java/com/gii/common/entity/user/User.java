@@ -4,9 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.gii.common.entity.common.BaseUuidEntity;
 import com.gii.common.enums.UserStatus;
 import jakarta.persistence.*;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 import lombok.experimental.SuperBuilder;
 
 import java.time.Instant;
@@ -17,6 +15,7 @@ import java.util.stream.Collectors;
 @SuperBuilder
 @Getter
 @Setter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
 @Table(name = "users")
 public class User extends BaseUuidEntity {
@@ -24,7 +23,7 @@ public class User extends BaseUuidEntity {
     @Column(name = "student_code", unique = true, length = 50)
     private String studentCode;
 
-    @Column(name = "email", unique = true, length = 255)
+    @Column(name = "email", unique = true)
     private String email;
 
     @Column(name = "phone", unique = true, length = 20)
@@ -33,7 +32,7 @@ public class User extends BaseUuidEntity {
     @Column(name = "phone_country_code", length = 5)
     private String phoneCountryCode;
 
-    @Column(name = "full_name", nullable = false, length = 255)
+    @Column(name = "full_name", nullable = false)
     private String fullName;
 
     @JsonIgnore
@@ -43,7 +42,7 @@ public class User extends BaseUuidEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 30)
     @Builder.Default
-    private UserStatus status = UserStatus.active;
+    private UserStatus status = UserStatus.ACTIVE;
 
     @Column(name = "email_verified_at")
     private Instant emailVerifiedAt;

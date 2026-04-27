@@ -3,13 +3,13 @@ package com.gii.common.entity.quiz;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.gii.common.enums.QuestionType;
 import jakarta.persistence.*;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
 @Builder
 @Getter
 @Setter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Entity
 @Table(
         name = "quiz_questions",
@@ -37,8 +37,14 @@ public class QuizQuestion {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "question_type", nullable = false, length = 30)
-    private QuestionType questionType = QuestionType.mcq;
+    @Builder.Default
+    private QuestionType questionType = QuestionType.MCQ;
 
     @Column(name = "points", nullable = false)
+    @Builder.Default
     private Integer points = 1;
+
+    @Column(name = "explanation_text")
+    private String explanationText;
+
 }

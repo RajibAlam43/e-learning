@@ -1,18 +1,19 @@
 package com.gii.common.entity.user;
 
 import jakarta.persistence.*;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
 @Builder
 @Getter
 @Setter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Entity
 @Table(name = "user_roles")
 public class UserRole {
 
     @EmbeddedId
+    @Builder.Default
     private UserRoleId id = new UserRoleId();
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

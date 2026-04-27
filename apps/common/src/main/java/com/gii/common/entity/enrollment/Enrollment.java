@@ -6,8 +6,7 @@ import com.gii.common.entity.user.User;
 import com.gii.common.entity.common.CreatedOnlyUuidEntity;
 import com.gii.common.enums.EnrollmentStatus;
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 import lombok.experimental.SuperBuilder;
 
 import java.time.Instant;
@@ -15,6 +14,7 @@ import java.time.Instant;
 @SuperBuilder
 @Getter
 @Setter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
 @Table(
         name = "enrollments",
@@ -36,7 +36,8 @@ public class Enrollment extends CreatedOnlyUuidEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 30)
-    private EnrollmentStatus status = EnrollmentStatus.active;
+    @Builder.Default
+    private EnrollmentStatus status = EnrollmentStatus.ACTIVE;
 
     @Column(name = "enrolled_at", nullable = false)
     private Instant enrolledAt;
@@ -44,11 +45,9 @@ public class Enrollment extends CreatedOnlyUuidEntity {
     @Column(name = "revoked_at")
     private Instant revokedAt;
 
-    @PrePersist
-    protected void onCreateEnrollment() {
-        super.onCreate();
-        if (this.enrolledAt == null) {
-            this.enrolledAt = Instant.now();
-        }
-    }
+    @Column(name = "completed_at")
+    private Instant completedAt;
+
+    @Column(name = "expires_at")
+    private Instant expiresAt;
 }

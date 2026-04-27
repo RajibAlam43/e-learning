@@ -4,6 +4,7 @@ import com.gii.common.enums.CourseLanguage;
 import com.gii.common.enums.CourseLevel;
 import lombok.Builder;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -17,7 +18,7 @@ public record CourseSummaryResponse(
         CourseLevel level,
         String categoryName,
         String thumbnailUrl,
-        Integer priceBdt,
+        BigDecimal priceBdt,
         Instant publishedAt,
         String instructorName,
         int page

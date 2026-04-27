@@ -1,5 +1,6 @@
 package com.gii.common.enums;
 
 public enum OrderProvider {
-    sslcommerz
+    SSLCOMMERZ,
+    BKASH
 }

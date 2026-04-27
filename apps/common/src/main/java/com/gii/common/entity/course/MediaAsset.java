@@ -5,13 +5,16 @@ import com.gii.common.entity.common.BaseUuidEntity;
 import com.gii.common.entity.user.User;
 import com.gii.common.enums.*;
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 import lombok.experimental.SuperBuilder;
+
+import java.util.HashSet;
+import java.util.Set;
 
 @SuperBuilder
 @Getter
 @Setter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
 @Table(name = "media_assets")
 public class MediaAsset extends BaseUuidEntity {
@@ -22,7 +25,8 @@ public class MediaAsset extends BaseUuidEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "asset_type", nullable = false, length = 30)
-    private MediaAssetType assetType = MediaAssetType.video;
+    @Builder.Default
+    private MediaAssetType assetType = MediaAssetType.VIDEO;
 
     @Column(name = "provider_asset_id")
     private String providerAssetId;
@@ -30,7 +34,7 @@ public class MediaAsset extends BaseUuidEntity {
     @Column(name = "playback_id")
     private String playbackId;
 
-    @Convert(converter = PlaybackPolicyConverter.class)
+    @Enumerated(EnumType.STRING)
     @Column(name = "playback_policy", length = 30)
     private PlaybackPolicy playbackPolicy;
 
@@ -42,10 +46,16 @@ public class MediaAsset extends BaseUuidEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 30)
-    private MediaStatus status = MediaStatus.ready;
+    @Builder.Default
+    private MediaStatus status = MediaStatus.READY;
 
     @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by")
     private User createdBy;
+
+    @JsonIgnore
+    @OneToMany(mappedBy = "primaryMediaAsset", fetch = FetchType.LAZY)
+    @Builder.Default
+    private Set<Lesson> lessons = new HashSet<>();
 }

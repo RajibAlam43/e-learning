@@ -14,11 +14,11 @@ import java.util.UUID;
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @EqualsAndHashCode
 @Embeddable
-public class CourseInstructorId implements Serializable {
+public class CourseCategoryId implements Serializable {
 
     @Column(name = "course_id", nullable = false)
     private UUID courseId;
 
-    @Column(name = "instructor_user_id", nullable = false)
-    private UUID instructorUserId;
+    @Column(name = "category_id", nullable = false)
+    private UUID categoryId;
 }

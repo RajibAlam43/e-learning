@@ -2,9 +2,8 @@ package com.gii.api.service.open;
 
 import com.gii.api.model.response.*;
 import com.gii.common.entity.course.*;
-import com.gii.common.enums.CourseStatus;
-import com.gii.common.enums.LessonStatus;
 import com.gii.common.entity.user.User;
+import com.gii.common.enums.PublishStatus;
 import com.gii.common.repository.course.CourseRepository;
 import com.gii.common.repository.course.CourseSectionRepository;
 import com.gii.common.repository.course.LessonRepository;
@@ -26,7 +25,7 @@ public class CourseDetailsService {
     private final LessonRepository lessonRepository;
 
     public CourseDetailsResponse execute(String slug) {
-        Course course = courseRepository.findBySlugAndStatus(slug, CourseStatus.published)
+        Course course = courseRepository.findBySlugAndStatus(slug, PublishStatus.PUBLISHED)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found"));
 
         List<CourseSection> sections =
@@ -35,7 +34,7 @@ public class CourseDetailsService {
         List<Lesson> lessons =
                 lessonRepository.findByCourseIdAndStatusOrderByPositionAsc(
                         course.getId(),
-                        LessonStatus.published
+                        PublishStatus.PUBLISHED
                 );
 
         List<CourseSectionResponse> sectionResponses = sections.stream()
@@ -53,8 +52,6 @@ public class CourseDetailsService {
                 .thumbnailUrl(course.getThumbnailUrl())
                 .priceBdt(course.getPriceBdt())
                 .publishedAt(course.getPublishedAt())
-                .category(toCategoryResponse(course.getCategory()))
-                .instructor(toInstructorSummaryResponse(course.getCreatedBy()))
                 .sections(sectionResponses)
                 .build();
     }
@@ -78,11 +75,11 @@ public class CourseDetailsService {
     }
 
     private LessonSummaryResponse toLessonSummaryResponse(Lesson lesson) {
-        MediaAsset media = lesson.getMediaAsset();
+        MediaAsset media = lesson.getPrimaryMediaAsset();
 
         LessonVideoResponse video = null;
 
-        if (Boolean.TRUE.equals(lesson.getIsPreviewFree()) && media != null) {
+        if (Boolean.TRUE.equals(lesson.getIsFree()) && media != null) {
             video = LessonVideoResponse.builder()
                     .provider(media.getProvider())
                     .sourceId(media.getProviderAssetId()) // YouTube ID
@@ -95,8 +92,7 @@ public class CourseDetailsService {
                 .slug(lesson.getSlug())
                 .position(lesson.getPosition())
                 .lessonType(lesson.getLessonType())
-                .isPreviewFree(lesson.getIsPreviewFree())
-                //.durationSeconds(media != null ? media.getDurationSeconds() : null)
+                .isPreviewFree(lesson.getIsFree())
                 .video(video)
                 .build();
     }

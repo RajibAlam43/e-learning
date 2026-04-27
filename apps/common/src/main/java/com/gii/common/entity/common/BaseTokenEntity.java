@@ -3,7 +3,9 @@ package com.gii.common.entity.common;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.Column;
 import jakarta.persistence.MappedSuperclass;
+import lombok.AccessLevel;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.experimental.SuperBuilder;
 
@@ -12,6 +14,7 @@ import java.time.Instant;
 @MappedSuperclass
 @Getter
 @Setter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @SuperBuilder
 public abstract class BaseTokenEntity extends CreatedOnlyUuidEntity {
 

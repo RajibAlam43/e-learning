@@ -1,9 +1,9 @@
 package com.gii.common.enums;
 
 public enum MediaStatus {
-    uploading,
-    processing,
-    ready,
-    failed,
-    deleted
+    UPLOADING,
+    PROCESSING,
+    READY,
+    FAILED,
+    DELETED
 }

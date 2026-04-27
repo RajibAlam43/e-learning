@@ -1,7 +1,7 @@
 package com.gii.common.enums;
 
 public enum CourseLevel {
-    beginner,
-    intermediate,
-    advanced
+    BEGINNER,
+    INTERMEDIATE,
+    ADVANCED
 }

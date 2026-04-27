@@ -13,9 +13,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -23,6 +21,7 @@ import java.util.UUID;
 @Builder
 @Getter
 @Setter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
 @Table(
         name = "certificates",
@@ -67,6 +66,12 @@ public class Certificate {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "issued_by")
     private User issuedBy;
+
+    @Column(name = "recipient_name", nullable = false)
+    private String recipientName;
+
+    @Column(name = "course_title", nullable = false)
+    private String courseTitle;
 
     @PrePersist
     protected void onCreate() {

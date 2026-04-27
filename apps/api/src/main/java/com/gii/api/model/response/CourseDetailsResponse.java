@@ -2,8 +2,10 @@ package com.gii.api.model.response;
 
 import com.gii.common.enums.CourseLanguage;
 import com.gii.common.enums.CourseLevel;
+import com.gii.common.enums.StudyMode;
 import lombok.Builder;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -13,14 +15,23 @@ public record CourseDetailsResponse(
         UUID id,
         String title,
         String slug,
+        String thumbnailUrl,
         String shortDescription,
         String description,
-        CourseLanguage language,
+        List<String> highlights,
+        BigDecimal priceBdt,
+        List<String> courseOutcomes,
+        List<String> requirements,
+        List<String> prerequisites,
         CourseLevel level,
-        String thumbnailUrl,
-        Integer priceBdt,
+        CourseLanguage language,
+        StudyMode studyMode,
+        List<CategoryResponse> categories,
+        List<CourseSectionResponse> sections,
+        List<InstructorSummaryResponse> instructors,
         Instant publishedAt,
-        CategoryResponse category,
-        InstructorSummaryResponse instructor,
-        List<CourseSectionResponse> sections
+        Integer liveSessionCount,
+        Integer quizCount,
+        Integer recordedHoursCount,
+        Boolean isFree
 ) {}

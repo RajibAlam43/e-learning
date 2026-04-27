@@ -2,13 +2,16 @@ package com.gii.common.entity.course;
 
 import com.gii.common.entity.common.CreatedOnlyUuidEntity;
 import jakarta.persistence.*;
+import lombok.AccessLevel;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.experimental.SuperBuilder;
 
 @SuperBuilder
 @Getter
 @Setter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
 @Table(name = "categories")
 public class Category extends CreatedOnlyUuidEntity {

@@ -4,20 +4,21 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.gii.common.entity.course.Lesson;
 import com.gii.common.entity.user.User;
 import jakarta.persistence.*;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
 import java.time.Instant;
 
 @Builder
 @Getter
 @Setter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Entity
 @Table(name = "lesson_progress")
 public class LessonProgress {
 
     @EmbeddedId
+    @Builder.Default
     private LessonProgressId id = new LessonProgressId();
 
     @JsonIgnore
@@ -32,29 +33,12 @@ public class LessonProgress {
     @JoinColumn(name = "lesson_id", nullable = false)
     private Lesson lesson;
 
-    @Column(name = "completed", nullable = false)
-    private Boolean completed = false;
-
-    @Column(name = "completed_at")
-    private Instant completedAt;
-
     @Column(name = "last_position_sec")
     private Integer lastPositionSec;
 
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
-    @PrePersist
-    @PreUpdate
-    protected void onUpdate() {
-        this.updatedAt = Instant.now();
-
-        if (Boolean.TRUE.equals(this.completed) && this.completedAt == null) {
-            this.completedAt = Instant.now();
-        }
-
-        if (!Boolean.TRUE.equals(this.completed)) {
-            this.completedAt = null;
-        }
-    }
+    @Column(name = "completed_at")
+    private Instant completedAt;
 }

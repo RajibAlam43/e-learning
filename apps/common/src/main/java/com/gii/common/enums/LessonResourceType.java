@@ -1,7 +1,6 @@
 package com.gii.common.enums;
 
-public enum MediaAssetType {
-    VIDEO,
+public enum LessonResourceType {
     PDF,
     IMAGE
 }

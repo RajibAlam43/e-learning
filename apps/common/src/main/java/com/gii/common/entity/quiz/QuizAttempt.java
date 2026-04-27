@@ -3,15 +3,15 @@ package com.gii.common.entity.quiz;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.gii.common.entity.user.User;
 import jakarta.persistence.*;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
 import java.time.Instant;
 
 @Builder
 @Getter
 @Setter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Entity
 @Table(
         name = "quiz_attempts",

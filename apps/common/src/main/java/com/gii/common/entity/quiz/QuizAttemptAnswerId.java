@@ -10,8 +10,8 @@ import java.util.UUID;
 @Builder
 @Getter
 @Setter
-@NoArgsConstructor
-@AllArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 @EqualsAndHashCode
 @Embeddable
 public class QuizAttemptAnswerId implements Serializable {

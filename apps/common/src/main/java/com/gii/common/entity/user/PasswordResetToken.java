@@ -3,7 +3,9 @@ package com.gii.common.entity.user;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.gii.common.entity.common.BaseTokenEntity;
 import jakarta.persistence.*;
+import lombok.AccessLevel;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.experimental.SuperBuilder;
 
@@ -12,6 +14,7 @@ import java.time.Instant;
 @SuperBuilder
 @Getter
 @Setter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
 @Table(name = "password_reset_tokens")
 public class PasswordResetToken extends BaseTokenEntity {

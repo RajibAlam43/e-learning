@@ -5,8 +5,7 @@ import com.gii.common.entity.common.CreatedOnlyUuidEntity;
 import com.gii.common.enums.OrderProvider;
 import com.gii.common.enums.PaymentEventStatus;
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
@@ -17,6 +16,7 @@ import java.util.Map;
 @SuperBuilder
 @Getter
 @Setter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
 @Table(name = "payment_events")
 public class PaymentEvent extends CreatedOnlyUuidEntity {
@@ -42,7 +42,8 @@ public class PaymentEvent extends CreatedOnlyUuidEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 30)
-    private PaymentEventStatus status = PaymentEventStatus.received;
+    @Builder.Default
+    private PaymentEventStatus status = PaymentEventStatus.RECEIVED;
 
     @Column(name = "processed_at")
     private Instant processedAt;

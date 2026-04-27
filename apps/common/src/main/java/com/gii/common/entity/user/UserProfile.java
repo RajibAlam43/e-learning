@@ -2,9 +2,7 @@ package com.gii.common.entity.user;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -14,6 +12,8 @@ import java.util.UUID;
 @Builder
 @Getter
 @Setter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Entity
 @Table(name = "user_profiles")
 public class UserProfile {
@@ -32,6 +32,7 @@ public class UserProfile {
     private String avatarUrl;
 
     @Column(name = "locale", nullable = false, length = 20)
+    @Builder.Default
     private String locale = "bn-BD";
 
     @Column(name = "timezone", length = 100)

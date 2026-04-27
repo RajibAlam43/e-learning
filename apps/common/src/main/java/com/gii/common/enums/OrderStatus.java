@@ -1,9 +1,9 @@
 package com.gii.common.enums;
 
 public enum OrderStatus {
-    pending,
-    paid,
-    failed,
-    refunded,
-    cancelled
+    PENDING,
+    PAID,
+    FAILED,
+    REFUNDED,
+    CANCELLED
 }

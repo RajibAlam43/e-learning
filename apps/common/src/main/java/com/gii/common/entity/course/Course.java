@@ -4,27 +4,35 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.gii.common.entity.common.BaseUuidEntity;
 import com.gii.common.enums.CourseLanguage;
 import com.gii.common.enums.CourseLevel;
-import com.gii.common.enums.CourseStatus;
 import com.gii.common.entity.user.User;
+import com.gii.common.enums.PublishStatus;
+import com.gii.common.enums.StudyMode;
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 import lombok.experimental.SuperBuilder;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
+import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 
 @SuperBuilder
 @Getter
 @Setter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
 @Table(name = "courses")
 public class Course extends BaseUuidEntity {
 
-    @Column(name = "title", nullable = false, length = 255)
+    @Column(name = "title", nullable = false)
     private String title;
 
-    @Column(name = "slug", nullable = false, unique = true, length = 255)
+    @Column(name = "slug", nullable = false, unique = true)
     private String slug;
+
+    @Column(name = "thumbnail_url")
+    private String thumbnailUrl;
 
     @Column(name = "short_description")
     private String shortDescription;
@@ -32,54 +40,75 @@ public class Course extends BaseUuidEntity {
     @Column(name = "description")
     private String description;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "language", nullable = false, length = 20)
-    private CourseLanguage language = CourseLanguage.bn;
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "highlights", columnDefinition = "jsonb")
+    private List<String> highlights;
+
+    @Column(name = "price_bdt", nullable = false)
+    @Builder.Default
+    private BigDecimal priceBdt = BigDecimal.ZERO;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "course_outcomes", columnDefinition = "jsonb")
+    private List<String> courseOutcomes;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "requirements", columnDefinition = "jsonb")
+    private List<String> requirements;
+
+    @Column(name = "prerequisites", columnDefinition = "text")
+    private String prerequisites;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "level", nullable = false, length = 30)
-    private CourseLevel level = CourseLevel.beginner;
+    @Builder.Default
+    private CourseLevel level = CourseLevel.BEGINNER;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "category_id")
-    private Category category;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "language", nullable = false, length = 20)
+    @Builder.Default
+    private CourseLanguage language = CourseLanguage.BN;
 
-    @Column(name = "thumbnail_url")
-    private String thumbnailUrl;
-
-    @Column(name = "price_bdt", nullable = false)
-    private Integer priceBdt = 0;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "study_mode", nullable = false, length = 30)
+    @Builder.Default
+    private StudyMode studyMode = StudyMode.SCHEDULED;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 30)
-    private CourseStatus status = CourseStatus.draft;
-
-    @Column(name = "submitted_at")
-    private Instant submittedAt;
+    @Builder.Default
+    private PublishStatus status = PublishStatus.DRAFT;
 
     @Column(name = "published_at")
     private Instant publishedAt;
 
+    // For ease of use
+    @Column(name = "is_free", nullable = false)
+    @Builder.Default
+    private Boolean isFree = false;
+
+    @Column(name = "live_session_count", nullable = false)
+    private Integer liveSessionCount;
+
+    @Column(name = "quiz_count", nullable = false)
+    private Integer quizCount;
+
+    @Column(name = "recorded_hours_count", nullable = false)
+    private Integer recordedHoursCount;
+
+    // Not currently used
     @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "created_by", nullable = false)
     private User createdBy;
 
-    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "approved_by")
-    private User approvedBy;
+    @JoinColumn(name = "preview_lesson_id")
+    private Lesson previewLesson;
 
-    /*
-        @Column(name = "what_you_will_learn", columnDefinition = "text")
-        private String whatYouWillLearn;
-        @Column(name = "target_audience", columnDefinition = "text")
-        private String targetAudience;
-        @Column(name = "requirements", columnDefinition = "text")
-        private String requirements;
-        @Column(name = "estimated_duration_minutes")
-        private Integer estimatedDurationMinutes;
-        @Column(name = "is_free", nullable = false)
-        private Boolean isFree = false;
-     */
+    @Column(name = "estimated_duration_minutes")
+    private Integer estimatedDurationMinutes;
+
+    @Column(name = "target_audience", columnDefinition = "text")
+    private String targetAudience;
 }

@@ -1,7 +1,7 @@
 package com.gii.common.repository.course;
 
 import com.gii.common.entity.course.Lesson;
-import com.gii.common.enums.LessonStatus;
+import com.gii.common.enums.PublishStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -14,7 +14,7 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID> {
 
     List<Lesson> findByCourseIdOrderByPositionAsc(UUID courseId);
 
-    List<Lesson> findByCourseIdAndStatusOrderByPositionAsc(UUID courseId, LessonStatus status);
+    List<Lesson> findByCourseIdAndStatusOrderByPositionAsc(UUID courseId, PublishStatus status);
 
-    long countByCourseIdAndStatus(UUID courseId, LessonStatus status);
+    long countByCourseIdAndStatus(UUID courseId, PublishStatus status);
 }
