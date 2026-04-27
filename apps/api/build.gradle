@@ -19,8 +19,8 @@ dependencies {
     implementation 'io.jsonwebtoken:jjwt-api:0.13.0'
 
     // SQS
-    implementation 'io.awspring.cloud:spring-cloud-aws-starter-sqs:4.0.0'
-    implementation 'io.awspring.cloud:spring-cloud-aws-starter:4.0.0'
+    implementation 'io.awspring.cloud:spring-cloud-aws-starter-sqs:4.0.1'
+    implementation 'io.awspring.cloud:spring-cloud-aws-starter:4.0.1'
 
     // POSTGRESQL
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
