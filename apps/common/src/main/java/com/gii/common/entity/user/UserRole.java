@@ -14,7 +14,7 @@ public class UserRole {
 
     @EmbeddedId
     @Builder.Default
-    private UserRoleId id = new UserRoleId();
+    private UserRoleId id = UserRoleId.builder().build();
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @MapsId("userId")

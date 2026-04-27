@@ -16,7 +16,7 @@ public class CourseInstructor {
 
     @EmbeddedId
     @Builder.Default
-    private CourseInstructorId id = new CourseInstructorId();
+    private CourseInstructorId id = CourseInstructorId.builder().build();
 
     @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

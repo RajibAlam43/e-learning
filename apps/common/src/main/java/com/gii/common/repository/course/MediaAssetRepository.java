@@ -9,7 +9,27 @@ import java.util.UUID;
 
 public interface MediaAssetRepository extends JpaRepository<MediaAsset, UUID> {
 
-    Optional<MediaAsset> findByProviderAndProviderAssetId(MediaProvider provider, String providerAssetId);
+    Optional<MediaAsset> findByLessonId(UUID lessonId);
 
-    Optional<MediaAsset> findByProviderAndPlaybackId(MediaProvider provider, String playbackId);
+    boolean existsByLessonId(UUID lessonId);
+
+    Optional<MediaAsset> findByProviderAndProviderAssetId(
+            MediaProvider provider,
+            String providerAssetId
+    );
+
+    boolean existsByProviderAndProviderAssetId(
+            MediaProvider provider,
+            String providerAssetId
+    );
+
+    Optional<MediaAsset> findByProviderAndPlaybackId(
+            MediaProvider provider,
+            String playbackId
+    );
+
+    boolean existsByProviderAndPlaybackId(
+            MediaProvider provider,
+            String playbackId
+    );
 }

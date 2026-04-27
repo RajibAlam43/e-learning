@@ -49,10 +49,9 @@ public class Lesson extends BaseUuidEntity {
     @Builder.Default
     private LessonType lessonType = LessonType.VIDEO;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "primary_media_asset_id")
+    @JsonIgnore
+    @OneToOne(mappedBy = "lesson")
     private MediaAsset primaryMediaAsset;
-
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 30)

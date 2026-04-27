@@ -19,7 +19,7 @@ public class LessonProgress {
 
     @EmbeddedId
     @Builder.Default
-    private LessonProgressId id = new LessonProgressId();
+    private LessonProgressId id = LessonProgressId.builder().build();
 
     @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

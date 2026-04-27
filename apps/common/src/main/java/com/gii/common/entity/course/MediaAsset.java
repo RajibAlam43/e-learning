@@ -8,16 +8,26 @@ import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 
-import java.util.HashSet;
-import java.util.Set;
-
 @SuperBuilder
 @Getter
 @Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
-@Table(name = "media_assets")
+@Table(
+        name = "media_assets",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uk_media_lesson",
+                        columnNames = {"lesson_id"}
+                )
+        }
+)
 public class MediaAsset extends BaseUuidEntity {
+
+    @JsonIgnore
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "lesson_id", nullable = false)
+    private Lesson lesson;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "provider", nullable = false, length = 30)
@@ -31,6 +41,9 @@ public class MediaAsset extends BaseUuidEntity {
     @Column(name = "provider_asset_id")
     private String providerAssetId;
 
+    @Column(name = "provider_library_id")
+    private String providerLibraryId;
+
     @Column(name = "playback_id")
     private String playbackId;
 
@@ -40,6 +53,12 @@ public class MediaAsset extends BaseUuidEntity {
 
     @Column(name = "file_url")
     private String fileUrl;
+
+    @Column(name = "title", nullable = false)
+    private String title;
+
+    @Column(name = "max_resolution", length = 20)
+    private String maxResolution;
 
     @Column(name = "duration_sec")
     private Integer durationSec;
@@ -54,8 +73,7 @@ public class MediaAsset extends BaseUuidEntity {
     @JoinColumn(name = "created_by")
     private User createdBy;
 
-    @JsonIgnore
-    @OneToMany(mappedBy = "primaryMediaAsset", fetch = FetchType.LAZY)
-    @Builder.Default
-    private Set<Lesson> lessons = new HashSet<>();
+    @Enumerated(EnumType.STRING)
+    @Column(name = "preferred_playback_mode", length = 30)
+    private PlaybackMode preferredPlaybackMode;
 }

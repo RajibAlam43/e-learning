@@ -15,7 +15,7 @@ public class QuizAttemptAnswer {
 
     @EmbeddedId
     @Builder.Default
-    private QuizAttemptAnswerId id = new QuizAttemptAnswerId();
+    private QuizAttemptAnswerId id = QuizAttemptAnswerId.builder().build();
 
     @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

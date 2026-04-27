@@ -51,7 +51,11 @@ public class RegisterService {
         UserRole userRole = UserRole.builder()
                 .user(user)
                 .role(studentRole)
-                .id(new UserRoleId(user.getId(), studentRole.getId()))
+                .id(UserRoleId.builder()
+                        .userId(user.getId())
+                        .roleId(studentRole.getId())
+                        .build()
+                )
                 .build();
 
         userRoleRepository.save(userRole);
