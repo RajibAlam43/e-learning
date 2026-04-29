@@ -392,7 +392,7 @@ CREATE TABLE quizzes (
     passing_score_pct integer NOT NULL DEFAULT 60,
     max_attempts integer NOT NULL DEFAULT 3,
     time_limit_sec integer,
-    status varchar(30) NOT NULL DEFAULT 'DRAFT',
+    is_published boolean NOT NULL DEFAULT FALSE,
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
     CONSTRAINT chk_quizzes_status CHECK (status IN ('DRAFT', 'PUBLISHED', 'ARCHIVED')),
