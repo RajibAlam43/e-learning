@@ -395,7 +395,6 @@ CREATE TABLE quizzes (
     is_published boolean NOT NULL DEFAULT FALSE,
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
-    CONSTRAINT chk_quizzes_status CHECK (status IN ('DRAFT', 'PUBLISHED', 'ARCHIVED')),
     CONSTRAINT fk_quizzes_course FOREIGN KEY (course_id) REFERENCES courses (id) ON DELETE CASCADE,
     CONSTRAINT chk_quiz_score CHECK (passing_score_pct BETWEEN 0 AND 100),
     CONSTRAINT chk_quiz_attempts CHECK (max_attempts > 0),
