@@ -70,4 +70,17 @@ public class PublicApiController {
     public ResponseEntity<Placeholder> getInstructorDetails(@PathVariable String slug) {
         return ResponseEntity.ok(new Placeholder());
     }
+
+    /**
+     * Creates a support ticket request and triggers support notification flow.
+     *
+     * @param request support ticket payload submitted by user
+     * @return empty success response when ticket request is accepted
+     */
+    @PostMapping("/support/tickets")
+    public ResponseEntity<Void> createSupportTicket(@RequestBody CreateSupportTicketRequest request) {
+        publicApiProcessingService.createSupportTicket(request);
+        return ResponseEntity.ok().build();
+    }
+
 }

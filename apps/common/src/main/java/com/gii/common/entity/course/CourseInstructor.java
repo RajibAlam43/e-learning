@@ -2,6 +2,7 @@ package com.gii.common.entity.course;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.gii.common.entity.user.User;
+import com.gii.common.enums.InstructorRole;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -32,5 +33,5 @@ public class CourseInstructor {
 
     @Column(name = "role", nullable = false, length = 50)
     @Builder.Default
-    private String role = "primary";
+    private InstructorRole role = InstructorRole.PRIMARY;
 }
