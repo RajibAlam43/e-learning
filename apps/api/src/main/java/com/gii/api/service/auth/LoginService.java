@@ -1,7 +1,7 @@
 package com.gii.api.service.auth;
 
-import com.gii.api.model.response.AuthResponse;
-import com.gii.api.model.request.LoginRequest;
+import com.gii.api.model.response.auth.AuthResponse;
+import com.gii.api.model.request.auth.LoginRequest;
 import com.gii.api.service.security.JwtService;
 import com.gii.api.service.security.RefreshTokenCookieService;
 import com.gii.api.service.security.RefreshTokenStoreService;
@@ -25,7 +25,7 @@ public class LoginService {
     private final RefreshTokenCookieService refreshTokenCookieService;
 
     public AuthResponse execute(LoginRequest request, HttpServletResponse response) {
-        User user = userRepository.findByEmail(request.email())
+        User user = userRepository.findByEmail(request.identifier())
                 .orElseThrow(() -> new RuntimeException("Invalid email or password"));
 
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {

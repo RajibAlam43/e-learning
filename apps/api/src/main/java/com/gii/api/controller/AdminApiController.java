@@ -1,275 +1,158 @@
 package com.gii.api.controller;
 
-import com.gii.api.model.Placeholder;
+import com.gii.api.model.request.admin.*;
+import com.gii.api.model.request.lesson.CreateLessonRequest;
+import com.gii.api.model.request.lesson.UpdateLessonRequest;
+import com.gii.api.model.response.admin.*;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/admin")
-public class AdminApiController {
+@RequiredArgsConstructor
+public class AdminApiController implements AdminApi {
 
-    /**
-     * List all courses.
-     */
-    @GetMapping("/courses")
-    public ResponseEntity<Placeholder> listCourses() {
-        return ResponseEntity.ok(new Placeholder());
+    @Override
+    public ResponseEntity<List<AdminCourseSummaryResponse>> listCourses() {
+        return null;
     }
 
-    /**
-     * Create draft course.
-     */
-    @PostMapping("/courses")
-    public ResponseEntity<Placeholder> createCourse(@RequestBody Object request) {
-        return ResponseEntity.ok(new Placeholder());
+    @Override
+    public ResponseEntity<AdminCourseDetailResponse> createCourse(CreateCourseRequest request, Authentication authentication) {
+        return null;
     }
 
-    /**
-     * Get full editable course detail.
-     */
-    @GetMapping("/courses/{courseId}")
-    public ResponseEntity<Placeholder> getCourse(@PathVariable UUID courseId) {
-        return ResponseEntity.ok(new Placeholder());
+    @Override
+    public ResponseEntity<AdminCourseDetailResponse> getCourse(UUID courseId) {
+        return null;
     }
 
-    /**
-     * Update course info.
-     */
-    @PatchMapping("/courses/{courseId}")
-    public ResponseEntity<Placeholder> updateCourse(
-            @PathVariable UUID courseId,
-            @RequestBody Object request
-    ) {
-        return ResponseEntity.ok(new Placeholder());
+    @Override
+    public ResponseEntity<AdminCourseDetailResponse> updateCourse(UUID courseId, UpdateCourseRequest request) {
+        return null;
     }
 
-    /**
-     * Publish course.
-     */
-    @PostMapping("/courses/{courseId}/publish")
-    public ResponseEntity<Void> publishCourse(@PathVariable UUID courseId) {
-        return ResponseEntity.ok().build();
+    @Override
+    public ResponseEntity<Void> publishCourse(UUID courseId) {
+        return null;
     }
 
-    /**
-     * Unpublish course.
-     */
-    @PostMapping("/courses/{courseId}/unpublish")
-    public ResponseEntity<Void> unpublishCourse(@PathVariable UUID courseId) {
-        return ResponseEntity.ok().build();
+    @Override
+    public ResponseEntity<Void> unpublishCourse(UUID courseId) {
+        return null;
     }
 
-    /**
-     * Add section.
-     */
-    @PostMapping("/courses/{courseId}/sections")
-    public ResponseEntity<Placeholder> createSection(
-            @PathVariable UUID courseId,
-            @RequestBody Object request
-    ) {
-        return ResponseEntity.ok(new Placeholder());
+    @Override
+    public ResponseEntity<AdminCourseSectionResponse> createSection(UUID courseId, CreateSectionRequest request) {
+        return null;
     }
 
-    /**
-     * Update section.
-     */
-    @PatchMapping("/sections/{sectionId}")
-    public ResponseEntity<Placeholder> updateSection(
-            @PathVariable UUID sectionId,
-            @RequestBody Object request
-    ) {
-        return ResponseEntity.ok(new Placeholder());
+    @Override
+    public ResponseEntity<AdminCourseSectionResponse> updateSection(UUID sectionId, UpdateSectionRequest request) {
+        return null;
     }
 
-    /**
-     * Delete section.
-     */
-    @DeleteMapping("/sections/{sectionId}")
-    public ResponseEntity<Void> deleteSection(@PathVariable UUID sectionId) {
-        return ResponseEntity.noContent().build();
+    @Override
+    public ResponseEntity<Void> deleteSection(UUID sectionId) {
+        return null;
     }
 
-    /**
-     * Create lesson with video/resource metadata.
-     */
-    @PostMapping("/sections/{sectionId}/lessons")
-    public ResponseEntity<Placeholder> createLesson(
-            @PathVariable UUID sectionId,
-            @RequestBody Object request
-    ) {
-        return ResponseEntity.ok(new Placeholder());
+    @Override
+    public ResponseEntity<AdminLessonDetailResponse> createLesson(UUID sectionId, CreateLessonRequest request) {
+        return null;
     }
 
-    /**
-     * Update lesson with video/resource metadata.
-     */
-    @PatchMapping("/lessons/{lessonId}")
-    public ResponseEntity<Placeholder> updateLesson(
-            @PathVariable UUID lessonId,
-            @RequestBody Object request
-    ) {
-        return ResponseEntity.ok(new Placeholder());
+    @Override
+    public ResponseEntity<AdminLessonDetailResponse> updateLesson(UUID lessonId, UpdateLessonRequest request) {
+        return null;
     }
 
-    /**
-     * Delete lesson.
-     */
-    @DeleteMapping("/lessons/{lessonId}")
-    public ResponseEntity<Void> deleteLesson(@PathVariable UUID lessonId) {
-        return ResponseEntity.noContent().build();
+    @Override
+    public ResponseEntity<Void> deleteLesson(UUID lessonId) {
+        return null;
     }
 
-    /**
-     * Reorder sections/lessons.
-     */
-    @PostMapping("/courses/{courseId}/structure/reorder")
-    public ResponseEntity<Void> reorderCourseStructure(
-            @PathVariable UUID courseId,
-            @RequestBody Object request
-    ) {
-        return ResponseEntity.ok().build();
+    @Override
+    public ResponseEntity<Void> reorderCourseStructure(UUID courseId, ReorderCourseStructureRequest request) {
+        return null;
     }
 
-    /**
-     * Optional: save reusable media metadata.
-     */
-    @PostMapping("/media-assets")
-    public ResponseEntity<Placeholder> createMediaAsset(@RequestBody Object request) {
-        return ResponseEntity.ok(new Placeholder());
+    @Override
+    public ResponseEntity<AdminMediaAssetResponse> createMediaAsset(CreateMediaAssetRequest request) {
+        return null;
     }
 
-    /**
-     * List instructors.
-     */
-    @GetMapping("/instructors")
-    public ResponseEntity<Placeholder> listInstructors() {
-        return ResponseEntity.ok(new Placeholder());
+    @Override
+    public ResponseEntity<List<AdminInstructorSummaryResponse>> listInstructors() {
+        return null;
     }
 
-    /**
-     * Add selected instructor manually.
-     */
-    @PostMapping("/instructors")
-    public ResponseEntity<Placeholder> createInstructor(@RequestBody Object request) {
-        return ResponseEntity.ok(new Placeholder());
+    @Override
+    public ResponseEntity<AdminInstructorDetailResponse> createInstructor(CreateInstructorRequest request) {
+        return null;
     }
 
-    /**
-     * Update instructor profile.
-     */
-    @PatchMapping("/instructors/{instructorId}")
-    public ResponseEntity<Placeholder> updateInstructor(
-            @PathVariable UUID instructorId,
-            @RequestBody Object request
-    ) {
-        return ResponseEntity.ok(new Placeholder());
+    @Override
+    public ResponseEntity<AdminInstructorDetailResponse> updateInstructor(UUID instructorId, UpdateInstructorRequest request) {
+        return null;
     }
 
-    /**
-     * Assign/update primary instructor for a course.
-     */
-    @PostMapping("/courses/{courseId}/instructors")
-    public ResponseEntity<Void> assignInstructorToCourse(
-            @PathVariable UUID courseId,
-            @RequestBody Object request
-    ) {
-        return ResponseEntity.ok().build();
+    @Override
+    public ResponseEntity<Void> assignInstructorToCourse(UUID courseId, AssignInstructorToCourseRequest request) {
+        return null;
     }
 
-    /**
-     * List all live classes.
-     */
-    @GetMapping("/live-classes")
-    public ResponseEntity<Placeholder> listLiveClasses() {
-        return ResponseEntity.ok(new Placeholder());
+    @Override
+    public ResponseEntity<List<AdminLiveClassSummaryResponse>> listLiveClasses() {
+        return null;
     }
 
-    /**
-     * Create/schedule live class.
-     */
-    @PostMapping("/courses/{courseId}/live-classes")
-    public ResponseEntity<Placeholder> createLiveClass(
-            @PathVariable UUID courseId,
-            @RequestBody Object request
-    ) {
-        return ResponseEntity.ok(new Placeholder());
+    @Override
+    public ResponseEntity<AdminLiveClassDetailResponse> createLiveClass(UUID courseId, CreateLiveClassRequest request) {
+        return null;
     }
 
-    /**
-     * Update live class (including cancel/status).
-     */
-    @PatchMapping("/live-classes/{liveClassId}")
-    public ResponseEntity<Placeholder> updateLiveClass(
-            @PathVariable UUID liveClassId,
-            @RequestBody Object request
-    ) {
-        return ResponseEntity.ok(new Placeholder());
+    @Override
+    public ResponseEntity<AdminLiveClassDetailResponse> updateLiveClass(UUID liveClassId, UpdateLiveClassRequest request) {
+        return null;
     }
 
-    /**
-     * Start live class and return host URL payload.
-     */
-    @PostMapping("/live-classes/{liveClassId}/start")
-    public ResponseEntity<Placeholder> startLiveClass(@PathVariable UUID liveClassId) {
-        return ResponseEntity.ok(new Placeholder());
+    @Override
+    public ResponseEntity<AdminLiveClassStartResponse> startLiveClass(UUID liveClassId) {
+        return null;
     }
 
-    /**
-     * Create quiz with questions/choices in one request.
-     */
-    @PostMapping("/courses/{courseId}/quizzes")
-    public ResponseEntity<Placeholder> createQuiz(
-            @PathVariable UUID courseId,
-            @RequestBody Object request
-    ) {
-        return ResponseEntity.ok(new Placeholder());
+    @Override
+    public ResponseEntity<AdminQuizDetailResponse> createQuiz(UUID courseId, CreateQuizRequest request) {
+        return null;
     }
 
-    /**
-     * Update quiz, questions, and choices in one request.
-     */
-    @PatchMapping("/quizzes/{quizId}")
-    public ResponseEntity<Placeholder> updateQuiz(
-            @PathVariable UUID quizId,
-            @RequestBody Object request
-    ) {
-        return ResponseEntity.ok(new Placeholder());
+    @Override
+    public ResponseEntity<AdminQuizDetailResponse> updateQuiz(UUID quizId, UpdateQuizRequest request) {
+        return null;
     }
 
-    /**
-     * Publish quiz.
-     */
-    @PostMapping("/quizzes/{quizId}/publish")
-    public ResponseEntity<Void> publishQuiz(@PathVariable UUID quizId) {
-        return ResponseEntity.ok().build();
+    @Override
+    public ResponseEntity<Void> publishQuiz(UUID quizId) {
+        return null;
     }
 
-    /**
-     * List/search orders.
-     */
-    @GetMapping("/orders")
-    public ResponseEntity<Placeholder> listOrders() {
-        return ResponseEntity.ok(new Placeholder());
+    @Override
+    public ResponseEntity<List<AdminOrderSummaryResponse>> listOrders() {
+        return null;
     }
 
-    /**
-     * View order detail.
-     */
-    @GetMapping("/orders/{orderId}")
-    public ResponseEntity<Placeholder> getOrder(@PathVariable UUID orderId) {
-        return ResponseEntity.ok(new Placeholder());
+    @Override
+    public ResponseEntity<AdminOrderDetailResponse> getOrder(UUID orderId) {
+        return null;
     }
 
-    /**
-     * Update order status / manual grant-revoke / admin note.
-     */
-    @PatchMapping("/orders/{orderId}")
-    public ResponseEntity<Placeholder> updateOrder(
-            @PathVariable UUID orderId,
-            @RequestBody Object request
-    ) {
-        return ResponseEntity.ok(new Placeholder());
+    @Override
+    public ResponseEntity<AdminOrderDetailResponse> updateOrder(UUID orderId, UpdateOrderRequest request) {
+        return null;
     }
 }

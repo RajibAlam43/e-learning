@@ -1,33 +1,23 @@
 package com.gii.api.controller;
 
+import com.gii.api.model.request.me.UpdateProfileRequest;
+import com.gii.api.model.response.me.MeResponse;
 import lombok.RequiredArgsConstructor;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/me")
-public class MeApiController {
+public class MeApiController implements MeApi {
 
-    /**
-     * Get current user
-     *
-     * @return
-     */
-    @GetMapping
-    public ResponseEntity<@NotNull MeResponse> getMe() {
-        return ResponseEntity.ok(meApiProcessingService.getCurrentUser());
+    @Override
+    public ResponseEntity<MeResponse> getMe(Authentication authentication) {
+        return null;
     }
 
-    /**
-     * Update name/profile info
-     *
-     * @param request
-     * @return
-     */
-    @PatchMapping("/profile")
-    public ResponseEntity<@NotNull MeResponse> updateProfile(@RequestBody UpdateProfileRequest request) {
-        return ResponseEntity.ok(meApiProcessingService.updateProfile(request));
+    @Override
+    public ResponseEntity<MeResponse> updateProfile(UpdateProfileRequest request, Authentication authentication) {
+        return null;
     }
 }
