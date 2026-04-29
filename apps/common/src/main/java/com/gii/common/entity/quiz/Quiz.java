@@ -41,6 +41,7 @@ public class Quiz extends BaseUuidEntity {
     @Column(name = "time_limit_sec")
     private Integer timeLimitSec;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     @Builder.Default
     private PublishStatus status = PublishStatus.DRAFT;

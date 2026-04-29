@@ -41,4 +41,20 @@ public class LessonProgress {
 
     @Column(name = "completed_at")
     private Instant completedAt;
+
+    @Version
+    @Column(name = "version", nullable = false)
+    private Long version;
+
+    @PrePersist
+    protected void onCreate() {
+        if (updatedAt == null) {
+            updatedAt = Instant.now();
+        }
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = Instant.now();
+    }
 }

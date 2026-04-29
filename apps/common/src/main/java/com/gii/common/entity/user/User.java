@@ -23,7 +23,7 @@ public class User extends BaseUuidEntity {
     @Column(name = "student_code", unique = true, length = 50)
     private String studentCode;
 
-    @Column(name = "email", unique = true)
+    @Column(name = "email", unique = true, columnDefinition = "citext")
     private String email;
 
     @Column(name = "phone", unique = true, length = 20)

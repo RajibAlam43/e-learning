@@ -1,7 +1,7 @@
 package com.gii.api.service.auth;
 
-import com.gii.api.model.response.AuthResponse;
-import com.gii.api.model.request.RegisterRequest;
+import com.gii.api.model.response.auth.AuthResponse;
+import com.gii.api.model.request.auth.RegisterRequest;
 import com.gii.api.service.security.JwtService;
 import com.gii.api.service.security.RefreshTokenCookieService;
 import com.gii.api.service.security.RefreshTokenStoreService;

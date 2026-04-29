@@ -1,8 +1,8 @@
 package com.gii.api.controller;
 
-import com.gii.api.model.request.*;
-import com.gii.api.model.response.AuthResponse;
-import com.gii.api.processor.AuthApiProcessingService;
+import com.gii.api.model.request.auth.*;
+import com.gii.api.model.response.auth.AuthResponse;
+import com.gii.api.service.auth.*;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
@@ -11,53 +11,58 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/public/auth")
-public class AuthApiController {
+public class AuthApiController implements AuthApi {
 
-    private final AuthApiProcessingService authApiProcessingService;
+    private final RegisterService registerService;
+    private final LoginService loginService;
+    private final RefreshService refreshService;
+    private final ForgotPasswordService forgotPasswordService;
+    private final ResetPasswordService resetPasswordService;
+    private final SendVerificationService sendVerificationService;
+    private final VerifyService verifyService;
+    private final ResendVerificationService resendVerificationService;
+    private final LogoutService logoutService;
 
-    @PostMapping("/register")
     public ResponseEntity<@NotNull AuthResponse> register(@RequestBody RegisterRequest request, HttpServletResponse response) {
-        return ResponseEntity.ok(authApiProcessingService.register(request, response));
+        return ResponseEntity.ok(registerService.execute(request, response));
     }
 
-    @PostMapping("/login")
     public ResponseEntity<@NotNull AuthResponse> login(@RequestBody LoginRequest request, HttpServletResponse response) {
-        return ResponseEntity.ok(authApiProcessingService.login(request, response));
+        return ResponseEntity.ok(loginService.execute(request, response));
     }
 
-    @PostMapping("/refresh")
+
     public ResponseEntity<@NotNull AuthResponse> refresh(@CookieValue("refresh_token") String refreshToken, HttpServletResponse response) {
-        return ResponseEntity.ok(authApiProcessingService.refresh(refreshToken, response));
+        return ResponseEntity.ok(refreshService.execute(refreshToken, response));
     }
 
-    @PostMapping("/forgot-password")
     public ResponseEntity<@NotNull Void> forgotPassword(@RequestBody ForgotPasswordRequest request) {
-        authApiProcessingService.forgotPassword(request);
+        // forgotPasswordService.execute(request);
         return ResponseEntity.ok().build();
     }
 
-    @PostMapping("/reset-password")
     public ResponseEntity<@NotNull Void> resetPassword(@RequestBody ResetPasswordRequest request) {
-        authApiProcessingService.resetPassword(request);
+        // resetPasswordService.execute(request);
         return ResponseEntity.ok().build();
     }
 
-    @PostMapping("/auth/verify-email")
-    public ResponseEntity<@NotNull Void> verifyEmail(@RequestBody VerifyEmailRequest request) {
-        authApiProcessingService.verifyEmail(request);
+    public ResponseEntity<@NotNull Void> sendVerification(@RequestBody SendVerificationRequest request) {
+        // sendVerificationService.execute(request);
         return ResponseEntity.ok().build();
     }
 
-    @PostMapping("/auth/resend-email-verification")
+    public ResponseEntity<@NotNull Void> verify(@RequestBody VerifyRequest request) {
+        // verifyService.execute(request);
+        return ResponseEntity.ok().build();
+    }
+
     public ResponseEntity<@NotNull Void> resendVerification(@RequestBody ResendVerificationRequest request) {
-        authApiProcessingService.resendVerification(request);
+        // resendVerificationService.execute(request);
         return ResponseEntity.ok().build();
     }
 
-    @PostMapping("/auth/logout")
     public ResponseEntity<@NotNull Void> logout(@CookieValue(name = "refresh_token", required = false) String refreshToken, HttpServletResponse response) {
-        authApiProcessingService.logout(refreshToken, response);
+        logoutService.execute(refreshToken, response);
         return ResponseEntity.ok().build();
     }
 }

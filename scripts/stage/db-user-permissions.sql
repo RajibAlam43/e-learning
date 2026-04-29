@@ -7,21 +7,21 @@
 -- 1. Allow migration user to create extensions (e.g. pgcrypto)
 -- Required for: CREATE EXTENSION pgcrypto;
 -- =========================================================
-GRANT CREATE ON DATABASE your_database_name TO your_migration_user;
+GRANT CREATE ON DATABASE gii_stage_db TO gii_stage_migration;
 
 
 -- =========================================================
 -- 2. Allow migration user to create/manage schema objects
 -- Required for: tables, indexes, constraints, etc.
 -- =========================================================
-GRANT USAGE, CREATE ON SCHEMA public TO your_migration_user;
+GRANT USAGE, CREATE ON SCHEMA public TO gii_stage_migration;
 
 
 -- =========================================================
 -- 3. Allow API and worker users to access the schema
 -- Without this, they cannot even see tables
 -- =========================================================
-GRANT USAGE ON SCHEMA public TO your_api_user, your_worker_user;
+GRANT USAGE ON SCHEMA public TO gii_stage_api, gii_stage_worker;
 
 
 -- =========================================================
@@ -30,7 +30,7 @@ GRANT USAGE ON SCHEMA public TO your_api_user, your_worker_user;
 -- =========================================================
 GRANT SELECT, INSERT, UPDATE, DELETE
 ON ALL TABLES IN SCHEMA public
-TO your_api_user, your_worker_user;
+TO gii_stage_api, gii_stage_worker;
 
 
 -- =========================================================
@@ -39,22 +39,22 @@ TO your_api_user, your_worker_user;
 -- =========================================================
 GRANT USAGE, SELECT
 ON ALL SEQUENCES IN SCHEMA public
-TO your_api_user, your_worker_user;
+TO gii_stage_api, gii_stage_worker;
 
 
 -- =========================================================
 -- 6. Ensure FUTURE tables created by migration user
 -- automatically grant access to API + worker
 -- =========================================================
-ALTER DEFAULT PRIVILEGES FOR USER your_migration_user IN SCHEMA public
+ALTER DEFAULT PRIVILEGES FOR USER gii_stage_migration IN SCHEMA public
 GRANT SELECT, INSERT, UPDATE, DELETE
-ON TABLES TO your_api_user, your_worker_user;
+ON TABLES TO gii_stage_api, gii_stage_worker;
 
 
 -- =========================================================
 -- 7. Ensure FUTURE sequences also grant access
 -- Required for SERIAL / IDENTITY columns
 -- =========================================================
-ALTER DEFAULT PRIVILEGES FOR USER your_migration_user IN SCHEMA public
+ALTER DEFAULT PRIVILEGES FOR USER gii_stage_migration IN SCHEMA public
 GRANT USAGE, SELECT
-ON SEQUENCES TO your_api_user, your_worker_user;
+ON SEQUENCES TO gii_stage_api, gii_stage_worker;

@@ -1,7 +1,6 @@
 package com.gii.api.controller;
 
-import com.gii.api.model.response.CategoryResponse;
-import com.gii.api.processor.PublicApiProcessingService;
+import com.gii.api.model.request.CreateSupportTicketRequest;
 import com.gii.api.model.response.CourseDetailsResponse;
 import com.gii.api.model.response.CourseSummaryResponse;
 import com.gii.api.model.response.PageResponse;
@@ -12,31 +11,34 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/public")
-public class PublicApiController {
+public class PublicApiController implements PublicApi {
 
-    private final PublicApiProcessingService publicApiProcessingService;
-
-    @GetMapping("/courses")
-    public ResponseEntity<PageResponse<CourseSummaryResponse>> getAllCourses(@RequestParam(required = false) UUID categoryId,
-                                                                             @RequestParam(required = false) CourseLevel level,
-                                                                             @RequestParam(required = false) CourseLanguage language,
-                                                                             Pageable pageable) {
-        return ResponseEntity.ok(publicApiProcessingService.getAllCourses(categoryId, level, language, pageable));
+    @Override
+    public ResponseEntity<PageResponse<CourseSummaryResponse>> getAllCourses(UUID categoryId, CourseLevel level, CourseLanguage language, Pageable pageable) {
+        return null;
     }
 
-    @GetMapping("/courses/{slug}")
-    public ResponseEntity<CourseDetailsResponse> getCourseDetail(@PathVariable String slug) {
-        return ResponseEntity.ok(publicApiProcessingService.getCourseDetails(slug));
+    @Override
+    public ResponseEntity<CourseDetailsResponse> getCourseDetails(String slug) {
+        return null;
     }
 
-    @GetMapping("/categories")
-    public ResponseEntity<List<CategoryResponse>> getCategories() {
-        return ResponseEntity.ok(publicApiProcessingService.getCategories());
+    @Override
+    public ResponseEntity<?> getAllInstructors() {
+        return null;
+    }
+
+    @Override
+    public ResponseEntity<?> getInstructorDetails(String slug) {
+        return null;
+    }
+
+    @Override
+    public ResponseEntity<Void> createSupportTicket(CreateSupportTicketRequest request) {
+        return null;
     }
 }

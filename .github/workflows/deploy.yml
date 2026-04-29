@@ -101,6 +101,8 @@ jobs:
           SPRING_DATA_REDIS_PASSWORD=${{ secrets.SPRING_DATA_REDIS_PASSWORD }}
           AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          APP_JWT_SECRET=${{ secrets.JWT_SECRET }}
+          APP_JWT_ACCESS_TOKEN_EXPIRATION_MS=${{ vars.ACCESS_TOKEN_EXPIRATION }}
           EOF
 
           # Atomically switch current release and restart service.

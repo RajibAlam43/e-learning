@@ -1,30 +1,56 @@
 package com.gii.api.controller;
 
-import com.gii.api.model.response.LessonPlaybackResponse;
-import com.gii.api.model.response.MediaPlaybackResponse;
-import com.gii.api.processor.StudentApiProcessingService;
+import com.gii.api.model.response.student.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/student")
-public class StudentApiController {
+public class StudentApiController implements StudentApi {
 
-    private final StudentApiProcessingService studentApiProcessingService;
+    @Override
+    public ResponseEntity<StudentDashboardResponse> getDashboard(Authentication authentication) {
+        return null;
+    }
 
-    @PostMapping("/lessons/{lessonId}/playback")
-    public ResponseEntity<MediaPlaybackResponse> getPlayback(
-            @PathVariable UUID lessonId,
-            Authentication authentication
-    ) {
-        MediaPlaybackResponse response =
-                studentApiProcessingService.getLessonPlayback(lessonId, authentication);
+    @Override
+    public ResponseEntity<List<StudentCourseSummaryResponse>> getMyCourses(Authentication authentication) {
+        return null;
+    }
 
-        return ResponseEntity.ok(response);
+    @Override
+    public ResponseEntity<StudentCourseHomeResponse> getMyCourseDetails(UUID courseId, Authentication authentication) {
+        return null;
+    }
+
+    @Override
+    public ResponseEntity<List<StudentOrderSummaryResponse>> getMyOrders(Authentication authentication) {
+        return null;
+    }
+
+    @Override
+    public ResponseEntity<List<StudentCertificateSummaryResponse>> getMyCertificates(Authentication authentication) {
+        return null;
+    }
+
+    @Override
+    public ResponseEntity<List<StudentLiveClassSummaryResponse>> getUpcomingLiveClasses(Authentication authentication) {
+        return null;
+    }
+
+    @Override
+    public ResponseEntity<List<StudentLiveClassSummaryResponse>> getCourseLiveClasses(UUID courseId, Authentication authentication) {
+        return null;
+    }
+
+    @Override
+    public ResponseEntity<StudentLiveClassJoinResponse> joinLiveClass(UUID liveClassId, Authentication authentication) {
+        return null;
     }
 }
+
