@@ -15,9 +15,9 @@ import java.time.Instant;
 @RequiredArgsConstructor
 public class BunnyService implements MediaProviderService {
 
-    @Value("${}")
+    @Value("${bunny.token-security-key}:")
     private final String tokenSecurityKey;
-    @Value("${}")
+    @Value("${bunny.playback-token-ttl-s}:")
     private final long playbackTokenTtlSeconds;
 
     @Override

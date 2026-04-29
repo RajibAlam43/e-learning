@@ -1,6 +1,6 @@
 package com.gii.api.controller;
 
-import com.gii.api.model.response.CategoryResponse;
+import com.gii.api.model.Placeholder;
 import com.gii.api.processor.PublicApiProcessingService;
 import com.gii.api.model.response.CourseDetailsResponse;
 import com.gii.api.model.response.CourseSummaryResponse;
@@ -12,7 +12,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -22,6 +21,16 @@ public class PublicApiController {
 
     private final PublicApiProcessingService publicApiProcessingService;
 
+
+    /**
+     * List all published courses, with optional filters/search
+     *
+     * @param categoryId
+     * @param level
+     * @param language
+     * @param pageable
+     * @return
+     */
     @GetMapping("/courses")
     public ResponseEntity<PageResponse<CourseSummaryResponse>> getAllCourses(@RequestParam(required = false) UUID categoryId,
                                                                              @RequestParam(required = false) CourseLevel level,
@@ -30,13 +39,35 @@ public class PublicApiController {
         return ResponseEntity.ok(publicApiProcessingService.getAllCourses(categoryId, level, language, pageable));
     }
 
+    /**
+     * Get public course details: description, sections, lessons preview, instructor, price
+     *
+     * @param slug
+     * @return
+     */
     @GetMapping("/courses/{slug}")
-    public ResponseEntity<CourseDetailsResponse> getCourseDetail(@PathVariable String slug) {
+    public ResponseEntity<CourseDetailsResponse> getCourseDetails(@PathVariable String slug) {
         return ResponseEntity.ok(publicApiProcessingService.getCourseDetails(slug));
     }
 
-    @GetMapping("/categories")
-    public ResponseEntity<List<CategoryResponse>> getCategories() {
-        return ResponseEntity.ok(publicApiProcessingService.getCategories());
+    /**
+     * List all published instructors
+     *
+     * @return
+     */
+    @GetMapping("/instructors")
+    public ResponseEntity<Placeholder> getAllInstructors() {
+        return ResponseEntity.ok(new Placeholder());
+    }
+
+
+    /**
+     * List all published instructors
+     *
+     * @return
+     */
+    @GetMapping("/instructors/{slug}")
+    public ResponseEntity<Placeholder> getInstructorDetails(@PathVariable String slug) {
+        return ResponseEntity.ok(new Placeholder());
     }
 }
