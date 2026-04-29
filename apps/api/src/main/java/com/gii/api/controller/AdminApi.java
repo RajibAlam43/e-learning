@@ -161,6 +161,18 @@ public interface AdminApi {
     })
     ResponseEntity<AdminMediaAssetResponse> createMediaAsset(@RequestBody CreateMediaAssetRequest request);
 
+    @PatchMapping("/admin/media-assets/{mediaAssetId}")
+    @Operation(summary = "Update media asset")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Media asset updated", content = @Content(schema = @Schema(implementation = AdminMediaAssetResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid input"),
+            @ApiResponse(responseCode = "404", description = "Media asset not found")
+    })
+    ResponseEntity<AdminMediaAssetResponse> updateMediaAsset(
+            @PathVariable UUID mediaAssetId,
+            @RequestBody UpdateMediaAssetRequest request
+    );
+
     // ===== INSTRUCTOR MANAGEMENT =====
     @GetMapping("/instructors")
     @Operation(summary = "List instructors")
@@ -241,6 +253,4 @@ public interface AdminApi {
             @PathVariable UUID orderId,
             @RequestBody UpdateOrderRequest request
     );
-
-    // TODO: Add an endpoint to update
 }

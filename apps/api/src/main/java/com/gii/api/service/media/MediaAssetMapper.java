@@ -1,7 +1,7 @@
 package com.gii.api.service.media;
 
-import com.gii.api.model.request.UpdateMediaAssetRequest;
 import com.gii.api.model.request.admin.CreateMediaAssetRequest;
+import com.gii.api.model.request.admin.UpdateMediaAssetRequest;
 import com.gii.api.model.response.MediaAssetResponse;
 import com.gii.common.entity.course.Lesson;
 import com.gii.common.entity.course.MediaAsset;

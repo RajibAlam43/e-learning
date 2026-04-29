@@ -87,6 +87,11 @@ public class AdminApiController implements AdminApi {
     }
 
     @Override
+    public ResponseEntity<AdminMediaAssetResponse> updateMediaAsset(UUID mediaAssetId, UpdateMediaAssetRequest request) {
+        return null;
+    }
+
+    @Override
     public ResponseEntity<List<AdminInstructorSummaryResponse>> listInstructors() {
         return null;
     }
