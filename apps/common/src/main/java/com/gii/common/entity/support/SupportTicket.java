@@ -33,7 +33,7 @@ public class SupportTicket extends CreatedOnlyUuidEntity {
     @Column(name = "name")
     private String name;
 
-    @Column(name = "email")
+    @Column(name = "email", columnDefinition = "citext")
     private String email;
 
     @Column(name = "phone", length = 30)

@@ -31,6 +31,7 @@ public class CourseInstructor {
     @JoinColumn(name = "instructor_user_id", nullable = false)
     private User instructor;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false, length = 50)
     @Builder.Default
     private InstructorRole role = InstructorRole.PRIMARY;

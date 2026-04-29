@@ -19,12 +19,12 @@ import java.util.Date;
 @RequiredArgsConstructor
 public class MuxService implements MediaProviderService {
 
-    @Value("${mux.signing-key-id}:")
-    private final String signingKeyId;
-    @Value("${mux.playback-token-ttl-s}:")
-    private final long playbackTokenTtlSeconds;
-    @Value("${mux.private-key-prem}:")
-    private final String privateKeyPem;
+    @Value("${mux.signing-key-id}")
+    private String signingKeyId;
+    @Value("${mux.private-key-prem}")
+    private String privateKeyPem;
+    @Value("${mux.playback-token-ttl-s:3600}")
+    private long playbackTokenTtlSeconds;
 
     @Override
     public MediaProvider provider() {
