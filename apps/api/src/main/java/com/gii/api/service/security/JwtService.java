@@ -6,6 +6,7 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import java.util.Date;
+import java.util.Objects;
 import javax.crypto.SecretKey;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -19,18 +20,34 @@ public class JwtService {
   @Value("${app.jwt.access-token-expiration-ms}")
   private long accessTokenExpiration;
 
+  @Value("${app.jwt.issuer:e-learning-api}")
+  private String issuer;
+
+  @Value("${app.jwt.audience:e-learning-clients}")
+  private String audience;
+
   private SecretKey getSigningKey() {
     return Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret));
   }
 
   public String generateAccessToken(User user) {
-    return Jwts.builder()
-        .subject(user.getEmail())
-        // .claim("role", user.getRole().name())
-        .issuedAt(new Date())
-        .expiration(new Date(System.currentTimeMillis() + accessTokenExpiration))
-        .signWith(getSigningKey())
-        .compact();
+    var builder =
+        Jwts.builder()
+            // Use immutable user id as token subject so phone-only accounts are supported.
+            .subject(user.getId().toString())
+            .issuer(issuer)
+            .audience().add(audience).and()
+            .issuedAt(new Date())
+            .expiration(new Date(System.currentTimeMillis() + accessTokenExpiration));
+
+    if (user.getEmail() != null && !user.getEmail().isBlank()) {
+      builder.claim("email", user.getEmail());
+    }
+    if (user.getPhone() != null && !user.getPhone().isBlank()) {
+      builder.claim("phone", user.getPhone());
+    }
+
+    return builder.signWith(getSigningKey()).compact();
   }
 
   public String extractSubject(String token) {
@@ -38,8 +55,9 @@ public class JwtService {
   }
 
   public boolean isTokenValid(String token, User user) {
-    String email = extractSubject(token);
-    return email.equals(user.getEmail()) && !isTokenExpired(token);
+    Claims claims = parseClaims(token);
+    String subject = claims.getSubject();
+    return subject.equals(user.getId().toString()) && !claims.getExpiration().before(new Date());
   }
 
   public boolean isTokenExpired(String token) {
@@ -47,6 +65,14 @@ public class JwtService {
   }
 
   private Claims parseClaims(String token) {
-    return Jwts.parser().verifyWith(getSigningKey()).build().parseSignedClaims(token).getPayload();
+    Claims claims =
+        Jwts.parser().verifyWith(getSigningKey()).build().parseSignedClaims(token).getPayload();
+    if (!Objects.equals(issuer, claims.getIssuer())) {
+      throw new RuntimeException("Invalid token issuer");
+    }
+    if (claims.getAudience() == null || !claims.getAudience().contains(audience)) {
+      throw new RuntimeException("Invalid token audience");
+    }
+    return claims;
   }
 }

@@ -1,6 +1,7 @@
 package com.gii.api.service.security;
 
 import com.gii.common.entity.user.User;
+import com.gii.common.enums.UserStatus;
 import com.gii.common.repository.user.UserRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -8,6 +9,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.List;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.http.HttpHeaders;
@@ -43,14 +45,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     String jwt = authHeader.substring(7);
 
     try {
-      String identifier = jwtService.extractSubject(jwt); // email or phone
+      String subject = jwtService.extractSubject(jwt);
 
-      if (identifier != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-        User user =
-            userRepository
-                .findByEmail(identifier)
-                .or(() -> userRepository.findByPhone(identifier))
-                .orElseThrow(() -> new RuntimeException("User not found"));
+      if (subject != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+        User user = resolveUserByJwtSubject(subject);
+        if (user.getStatus() != UserStatus.ACTIVE) {
+          throw new RuntimeException("Inactive user");
+        }
 
         if (jwtService.isTokenValid(jwt, user)) {
           List<GrantedAuthority> authorities =
@@ -72,5 +73,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     filterChain.doFilter(request, response);
+  }
+
+  private User resolveUserByJwtSubject(String subject) {
+    try {
+      UUID userId = UUID.fromString(subject);
+      return userRepository
+          .findById(userId)
+          .orElseThrow(() -> new RuntimeException("User not found"));
+    } catch (IllegalArgumentException ex) {
+      throw new RuntimeException("Invalid token subject");
+    }
   }
 }

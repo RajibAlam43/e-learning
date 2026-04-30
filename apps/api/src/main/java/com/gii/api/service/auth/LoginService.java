@@ -1,16 +1,17 @@
 package com.gii.api.service.auth;
 
+import static com.gii.api.service.util.IdentifierNormalizationUtil.normalizeIdentifier;
+
 import com.gii.api.model.request.auth.LoginRequest;
 import com.gii.api.model.response.auth.AuthResponse;
 import com.gii.api.service.security.JwtService;
 import com.gii.api.service.security.RefreshTokenCookieService;
 import com.gii.api.service.security.RefreshTokenStoreService;
 import com.gii.common.entity.user.User;
-import com.gii.common.enums.VerificationChannel;
+import com.gii.common.enums.UserStatus;
 import com.gii.common.enums.VerificationPurpose;
 import com.gii.common.repository.user.UserRepository;
 import jakarta.servlet.http.HttpServletResponse;
-import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -38,6 +39,7 @@ public class LoginService {
             userRepository
                 .findByEmail(normalizedIdentifier)
                 .orElseThrow(() -> new RuntimeException("Invalid credentials"));
+        ensureActiveUser(user);
         verifyPassword(request, user.getPasswordHash());
 
         if (user.getEmail() == null) {
@@ -56,6 +58,7 @@ public class LoginService {
             userRepository
                 .findByPhone(normalizedIdentifier)
                 .orElseThrow(() -> new RuntimeException("Invalid credentials"));
+        ensureActiveUser(user);
         verifyPassword(request, user.getPasswordHash());
 
         if (user.getPhone() == null) {
@@ -71,14 +74,6 @@ public class LoginService {
       }
       default -> throw new RuntimeException("Invalid credentials");
     }
-  }
-
-  private String normalizeIdentifier(VerificationChannel channel, String identifier) {
-    String value = identifier == null ? "" : identifier.trim();
-    return switch (channel) {
-      case EMAIL -> value.toLowerCase(Locale.ROOT);
-      case PHONE -> value.replaceAll("[^0-9+]", "");
-    };
   }
 
   private AuthResponse handleVerifiedUserLogin(User user, HttpServletResponse response) {
@@ -108,6 +103,12 @@ public class LoginService {
 
   private void verifyPassword(LoginRequest request, String passwordHash) {
     if (!passwordEncoder.matches(request.password(), passwordHash)) {
+      throw new RuntimeException("Invalid credentials");
+    }
+  }
+
+  private void ensureActiveUser(User user) {
+    if (user.getStatus() != UserStatus.ACTIVE) {
       throw new RuntimeException("Invalid credentials");
     }
   }
