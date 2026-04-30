@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
 public interface CertificateRepository extends JpaRepository<Certificate, UUID> {
 
@@ -12,9 +13,19 @@ public interface CertificateRepository extends JpaRepository<Certificate, UUID> 
 
   Optional<Certificate> findByUserIdAndCourseId(UUID userId, UUID courseId);
 
+  Optional<Certificate> findByIdAndUserId(UUID id, UUID userId);
+
   List<Certificate> findByUserIdOrderByIssuedAtDesc(UUID userId);
 
-  boolean existsByUserIdAndCourseIdAndRevokedAtIsNull(UUID userId, UUID courseId);
+  @Query(
+      """
+        SELECT c
+        FROM Certificate c
+        WHERE c.user.id = :userId
+        AND c.course.id IN :courseIds
+        AND c.revokedAt IS NULL
+      """)
+  List<Certificate> findActiveByUserIdAndCourseIds(UUID userId, List<UUID> courseIds);
 
   long countByUserIdAndRevokedAtIsNull(UUID userId);
 }

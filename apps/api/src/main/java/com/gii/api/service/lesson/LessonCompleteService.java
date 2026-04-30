@@ -26,7 +26,7 @@ public class LessonCompleteService {
   public void execute(UUID lessonId, Authentication authentication) {
     User user = lessonAccessService.requireCurrentUser(authentication);
     Lesson lesson = lessonAccessService.requirePublishedLesson(lessonId);
-    Enrollment enrollment = lessonAccessService.requireActiveEnrollment(user, lesson);
+    Enrollment enrollment = lessonAccessService.requireActiveEnrollment(user.getId(), lesson);
     if (!lessonAccessService.isLessonAccessible(lesson, enrollment, Instant.now())) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Lesson is not available yet");
     }

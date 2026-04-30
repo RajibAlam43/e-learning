@@ -5,11 +5,11 @@ import com.gii.api.model.response.student.StudentOrderSummaryResponse;
 import com.gii.api.service.enrollment.CurrentUserService;
 import com.gii.common.entity.order.Order;
 import com.gii.common.entity.order.OrderItem;
-import com.gii.common.entity.user.User;
 import com.gii.common.repository.order.OrderItemRepository;
 import com.gii.common.repository.order.OrderRepository;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -25,8 +25,8 @@ public class StudentOrdersService {
   private final OrderItemRepository orderItemRepository;
 
   public List<StudentOrderSummaryResponse> execute(Authentication authentication) {
-    User user = currentUserService.getCurrentUser(authentication);
-    List<Order> orders = orderRepository.findByUserIdOrderByCreatedAtDesc(user.getId());
+    UUID userId = currentUserService.getCurrentUserId(authentication);
+    List<Order> orders = orderRepository.findByUserIdOrderByCreatedAtDesc(userId);
 
     return orders.stream().map(this::toOrderSummary).toList();
   }

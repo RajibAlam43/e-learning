@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 public interface CertificateApi {
 
   @PostMapping("/student/courses/{courseId}/certificate")
+  @PreAuthorize("hasRole('STUDENT')")
   @Operation(
       summary = "Issue or get certificate",
       description =
@@ -41,6 +43,7 @@ public interface CertificateApi {
       @PathVariable UUID courseId, Authentication authentication);
 
   @GetMapping("/student/certificates/{certificateId}/download")
+  @PreAuthorize("hasRole('STUDENT')")
   @Operation(
       summary = "Get certificate download URL",
       description = "Get signed temporary download URL for certificate PDF.",

@@ -24,7 +24,9 @@ import com.gii.common.repository.user.RoleRepository;
 import com.gii.common.repository.user.UserRepository;
 import com.gii.common.repository.user.UserRoleRepository;
 import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -48,7 +50,16 @@ public class AdminInstructorManagementService {
 
   @Transactional(readOnly = true)
   public List<AdminInstructorSummaryResponse> list() {
-    return instructorProfileRepository.findAll().stream().map(this::toSummary).toList();
+    List<InstructorProfile> profiles = instructorProfileRepository.findAll();
+    List<UUID> instructorIds = profiles.stream().map(profile -> profile.getUser().getId()).toList();
+    Map<UUID, Integer> assignedCountByInstructorId =
+        instructorIds.isEmpty()
+            ? Map.of()
+            : toCountMap(courseInstructorRepository.countByInstructorIds(instructorIds));
+
+    return profiles.stream()
+        .map(profile -> toSummary(profile, assignedCountByInstructorId))
+        .toList();
   }
 
   public AdminInstructorDetailResponse create(CreateInstructorRequest request) {
@@ -191,9 +202,10 @@ public class AdminInstructorManagementService {
     userRoleRepository.save(UserRole.builder().id(id).user(user).role(role).build());
   }
 
-  private AdminInstructorSummaryResponse toSummary(InstructorProfile profile) {
+  private AdminInstructorSummaryResponse toSummary(
+      InstructorProfile profile, Map<UUID, Integer> assignedCountByInstructorId) {
     User user = profile.getUser();
-    int assignedCount = courseInstructorRepository.findByInstructorId(user.getId()).size();
+    int assignedCount = assignedCountByInstructorId.getOrDefault(user.getId(), 0);
     return AdminInstructorSummaryResponse.builder()
         .userId(user.getId())
         .fullName(user.getFullName())
@@ -292,5 +304,13 @@ public class AdminInstructorManagementService {
     }
     String trimmed = value.trim();
     return trimmed.isEmpty() ? null : trimmed;
+  }
+
+  private Map<UUID, Integer> toCountMap(List<Object[]> rows) {
+    Map<UUID, Integer> result = new HashMap<>();
+    for (Object[] row : rows) {
+      result.put((UUID) row[0], ((Long) row[1]).intValue());
+    }
+    return result;
   }
 }

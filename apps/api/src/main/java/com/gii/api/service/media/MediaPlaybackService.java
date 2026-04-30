@@ -5,7 +5,6 @@ import com.gii.api.service.enrollment.CurrentUserService;
 import com.gii.api.service.enrollment.EnrollmentAccessService;
 import com.gii.common.entity.course.Lesson;
 import com.gii.common.entity.course.MediaAsset;
-import com.gii.common.entity.user.User;
 import com.gii.common.enums.MediaStatus;
 import com.gii.common.repository.course.LessonRepository;
 import com.gii.common.repository.course.MediaAssetRepository;
@@ -42,9 +41,8 @@ public class MediaPlaybackService {
     }
 
     if (!lesson.getIsFree()) {
-      User user = currentUserService.getCurrentUser(authentication);
-
-      enrollmentAccessService.verifyCanAccessLesson(user.getId(), lessonId);
+      UUID userId = currentUserService.getCurrentUserId(authentication);
+      enrollmentAccessService.verifyCanAccessLesson(userId, lessonId);
     }
 
     return mediaPlaybackRouter.getPlayback(mediaAsset);

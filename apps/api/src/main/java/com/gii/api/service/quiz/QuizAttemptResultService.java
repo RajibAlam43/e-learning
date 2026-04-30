@@ -8,7 +8,6 @@ import com.gii.common.entity.quiz.QuizAttempt;
 import com.gii.common.entity.quiz.QuizAttemptAnswer;
 import com.gii.common.entity.quiz.QuizChoice;
 import com.gii.common.entity.quiz.QuizQuestion;
-import com.gii.common.entity.user.User;
 import com.gii.common.repository.quiz.QuizAttemptAnswerRepository;
 import com.gii.common.repository.quiz.QuizAttemptRepository;
 import com.gii.common.repository.quiz.QuizChoiceRepository;
@@ -40,15 +39,15 @@ public class QuizAttemptResultService {
   private final QuizAttemptAnswerRepository answerRepository;
 
   public QuizAttemptResultResponse execute(UUID attemptId, Authentication authentication) {
-    User user = quizAccessService.requireCurrentUser(authentication);
+    UUID userId = quizAccessService.requireCurrentUserId(authentication);
     QuizAttempt attempt =
         attemptRepository
-            .findByIdAndUserId(attemptId, user.getId())
+            .findByIdAndUserId(attemptId, userId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Attempt not found"));
 
     Quiz quiz = attempt.getQuiz();
-    quizAccessService.ensureActiveEnrollment(user.getId(), quiz.getCourse().getId());
+    quizAccessService.ensureActiveEnrollment(userId, quiz.getCourse().getId());
 
     List<QuizQuestion> questions = questionRepository.findByQuizIdOrderByPositionAsc(quiz.getId());
     Map<UUID, QuizQuestion> questionById =
@@ -110,10 +109,10 @@ public class QuizAttemptResultService {
     }
 
     int scorePct = totalPoints == 0 ? 0 : (int) Math.round((earnedPoints * 100.0) / totalPoints);
-    int totalAttempts = (int) attemptRepository.countByQuizIdAndUserId(quiz.getId(), user.getId());
+    int totalAttempts = (int) attemptRepository.countByQuizIdAndUserId(quiz.getId(), userId);
     int bestScore =
         attemptRepository
-            .findByQuizIdAndUserIdOrderByAttemptNoDesc(quiz.getId(), user.getId())
+            .findByQuizIdAndUserIdOrderByAttemptNoDesc(quiz.getId(), userId)
             .stream()
             .map(QuizAttempt::getScorePct)
             .filter(Objects::nonNull)

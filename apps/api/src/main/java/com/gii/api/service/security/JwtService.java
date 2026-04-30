@@ -6,7 +6,9 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import java.util.Date;
+import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 import javax.crypto.SecretKey;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -46,6 +48,7 @@ public class JwtService {
     if (user.getPhone() != null && !user.getPhone().isBlank()) {
       builder.claim("phone", user.getPhone());
     }
+    builder.claim("roles", user.getRoleNames());
 
     return builder.signWith(getSigningKey()).compact();
   }
@@ -54,10 +57,25 @@ public class JwtService {
     return parseClaims(token).getSubject();
   }
 
-  public boolean isTokenValid(String token, User user) {
+  public UUID extractUserId(String token) {
+    return UUID.fromString(extractSubject(token));
+  }
+
+  public List<String> extractRoles(String token) {
+    Object roles = parseClaims(token).get("roles");
+    if (roles instanceof List<?> rawRoles) {
+      return rawRoles.stream()
+          .filter(Objects::nonNull)
+          .map(String::valueOf)
+          .filter(role -> !role.isBlank())
+          .toList();
+    }
+    return List.of();
+  }
+
+  public boolean isTokenValid(String token) {
     Claims claims = parseClaims(token);
-    String subject = claims.getSubject();
-    return subject.equals(user.getId().toString()) && !claims.getExpiration().before(new Date());
+    return !claims.getExpiration().before(new Date());
   }
 
   public boolean isTokenExpired(String token) {

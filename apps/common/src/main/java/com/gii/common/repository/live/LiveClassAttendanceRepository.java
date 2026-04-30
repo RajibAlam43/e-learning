@@ -9,7 +9,5 @@ public interface LiveClassAttendanceRepository extends JpaRepository<LiveClassAt
 
   List<LiveClassAttendance> findByLiveClassId(UUID liveClassId);
 
-  long countByLiveClassId(UUID liveClassId);
-
   long countByUserId(UUID userId);
 }

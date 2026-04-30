@@ -104,7 +104,7 @@ public interface AuthApi {
       })
   ResponseEntity<Void> resetPassword(@RequestBody ResetPasswordRequest request);
 
-  @PostMapping("/verification/send")
+  @PostMapping("/send-code")
   @Operation(
       summary = "Send verification code",
       description = "Send OTP/verification code to email or phone for email or phone verification.")
@@ -116,7 +116,7 @@ public interface AuthApi {
       })
   ResponseEntity<Void> sendVerification(@RequestBody SendVerificationRequest request);
 
-  @PostMapping("/verification/verify")
+  @PostMapping("/verify-code")
   @Operation(
       summary = "Verify email or phone",
       description = "Verify email or phone by submitting the OTP/code received.")

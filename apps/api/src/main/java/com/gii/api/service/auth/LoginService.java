@@ -31,6 +31,9 @@ public class LoginService {
 
   public AuthResponse execute(LoginRequest request, HttpServletResponse response) {
     String normalizedIdentifier = normalizeIdentifier(request.channel(), request.identifier());
+    if (normalizedIdentifier == null || normalizedIdentifier.isBlank()) {
+      throw new RuntimeException("Invalid credentials");
+    }
 
     User user;
     switch (request.channel()) {

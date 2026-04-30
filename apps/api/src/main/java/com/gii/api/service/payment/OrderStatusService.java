@@ -30,12 +30,9 @@ public class OrderStatusService {
     UUID userId = currentUserService.getCurrentUserId(authentication);
     Order order =
         orderRepository
-            .findById(orderId)
+            .findByIdAndUserId(orderId, userId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
-    if (!order.getUser().getId().equals(userId)) {
-      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not order owner");
-    }
 
     int itemCount = orderItemRepository.findByOrderId(order.getId()).size();
     int enrolledCount =

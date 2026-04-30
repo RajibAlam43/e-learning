@@ -5,7 +5,6 @@ import com.gii.api.service.storage.R2PresignedUrlService;
 import com.gii.common.entity.course.Lesson;
 import com.gii.common.entity.course.LessonResource;
 import com.gii.common.entity.enrollment.Enrollment;
-import com.gii.common.entity.user.User;
 import com.gii.common.repository.course.LessonResourceRepository;
 import java.time.Instant;
 import java.util.UUID;
@@ -26,7 +25,7 @@ public class ResourceDownloadService {
   private final R2PresignedUrlService r2PresignedUrlService;
 
   public ResourceDownloadUrlResponse execute(UUID resourceId, Authentication authentication) {
-    User user = lessonAccessService.requireCurrentUser(authentication);
+    UUID userId = lessonAccessService.requireCurrentUserId(authentication);
     LessonResource resource =
         lessonResourceRepository
             .findById(resourceId)
@@ -34,7 +33,7 @@ public class ResourceDownloadService {
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Resource not found"));
 
     Lesson lesson = lessonAccessService.requirePublishedLesson(resource.getLesson().getId());
-    Enrollment enrollment = lessonAccessService.requireActiveEnrollment(user, lesson);
+    Enrollment enrollment = lessonAccessService.requireActiveEnrollment(userId, lesson);
     if (!lessonAccessService.isLessonAccessible(lesson, enrollment, Instant.now())) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Lesson is not available yet");
     }

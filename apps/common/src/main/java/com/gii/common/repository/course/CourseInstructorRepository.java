@@ -27,6 +27,15 @@ public interface CourseInstructorRepository
 
   @Query(
       """
+        SELECT ci.instructor.id, COUNT(ci)
+        FROM CourseInstructor ci
+        WHERE ci.instructor.id IN :instructorUserIds
+        GROUP BY ci.instructor.id
+      """)
+  List<Object[]> countByInstructorIds(List<UUID> instructorUserIds);
+
+  @Query(
+      """
         SELECT CASE WHEN COUNT(ci) > 0 THEN true ELSE false END
         FROM CourseInstructor ci
         WHERE ci.course.id = :courseId

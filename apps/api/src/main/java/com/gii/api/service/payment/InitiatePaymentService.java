@@ -4,7 +4,6 @@ import com.gii.api.model.request.payment.InitiatePaymentRequest;
 import com.gii.api.model.response.payment.PaymentInitiationResponse;
 import com.gii.api.service.enrollment.CurrentUserService;
 import com.gii.common.entity.order.Order;
-import com.gii.common.entity.user.User;
 import com.gii.common.enums.OrderStatus;
 import com.gii.common.repository.order.OrderRepository;
 import java.time.Instant;
@@ -29,16 +28,12 @@ public class InitiatePaymentService {
 
   public PaymentInitiationResponse execute(
       UUID orderId, InitiatePaymentRequest request, Authentication authentication) {
-    User user = currentUserService.getCurrentUser(authentication);
+    UUID userId = currentUserService.getCurrentUserId(authentication);
     Order order =
         orderRepository
-            .findById(orderId)
+            .findByIdAndUserId(orderId, userId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
-
-    if (!order.getUser().getId().equals(user.getId())) {
-      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not order owner");
-    }
     if (order.getStatus() != OrderStatus.PENDING) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Order is not payable");
     }

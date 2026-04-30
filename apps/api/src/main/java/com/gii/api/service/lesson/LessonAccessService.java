@@ -10,6 +10,7 @@ import com.gii.common.enums.ReleaseType;
 import com.gii.common.repository.course.LessonRepository;
 import com.gii.common.repository.enrollment.EnrollmentRepository;
 import java.time.Instant;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
@@ -25,6 +26,10 @@ public class LessonAccessService {
   private final CurrentUserService currentUserService;
   private final LessonRepository lessonRepository;
   private final EnrollmentRepository enrollmentRepository;
+
+  public UUID requireCurrentUserId(Authentication authentication) {
+    return currentUserService.getCurrentUserId(authentication);
+  }
 
   public User requireCurrentUser(Authentication authentication) {
     return currentUserService.getCurrentUser(authentication);
@@ -42,9 +47,9 @@ public class LessonAccessService {
     return lesson;
   }
 
-  public Enrollment requireActiveEnrollment(User user, Lesson lesson) {
+  public Enrollment requireActiveEnrollment(UUID userId, Lesson lesson) {
     return enrollmentRepository
-        .findByUserIdAndCourseId(user.getId(), lesson.getCourse().getId())
+        .findByUserIdAndCourseId(userId, lesson.getCourse().getId())
         .filter(enrollment -> enrollment.getStatus() == EnrollmentStatus.ACTIVE)
         .orElseThrow(
             () ->

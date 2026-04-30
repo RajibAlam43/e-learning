@@ -5,6 +5,7 @@ import com.gii.api.service.security.JwtService;
 import com.gii.api.service.security.RefreshTokenCookieService;
 import com.gii.api.service.security.RefreshTokenStoreService;
 import com.gii.common.entity.user.User;
+import com.gii.common.enums.UserStatus;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -20,10 +21,14 @@ public class RefreshService {
   private final RefreshTokenCookieService refreshTokenCookieService;
 
   public AuthResponse execute(String oldRefreshToken, HttpServletResponse response) {
+    if (oldRefreshToken == null || oldRefreshToken.isBlank()) {
+      throw new RuntimeException("Invalid refresh token");
+    }
 
     RefreshTokenStoreService.RefreshRotationResult rotation =
         refreshTokenStoreService.rotateRefreshToken(oldRefreshToken);
     User user = rotation.user();
+    ensureActiveUser(user);
 
     // Generate new tokens
     String newAccessToken = jwtService.generateAccessToken(user);
@@ -38,5 +43,11 @@ public class RefreshService {
         .fullName(user.getFullName())
         .roles(user.getRoleNames())
         .build();
+  }
+
+  private void ensureActiveUser(User user) {
+    if (user.getStatus() != UserStatus.ACTIVE) {
+      throw new RuntimeException("Invalid refresh token");
+    }
   }
 }

@@ -24,6 +24,10 @@ public class QuizAccessService {
   private final QuizRepository quizRepository;
   private final EnrollmentRepository enrollmentRepository;
 
+  public UUID requireCurrentUserId(Authentication authentication) {
+    return currentUserService.getCurrentUserId(authentication);
+  }
+
   public User requireCurrentUser(Authentication authentication) {
     return currentUserService.getCurrentUser(authentication);
   }

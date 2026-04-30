@@ -7,7 +7,6 @@ import com.gii.common.entity.course.CourseSection;
 import com.gii.common.entity.course.Lesson;
 import com.gii.common.entity.enrollment.Enrollment;
 import com.gii.common.entity.enrollment.LessonProgress;
-import com.gii.common.entity.user.User;
 import com.gii.common.enums.EnrollmentStatus;
 import com.gii.common.enums.PublishStatus;
 import com.gii.common.repository.course.CourseSectionRepository;
@@ -37,10 +36,10 @@ public class CourseProgressService {
   private final CourseSectionRepository sectionRepository;
 
   public CourseProgressResponse execute(UUID courseId, Authentication authentication) {
-    User user = lessonAccessService.requireCurrentUser(authentication);
+    UUID userId = lessonAccessService.requireCurrentUserId(authentication);
     Enrollment enrollment =
         enrollmentRepository
-            .findByUserIdAndCourseId(user.getId(), courseId)
+            .findByUserIdAndCourseId(userId, courseId)
             .filter(e -> e.getStatus() == EnrollmentStatus.ACTIVE)
             .orElseThrow(
                 () ->
@@ -51,7 +50,7 @@ public class CourseProgressService {
         lessonRepository.findByCourseIdAndStatusWithMediaOrderByPositionAsc(
             courseId, PublishStatus.PUBLISHED);
     List<LessonProgress> progresses =
-        lessonProgressRepository.findByUserIdAndLessonCourseId(user.getId(), courseId);
+        lessonProgressRepository.findByUserIdAndLessonCourseId(userId, courseId);
     List<CourseSection> sections =
         sectionRepository.findByCourseIdAndStatusOrderByPositionAsc(
             courseId, PublishStatus.PUBLISHED);

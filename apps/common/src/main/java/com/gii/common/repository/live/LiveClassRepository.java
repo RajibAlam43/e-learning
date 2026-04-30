@@ -13,6 +13,8 @@ public interface LiveClassRepository extends JpaRepository<LiveClass, UUID> {
 
   Optional<LiveClass> findById(UUID id);
 
+  Optional<LiveClass> findByIdAndInstructorId(UUID id, UUID instructorId);
+
   @Query(
       """
         SELECT lc FROM LiveClass lc
@@ -32,5 +34,12 @@ public interface LiveClassRepository extends JpaRepository<LiveClass, UUID> {
       """)
   List<LiveClass> findByCourseIdOrderByStartsAtAsc(UUID courseId);
 
-  List<LiveClass> findByInstructorIdOrderByStartsAtAsc(UUID instructorId);
+  @Query(
+      """
+        SELECT lc.course.id, COUNT(lc)
+        FROM LiveClass lc
+        WHERE lc.course.id IN :courseIds
+        GROUP BY lc.course.id
+      """)
+  List<Object[]> countByCourseIds(List<UUID> courseIds);
 }

@@ -9,7 +9,6 @@ import com.gii.common.entity.quiz.QuizAttemptAnswer;
 import com.gii.common.entity.quiz.QuizAttemptAnswerId;
 import com.gii.common.entity.quiz.QuizChoice;
 import com.gii.common.entity.quiz.QuizQuestion;
-import com.gii.common.entity.user.User;
 import com.gii.common.repository.quiz.QuizAttemptAnswerRepository;
 import com.gii.common.repository.quiz.QuizAttemptRepository;
 import com.gii.common.repository.quiz.QuizChoiceRepository;
@@ -44,10 +43,10 @@ public class QuizAttemptSubmitService {
 
   public QuizAttemptResultResponse execute(
       UUID attemptId, SubmitQuizAttemptRequest request, Authentication authentication) {
-    User user = quizAccessService.requireCurrentUser(authentication);
+    UUID userId = quizAccessService.requireCurrentUserId(authentication);
     QuizAttempt attempt =
         attemptRepository
-            .findByIdAndUserId(attemptId, user.getId())
+            .findByIdAndUserId(attemptId, userId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Attempt not found"));
 
@@ -56,7 +55,7 @@ public class QuizAttemptSubmitService {
     }
 
     Quiz quiz = attempt.getQuiz();
-    quizAccessService.ensureActiveEnrollment(user.getId(), quiz.getCourse().getId());
+    quizAccessService.ensureActiveEnrollment(userId, quiz.getCourse().getId());
 
     if (quiz.getTimeLimitSec() != null) {
       Instant deadline = attempt.getStartedAt().plusSeconds(quiz.getTimeLimitSec());

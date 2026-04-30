@@ -11,7 +11,6 @@ import com.gii.common.entity.course.CourseSection;
 import com.gii.common.entity.course.Lesson;
 import com.gii.common.entity.enrollment.Enrollment;
 import com.gii.common.entity.enrollment.LessonProgress;
-import com.gii.common.entity.user.User;
 import com.gii.common.enums.EnrollmentStatus;
 import com.gii.common.enums.InstructorRole;
 import com.gii.common.enums.PublishStatus;
@@ -48,10 +47,10 @@ public class EnrolledCourseDetailsService {
   private final CertificateRepository certificateRepository;
 
   public StudentCourseHomeResponse execute(UUID courseId, Authentication authentication) {
-    User user = currentUserService.getCurrentUser(authentication);
+    UUID userId = currentUserService.getCurrentUserId(authentication);
     Enrollment enrollment =
         enrollmentRepository
-            .findByUserIdAndCourseId(user.getId(), courseId)
+            .findByUserIdAndCourseId(userId, courseId)
             .filter(e -> e.getStatus() == EnrollmentStatus.ACTIVE)
             .orElseThrow(
                 () ->
@@ -66,7 +65,7 @@ public class EnrolledCourseDetailsService {
         lessonRepository.findByCourseIdAndStatusWithMediaOrderByPositionAsc(
             courseId, PublishStatus.PUBLISHED);
     List<LessonProgress> progresses =
-        lessonProgressRepository.findByUserIdAndLessonCourseId(user.getId(), courseId);
+        lessonProgressRepository.findByUserIdAndLessonCourseId(userId, courseId);
 
     Map<UUID, LessonProgress> progressByLessonId = new HashMap<>();
     for (LessonProgress progress : progresses) {
@@ -96,7 +95,7 @@ public class EnrolledCourseDetailsService {
 
     java.util.Optional<Certificate> cert =
         certificateRepository
-            .findByUserIdAndCourseId(user.getId(), courseId)
+            .findByUserIdAndCourseId(userId, courseId)
             .filter(c -> c.getRevokedAt() == null);
 
     return StudentCourseHomeResponse.builder()

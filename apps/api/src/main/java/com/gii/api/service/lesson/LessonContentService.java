@@ -8,7 +8,6 @@ import com.gii.common.entity.course.Lesson;
 import com.gii.common.entity.course.MediaAsset;
 import com.gii.common.entity.enrollment.Enrollment;
 import com.gii.common.entity.enrollment.LessonProgress;
-import com.gii.common.entity.user.User;
 import com.gii.common.enums.MediaStatus;
 import com.gii.common.repository.course.LessonResourceRepository;
 import com.gii.common.repository.course.MediaAssetRepository;
@@ -34,9 +33,9 @@ public class LessonContentService {
   private final LessonResourceRepository lessonResourceRepository;
 
   public LessonContentResponse execute(UUID lessonId, Authentication authentication) {
-    User user = lessonAccessService.requireCurrentUser(authentication);
+    UUID userId = lessonAccessService.requireCurrentUserId(authentication);
     Lesson lesson = lessonAccessService.requirePublishedLesson(lessonId);
-    Enrollment enrollment = lessonAccessService.requireActiveEnrollment(user, lesson);
+    Enrollment enrollment = lessonAccessService.requireActiveEnrollment(userId, lesson);
 
     Instant now = Instant.now();
     boolean accessible = lessonAccessService.isLessonAccessible(lesson, enrollment, now);
@@ -48,7 +47,7 @@ public class LessonContentService {
         lessonProgressRepository
             .findById(
                 com.gii.common.entity.enrollment.LessonProgressId.builder()
-                    .userId(user.getId())
+                    .userId(userId)
                     .lessonId(lessonId)
                     .build())
             .orElse(null);

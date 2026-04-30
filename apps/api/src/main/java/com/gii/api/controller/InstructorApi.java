@@ -14,6 +14,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -28,6 +29,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
     description = "Instructor dashboard, course management, and live class scheduling")
 @SecurityRequirement(name = "bearerAuth")
 @RequestMapping("/instructor")
+@PreAuthorize("hasRole('INSTRUCTOR') or hasRole('ADMIN')")
 public interface InstructorApi {
 
   @GetMapping("/dashboard")

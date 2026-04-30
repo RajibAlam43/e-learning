@@ -5,7 +5,6 @@ import com.gii.api.service.enrollment.CurrentUserService;
 import com.gii.common.entity.enrollment.Enrollment;
 import com.gii.common.entity.live.LiveClass;
 import com.gii.common.entity.live.LiveClassRegistrant;
-import com.gii.common.entity.user.User;
 import com.gii.common.enums.EnrollmentStatus;
 import com.gii.common.repository.enrollment.EnrollmentRepository;
 import com.gii.common.repository.live.LiveClassRegistrantRepository;
@@ -34,10 +33,10 @@ public class CourseLiveClassesService {
 
   public List<StudentLiveClassSummaryResponse> execute(
       UUID courseId, Authentication authentication) {
-    User user = currentUserService.getCurrentUser(authentication);
+    UUID userId = currentUserService.getCurrentUserId(authentication);
     Enrollment enrollment =
         enrollmentRepository
-            .findByUserIdAndCourseId(user.getId(), courseId)
+            .findByUserIdAndCourseId(userId, courseId)
             .filter(e -> e.getStatus() == EnrollmentStatus.ACTIVE)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found"));
@@ -51,7 +50,7 @@ public class CourseLiveClassesService {
     Map<UUID, LiveClassRegistrant> registrantByClassId =
         registrantRepository
             .findByUserIdAndLiveClassIds(
-                user.getId(), liveClasses.stream().map(LiveClass::getId).toList())
+                userId, liveClasses.stream().map(LiveClass::getId).toList())
             .stream()
             .collect(Collectors.toMap(r -> r.getLiveClass().getId(), r -> r));
 

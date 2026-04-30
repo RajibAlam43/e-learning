@@ -4,7 +4,6 @@ import com.gii.api.model.response.certificate.CertificateDownloadUrlResponse;
 import com.gii.api.service.enrollment.CurrentUserService;
 import com.gii.api.service.storage.R2PresignedUrlService;
 import com.gii.common.entity.certificate.Certificate;
-import com.gii.common.entity.user.User;
 import com.gii.common.repository.certificate.CertificateRepository;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -24,16 +23,12 @@ public class CertificateDownloadService {
   private final R2PresignedUrlService r2PresignedUrlService;
 
   public CertificateDownloadUrlResponse execute(UUID certificateId, Authentication authentication) {
-    User user = currentUserService.getCurrentUser(authentication);
+    UUID userId = currentUserService.getCurrentUserId(authentication);
     Certificate certificate =
         certificateRepository
-            .findById(certificateId)
+            .findByIdAndUserId(certificateId, userId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Certificate not found"));
-
-    if (!certificate.getUser().getId().equals(user.getId())) {
-      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not certificate owner");
-    }
     if (certificate.getRevokedAt() != null) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Certificate has been revoked");
     }

@@ -42,6 +42,12 @@ CREATE INDEX IF NOT EXISTS idx_verification_codes_user_purpose_channel_active
     ON verification_codes (user_id, purpose, channel)
     WHERE used_at IS NULL AND revoked_at IS NULL;
 
+CREATE INDEX IF NOT EXISTS idx_verification_codes_user_channel_created_at
+    ON verification_codes (user_id, channel, created_at);
+
+CREATE INDEX IF NOT EXISTS idx_verification_codes_channel_hash_created_at
+    ON verification_codes (channel_hash, created_at);
+
 -- =========================================================
 -- 2) courses.prerequisites: text -> jsonb list of strings
 -- =========================================================
@@ -67,3 +73,6 @@ ALTER TABLE live_classes
 ALTER TABLE live_classes
     ADD CONSTRAINT chk_live_class_provider
     CHECK (provider IN ('ZOOM', 'GOOGLE_MEET', 'TEAMS', 'OTHER'));
+
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_session_id_revoked_at
+    ON refresh_tokens (session_id, revoked_at);

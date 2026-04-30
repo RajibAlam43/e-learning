@@ -33,12 +33,9 @@ public class ReceiptService {
     UUID userId = currentUserService.getCurrentUserId(authentication);
     Order order =
         orderRepository
-            .findById(orderId)
+            .findByIdAndUserId(orderId, userId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
-    if (!order.getUser().getId().equals(userId)) {
-      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not order owner");
-    }
     if (order.getStatus() != OrderStatus.PAID && order.getStatus() != OrderStatus.REFUNDED) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "Receipt is only available for paid orders");

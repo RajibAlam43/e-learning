@@ -9,11 +9,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface QuizRepository extends JpaRepository<Quiz, UUID> {
 
-  List<Quiz> findByCourseId(UUID courseId);
-
-  Optional<Quiz> findByLessonId(UUID lessonId);
-
-  Optional<Quiz> findByCourseIdAndLessonIsNull(UUID courseId);
-
   Optional<Quiz> findByIdAndStatus(UUID id, PublishStatus status);
 }

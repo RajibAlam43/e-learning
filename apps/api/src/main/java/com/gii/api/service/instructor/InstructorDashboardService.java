@@ -21,6 +21,7 @@ import com.gii.common.repository.live.LiveClassRegistrantRepository;
 import com.gii.common.repository.live.LiveClassRepository;
 import com.gii.common.repository.user.InstructorProfileRepository;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -53,6 +54,31 @@ public class InstructorDashboardService {
         courseInstructorRepository.findByInstructorId(instructor.getId());
     List<Course> courses = assignments.stream().map(CourseInstructor::getCourse).toList();
     List<UUID> courseIds = courses.stream().map(Course::getId).toList();
+    Map<UUID, Integer> activeEnrollmentsByCourseId =
+        courseIds.isEmpty()
+            ? Map.of()
+            : toCountMap(
+                enrollmentRepository.countByCourseIdsAndStatus(
+                    courseIds, EnrollmentStatus.ACTIVE));
+    Map<UUID, Integer> completedEnrollmentsByCourseId =
+        courseIds.isEmpty()
+            ? Map.of()
+            : toCountMap(
+                enrollmentRepository.countCompletedByCourseIdsAndStatus(
+                    courseIds, EnrollmentStatus.ACTIVE));
+    Map<UUID, Integer> sectionCountByCourseId =
+        courseIds.isEmpty()
+            ? Map.of()
+            : toCountMap(courseSectionRepository.countByCourseIds(courseIds));
+    Map<UUID, Integer> lessonCountByCourseId =
+        courseIds.isEmpty()
+            ? Map.of()
+            : toCountMap(
+                lessonRepository.countByCourseIdsAndStatus(courseIds, PublishStatus.PUBLISHED));
+    Map<UUID, Integer> liveClassCountByCourseId =
+        courseIds.isEmpty()
+            ? Map.of()
+            : toCountMap(liveClassRepository.countByCourseIds(courseIds));
 
     Map<UUID, InstructorRole> roleByCourseId =
         assignments.stream()
@@ -62,34 +88,34 @@ public class InstructorDashboardService {
 
     List<InstructorCourseSnapshotResponse> snapshots =
         courses.stream()
-            .map(course -> toCourseSnapshot(course, roleByCourseId.get(course.getId())))
+            .map(
+                course ->
+                    toCourseSnapshot(
+                        course,
+                        roleByCourseId.get(course.getId()),
+                        activeEnrollmentsByCourseId,
+                        completedEnrollmentsByCourseId,
+                        sectionCountByCourseId,
+                        lessonCountByCourseId,
+                        liveClassCountByCourseId))
             .toList();
 
     List<LiveClass> upcoming =
         courseIds.isEmpty()
             ? List.of()
             : liveClassRepository.findUpcomingByCourseIds(
-                courseIds, List.of(LiveClassStatus.SCHEDULED, LiveClassStatus.LIVE), Instant.now());
+                courseIds,
+                List.of(LiveClassStatus.SCHEDULED, LiveClassStatus.LIVE),
+                Instant.now());
 
     List<InstructorUpcomingLiveClassResponse> upcomingResponses =
-        upcoming.stream()
-            .filter(
-                lc ->
-                    lc.getInstructor() != null
-                        && lc.getInstructor().getId().equals(instructor.getId()))
-            .limit(10)
-            .map(this::toUpcomingLiveClass)
-            .toList();
+        toUpcomingLiveClassResponses(upcoming, instructor.getId());
 
     int activeCourses =
         (int) courses.stream().filter(c -> c.getStatus() == PublishStatus.PUBLISHED).count();
     int totalStudents =
         courseIds.stream()
-            .mapToInt(
-                courseId ->
-                    (int)
-                        enrollmentRepository.countByCourseIdAndStatus(
-                            courseId, EnrollmentStatus.ACTIVE))
+            .mapToInt(courseId -> activeEnrollmentsByCourseId.getOrDefault(courseId, 0))
             .sum();
 
     return InstructorDashboardResponse.builder()
@@ -107,19 +133,43 @@ public class InstructorDashboardService {
         .build();
   }
 
-  private InstructorCourseSnapshotResponse toCourseSnapshot(Course course, InstructorRole role) {
-    int totalEnrolled =
-        (int)
-            enrollmentRepository.countByCourseIdAndStatus(course.getId(), EnrollmentStatus.ACTIVE);
-    int completed =
-        (int)
-            enrollmentRepository.countByCourseIdAndStatusAndCompletedAtIsNotNull(
-                course.getId(), EnrollmentStatus.ACTIVE);
-    int totalSections =
-        courseSectionRepository.findByCourseIdOrderByPositionAsc(course.getId()).size();
-    int totalLessons = lessonRepository.findByCourseIdOrderByPositionAsc(course.getId()).size();
-    int liveClassCount =
-        liveClassRepository.findByCourseIdOrderByStartsAtAsc(course.getId()).size();
+  private List<InstructorUpcomingLiveClassResponse> toUpcomingLiveClassResponses(
+      List<LiveClass> upcoming, UUID instructorId) {
+    List<LiveClass> filtered =
+        upcoming.stream()
+            .filter(
+                lc ->
+                    lc.getInstructor() != null
+                        && lc.getInstructor().getId().equals(instructorId))
+            .limit(10)
+            .toList();
+
+    Map<UUID, Integer> approvedRegistrantCountByLiveClassId =
+        filtered.isEmpty()
+            ? Map.of()
+            : toCountMap(
+                liveClassRegistrantRepository.countByLiveClassIdsAndStatus(
+                    filtered.stream().map(LiveClass::getId).toList(),
+                    com.gii.common.enums.LiveClassRegistrantStatus.APPROVED));
+
+    return filtered.stream()
+        .map(lc -> toUpcomingLiveClass(lc, approvedRegistrantCountByLiveClassId))
+        .toList();
+  }
+
+  private InstructorCourseSnapshotResponse toCourseSnapshot(
+      Course course,
+      InstructorRole role,
+      Map<UUID, Integer> activeEnrollmentsByCourseId,
+      Map<UUID, Integer> completedEnrollmentsByCourseId,
+      Map<UUID, Integer> sectionCountByCourseId,
+      Map<UUID, Integer> lessonCountByCourseId,
+      Map<UUID, Integer> liveClassCountByCourseId) {
+    int totalEnrolled = activeEnrollmentsByCourseId.getOrDefault(course.getId(), 0);
+    int completed = completedEnrollmentsByCourseId.getOrDefault(course.getId(), 0);
+    int totalSections = sectionCountByCourseId.getOrDefault(course.getId(), 0);
+    int totalLessons = lessonCountByCourseId.getOrDefault(course.getId(), 0);
+    int liveClassCount = liveClassCountByCourseId.getOrDefault(course.getId(), 0);
 
     return InstructorCourseSnapshotResponse.builder()
         .courseId(course.getId())
@@ -140,7 +190,8 @@ public class InstructorDashboardService {
         .build();
   }
 
-  private InstructorUpcomingLiveClassResponse toUpcomingLiveClass(LiveClass liveClass) {
+  private InstructorUpcomingLiveClassResponse toUpcomingLiveClass(
+      LiveClass liveClass, Map<UUID, Integer> approvedRegistrantCountByLiveClassId) {
     return InstructorUpcomingLiveClassResponse.builder()
         .liveClassId(liveClass.getId())
         .title(liveClass.getTitle())
@@ -153,13 +204,18 @@ public class InstructorDashboardService {
         .sectionTitle(liveClass.getSection().getTitle())
         .lessonTitle(liveClass.getLesson().getTitle())
         .status(liveClass.getStatus())
-        .registeredStudents(
-            (int)
-                liveClassRegistrantRepository.countByLiveClassIdAndStatus(
-                    liveClass.getId(), com.gii.common.enums.LiveClassRegistrantStatus.APPROVED))
+        .registeredStudents(approvedRegistrantCountByLiveClassId.getOrDefault(liveClass.getId(), 0))
         .maxCapacity(null)
         .startUrl("/instructor/live-classes/" + liveClass.getId() + "/start")
         .detailsUrl("/instructor/live-classes/" + liveClass.getId())
         .build();
+  }
+
+  private Map<UUID, Integer> toCountMap(List<Object[]> rows) {
+    Map<UUID, Integer> result = new HashMap<>();
+    for (Object[] row : rows) {
+      result.put((UUID) row[0], ((Long) row[1]).intValue());
+    }
+    return result;
   }
 }

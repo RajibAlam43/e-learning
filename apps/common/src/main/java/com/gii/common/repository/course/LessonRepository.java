@@ -10,11 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 
 public interface LessonRepository extends JpaRepository<Lesson, UUID> {
 
-  Optional<Lesson> findByCourseIdAndSlug(UUID courseId, String slug);
-
   List<Lesson> findByCourseIdOrderByPositionAsc(UUID courseId);
-
-  List<Lesson> findByCourseIdAndStatusOrderByPositionAsc(UUID courseId, PublishStatus status);
 
   @Query(
       """
@@ -28,4 +24,14 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID> {
       UUID courseId, PublishStatus status);
 
   long countByCourseIdAndStatus(UUID courseId, PublishStatus status);
+
+  @Query(
+      """
+        SELECT l.course.id, COUNT(l)
+        FROM Lesson l
+        WHERE l.course.id IN :courseIds
+        AND l.status = :status
+        GROUP BY l.course.id
+      """)
+  List<Object[]> countByCourseIdsAndStatus(List<UUID> courseIds, PublishStatus status);
 }

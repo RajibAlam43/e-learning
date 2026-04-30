@@ -15,6 +15,7 @@ import com.gii.common.entity.user.User;
 import com.gii.common.enums.CourseLanguage;
 import com.gii.common.enums.CourseLevel;
 import com.gii.common.enums.EnrollmentStatus;
+import com.gii.common.enums.InstructorRole;
 import com.gii.common.enums.PublishStatus;
 import com.gii.common.enums.StudyMode;
 import com.gii.common.repository.course.CourseInstructorRepository;
@@ -23,7 +24,9 @@ import com.gii.common.repository.course.CourseSectionRepository;
 import com.gii.common.repository.course.LessonRepository;
 import com.gii.common.repository.enrollment.EnrollmentRepository;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -47,14 +50,19 @@ public class AdminCourseManagementService {
 
   @Transactional(readOnly = true)
   public List<AdminCourseSummaryResponse> list() {
-    return courseRepository.findAll().stream()
+    List<Course> courses = courseRepository.findAll();
+    List<UUID> courseIds = courses.stream().map(Course::getId).toList();
+    Map<UUID, String> instructorNameByCourseId = buildInstructorNameMap(courseIds);
+    Map<UUID, Integer> activeEnrollmentCountByCourseId =
+        courseIds.isEmpty()
+            ? Map.of()
+            : toCountMap(
+                enrollmentRepository.countByCourseIdsAndStatus(
+                    courseIds, EnrollmentStatus.ACTIVE));
+
+    return courses.stream()
         .map(
             course -> {
-              String instructorName =
-                  instructorRepository.findByCourseId(course.getId()).stream()
-                      .findFirst()
-                      .map(ci -> ci.getInstructor().getFullName())
-                      .orElse(null);
               return AdminCourseSummaryResponse.builder()
                   .courseId(course.getId())
                   .title(course.getTitle())
@@ -62,11 +70,8 @@ public class AdminCourseManagementService {
                   .status(course.getStatus())
                   .priceBdt(course.getPriceBdt())
                   .isFree(course.getIsFree())
-                  .instructorName(instructorName)
-                  .totalEnrolled(
-                      (int)
-                          enrollmentRepository.countByCourseIdAndStatus(
-                              course.getId(), EnrollmentStatus.ACTIVE))
+                  .instructorName(instructorNameByCourseId.get(course.getId()))
+                  .totalEnrolled(activeEnrollmentCountByCourseId.getOrDefault(course.getId(), 0))
                   .publishedAt(course.getPublishedAt())
                   .createdAt(course.getCreatedAt())
                   .build();
@@ -288,5 +293,28 @@ public class AdminCourseManagementService {
         .map(String::trim)
         .filter(s -> !s.isBlank())
         .toList();
+  }
+
+  private Map<UUID, String> buildInstructorNameMap(List<UUID> courseIds) {
+    if (courseIds.isEmpty()) {
+      return Map.of();
+    }
+    Map<UUID, String> result = new HashMap<>();
+    for (CourseInstructor instructor : instructorRepository.findByCourseIds(courseIds)) {
+      UUID courseId = instructor.getCourse().getId();
+      String fullName = instructor.getInstructor().getFullName();
+      if (!result.containsKey(courseId) || instructor.getRole() == InstructorRole.PRIMARY) {
+        result.put(courseId, fullName);
+      }
+    }
+    return result;
+  }
+
+  private Map<UUID, Integer> toCountMap(List<Object[]> rows) {
+    Map<UUID, Integer> result = new HashMap<>();
+    for (Object[] row : rows) {
+      result.put((UUID) row[0], ((Long) row[1]).intValue());
+    }
+    return result;
   }
 }

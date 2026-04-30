@@ -4,7 +4,6 @@ import com.gii.api.model.response.quiz.QuizAttemptSummaryResponse;
 import com.gii.common.entity.quiz.Quiz;
 import com.gii.common.entity.quiz.QuizAttempt;
 import com.gii.common.entity.quiz.QuizQuestion;
-import com.gii.common.entity.user.User;
 import com.gii.common.repository.quiz.QuizAttemptRepository;
 import com.gii.common.repository.quiz.QuizQuestionRepository;
 import java.time.Duration;
@@ -25,15 +24,15 @@ public class QuizAttemptHistoryService {
   private final QuizQuestionRepository questionRepository;
 
   public List<QuizAttemptSummaryResponse> execute(UUID quizId, Authentication authentication) {
-    User user = quizAccessService.requireCurrentUser(authentication);
+    UUID userId = quizAccessService.requireCurrentUserId(authentication);
     Quiz quiz = quizAccessService.requirePublishedQuiz(quizId);
-    quizAccessService.ensureActiveEnrollment(user.getId(), quiz.getCourse().getId());
+    quizAccessService.ensureActiveEnrollment(userId, quiz.getCourse().getId());
 
     List<QuizQuestion> questions = questionRepository.findByQuizIdOrderByPositionAsc(quizId);
     int totalPoints = questions.stream().mapToInt(QuizQuestion::getPoints).sum();
 
     List<QuizAttempt> attempts =
-        attemptRepository.findByQuizIdAndUserIdOrderByAttemptNoDesc(quizId, user.getId());
+        attemptRepository.findByQuizIdAndUserIdOrderByAttemptNoDesc(quizId, userId);
     return attempts.stream()
         .map(
             attempt -> {

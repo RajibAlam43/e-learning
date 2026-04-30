@@ -3,7 +3,6 @@ package com.gii.api.service.student;
 import com.gii.api.model.response.student.StudentCertificateSummaryResponse;
 import com.gii.api.service.enrollment.CurrentUserService;
 import com.gii.common.entity.certificate.Certificate;
-import com.gii.common.entity.user.User;
 import com.gii.common.repository.certificate.CertificateRepository;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -22,9 +21,9 @@ public class StudentCertificatesService {
   private final CertificateRepository certificateRepository;
 
   public List<StudentCertificateSummaryResponse> execute(Authentication authentication) {
-    User user = currentUserService.getCurrentUser(authentication);
+    java.util.UUID userId = currentUserService.getCurrentUserId(authentication);
     List<Certificate> certificates =
-        certificateRepository.findByUserIdOrderByIssuedAtDesc(user.getId());
+        certificateRepository.findByUserIdOrderByIssuedAtDesc(userId);
 
     return certificates.stream().map(this::toCertificateSummary).toList();
   }

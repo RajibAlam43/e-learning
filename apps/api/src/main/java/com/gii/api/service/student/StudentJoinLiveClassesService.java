@@ -5,7 +5,6 @@ import com.gii.api.service.enrollment.CurrentUserService;
 import com.gii.common.entity.enrollment.Enrollment;
 import com.gii.common.entity.live.LiveClass;
 import com.gii.common.entity.live.LiveClassRegistrant;
-import com.gii.common.entity.user.User;
 import com.gii.common.enums.EnrollmentStatus;
 import com.gii.common.enums.LiveClassRegistrantStatus;
 import com.gii.common.enums.LiveClassStatus;
@@ -32,7 +31,7 @@ public class StudentJoinLiveClassesService {
   private final EnrollmentRepository enrollmentRepository;
 
   public StudentLiveClassJoinResponse execute(UUID liveClassId, Authentication authentication) {
-    User user = currentUserService.getCurrentUser(authentication);
+    UUID userId = currentUserService.getCurrentUserId(authentication);
     LiveClass liveClass =
         liveClassRepository
             .findById(liveClassId)
@@ -41,8 +40,8 @@ public class StudentJoinLiveClassesService {
 
     Enrollment enrollment =
         enrollmentRepository
-            .findByUserIdAndCourseId(user.getId(), liveClass.getCourse().getId())
-            .filter(e -> e.getStatus() == EnrollmentStatus.ACTIVE)
+            .findByUserIdAndCourseIdAndStatus(
+                userId, liveClass.getCourse().getId(), EnrollmentStatus.ACTIVE)
             .orElseThrow(
                 () ->
                     new ResponseStatusException(
@@ -54,16 +53,12 @@ public class StudentJoinLiveClassesService {
 
     LiveClassRegistrant registrant =
         registrantRepository
-            .findByLiveClassIdAndUserId(liveClassId, user.getId())
+            .findByLiveClassIdAndUserIdAndStatus(
+                liveClassId, userId, LiveClassRegistrantStatus.APPROVED)
             .orElseThrow(
                 () ->
                     new ResponseStatusException(
                         HttpStatus.FORBIDDEN, "Not registered for live class"));
-
-    if (registrant.getStatus() != LiveClassRegistrantStatus.APPROVED) {
-      throw new ResponseStatusException(
-          HttpStatus.FORBIDDEN, "Live class registration not approved");
-    }
 
     boolean liveOrCompleted =
         liveClass.getStatus() == LiveClassStatus.LIVE
@@ -93,7 +88,7 @@ public class StudentJoinLiveClassesService {
         .instructorEmail(
             liveClass.getInstructor() != null ? liveClass.getInstructor().getEmail() : null)
         .isRegistered(true)
-        .participantEmail(user.getEmail())
+        .participantEmail(enrollment.getUser().getEmail())
         .zoomRegistrantId(registrant.getZoomRegistrantId())
         .supportEmail("support@gii.com")
         .recordingAvailable(false)

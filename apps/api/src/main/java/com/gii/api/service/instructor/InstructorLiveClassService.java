@@ -25,7 +25,9 @@ import com.gii.common.repository.live.LiveClassRegistrantRepository;
 import com.gii.common.repository.live.LiveClassRepository;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -101,8 +103,8 @@ public class InstructorLiveClassService {
   }
 
   public InstructorLiveClassStartResponse start(UUID liveClassId, Authentication authentication) {
-    User instructor = currentUserService.getCurrentUser(authentication);
-    LiveClass liveClass = requireOwnedLiveClass(liveClassId, instructor.getId());
+    UUID instructorId = currentUserService.getCurrentUserId(authentication);
+    LiveClass liveClass = requireOwnedLiveClass(liveClassId, instructorId);
 
     if (liveClass.getStatus() == LiveClassStatus.CANCELLED
         || liveClass.getStatus() == LiveClassStatus.COMPLETED) {
@@ -145,8 +147,8 @@ public class InstructorLiveClassService {
 
   public InstructorLiveClassResponse update(
       UUID liveClassId, UpdateLiveClassRequest request, Authentication authentication) {
-    User instructor = currentUserService.getCurrentUser(authentication);
-    LiveClass liveClass = requireOwnedLiveClass(liveClassId, instructor.getId());
+    UUID instructorId = currentUserService.getCurrentUserId(authentication);
+    LiveClass liveClass = requireOwnedLiveClass(liveClassId, instructorId);
 
     if (request.title() != null && !request.title().isBlank()) {
       liveClass.setTitle(request.title().trim());
@@ -170,8 +172,8 @@ public class InstructorLiveClassService {
   }
 
   public void delete(UUID liveClassId, Authentication authentication) {
-    User instructor = currentUserService.getCurrentUser(authentication);
-    LiveClass liveClass = requireOwnedLiveClass(liveClassId, instructor.getId());
+    UUID instructorId = currentUserService.getCurrentUserId(authentication);
+    LiveClass liveClass = requireOwnedLiveClass(liveClassId, instructorId);
 
     if (liveClass.getStatus() == LiveClassStatus.LIVE
         || liveClass.getStatus() == LiveClassStatus.COMPLETED) {
@@ -185,16 +187,10 @@ public class InstructorLiveClassService {
   }
 
   private LiveClass requireOwnedLiveClass(UUID liveClassId, UUID instructorId) {
-    LiveClass liveClass =
-        liveClassRepository
-            .findById(liveClassId)
-            .orElseThrow(
-                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Live class not found"));
-    if (liveClass.getInstructor() == null
-        || !liveClass.getInstructor().getId().equals(instructorId)) {
-      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not authorized for this class");
-    }
-    return liveClass;
+    return liveClassRepository
+        .findByIdAndInstructorId(liveClassId, instructorId)
+        .orElseThrow(
+            () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Live class not found"));
   }
 
   private void ensureInstructorAssigned(UUID courseId, UUID instructorId) {
@@ -230,19 +226,14 @@ public class InstructorLiveClassService {
         liveClassRegistrantRepository.findByLiveClassIdOrderByCreatedAtAsc(liveClass.getId());
     List<LiveClassAttendance> attendanceRows =
         liveClassAttendanceRepository.findByLiveClassId(liveClass.getId());
+    Map<UUID, LiveClassAttendance> attendanceByUserId = mapAttendanceByUserId(attendanceRows);
 
     List<LiveClassRegistrantSummaryResponse> registrantSummaries =
         registrants.stream()
             .map(
                 registrant -> {
                   LiveClassAttendance attendance =
-                      attendanceRows.stream()
-                          .filter(
-                              a ->
-                                  a.getUser() != null
-                                      && a.getUser().getId().equals(registrant.getUser().getId()))
-                          .findFirst()
-                          .orElse(null);
+                      attendanceByUserId.get(registrant.getUser().getId());
 
                   return LiveClassRegistrantSummaryResponse.builder()
                       .registrantId(registrant.getId())
@@ -294,6 +285,16 @@ public class InstructorLiveClassService {
         .createdAt(liveClass.getCreatedAt())
         .updatedAt(liveClass.getUpdatedAt())
         .build();
+  }
+
+  private Map<UUID, LiveClassAttendance> mapAttendanceByUserId(List<LiveClassAttendance> rows) {
+    Map<UUID, LiveClassAttendance> result = new HashMap<>();
+    for (LiveClassAttendance row : rows) {
+      if (row.getUser() != null) {
+        result.putIfAbsent(row.getUser().getId(), row);
+      }
+    }
+    return result;
   }
 
   private String firstNonBlank(String primary, String fallback) {

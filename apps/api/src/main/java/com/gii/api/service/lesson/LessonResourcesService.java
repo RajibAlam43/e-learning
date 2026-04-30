@@ -4,7 +4,6 @@ import com.gii.api.model.response.lesson.LessonResourceResponse;
 import com.gii.common.entity.course.Lesson;
 import com.gii.common.entity.course.LessonResource;
 import com.gii.common.entity.enrollment.Enrollment;
-import com.gii.common.entity.user.User;
 import com.gii.common.repository.course.LessonResourceRepository;
 import java.time.Instant;
 import java.util.List;
@@ -25,9 +24,9 @@ public class LessonResourcesService {
   private final LessonResourceRepository lessonResourceRepository;
 
   public List<LessonResourceResponse> execute(UUID lessonId, Authentication authentication) {
-    User user = lessonAccessService.requireCurrentUser(authentication);
+    UUID userId = lessonAccessService.requireCurrentUserId(authentication);
     Lesson lesson = lessonAccessService.requirePublishedLesson(lessonId);
-    Enrollment enrollment = lessonAccessService.requireActiveEnrollment(user, lesson);
+    Enrollment enrollment = lessonAccessService.requireActiveEnrollment(userId, lesson);
     if (!lessonAccessService.isLessonAccessible(lesson, enrollment, Instant.now())) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Lesson is not available yet");
     }
