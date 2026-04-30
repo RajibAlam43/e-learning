@@ -1,7 +1,8 @@
 package com.gii.api.service.auth;
 
 import com.gii.api.service.security.RefreshTokenCookieService;
-import com.gii.api.service.security.TokenHashService;
+import com.gii.api.service.util.TokenHashUtil;
+import com.gii.common.entity.user.RefreshToken;
 import com.gii.common.repository.user.RefreshTokenRepository;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -9,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -16,17 +18,18 @@ import java.time.Instant;
 public class LogoutService {
 
     private final RefreshTokenRepository refreshTokenRepository;
-    private final TokenHashService tokenHashService;
     private final RefreshTokenCookieService refreshTokenCookieService;
 
     public void execute(String rawRefreshToken, HttpServletResponse response) {
+        Instant now = Instant.now();
         if (rawRefreshToken != null && !rawRefreshToken.isBlank()) {
-            String tokenHash = tokenHashService.hash(rawRefreshToken);
+            String tokenHash = TokenHashUtil.hash(rawRefreshToken);
 
             refreshTokenRepository.findByTokenHash(tokenHash)
                     .ifPresent(token -> {
-                        token.setRevokedAt(Instant.now());
-                        refreshTokenRepository.save(token);
+                        List<RefreshToken> sessionTokens = refreshTokenRepository.findBySessionIdAndRevokedAtIsNull(token.getSessionId());
+                        sessionTokens.forEach(sessionToken -> sessionToken.setRevokedAt(now));
+                        refreshTokenRepository.saveAll(sessionTokens);
                     });
         }
 

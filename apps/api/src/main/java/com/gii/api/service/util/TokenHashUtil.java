@@ -1,16 +1,16 @@
-package com.gii.api.service.security;
+package com.gii.api.service.util;
 
-import org.springframework.stereotype.Service;
+import lombok.experimental.UtilityClass;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 
-@Service
-public class TokenHashService {
+@UtilityClass
+public class TokenHashUtil {
 
-    public String hash(String value) {
+    public static String hash(String value) {
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-256");
             byte[] digest = md.digest(value.getBytes(StandardCharsets.UTF_8));

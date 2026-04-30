@@ -1,9 +1,7 @@
 package com.gii.api.service.security;
 
 import com.gii.common.entity.user.User;
-import com.gii.common.entity.user.UserRole;
 import com.gii.common.repository.user.UserRepository;
-import com.gii.common.repository.user.UserRoleRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -28,7 +26,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final UserRepository userRepository;
-    private final UserRoleRepository userRoleRepository;
 
     @Override
     protected void doFilterInternal(
@@ -47,19 +44,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String jwt = authHeader.substring(7);
 
         try {
-            String email = jwtService.extractSubject(jwt);
+            String identifier = jwtService.extractSubject(jwt);  // email or phone
 
-            if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                User user = userRepository.findByEmail(email)
+            if (identifier != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                User user = userRepository.findByEmail(identifier)
+                        .or(() -> userRepository.findByPhone(identifier))
                         .orElseThrow(() -> new RuntimeException("User not found"));
 
                 if (jwtService.isTokenValid(jwt, user)) {
-                    List<UserRole> userRoles = userRoleRepository.findByUserId(user.getId());
-
-                    List<GrantedAuthority> authorities = userRoles.stream()
-                            .map(userRole -> (GrantedAuthority) new SimpleGrantedAuthority(
-                                    "ROLE_" + userRole.getRole().getName()
-                            ))
+                    List<GrantedAuthority> authorities = user.getRoleNames().stream()
+                            .map(roleName -> (GrantedAuthority) new SimpleGrantedAuthority("ROLE_" + roleName))
                             .toList();
 
                     UsernamePasswordAuthenticationToken authToken =

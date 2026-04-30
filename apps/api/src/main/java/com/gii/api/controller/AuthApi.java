@@ -2,6 +2,7 @@ package com.gii.api.controller;
 
 import com.gii.api.model.request.auth.*;
 import com.gii.api.model.response.auth.AuthResponse;
+import com.gii.api.model.response.auth.RegisterResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -9,6 +10,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,11 +24,11 @@ public interface AuthApi {
             description = "Register with email/phone and password. At least one of email or phone is required."
     )
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Registration successful", content = @Content(schema = @Schema(implementation = AuthResponse.class))),
+            @ApiResponse(responseCode = "200", description = "Registration successful", content = @Content(schema = @Schema(implementation = RegisterResponse.class))),
             @ApiResponse(responseCode = "400", description = "Invalid input or user already exists"),
             @ApiResponse(responseCode = "409", description = "Email or phone already registered")
     })
-    ResponseEntity<AuthResponse> register(@RequestBody RegisterRequest request, HttpServletResponse response);
+    ResponseEntity<RegisterResponse> register(@Valid @RequestBody RegisterRequest request);
 
     @PostMapping("/login")
     @Operation(
@@ -99,17 +101,6 @@ public interface AuthApi {
             @ApiResponse(responseCode = "403", description = "Too many failed attempts")
     })
     ResponseEntity<Void> verify(@RequestBody VerifyRequest request);
-
-    @PostMapping("/verification/resend")
-    @Operation(
-            summary = "Resend verification code",
-            description = "Resend verification code to email or phone if not received."
-    )
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Verification code resent"),
-            @ApiResponse(responseCode = "429", description = "Rate limit exceeded")
-    })
-    ResponseEntity<Void> resendVerification(@RequestBody ResendVerificationRequest request);
 
     @PostMapping("/logout")
     @Operation(

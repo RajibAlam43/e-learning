@@ -21,18 +21,21 @@ public class RefreshService {
 
     public AuthResponse execute(String oldRefreshToken, HttpServletResponse response) {
 
-        // validate and rotate
-        User user = refreshTokenStoreService.validateAndRotate(oldRefreshToken);
+        RefreshTokenStoreService.RefreshRotationResult rotation = refreshTokenStoreService.rotateRefreshToken(oldRefreshToken);
+        User user = rotation.user();
 
-        String newAccessToken = jwtService.generateAccessTokenFromUsername(user.getEmail());
-        String newRefreshToken = refreshTokenStoreService.createRefreshToken(user);
+        // Generate new tokens
+        String newAccessToken = jwtService.generateAccessToken(user);
+        String newRefreshToken = rotation.refreshToken();
 
         refreshTokenCookieService.addRefreshTokenCookie(response, newRefreshToken);
 
         return AuthResponse.builder()
                 .accessToken(newAccessToken)
+                .isVerified(true)
+                .userId(user.getId())
+                .fullName(user.getFullName())
+                .roles(user.getRoleNames())
                 .build();
     }
-
-
 }

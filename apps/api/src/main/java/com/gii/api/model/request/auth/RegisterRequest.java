@@ -1,5 +1,6 @@
 package com.gii.api.model.request.auth;
 
+import com.gii.common.enums.VerificationChannel;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;

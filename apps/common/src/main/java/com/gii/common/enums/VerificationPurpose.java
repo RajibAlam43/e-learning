@@ -1,7 +1,7 @@
 package com.gii.common.enums;
 
 public enum VerificationPurpose {
-    VERIFY_PHONE,
-    PASSWORD_RESET,
-    VERIFY_EMAIL
+    EMAIL_VERIFICATION,
+    PHONE_VERIFICATION,
+    PASSWORD_RESET
 }

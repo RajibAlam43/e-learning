@@ -2,6 +2,7 @@ package com.gii.api.controller;
 
 import com.gii.api.model.request.auth.*;
 import com.gii.api.model.response.auth.AuthResponse;
+import com.gii.api.model.response.auth.RegisterResponse;
 import com.gii.api.service.auth.*;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -20,44 +21,37 @@ public class AuthApiController implements AuthApi {
     private final ResetPasswordService resetPasswordService;
     private final SendVerificationService sendVerificationService;
     private final VerifyService verifyService;
-    private final ResendVerificationService resendVerificationService;
     private final LogoutService logoutService;
 
-    public ResponseEntity<@NotNull AuthResponse> register(@RequestBody RegisterRequest request, HttpServletResponse response) {
-        return ResponseEntity.ok(registerService.execute(request, response));
+    public ResponseEntity<@NotNull RegisterResponse> register(@RequestBody RegisterRequest request) {
+        return ResponseEntity.ok(registerService.execute(request));
     }
 
     public ResponseEntity<@NotNull AuthResponse> login(@RequestBody LoginRequest request, HttpServletResponse response) {
         return ResponseEntity.ok(loginService.execute(request, response));
     }
 
-
     public ResponseEntity<@NotNull AuthResponse> refresh(@CookieValue("refresh_token") String refreshToken, HttpServletResponse response) {
         return ResponseEntity.ok(refreshService.execute(refreshToken, response));
     }
 
     public ResponseEntity<@NotNull Void> forgotPassword(@RequestBody ForgotPasswordRequest request) {
-        // forgotPasswordService.execute(request);
+        forgotPasswordService.execute(request);
         return ResponseEntity.ok().build();
     }
 
     public ResponseEntity<@NotNull Void> resetPassword(@RequestBody ResetPasswordRequest request) {
-        // resetPasswordService.execute(request);
+        resetPasswordService.execute(request);
         return ResponseEntity.ok().build();
     }
 
     public ResponseEntity<@NotNull Void> sendVerification(@RequestBody SendVerificationRequest request) {
-        // sendVerificationService.execute(request);
+        sendVerificationService.execute(request);
         return ResponseEntity.ok().build();
     }
 
     public ResponseEntity<@NotNull Void> verify(@RequestBody VerifyRequest request) {
-        // verifyService.execute(request);
-        return ResponseEntity.ok().build();
-    }
-
-    public ResponseEntity<@NotNull Void> resendVerification(@RequestBody ResendVerificationRequest request) {
-        // resendVerificationService.execute(request);
+        verifyService.execute(request);
         return ResponseEntity.ok().build();
     }
 

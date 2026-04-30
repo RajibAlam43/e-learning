@@ -1,42 +1,53 @@
 package com.gii.api.service.auth;
 
-import com.gii.common.entity.user.EmailVerificationToken;
+import com.gii.api.model.request.auth.VerifyRequest;
 import com.gii.common.entity.user.User;
-import com.gii.common.repository.user.EmailVerificationTokenRepository;
+import com.gii.common.enums.VerificationChannel;
+import com.gii.common.enums.VerificationPurpose;
 import com.gii.common.repository.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.Optional;
+
+import static com.gii.api.service.util.IdentifierNormalizationUtil.normalizeIdentifier;
 
 @Service
 @RequiredArgsConstructor
 @Transactional
 public class VerifyService {
 
-    private final EmailVerificationTokenRepository tokenRepository;
+    private final VerificationCodeService verificationCodeService;
     private final UserRepository userRepository;
 
-    public void execute(String token) {
+    public void execute(VerifyRequest request) {
+        String normalizedIdentifier = normalizeIdentifier(request.channel(), request.identifier());
+        Optional<User> userOpt = findUserByChannel(request.channel(), normalizedIdentifier);
 
-        EmailVerificationToken verificationToken = tokenRepository.findByTokenHash(token)
-                .orElseThrow(() -> new RuntimeException("Invalid token"));
-
-        if (verificationToken.getExpiresAt().isBefore(Instant.now())) {
-            throw new RuntimeException("Token expired");
+        if (userOpt.isEmpty()) {
+            throw new RuntimeException("Invalid verification code");
         }
+        User user = userOpt.orElseThrow();
 
-        if (verificationToken.getUsedAt() != null) {
-            throw new RuntimeException("Token already used");
+        verificationCodeService.verifyOtp(user.getId(), request.code(), request.purpose(), request.channel());
+
+        Instant now = Instant.now();
+        if (request.purpose() == VerificationPurpose.EMAIL_VERIFICATION && request.channel() == VerificationChannel.EMAIL) {
+            user.setEmailVerifiedAt(now);
+            userRepository.save(user);
         }
+        if (request.purpose() == VerificationPurpose.PHONE_VERIFICATION && request.channel() == VerificationChannel.PHONE) {
+            user.setPhoneVerifiedAt(now);
+            userRepository.save(user);
+        }
+    }
 
-        User user = verificationToken.getUser();
-
-        user.setEmailVerifiedAt(Instant.now());
-        userRepository.save(user);
-
-        verificationToken.setUsedAt(Instant.now());
-        tokenRepository.save(verificationToken);
+    private Optional<User> findUserByChannel(VerificationChannel channel, String normalizedIdentifier) {
+        return switch (channel) {
+            case EMAIL -> userRepository.findByEmail(normalizedIdentifier);
+            case PHONE -> userRepository.findByPhone(normalizedIdentifier);
+        };
     }
 }

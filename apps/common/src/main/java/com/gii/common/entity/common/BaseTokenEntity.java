@@ -30,4 +30,16 @@ public abstract class BaseTokenEntity extends CreatedOnlyUuidEntity {
 
     @Column(name = "revoked_at")
     private Instant revokedAt;
+
+    public boolean isExpired() {
+        return Instant.now().isAfter(expiresAt);
+    }
+
+    public boolean isAlreadyUsed() {
+        return usedAt != null;
+    }
+
+    public boolean isRevoked() {
+        return revokedAt != null;
+    }
 }

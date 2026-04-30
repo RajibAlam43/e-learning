@@ -4,6 +4,8 @@ import com.gii.api.model.request.CreateSupportTicketRequest;
 import com.gii.api.model.response.CourseDetailsResponse;
 import com.gii.api.model.response.CourseSummaryResponse;
 import com.gii.api.model.response.PageResponse;
+import com.gii.api.service.open.AllCoursesService;
+import com.gii.api.service.open.CourseDetailsService;
 import com.gii.common.enums.CourseLanguage;
 import com.gii.common.enums.CourseLevel;
 import lombok.RequiredArgsConstructor;
@@ -17,14 +19,17 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class PublicApiController implements PublicApi {
 
+    private final AllCoursesService allCoursesService;
+    private final CourseDetailsService courseDetailsService;
+
     @Override
     public ResponseEntity<PageResponse<CourseSummaryResponse>> getAllCourses(UUID categoryId, CourseLevel level, CourseLanguage language, Pageable pageable) {
-        return null;
+        return ResponseEntity.ok(allCoursesService.execute(categoryId, level, language, pageable));
     }
 
     @Override
     public ResponseEntity<CourseDetailsResponse> getCourseDetails(String slug) {
-        return null;
+        return ResponseEntity.ok(courseDetailsService.execute(slug));
     }
 
     @Override

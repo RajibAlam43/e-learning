@@ -1,19 +1,16 @@
 package com.gii.api.service.auth;
 
-import com.gii.api.service.SqsProducerService;
-import com.gii.api.service.security.TokenHashService;
-import com.gii.common.entity.user.PasswordResetToken;
+import com.gii.api.model.request.auth.ForgotPasswordRequest;
+import com.gii.api.service.util.IdentifierNormalizationUtil;
 import com.gii.common.entity.user.User;
-import com.gii.common.repository.user.PasswordResetTokenRepository;
+import com.gii.common.enums.VerificationChannel;
+import com.gii.common.enums.VerificationPurpose;
 import com.gii.common.repository.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.Optional;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -21,32 +18,30 @@ import java.util.UUID;
 public class ForgotPasswordService {
 
     private final UserRepository userRepository;
-    private final PasswordResetTokenRepository tokenRepository;
-    private final SqsProducerService sqsProducerService;
-    private final TokenHashService tokenHashService;
+    private final VerificationCodeService verificationCodeService;
 
-    public void execute(String email) {
-        // Find user
-        Optional<User> userOpt = userRepository.findByEmail(email);
+    public void execute(ForgotPasswordRequest request) {
+        String identifier = IdentifierNormalizationUtil.normalizeIdentifier(request.channel(), request.identifier());
 
-        // Short circuit if user doesn't exist
+        Optional<User> userOpt = findUserByChannel(request.channel(), identifier);
         if (userOpt.isEmpty()) {
+            // Keep response identical to prevent account enumeration.
             return;
         }
+
         User user = userOpt.get();
+        verificationCodeService.generateAndSend(
+                user.getId(),
+                VerificationPurpose.PASSWORD_RESET,
+                request.channel(),
+                identifier
+        );
+    }
 
-        // Generate token
-        String token = UUID.randomUUID().toString();
-
-        // Save Token
-        PasswordResetToken resetToken = PasswordResetToken.builder()
-                .user(user)
-                .tokenHash(tokenHashService.hash(token))
-                .expiresAt(Instant.now().plus(15, ChronoUnit.MINUTES))
-                .build();
-        tokenRepository.save(resetToken);
-
-        // TODO: Send email via worker
-        sqsProducerService.sendMessage("", "", null);
+    private Optional<User> findUserByChannel(VerificationChannel channel, String identifier) {
+        return switch (channel) {
+            case EMAIL -> userRepository.findByEmail(identifier.toLowerCase());
+            case PHONE -> userRepository.findByPhone(identifier);
+        };
     }
 }

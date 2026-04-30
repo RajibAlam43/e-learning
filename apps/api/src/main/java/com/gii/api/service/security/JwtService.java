@@ -30,7 +30,7 @@ public class JwtService {
                 //.claim("role", user.getRole().name())
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + accessTokenExpiration))
-                .signWith(getSigningKey()) // no SignatureAlgorithm needed
+                .signWith(getSigningKey())
                 .compact();
     }
 
@@ -49,18 +49,9 @@ public class JwtService {
 
     private Claims parseClaims(String token) {
         return Jwts.parser()
-                .verifyWith(getSigningKey())   // replaces setSigningKey
+                .verifyWith(getSigningKey())
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
-    }
-
-    public String generateAccessTokenFromUsername(String email) {
-        return Jwts.builder()
-                .subject(email)
-                .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis() + accessTokenExpiration))
-                .signWith(getSigningKey())
-                .compact();
     }
 }
