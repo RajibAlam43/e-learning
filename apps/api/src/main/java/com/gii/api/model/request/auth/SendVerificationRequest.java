@@ -8,7 +8,6 @@ import lombok.Builder;
 
 @Builder
 public record SendVerificationRequest(
-        @NotNull VerificationChannel channel,  // EMAIL or PHONE
-        @NotBlank String identifier,  // Email or phone
-        @NotNull VerificationPurpose purpose
-) {}
+    @NotNull VerificationChannel channel, // EMAIL or PHONE
+    @NotBlank String identifier, // Email or phone
+    @NotNull VerificationPurpose purpose) {}

@@ -8,10 +8,9 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 @SpringBootApplication(scanBasePackages = {"com.gii.api", "com.gii.common"})
 @EntityScan(basePackages = {"com.gii.common.entity"})
 @EnableJpaRepositories(basePackages = {"com.gii.common.repository"})
-public class ELearningApiApplication {
+public class GiiApiApplication {
 
-	public static void main(String[] args) {
-		SpringApplication.run(ELearningApiApplication.class, args);
-	}
-
+  public static void main(String[] args) {
+    SpringApplication.run(GiiApiApplication.class, args);
+  }
 }

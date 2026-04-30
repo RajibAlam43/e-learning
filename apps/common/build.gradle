@@ -1,6 +1,32 @@
 plugins {
     id 'java-library'
     id 'io.freefair.lombok' version '9.5.0'
+    id 'checkstyle'
+    id 'com.diffplug.spotless' version '8.4.0'
+}
+
+checkstyle {
+    toolVersion = "13.4.1"
+    // Fails the build if there are any violations
+    ignoreFailures = false
+    maxWarnings = 0
+    configFile = file("${project.rootDir}/google_checks.xml")
+}
+
+spotless {
+    java {
+        googleJavaFormat()
+        removeUnusedImports()
+        trimTrailingWhitespace()
+        endWithNewline()
+    }
+}
+
+tasks.withType(Checkstyle).configureEach {
+    reports {
+        xml.required = true
+        html.required = true
+    }
 }
 
 dependencies {

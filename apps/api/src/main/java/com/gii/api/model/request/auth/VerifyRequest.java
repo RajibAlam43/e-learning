@@ -8,8 +8,8 @@ import lombok.Builder;
 
 @Builder
 public record VerifyRequest(
-        @NotNull VerificationChannel channel,  // EMAIL or PHONE
-        @NotBlank String identifier,  // Email or phone
-        @NotBlank String code,  // OTP/code
-        @NotNull VerificationPurpose purpose  // e.g., "VERIFY_PHONE", "VERIFY_EMAIL"
+    @NotNull VerificationChannel channel, // EMAIL or PHONE
+    @NotBlank String identifier, // Email or phone
+    @NotBlank String code, // OTP/code
+    @NotNull VerificationPurpose purpose // e.g., "VERIFY_PHONE", "VERIFY_EMAIL"
 ) {}

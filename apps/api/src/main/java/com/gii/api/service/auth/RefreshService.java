@@ -15,27 +15,28 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class RefreshService {
 
-    private final JwtService jwtService;
-    private final RefreshTokenStoreService refreshTokenStoreService;
-    private final RefreshTokenCookieService refreshTokenCookieService;
+  private final JwtService jwtService;
+  private final RefreshTokenStoreService refreshTokenStoreService;
+  private final RefreshTokenCookieService refreshTokenCookieService;
 
-    public AuthResponse execute(String oldRefreshToken, HttpServletResponse response) {
+  public AuthResponse execute(String oldRefreshToken, HttpServletResponse response) {
 
-        RefreshTokenStoreService.RefreshRotationResult rotation = refreshTokenStoreService.rotateRefreshToken(oldRefreshToken);
-        User user = rotation.user();
+    RefreshTokenStoreService.RefreshRotationResult rotation =
+        refreshTokenStoreService.rotateRefreshToken(oldRefreshToken);
+    User user = rotation.user();
 
-        // Generate new tokens
-        String newAccessToken = jwtService.generateAccessToken(user);
-        String newRefreshToken = rotation.refreshToken();
+    // Generate new tokens
+    String newAccessToken = jwtService.generateAccessToken(user);
+    String newRefreshToken = rotation.refreshToken();
 
-        refreshTokenCookieService.addRefreshTokenCookie(response, newRefreshToken);
+    refreshTokenCookieService.addRefreshTokenCookie(response, newRefreshToken);
 
-        return AuthResponse.builder()
-                .accessToken(newAccessToken)
-                .isVerified(true)
-                .userId(user.getId())
-                .fullName(user.getFullName())
-                .roles(user.getRoleNames())
-                .build();
-    }
+    return AuthResponse.builder()
+        .accessToken(newAccessToken)
+        .isVerified(true)
+        .userId(user.getId())
+        .fullName(user.getFullName())
+        .roles(user.getRoleNames())
+        .build();
+  }
 }

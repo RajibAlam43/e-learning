@@ -7,7 +7,6 @@ import lombok.Builder;
 
 @Builder
 public record LoginRequest(
-        @NotNull VerificationChannel channel,  // EMAIL or PHONE
-        @NotBlank String identifier,  // Email address or phone number
-        @NotBlank String password
-) {}
+    @NotNull VerificationChannel channel, // EMAIL or PHONE
+    @NotBlank String identifier, // Email address or phone number
+    @NotBlank String password) {}

@@ -1,15 +1,13 @@
 package com.gii.api.model.response.admin;
 
-import lombok.Builder;
-
 import java.math.BigDecimal;
 import java.util.UUID;
+import lombok.Builder;
 
 @Builder
 public record AdminOrderItemResponse(
-        UUID courseId,
-        String courseName,
-        BigDecimal priceBdt,
-        BigDecimal discountBdt,
-        BigDecimal finalAmount
-) {}
+    UUID courseId,
+    String courseName,
+    BigDecimal priceBdt,
+    BigDecimal discountBdt,
+    BigDecimal finalAmount) {}

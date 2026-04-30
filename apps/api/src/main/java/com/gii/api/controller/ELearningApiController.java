@@ -1,6 +1,6 @@
 package com.gii.api.controller;
 
-import com.gii.api.service.SqsProducerService;
+import com.gii.api.service.util.SqsProducerService;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -12,26 +12,27 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
+@SuppressWarnings("checkstyle:AbbreviationAsWordInName")
 public class ELearningApiController {
 
-    private final SqsProducerService sqsProducerService;
+  private final SqsProducerService sqsProducerService;
 
-    @Value("${email.jobs.main.queue}")
-    private String queueName;
+  @Value("${email.jobs.main.queue}")
+  private String queueName;
 
-    @Autowired
-    public ELearningApiController(SqsProducerService sqsProducerService) {
-        this.sqsProducerService = sqsProducerService;
-    }
+  @Autowired
+  public ELearningApiController(SqsProducerService sqsProducerService) {
+    this.sqsProducerService = sqsProducerService;
+  }
 
-    @GetMapping("public/ping")
-    public String ping() {
-        return "pong";
-    }
+  @GetMapping("public/ping")
+  public String ping() {
+    return "pong";
+  }
 
-    @PostMapping("public/test-sqs")
-    public ResponseEntity<@NotNull HttpStatus> enqueueTestJob(@RequestBody String request) {
-        sqsProducerService.sendMessage(request, queueName, null);
-        return ResponseEntity.ok(HttpStatus.OK);
-    }
+  @PostMapping("public/test-sqs")
+  public ResponseEntity<@NotNull HttpStatus> enqueueTestJob(@RequestBody String request) {
+    sqsProducerService.sendMessage(request, queueName, null);
+    return ResponseEntity.ok(HttpStatus.OK);
+  }
 }

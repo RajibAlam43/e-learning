@@ -2,6 +2,32 @@ plugins {
     id 'org.springframework.boot' version '4.0.6'
     id 'io.spring.dependency-management' version '1.1.7'
     id 'io.freefair.lombok' version '9.5.0'
+    id 'checkstyle'
+    id 'com.diffplug.spotless' version '8.4.0'
+}
+
+checkstyle {
+    toolVersion = "13.4.1"
+    // Fails the build if there are any violations
+    ignoreFailures = false
+    maxWarnings = 0
+    configFile = file("${project.rootDir}/google_checks.xml")
+}
+
+spotless {
+    java {
+        googleJavaFormat()
+        removeUnusedImports()
+        trimTrailingWhitespace()
+        endWithNewline()
+    }
+}
+
+tasks.withType(Checkstyle).configureEach {
+    reports {
+        xml.required = true
+        html.required = true
+    }
 }
 
 dependencies {

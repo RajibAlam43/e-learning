@@ -8,6 +8,10 @@ import com.gii.common.enums.VerificationChannel;
 import com.gii.common.enums.VerificationPurpose;
 import com.gii.common.repository.user.UserRepository;
 import com.gii.common.repository.user.VerificationCodeRepository;
+import java.security.SecureRandom;
+import java.time.Instant;
+import java.util.Map;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -17,196 +21,197 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
-import java.security.SecureRandom;
-import java.time.Instant;
-import java.util.Map;
-import java.util.UUID;
-
 @Service
 @RequiredArgsConstructor
 @Transactional
 @Slf4j
 public class VerificationCodeService {
 
-    private final VerificationCodeRepository verificationCodeRepository;
-    private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
+  private final VerificationCodeRepository verificationCodeRepository;
+  private final UserRepository userRepository;
+  private final PasswordEncoder passwordEncoder;
 
-    @Value("${otp.validity.minutes:15}")
-    private int otpValidityMinutes;
+  @Value("${otp.validity.minutes:15}")
+  private int otpValidityMinutes;
 
-    @Value("${otp.max-attempts:3}")
-    private int maxAttempts;
+  @Value("${otp.max-attempts:3}")
+  private int maxAttempts;
 
-    @Value("${otp.rate-limit.seconds:30}")
-    private int rateLimitSeconds;
+  @Value("${otp.rate-limit.seconds:30}")
+  private int rateLimitSeconds;
 
-    private static final SecureRandom RANDOM = new SecureRandom();
+  private static final SecureRandom RANDOM = new SecureRandom();
 
-    /**
-     * Generate and send OTP
-     * Security: Rate limiting + IP tracking + attempt limits
-     */
-    public void generateAndSend(UUID userId, VerificationPurpose purpose, VerificationChannel channel, String channelValue) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+  /** Generate and send OTP. Security: rate limiting + IP tracking + attempt limits. */
+  public void generateAndSend(
+      UUID userId, VerificationPurpose purpose, VerificationChannel channel, String channelValue) {
+    final User user =
+        userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
+    final Instant now = Instant.now();
+    String normalizedChannelValue =
+        IdentifierNormalizationUtil.normalizeIdentifier(channel, channelValue);
+    String channelHash = TokenHashUtil.hash(normalizedChannelValue);
 
-        Instant now = Instant.now();
-        String normalizedChannelValue = IdentifierNormalizationUtil.normalizeIdentifier(channel, channelValue);
-        String channelHash = TokenHashUtil.hash(normalizedChannelValue);
-
-        // Per-user/channel cooldown
-        Instant cooldownThreshold = now.minusSeconds(rateLimitSeconds);
-        long userRecentCount = verificationCodeRepository.countRecentByUserAndChannel(userId, channel, cooldownThreshold);
-        if (userRecentCount > 0) {
-            throw new RuntimeException("OTP already sent. Please try again later");
-        }
-
-        // Per-identifier cooldown (prevents same email/phone hammering)
-        long identifierRecentCount = verificationCodeRepository.countRecentByChannelAndHash(channel, channelHash, cooldownThreshold);
-        if (identifierRecentCount > 0) {
-            throw new RuntimeException("OTP already sent. Please try again later");
-        }
-
-        // Revoke previous valid OTP for same purpose+channel
-        verificationCodeRepository.findLatestValidOtp(userId, purpose, channel)
-                .ifPresent(existingOtp -> {
-                    existingOtp.setRevokedAt(now);
-                    verificationCodeRepository.save(existingOtp);
-                });
-
-        // Generate cryptographically secure 6-digit OTP
-        String secureCode = generateSecureVerificationCode();
-        String tokenHash = hashOtp(secureCode);
-
-        String ipAddress = getClientIp();
-        String userAgent = getUserAgent();
-
-        VerificationCode verificationCode = VerificationCode.builder()
-                .user(user)
-                .purpose(purpose)
-                .channel(channel)
-                .tokenHash(tokenHash)
-                .channelHash(channelHash)
-                .expiresAt(now.plusSeconds(otpValidityMinutes * 60L))
-                .attemptCount(0)
-                .maxAttempts(maxAttempts)
-                .sentCount(1)
-                .lastSentAt(now)
-                .requestedFromIp(ipAddress)
-                .userAgent(userAgent)
-                .securityMetadata(Map.of(
-                        "created_from_ip", ipAddress,
-                        "purpose", purpose.name(),
-                        "channel", channel.name()
-                ))
-                .build();
-
-        verificationCodeRepository.save(verificationCode);
-
-        queueOtpSend(channel, normalizedChannelValue, secureCode, purpose);
+    // Per-user/channel cooldown
+    Instant cooldownThreshold = now.minusSeconds(rateLimitSeconds);
+    long userRecentCount =
+        verificationCodeRepository.countRecentByUserAndChannel(userId, channel, cooldownThreshold);
+    if (userRecentCount > 0) {
+      throw new RuntimeException("OTP already sent. Please try again later");
     }
 
-    /**
-     * Verify OTP with comprehensive security checks
-     */
-    public void verifyOtp(UUID userId, String providedOtp, VerificationPurpose purpose, VerificationChannel channel) {
-        Instant now = Instant.now();
-        String normalizedOtp = normalizeOtp(providedOtp);
-
-        if (normalizedOtp.length() != 6 || !normalizedOtp.chars().allMatch(Character::isDigit)) {
-            throw new RuntimeException("Invalid OTP");
-        }
-
-        VerificationCode verificationCode = verificationCodeRepository.findLatestValidOtp(userId, purpose, channel)
-                .orElseThrow(() -> new RuntimeException("No valid OTP found"));
-
-        // Security checks in order
-        if (verificationCode.isRevoked()) {
-            throw new RuntimeException("OTP has been revoked");
-        }
-
-        if (verificationCode.isAlreadyUsed()) {
-            throw new RuntimeException("OTP already used");
-        }
-
-        if (verificationCode.isExpired()) {
-            verificationCode.setRevokedAt(now);
-            verificationCodeRepository.save(verificationCode);
-            throw new RuntimeException("OTP expired");
-        }
-
-        if (verificationCode.isAttemptLimitReached()) {
-            verificationCode.setRevokedAt(now);
-            verificationCodeRepository.save(verificationCode);
-            log.warn("Max OTP attempts reached for user {}", userId);
-            throw new RuntimeException("Maximum attempts exceeded. Request new OTP");
-        }
-
-        // Increment attempt counter
-        verificationCode.setAttemptCount(verificationCode.getAttemptCount() + 1);
-
-        // Constant-time comparison to prevent timing attacks
-        boolean isValid = passwordEncoder.matches(normalizedOtp, verificationCode.getTokenHash());
-
-        if (!isValid) {
-            verificationCodeRepository.save(verificationCode);
-            throw new RuntimeException("Invalid OTP");
-        }
-
-        // Mark as used
-        verificationCode.setUsedAt(now);
-        verificationCode.setRevokedAt(now);
-        verificationCodeRepository.save(verificationCode);
-
-        log.info("OTP verified successfully for user {} via {} for {}", userId, channel, purpose);
+    // Per-identifier cooldown (prevents same email/phone hammering)
+    long identifierRecentCount =
+        verificationCodeRepository.countRecentByChannelAndHash(
+            channel, channelHash, cooldownThreshold);
+    if (identifierRecentCount > 0) {
+      throw new RuntimeException("OTP already sent. Please try again later");
     }
 
-    // ============ Security Helpers ============
+    // Revoke previous valid OTP for same purpose+channel
+    verificationCodeRepository
+        .findLatestValidOtp(userId, purpose, channel)
+        .ifPresent(
+            existingOtp -> {
+              existingOtp.setRevokedAt(now);
+              verificationCodeRepository.save(existingOtp);
+            });
 
-    /**
-     * Generate cryptographically secure 6-digit verification code
-     */
-    private String generateSecureVerificationCode() {
-        int verificationCode = 100000 + RANDOM.nextInt(900000);
-        return String.valueOf(verificationCode);
+    // Generate cryptographically secure 6-digit OTP
+    String secureCode = generateSecureVerificationCode();
+    String tokenHash = hashOtp(secureCode);
+
+    String ipAddress = getClientIp();
+    String userAgent = getUserAgent();
+
+    VerificationCode verificationCode =
+        VerificationCode.builder()
+            .user(user)
+            .purpose(purpose)
+            .channel(channel)
+            .tokenHash(tokenHash)
+            .channelHash(channelHash)
+            .expiresAt(now.plusSeconds(otpValidityMinutes * 60L))
+            .attemptCount(0)
+            .maxAttempts(maxAttempts)
+            .sentCount(1)
+            .lastSentAt(now)
+            .requestedFromIp(ipAddress)
+            .userAgent(userAgent)
+            .securityMetadata(
+                Map.of(
+                    "created_from_ip", ipAddress,
+                    "purpose", purpose.name(),
+                    "channel", channel.name()))
+            .build();
+
+    verificationCodeRepository.save(verificationCode);
+
+    queueOtpSend(channel, normalizedChannelValue, secureCode, purpose);
+  }
+
+  /** Verify OTP with comprehensive security checks. */
+  public void verifyOtp(
+      UUID userId, String providedOtp, VerificationPurpose purpose, VerificationChannel channel) {
+    final Instant now = Instant.now();
+    String normalizedOtp = normalizeOtp(providedOtp);
+
+    if (normalizedOtp.length() != 6 || !normalizedOtp.chars().allMatch(Character::isDigit)) {
+      throw new RuntimeException("Invalid OTP");
     }
 
-    /**
-     * Hash verification code using password encoder (constant-time comparison)
-     */
-    private String hashOtp(String verificationCode) {
-        return passwordEncoder.encode(verificationCode);
+    VerificationCode verificationCode =
+        verificationCodeRepository
+            .findLatestValidOtp(userId, purpose, channel)
+            .orElseThrow(() -> new RuntimeException("No valid OTP found"));
+
+    // Security checks in order
+    if (verificationCode.isRevoked()) {
+      throw new RuntimeException("OTP has been revoked");
     }
 
-    private String normalizeOtp(String otp) {
-        return otp == null ? "" : otp.trim();
+    if (verificationCode.isAlreadyUsed()) {
+      throw new RuntimeException("OTP already used");
     }
 
-    private String getClientIp() {
-        ServletRequestAttributes attrs = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-        if (attrs == null) return "UNKNOWN";
-
-        String forwardedFor = attrs.getRequest().getHeader("X-Forwarded-For");
-        if (forwardedFor != null && !forwardedFor.isBlank()) {
-            return forwardedFor.split(",")[0].trim();
-        }
-        String realIp = attrs.getRequest().getHeader("X-Real-IP");
-        if (realIp != null && !realIp.isBlank()) {
-            return realIp.trim();
-        }
-        return attrs.getRequest().getRemoteAddr();
+    if (verificationCode.isExpired()) {
+      verificationCode.setRevokedAt(now);
+      verificationCodeRepository.save(verificationCode);
+      throw new RuntimeException("OTP expired");
     }
 
-    private String getUserAgent() {
-        ServletRequestAttributes attrs = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-        if (attrs != null) {
-            return attrs.getRequest().getHeader("User-Agent");
-        }
-        return "UNKNOWN";
+    if (verificationCode.isAttemptLimitReached()) {
+      verificationCode.setRevokedAt(now);
+      verificationCodeRepository.save(verificationCode);
+      log.warn("Max OTP attempts reached for user {}", userId);
+      throw new RuntimeException("Maximum attempts exceeded. Request new OTP");
     }
 
-    private void queueOtpSend(VerificationChannel channel, String channelValue, String code, VerificationPurpose purpose) {
-        // TODO: Queue to SQS/worker for async email/SMS delivery
+    // Increment attempt counter
+    verificationCode.setAttemptCount(verificationCode.getAttemptCount() + 1);
+
+    // Constant-time comparison to prevent timing attacks
+    boolean isValid = passwordEncoder.matches(normalizedOtp, verificationCode.getTokenHash());
+
+    if (!isValid) {
+      verificationCodeRepository.save(verificationCode);
+      throw new RuntimeException("Invalid OTP");
     }
+
+    // Mark as used
+    verificationCode.setUsedAt(now);
+    verificationCode.setRevokedAt(now);
+    verificationCodeRepository.save(verificationCode);
+
+    log.info("OTP verified successfully for user {} via {} for {}", userId, channel, purpose);
+  }
+
+  // ============ Security Helpers ============
+
+  /** Generate cryptographically secure 6-digit verification code. */
+  private String generateSecureVerificationCode() {
+    int verificationCode = 100000 + RANDOM.nextInt(900000);
+    return String.valueOf(verificationCode);
+  }
+
+  /** Hash verification code using password encoder (constant-time comparison). */
+  private String hashOtp(String verificationCode) {
+    return passwordEncoder.encode(verificationCode);
+  }
+
+  private String normalizeOtp(String otp) {
+    return otp == null ? "" : otp.trim();
+  }
+
+  private String getClientIp() {
+    ServletRequestAttributes attrs =
+        (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+    if (attrs == null) {
+      return "UNKNOWN";
+    }
+
+    String forwardedFor = attrs.getRequest().getHeader("X-Forwarded-For");
+    if (forwardedFor != null && !forwardedFor.isBlank()) {
+      return forwardedFor.split(",")[0].trim();
+    }
+    String realIp = attrs.getRequest().getHeader("X-Real-IP");
+    if (realIp != null && !realIp.isBlank()) {
+      return realIp.trim();
+    }
+    return attrs.getRequest().getRemoteAddr();
+  }
+
+  private String getUserAgent() {
+    ServletRequestAttributes attrs =
+        (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+    if (attrs != null) {
+      return attrs.getRequest().getHeader("User-Agent");
+    }
+    return "UNKNOWN";
+  }
+
+  private void queueOtpSend(
+      VerificationChannel channel, String channelValue, String code, VerificationPurpose purpose) {
+    // TODO: Queue to SQS/worker for async email/SMS delivery
+  }
 }

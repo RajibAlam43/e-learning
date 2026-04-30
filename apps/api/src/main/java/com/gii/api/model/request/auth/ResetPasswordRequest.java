@@ -7,8 +7,7 @@ import lombok.Builder;
 
 @Builder
 public record ResetPasswordRequest(
-        @NotNull VerificationChannel channel,
-        @NotBlank String identifier,
-        @NotBlank String code,
-        @NotBlank String newPassword
-) {}
+    @NotNull VerificationChannel channel,
+    @NotBlank String identifier,
+    @NotBlank String code,
+    @NotBlank String newPassword) {}

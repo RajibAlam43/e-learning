@@ -5,7 +5,7 @@ import com.gii.common.entity.course.MediaAsset;
 import com.gii.common.enums.MediaProvider;
 
 public interface MediaProviderService {
-    MediaProvider provider();
+  MediaProvider provider();
 
-    MediaPlaybackResponse getPlayback(MediaAsset mediaAsset);
+  MediaPlaybackResponse getPlayback(MediaAsset mediaAsset);
 }

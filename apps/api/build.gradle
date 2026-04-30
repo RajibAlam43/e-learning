@@ -2,6 +2,32 @@ plugins {
     id 'org.springframework.boot' version '4.0.6'
     id 'io.spring.dependency-management' version '1.1.7'
     id 'io.freefair.lombok' version '9.5.0'
+    id 'checkstyle'
+    id 'com.diffplug.spotless' version '8.4.0'
+}
+
+spotless {
+    java {
+        googleJavaFormat()
+        removeUnusedImports()
+        trimTrailingWhitespace()
+        endWithNewline()
+    }
+}
+
+checkstyle {
+    toolVersion = "13.4.1"
+    // Fails the build if there are any violations
+    ignoreFailures = false
+    maxWarnings = 0
+    configFile = file("${project.rootDir}/google_checks.xml")
+}
+
+tasks.withType(Checkstyle).configureEach {
+    reports {
+        xml.required = true
+        html.required = true
+    }
 }
 
 dependencies {
@@ -21,6 +47,7 @@ dependencies {
     // SQS
     implementation 'io.awspring.cloud:spring-cloud-aws-starter-sqs:4.0.1'
     implementation 'io.awspring.cloud:spring-cloud-aws-starter:4.0.1'
+    implementation 'software.amazon.awssdk:s3:2.42.41'
 
     // POSTGRESQL
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
