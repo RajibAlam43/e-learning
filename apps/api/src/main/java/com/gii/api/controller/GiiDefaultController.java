@@ -12,8 +12,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@SuppressWarnings("checkstyle:AbbreviationAsWordInName")
-public class ELearningApiController {
+public class GiiDefaultController {
 
   private final SqsProducerService sqsProducerService;
 
@@ -21,7 +20,7 @@ public class ELearningApiController {
   private String queueName;
 
   @Autowired
-  public ELearningApiController(SqsProducerService sqsProducerService) {
+  public GiiDefaultController(SqsProducerService sqsProducerService) {
     this.sqsProducerService = sqsProducerService;
   }
 
