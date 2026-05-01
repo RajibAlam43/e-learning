@@ -6,24 +6,23 @@ import com.gii.common.enums.MediaProvider;
 
 public class YoutubeService implements MediaProviderService {
 
-    @Override
-    public MediaProvider provider() {
-        return MediaProvider.YOUTUBE;
-    }
+  @Override
+  public MediaProvider provider() {
+    return MediaProvider.YOUTUBE;
+  }
 
-    @Override
-    public MediaPlaybackResponse getPlayback(MediaAsset mediaAsset) {
-        String embedUrl = "https://www.youtube.com/embed/" + mediaAsset.getProviderAssetId();
+  @Override
+  public MediaPlaybackResponse getPlayback(MediaAsset mediaAsset) {
+    String embedUrl = "https://www.youtube.com/embed/" + mediaAsset.getProviderAssetId();
 
-        return new MediaPlaybackResponse(
-                MediaProvider.YOUTUBE,
-                com.gii.common.enums.PlaybackMode.IFRAME,
-                embedUrl,
-                null,
-                embedUrl,
-                null,
-                null,
-                null
-        );
-    }
+    return new MediaPlaybackResponse(
+        MediaProvider.YOUTUBE,
+        com.gii.common.enums.PlaybackMode.IFRAME,
+        embedUrl,
+        null,
+        embedUrl,
+        null,
+        null,
+        null);
+  }
 }

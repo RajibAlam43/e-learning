@@ -1,7 +1,12 @@
 package com.gii.common.entity.course;
 
 import com.gii.common.entity.common.CreatedOnlyUuidEntity;
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -16,13 +21,13 @@ import lombok.experimental.SuperBuilder;
 @Table(name = "categories")
 public class Category extends CreatedOnlyUuidEntity {
 
-    @Column(name = "name", nullable = false, length = 150)
-    private String name;
+  @Column(name = "name", nullable = false, length = 150)
+  private String name;
 
-    @Column(name = "slug", nullable = false, unique = true, length = 180)
-    private String slug;
+  @Column(name = "slug", nullable = false, unique = true, length = 180)
+  private String slug;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "parent_id")
-    private Category parent;
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "parent_id")
+  private Category parent;
 }

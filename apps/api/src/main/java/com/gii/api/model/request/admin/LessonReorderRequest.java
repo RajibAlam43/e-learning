@@ -1,11 +1,7 @@
 package com.gii.api.model.request.admin;
 
+import java.util.UUID;
 import lombok.Builder;
 
-import java.util.UUID;
-
 @Builder
-public record LessonReorderRequest(
-        UUID lessonId,
-        Integer newPosition
-) {}
+public record LessonReorderRequest(UUID lessonId, Integer newPosition) {}

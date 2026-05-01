@@ -1,0 +1,64 @@
+Consolidated recommendations from our full thread:
+•
+Keep refresh-token rotation with one session id per device/session; store token hash only; use replacedByToken chain for replay detection.
+•
+Treat refresh token as single-use: on refresh, revoke old token and issue new one atomically.
+•
+Use logout + cleanup: clear cookie client-side and revoke server-side token/session.
+•
+Frontend behavior on refresh failure (expired/revoked/used): clear auth state and force re-login.
+•
+Use SameSite=None; Secure; HttpOnly for cross-site frontend/backend deployments (Vercel + separate API domain).
+•
+Keep cookie domain scoped to the parent domain you actually need; don’t over-broaden.
+•
+Verification/OTP flow should always revoke previous active code on new send; enforce cooldown and max attempts.
+•
+send and resend can share one core service method; separate endpoints are optional API ergonomics.
+•
+verifyOtp should enforce constant-time hash check, attempt increments, expiry/revocation checks, and single-use semantics.
+•
+Login/register should consistently use request channel rules; normalize email/phone/country code once.
+•
+Public course APIs should return only published content, enforce max page size, and include category/instructor names via efficient joins.
+•
+For prerequisites, list of strings is fine now; later migrate to course-id references for linkable prerequisites.
+•
+Live classes should be provider-agnostic in entity/service design (provider enum + generic meeting fields), with legacy zoom fallback only during migration.
+•
+Add live class rows at course creation is fine; meeting URL can be null until provider meeting is provisioned.
+•
+Automating meeting provisioning via worker/scheduler is valid; ensure idempotency and retry safety.
+•
+Don’t expose raw join URLs too early; gate join via backend entitlement/time checks and short-lived links when possible.
+•
+Student should be inserted into live-class registrants when entitled + joining/registering (depending on your chosen UX).
+•
+Keep receipt endpoint even if emailing receipts; email + in-app retrieval is the practical combo.
+•
+Payment flow should be idempotent and state-machine-driven: PENDING -> PAID/FAILED/CANCELLED, no unsafe backward transitions.
+•
+On successful payment, grant enrollments idempotently (skip if already enrolled).
+•
+Persist webhook/payment callback events with raw payload + provider ids for audit/replay handling.
+•
+Keep API/service logic thinly separated: controller pass-through, transactional service orchestration.
+•
+Avoid star imports, enforce braces, and keep checkstyle clean continuously to reduce merge friction.
+•
+If you keep UpdateInstructorRequest, move it from response package to request package for correctness.
+•
+Add orders.admin_note if admin update API accepts notes.
+•
+Add attendance fields on live_class_registrants (joined/left/duration/attended) if responses expose them.
+•
+Payment entity improvements:
+◦
+Make Order.provider nullable until initiation or add UNKNOWN.
+◦
+Add persistent Order.expiresAt.
+◦
+Extend OrderProvider with NAGAD if you want full Nagad support.
+◦
+Add webhook idempotency uniqueness where provider event id exists.
+If you want, I can turn this into a prioritized migration checklist (P0/P1/P2) with exact Flyway changes.

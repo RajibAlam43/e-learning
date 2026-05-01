@@ -1,0 +1,37 @@
+package com.gii.api.controller;
+
+import com.gii.api.service.util.SqsProducerService;
+import org.jetbrains.annotations.NotNull;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+public class GiiDefaultController {
+
+  private final SqsProducerService sqsProducerService;
+
+  @Value("${email.jobs.main.queue}")
+  private String queueName;
+
+  @Autowired
+  public GiiDefaultController(SqsProducerService sqsProducerService) {
+    this.sqsProducerService = sqsProducerService;
+  }
+
+  @GetMapping("public/ping")
+  public String ping() {
+    return "pong";
+  }
+
+  @PostMapping("public/test-sqs")
+  public ResponseEntity<@NotNull HttpStatus> enqueueTestJob(@RequestBody String request) {
+    sqsProducerService.sendMessage(request, queueName, null);
+    return ResponseEntity.ok(HttpStatus.OK);
+  }
+}

@@ -1,11 +1,15 @@
 package com.gii.api.service.auth;
 
-import com.gii.api.model.response.auth.AuthResponse;
+import static com.gii.api.service.util.IdentifierNormalizationUtil.normalizeIdentifier;
+
 import com.gii.api.model.request.auth.LoginRequest;
+import com.gii.api.model.response.auth.AuthResponse;
 import com.gii.api.service.security.JwtService;
 import com.gii.api.service.security.RefreshTokenCookieService;
 import com.gii.api.service.security.RefreshTokenStoreService;
 import com.gii.common.entity.user.User;
+import com.gii.common.enums.UserStatus;
+import com.gii.common.enums.VerificationPurpose;
 import com.gii.common.repository.user.UserRepository;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -18,27 +22,97 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class LoginService {
 
-    private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
-    private final JwtService jwtService;
-    private final RefreshTokenStoreService refreshTokenStoreService;
-    private final RefreshTokenCookieService refreshTokenCookieService;
+  private final UserRepository userRepository;
+  private final PasswordEncoder passwordEncoder;
+  private final JwtService jwtService;
+  private final RefreshTokenStoreService refreshTokenStoreService;
+  private final RefreshTokenCookieService refreshTokenCookieService;
+  private final VerificationCodeService verificationCodeService;
 
-    public AuthResponse execute(LoginRequest request, HttpServletResponse response) {
-        User user = userRepository.findByEmail(request.identifier())
-                .orElseThrow(() -> new RuntimeException("Invalid email or password"));
+  public AuthResponse execute(LoginRequest request, HttpServletResponse response) {
+    String normalizedIdentifier = normalizeIdentifier(request.channel(), request.identifier());
+    if (normalizedIdentifier == null || normalizedIdentifier.isBlank()) {
+      throw new RuntimeException("Invalid credentials");
+    }
 
-        if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
-            throw new RuntimeException("Invalid email or password");
+    User user;
+    switch (request.channel()) {
+      case EMAIL -> {
+        user =
+            userRepository
+                .findByEmail(normalizedIdentifier)
+                .orElseThrow(() -> new RuntimeException("Invalid credentials"));
+        ensureActiveUser(user);
+        verifyPassword(request, user.getPasswordHash());
+
+        if (user.getEmail() == null) {
+          throw new RuntimeException("Invalid credentials");
         }
 
-        String accessToken = jwtService.generateAccessToken(user);
-        String refreshToken = refreshTokenStoreService.createRefreshToken(user);
+        if (user.getEmailVerifiedAt() != null) {
+          return handleVerifiedUserLogin(user, response);
+        } else {
+          return handleUnverifiedUserLogin(
+              user, request, VerificationPurpose.EMAIL_VERIFICATION, user.getEmail());
+        }
+      }
+      case PHONE -> {
+        user =
+            userRepository
+                .findByPhone(normalizedIdentifier)
+                .orElseThrow(() -> new RuntimeException("Invalid credentials"));
+        ensureActiveUser(user);
+        verifyPassword(request, user.getPasswordHash());
 
-        refreshTokenCookieService.addRefreshTokenCookie(response, refreshToken);
+        if (user.getPhone() == null) {
+          throw new RuntimeException("Invalid credentials");
+        }
 
-        return AuthResponse.builder()
-                .accessToken(accessToken)
-                .build();
+        if (user.getPhoneVerifiedAt() != null) {
+          return handleVerifiedUserLogin(user, response);
+        } else {
+          return handleUnverifiedUserLogin(
+              user, request, VerificationPurpose.PHONE_VERIFICATION, user.getPhone());
+        }
+      }
+      default -> throw new RuntimeException("Invalid credentials");
     }
+  }
+
+  private AuthResponse handleVerifiedUserLogin(User user, HttpServletResponse response) {
+    String accessToken = jwtService.generateAccessToken(user);
+    String refreshToken = refreshTokenStoreService.createRefreshToken(user);
+    refreshTokenCookieService.addRefreshTokenCookie(response, refreshToken);
+
+    return AuthResponse.builder()
+        .accessToken(accessToken)
+        .isVerified(true)
+        .userId(user.getId())
+        .fullName(user.getFullName())
+        .roles(user.getRoleNames())
+        .build();
+  }
+
+  private AuthResponse handleUnverifiedUserLogin(
+      User user, LoginRequest request, VerificationPurpose purpose, String channelValue) {
+    verificationCodeService.generateAndSend(user.getId(), purpose, request.channel(), channelValue);
+
+    return AuthResponse.builder()
+        .userId(user.getId())
+        .isVerified(false)
+        .channel(request.channel())
+        .build();
+  }
+
+  private void verifyPassword(LoginRequest request, String passwordHash) {
+    if (!passwordEncoder.matches(request.password(), passwordHash)) {
+      throw new RuntimeException("Invalid credentials");
+    }
+  }
+
+  private void ensureActiveUser(User user) {
+    if (user.getStatus() != UserStatus.ACTIVE) {
+      throw new RuntimeException("Invalid credentials");
+    }
+  }
 }

@@ -5,14 +5,13 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.MappedSuperclass;
 import jakarta.persistence.PrePersist;
+import java.time.Instant;
+import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.experimental.SuperBuilder;
-
-import java.time.Instant;
-import java.util.UUID;
 
 @SuperBuilder
 @Getter
@@ -21,16 +20,16 @@ import java.util.UUID;
 @MappedSuperclass
 public abstract class CreatedOnlyUuidEntity {
 
-    @Id
-    @GeneratedValue
-    @Column(name = "id", nullable = false, updatable = false)
-    private UUID id;
+  @Id
+  @GeneratedValue
+  @Column(name = "id", nullable = false, updatable = false)
+  private UUID id;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private Instant createdAt;
+  @Column(name = "created_at", nullable = false, updatable = false)
+  private Instant createdAt;
 
-    @PrePersist
-    protected void onCreate() {
-        this.createdAt = Instant.now();
-    }
+  @PrePersist
+  protected void onCreate() {
+    this.createdAt = Instant.now();
+  }
 }

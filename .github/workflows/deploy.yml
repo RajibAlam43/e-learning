@@ -103,6 +103,16 @@ jobs:
           AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
           APP_JWT_SECRET=${{ secrets.JWT_SECRET }}
           APP_JWT_ACCESS_TOKEN_EXPIRATION_MS=${{ vars.ACCESS_TOKEN_EXPIRATION }}
+          MUX_ACCESS_TOKEN_ID=${{ secrets.MUX_ACCESS_TOKEN_ID }}
+          MUX_SECRET_KEY=${{ secrets.MUX_SECRET_KEY }}
+          MUX_SIGNING_KEY_ID=${{ secrets.MUX_SIGNING_KEY_ID }}
+          MUX_SIGNING_SECRET_KEY=${{ secrets.MUX_SIGNING_SECRET_KEY }}
+          MUX_TOKEN_TTL=${{ vars.MUX_TOKEN_TTL }}
+          BUNNY_API_KEY=${{ secrets.BUNNY_API_KEY }}
+          BUNNY_LIBRARY_ID=${{ secrets.BUNNY_LIBRARY_ID }}
+          BUNNY_PULL_ZONE_HOSTNAME=${{ secrets.BUNNY_PULL_ZONE_HOSTNAME }}
+          BUNNY_TOKEN_AUTH_KEY=${{ secrets.BUNNY_TOKEN_AUTH_KEY }}
+          BUNNY_TOKEN_TTL=${{ vars.BUNNY_TOKEN_TTL }}
           EOF
 
           # Atomically switch current release and restart service.

@@ -1,12 +1,7 @@
 package com.gii.api.model.request.admin;
 
+import java.util.UUID;
 import lombok.Builder;
 
-import java.util.UUID;
-
 @Builder
-public record UpdateQuizChoiceRequest(
-        UUID choiceId,
-        String choiceText,
-        Boolean isCorrect
-) {}
+public record UpdateQuizChoiceRequest(UUID choiceId, String choiceText, Boolean isCorrect) {}

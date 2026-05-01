@@ -13,10 +13,14 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
-import lombok.*;
-
 import java.time.Instant;
 import java.util.UUID;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Builder
 @Getter
@@ -25,59 +29,60 @@ import java.util.UUID;
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Entity
 @Table(
-        name = "certificates",
-        uniqueConstraints = {
-                @UniqueConstraint(name = "uk_certificates_user_course", columnNames = {"user_id", "course_id"})
-        }
-)
+    name = "certificates",
+    uniqueConstraints = {
+      @UniqueConstraint(
+          name = "uk_certificates_user_course",
+          columnNames = {"user_id", "course_id"})
+    })
 public class Certificate {
 
-    @Id
-    @GeneratedValue
-    @Column(name = "id", nullable = false, updatable = false)
-    private UUID id;
+  @Id
+  @GeneratedValue
+  @Column(name = "id", nullable = false, updatable = false)
+  private UUID id;
 
-    @Column(name = "certificate_code", nullable = false, unique = true, length = 100)
-    private String certificateCode;
+  @Column(name = "certificate_code", nullable = false, unique = true, length = 100)
+  private String certificateCode;
 
-    @JsonIgnore
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+  @JsonIgnore
+  @ManyToOne(fetch = FetchType.LAZY, optional = false)
+  @JoinColumn(name = "user_id", nullable = false)
+  private User user;
 
-    @JsonIgnore
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "course_id", nullable = false)
-    private Course course;
+  @JsonIgnore
+  @ManyToOne(fetch = FetchType.LAZY, optional = false)
+  @JoinColumn(name = "course_id", nullable = false)
+  private Course course;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "template_id")
-    private CertificateTemplate template;
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "template_id")
+  private CertificateTemplate template;
 
-    @Column(name = "issued_at", nullable = false)
-    private Instant issuedAt;
+  @Column(name = "issued_at", nullable = false)
+  private Instant issuedAt;
 
-    @Column(name = "revoked_at")
-    private Instant revokedAt;
+  @Column(name = "revoked_at")
+  private Instant revokedAt;
 
-    @Column(name = "pdf_url")
-    private String pdfUrl;
+  @Column(name = "pdf_url")
+  private String pdfUrl;
 
-    @JsonIgnore
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "issued_by")
-    private User issuedBy;
+  @JsonIgnore
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "issued_by")
+  private User issuedBy;
 
-    @Column(name = "recipient_name", nullable = false)
-    private String recipientName;
+  @Column(name = "recipient_name", nullable = false)
+  private String recipientName;
 
-    @Column(name = "course_title", nullable = false)
-    private String courseTitle;
+  @Column(name = "course_title", nullable = false)
+  private String courseTitle;
 
-    @PrePersist
-    protected void onCreate() {
-        if (this.issuedAt == null) {
-            this.issuedAt = Instant.now();
-        }
+  @PrePersist
+  protected void onCreate() {
+    if (this.issuedAt == null) {
+      this.issuedAt = Instant.now();
     }
+  }
 }

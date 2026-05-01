@@ -10,12 +10,12 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class JobsListener {
 
-    public JobsListener() {
-        log.info("JobsListener bean created");
-    }
+  public JobsListener() {
+    log.info("JobsListener bean created");
+  }
 
-    @SqsListener(value = "${email.jobs.main.queue}")
-    public void receiveEmailJobs(Message<@NotNull String> lifeContractPayload) {
-        log.info("Message payload: {}", lifeContractPayload);
-    }
+  @SqsListener(value = "${email.jobs.main.queue}")
+  public void receiveEmailJobs(Message<@NotNull String> lifeContractPayload) {
+    log.info("Message payload: {}", lifeContractPayload);
+  }
 }
