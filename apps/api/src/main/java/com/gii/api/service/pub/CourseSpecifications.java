@@ -1,4 +1,4 @@
-package com.gii.api.service.open;
+package com.gii.api.service.pub;
 
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.course.CourseCategory;

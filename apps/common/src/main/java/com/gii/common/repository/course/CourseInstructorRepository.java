@@ -2,6 +2,7 @@ package com.gii.common.repository.course;
 
 import com.gii.common.entity.course.CourseInstructor;
 import com.gii.common.entity.course.CourseInstructorId;
+import com.gii.common.enums.PublishStatus;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -33,6 +34,27 @@ public interface CourseInstructorRepository
         GROUP BY ci.instructor.id
       """)
   List<Object[]> countByInstructorIds(List<UUID> instructorUserIds);
+
+  @Query(
+      """
+        SELECT ci.instructor.id, COUNT(ci)
+        FROM CourseInstructor ci
+        WHERE ci.instructor.id IN :instructorUserIds
+        AND ci.course.status = :status
+        GROUP BY ci.instructor.id
+      """)
+  List<Object[]> countByInstructorIdsAndCourseStatus(
+      List<UUID> instructorUserIds, PublishStatus status);
+
+  @Query(
+      """
+        SELECT ci
+        FROM CourseInstructor ci JOIN FETCH ci.course c
+        WHERE ci.instructor.id = :instructorUserId
+        AND c.status = :status
+      """)
+  List<CourseInstructor> findByInstructorIdAndCourseStatus(
+      UUID instructorUserId, PublishStatus status);
 
   @Query(
       """

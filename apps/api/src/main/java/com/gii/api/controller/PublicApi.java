@@ -3,6 +3,8 @@ package com.gii.api.controller;
 import com.gii.api.model.request.CreateSupportTicketRequest;
 import com.gii.api.model.response.CourseDetailsResponse;
 import com.gii.api.model.response.CourseSummaryResponse;
+import com.gii.api.model.response.InstructorDetailsResponse;
+import com.gii.api.model.response.InstructorSummaryResponse;
 import com.gii.api.model.response.PageResponse;
 import com.gii.common.enums.CourseLanguage;
 import com.gii.common.enums.CourseLevel;
@@ -12,6 +14,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -63,28 +67,26 @@ public interface PublicApi {
       })
   ResponseEntity<CourseDetailsResponse> getCourseDetails(@PathVariable String slug);
 
-  /*
   @GetMapping("/instructors")
   @Operation(
-          summary = "List published instructors",
-          description = "Get all instructors with public profiles."
-  )
-  @ApiResponses(value = {
-          @ApiResponse(responseCode = "200", description = "Instructors retrieved")
-  })
-  ResponseEntity<?> getAllInstructors();
+      summary = "List published instructors",
+      description = "Get all instructors with public profiles.")
+  @ApiResponses(
+      value = {
+        @ApiResponse(responseCode = "200", description = "Instructors retrieved")
+      })
+  ResponseEntity<List<InstructorSummaryResponse>> getAllInstructors();
 
   @GetMapping("/instructors/{slug}")
   @Operation(
-          summary = "Get instructor details",
-          description = "Get detailed instructor profile including courses taught and credentials."
-  )
-  @ApiResponses(value = {
-          @ApiResponse(responseCode = "200", description = "Instructor details retrieved"),
-          @ApiResponse(responseCode = "404", description = "Instructor not found")
-  })
-  ResponseEntity<?> getInstructorDetails(@PathVariable String slug);
-  */
+      summary = "Get instructor details",
+      description = "Get detailed instructor profile including courses taught and credentials.")
+  @ApiResponses(
+      value = {
+        @ApiResponse(responseCode = "200", description = "Instructor details retrieved"),
+        @ApiResponse(responseCode = "404", description = "Instructor not found")
+      })
+  ResponseEntity<InstructorDetailsResponse> getInstructorDetails(@PathVariable String slug);
 
   @PostMapping("/support/tickets")
   @Operation(
@@ -96,5 +98,6 @@ public interface PublicApi {
         @ApiResponse(responseCode = "400", description = "Invalid input"),
         @ApiResponse(responseCode = "429", description = "Rate limit exceeded")
       })
-  ResponseEntity<Void> createSupportTicket(@RequestBody CreateSupportTicketRequest request);
+  ResponseEntity<Void> createSupportTicket(
+      @Valid @RequestBody CreateSupportTicketRequest request);
 }

@@ -1,4 +1,4 @@
-package com.gii.api.service.open;
+package com.gii.api.service.pub;
 
 import com.gii.api.model.response.CourseSummaryResponse;
 import com.gii.api.model.response.PageResponse;
