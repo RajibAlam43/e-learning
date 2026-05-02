@@ -21,8 +21,8 @@ class InstructorDashboardRepositoriesDataJpaTest extends AbstractInstructorDataJ
   void aggregateCountQueriesReturnExpectedValues() {
     var creator = user("Creator", "creator-inst-jpa2@example.com");
     var instructor = user("Instructor", "inst-jpa2@example.com");
-    var studentA = user("Student A", "student-a-inst-jpa2@example.com");
-    var studentB = user("Student B", "student-b-inst-jpa2@example.com");
+    final var studentA = user("Student A", "student-a-inst-jpa2@example.com");
+    final var studentB = user("Student B", "student-b-inst-jpa2@example.com");
     var course = course("Course JPA 2", "course-jpa-inst-2", creator, PublishStatus.PUBLISHED);
     assignment(course, instructor, InstructorRole.PRIMARY);
     var sec1 = section(course, 1, PublishStatus.PUBLISHED);

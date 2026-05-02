@@ -11,4 +11,4 @@ public record CertificateDownloadUrlResponse(
     String contentType, // "application/pdf"
     Long fileSizeBytes, // Optional: file size for progress indicators
     String checksum // Optional: MD5/SHA256 for integrity verification
-    ) {}
+) {}

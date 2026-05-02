@@ -18,4 +18,4 @@ public record ReceiptItemResponse(
     // Access info
     String accessStartDate,
     String accessExpiryDate // If applicable
-    ) {}
+) {}

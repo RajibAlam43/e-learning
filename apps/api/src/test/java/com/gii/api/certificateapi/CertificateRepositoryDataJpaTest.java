@@ -22,10 +22,10 @@ class CertificateRepositoryDataJpaTest extends AbstractCertificateDataJpaTest {
     var student2 = user("Student2", "student2-cert-jpa@example.com");
     var courseA = course("Course JPA A", "course-cert-jpa-a", creator, PublishStatus.PUBLISHED);
     var courseB = course("Course JPA B", "course-cert-jpa-b", creator, PublishStatus.PUBLISHED);
-    var cert1 =
+    final var cert1 =
         certificate(
             student, courseA, "GII-CERT-JPA11111", false, "https://cdn.test/jpa1.pdf", issuer);
-    var cert2 =
+    final var cert2 =
         certificate(
             student, courseB, "GII-CERT-JPA22222", true, "https://cdn.test/jpa2.pdf", issuer);
     certificate(student2, courseA, "GII-CERT-JPA33333", false, "https://cdn.test/jpa3.pdf", issuer);

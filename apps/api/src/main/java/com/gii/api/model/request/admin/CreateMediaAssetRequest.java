@@ -22,4 +22,4 @@ public record CreateMediaAssetRequest(
     String maxResolution,
     Integer durationSec,
     String preferredPlaybackMode // IFRAME, HLS
-    ) {}
+) {}

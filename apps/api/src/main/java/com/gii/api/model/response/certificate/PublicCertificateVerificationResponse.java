@@ -33,4 +33,4 @@ public record PublicCertificateVerificationResponse(
     // Additional context
     String completionCriteria, // e.g., "Completed all lessons with 80% quiz score"
     Double completionPercentage // e.g., 95.5
-    ) {}
+) {}

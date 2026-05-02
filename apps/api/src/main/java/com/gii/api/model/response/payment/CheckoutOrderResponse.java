@@ -33,4 +33,4 @@ public record CheckoutOrderResponse(
 
     // Next action
     String nextAction // e.g., "INITIATE_PAYMENT"
-    ) {}
+) {}

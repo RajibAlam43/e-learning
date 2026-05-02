@@ -13,4 +13,4 @@ public record AuthResponse(
     UUID userId, // Optional: User ID for client-side state
     String fullName, // Optional: User's full name
     Set<String> roles // Optional: User's roles (e.g., STUDENT, INSTRUCTOR)
-    ) {}
+) {}

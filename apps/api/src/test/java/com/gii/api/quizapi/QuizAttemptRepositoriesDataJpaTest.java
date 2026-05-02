@@ -35,7 +35,7 @@ class QuizAttemptRepositoriesDataJpaTest extends AbstractQuizDataJpaTest {
             false,
             Instant.now().minusSeconds(100),
             Instant.now().minusSeconds(60));
-    var a2 = attempt(quiz, student, 2, null, null, Instant.now().minusSeconds(20), null);
+    final var a2 = attempt(quiz, student, 2, null, null, Instant.now().minusSeconds(20), null);
     attemptAnswer(a1, q1, c1);
     attemptAnswer(a1, q2, c2);
 
