@@ -6,4 +6,4 @@ import lombok.Builder;
 
 @Builder
 public record SectionReorderRequest(
-    UUID sectionId, Integer newPosition, List<LessonReorderRequest> lessons) {}
+    UUID sectionId, Integer newPosition, List<SectionItemReorderRequest> items) {}

@@ -8,13 +8,16 @@ import com.gii.api.model.response.admin.AdminMediaAssetResponse;
 import com.gii.common.entity.course.CourseSection;
 import com.gii.common.entity.course.Lesson;
 import com.gii.common.entity.course.MediaAsset;
+import com.gii.common.entity.course.SectionItem;
 import com.gii.common.enums.LessonType;
 import com.gii.common.enums.PublishStatus;
 import com.gii.common.enums.ReleaseType;
+import com.gii.common.enums.SectionItemType;
 import com.gii.common.repository.course.CourseSectionRepository;
 import com.gii.common.repository.course.LessonRepository;
 import com.gii.common.repository.course.LessonResourceRepository;
 import com.gii.common.repository.course.MediaAssetRepository;
+import com.gii.common.repository.course.SectionItemRepository;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +35,7 @@ public class AdminLessonManagementService {
   private final LessonRepository lessonRepository;
   private final MediaAssetRepository mediaAssetRepository;
   private final LessonResourceRepository resourceRepository;
+  private final SectionItemRepository sectionItemRepository;
 
   public AdminLessonDetailResponse create(UUID sectionId, CreateLessonRequest request) {
     CourseSection section =
@@ -39,6 +43,8 @@ public class AdminLessonManagementService {
             .findById(sectionId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Section not found"));
+
+    ensurePositionAvailable(section.getId(), request.position(), null);
 
     Lesson lesson =
         Lesson.builder()
@@ -62,6 +68,13 @@ public class AdminLessonManagementService {
             .status(PublishStatus.DRAFT)
             .build();
     Lesson saved = lessonRepository.save(lesson);
+    sectionItemRepository.save(
+        SectionItem.builder()
+            .section(section)
+            .itemType(SectionItemType.LESSON)
+            .itemId(saved.getId())
+            .position(saved.getPosition())
+            .build());
     return toDetail(saved);
   }
 
@@ -78,6 +91,7 @@ public class AdminLessonManagementService {
       lesson.setSlug(request.slug().trim());
     }
     if (request.position() != null) {
+      ensurePositionAvailable(lesson.getSection().getId(), request.position(), lesson.getId());
       lesson.setPosition(request.position());
     }
     if (request.lessonType() != null) {
@@ -107,7 +121,17 @@ public class AdminLessonManagementService {
     if (request.unlockAfterDays() != null) {
       lesson.setUnlockAfterDays(request.unlockAfterDays());
     }
-    return toDetail(lessonRepository.save(lesson));
+    Lesson saved = lessonRepository.save(lesson);
+    SectionItem sectionItem =
+        sectionItemRepository
+            .findByItemTypeAndItemId(SectionItemType.LESSON, saved.getId())
+            .orElseThrow(
+                () ->
+                    new ResponseStatusException(
+                        HttpStatus.INTERNAL_SERVER_ERROR, "Section item missing"));
+    sectionItem.setPosition(saved.getPosition());
+    sectionItemRepository.save(sectionItem);
+    return toDetail(saved);
   }
 
   public void delete(UUID lessonId) {
@@ -116,7 +140,28 @@ public class AdminLessonManagementService {
             .findById(lessonId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lesson not found"));
+    sectionItemRepository.deleteByItemTypeAndItemId(SectionItemType.LESSON, lesson.getId());
     lessonRepository.delete(lesson);
+  }
+
+  private void ensurePositionAvailable(
+      UUID sectionId, Integer requestedPosition, UUID currentLessonId) {
+    if (requestedPosition == null || requestedPosition <= 0) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "position must be positive");
+    }
+    sectionItemRepository
+        .findBySectionIdAndPosition(sectionId, requestedPosition)
+        .ifPresent(
+            item -> {
+              boolean sameLesson =
+                  item.getItemType() == SectionItemType.LESSON
+                      && currentLessonId != null
+                      && currentLessonId.equals(item.getItemId());
+              if (!sameLesson) {
+                throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Position is already used in this section");
+              }
+            });
   }
 
   AdminLessonDetailResponse toDetail(Lesson lesson) {

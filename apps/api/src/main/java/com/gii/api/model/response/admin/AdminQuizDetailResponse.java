@@ -8,6 +8,8 @@ import lombok.Builder;
 @Builder
 public record AdminQuizDetailResponse(
     UUID quizId,
+    UUID sectionId,
+    Integer position,
     String title,
     Integer passingScorePct,
     Integer maxAttempts,

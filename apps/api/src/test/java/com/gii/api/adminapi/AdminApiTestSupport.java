@@ -6,6 +6,7 @@ import com.gii.common.entity.course.CourseInstructorId;
 import com.gii.common.entity.course.CourseSection;
 import com.gii.common.entity.course.Lesson;
 import com.gii.common.entity.course.MediaAsset;
+import com.gii.common.entity.course.SectionItem;
 import com.gii.common.entity.live.LiveClass;
 import com.gii.common.entity.live.LiveClassRegistrant;
 import com.gii.common.entity.order.Order;
@@ -29,6 +30,7 @@ import com.gii.common.enums.OrderProvider;
 import com.gii.common.enums.OrderStatus;
 import com.gii.common.enums.PublishStatus;
 import com.gii.common.enums.QuestionType;
+import com.gii.common.enums.SectionItemType;
 import com.gii.common.enums.StudyMode;
 import com.gii.common.enums.UserStatus;
 import com.gii.common.repository.course.CourseInstructorRepository;
@@ -36,6 +38,7 @@ import com.gii.common.repository.course.CourseRepository;
 import com.gii.common.repository.course.CourseSectionRepository;
 import com.gii.common.repository.course.LessonRepository;
 import com.gii.common.repository.course.MediaAssetRepository;
+import com.gii.common.repository.course.SectionItemRepository;
 import com.gii.common.repository.enrollment.EnrollmentRepository;
 import com.gii.common.repository.live.LiveClassRegistrantRepository;
 import com.gii.common.repository.live.LiveClassRepository;
@@ -65,6 +68,7 @@ abstract class AdminApiTestSupport {
   @Autowired protected CourseSectionRepository courseSectionRepository;
   @Autowired protected LessonRepository lessonRepository;
   @Autowired protected MediaAssetRepository mediaAssetRepository;
+  @Autowired protected SectionItemRepository sectionItemRepository;
   @Autowired protected EnrollmentRepository enrollmentRepository;
   @Autowired protected LiveClassRepository liveClassRepository;
   @Autowired protected LiveClassRegistrantRepository liveClassRegistrantRepository;
@@ -85,6 +89,7 @@ abstract class AdminApiTestSupport {
     quizChoiceRepository.deleteAll();
     quizQuestionRepository.deleteAll();
     quizRepository.deleteAll();
+    sectionItemRepository.deleteAll();
     liveClassRegistrantRepository.deleteAll();
     liveClassRepository.deleteAll();
     enrollmentRepository.deleteAll();
@@ -153,7 +158,8 @@ abstract class AdminApiTestSupport {
   }
 
   protected Lesson lesson(Course course, CourseSection section, int position) {
-    return lessonRepository.save(
+    Lesson lesson =
+        lessonRepository.save(
         Lesson.builder()
             .course(course)
             .section(section)
@@ -165,6 +171,14 @@ abstract class AdminApiTestSupport {
             .isFree(false)
             .isMandatory(false)
             .build());
+    sectionItemRepository.save(
+        SectionItem.builder()
+            .section(section)
+            .itemType(SectionItemType.LESSON)
+            .itemId(lesson.getId())
+            .position(position)
+            .build());
+    return lesson;
   }
 
   protected MediaAsset mediaAsset(Lesson lesson, String playbackId) {
@@ -241,15 +255,36 @@ abstract class AdminApiTestSupport {
   }
 
   protected Quiz quiz(Course course, String title) {
-    return quizRepository.save(
+    CourseSection section =
+        courseSectionRepository.findByCourseIdOrderByPositionAsc(course.getId()).stream()
+            .findFirst()
+            .orElseGet(() -> section(course, 1));
+    int position =
+        sectionItemRepository.findBySectionIdOrderByPositionAsc(section.getId()).stream()
+                .mapToInt(item -> item.getPosition())
+                .max()
+                .orElse(0)
+            + 1;
+    Quiz quiz =
+        quizRepository.save(
         Quiz.builder()
             .course(course)
+            .section(section)
+            .position(position)
             .title(title)
             .status(PublishStatus.DRAFT)
             .passingScorePct(70)
             .maxAttempts(2)
             .timeLimitSec(900)
             .build());
+    sectionItemRepository.save(
+        SectionItem.builder()
+            .section(section)
+            .itemType(SectionItemType.QUIZ)
+            .itemId(quiz.getId())
+            .position(position)
+            .build());
+    return quiz;
   }
 
   protected QuizQuestion question(Quiz quiz, int position, String text) {

@@ -21,4 +21,4 @@ public record AdminCourseSectionResponse(
     Instant publishedAt,
     Instant createdAt,
     Instant updatedAt,
-    List<AdminLessonSummaryResponse> lessons) {}
+    List<AdminSectionItemResponse> items) {}

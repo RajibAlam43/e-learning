@@ -12,6 +12,8 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID> {
 
   List<Lesson> findByCourseIdOrderByPositionAsc(UUID courseId);
 
+  List<Lesson> findBySectionIdOrderByPositionAsc(UUID sectionId);
+
   @Query(
       """
         SELECT l FROM Lesson l

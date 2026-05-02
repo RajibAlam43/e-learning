@@ -4,16 +4,26 @@ import com.gii.api.model.request.admin.CreateSectionRequest;
 import com.gii.api.model.request.admin.UpdateSectionRequest;
 import com.gii.api.model.response.admin.AdminCourseSectionResponse;
 import com.gii.api.model.response.admin.AdminLessonSummaryResponse;
+import com.gii.api.model.response.admin.AdminQuizSummaryResponse;
+import com.gii.api.model.response.admin.AdminSectionItemResponse;
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.course.CourseSection;
 import com.gii.common.entity.course.Lesson;
+import com.gii.common.entity.course.SectionItem;
+import com.gii.common.entity.quiz.Quiz;
 import com.gii.common.enums.PublishStatus;
 import com.gii.common.enums.ReleaseType;
+import com.gii.common.enums.SectionItemType;
 import com.gii.common.repository.course.CourseRepository;
 import com.gii.common.repository.course.CourseSectionRepository;
 import com.gii.common.repository.course.LessonRepository;
+import com.gii.common.repository.course.SectionItemRepository;
+import com.gii.common.repository.quiz.QuizRepository;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -28,6 +38,8 @@ public class AdminSectionManagementService {
   private final CourseRepository courseRepository;
   private final CourseSectionRepository sectionRepository;
   private final LessonRepository lessonRepository;
+  private final QuizRepository quizRepository;
+  private final SectionItemRepository sectionItemRepository;
 
   public AdminCourseSectionResponse create(UUID courseId, CreateSectionRequest request) {
     Course course =
@@ -99,9 +111,22 @@ public class AdminSectionManagementService {
 
   AdminCourseSectionResponse toResponse(CourseSection section) {
     List<AdminLessonSummaryResponse> lessons =
-        lessonRepository.findByCourseIdOrderByPositionAsc(section.getCourse().getId()).stream()
-            .filter(lesson -> lesson.getSection().getId().equals(section.getId()))
+        lessonRepository.findBySectionIdOrderByPositionAsc(section.getId()).stream()
             .map(this::toLessonSummary)
+            .toList();
+    List<AdminQuizSummaryResponse> quizzes =
+        quizRepository.findBySectionIdOrderByPositionAsc(section.getId()).stream()
+            .map(this::toQuizSummary)
+            .toList();
+    Map<UUID, AdminLessonSummaryResponse> lessonById =
+        lessons.stream()
+            .collect(Collectors.toMap(AdminLessonSummaryResponse::lessonId, Function.identity()));
+    Map<UUID, AdminQuizSummaryResponse> quizById =
+        quizzes.stream()
+            .collect(Collectors.toMap(AdminQuizSummaryResponse::quizId, Function.identity()));
+    List<AdminSectionItemResponse> items =
+        sectionItemRepository.findBySectionIdOrderByPositionAsc(section.getId()).stream()
+            .map(item -> toSectionItemResponse(item, lessonById, quizById))
             .toList();
 
     return AdminCourseSectionResponse.builder()
@@ -119,7 +144,7 @@ public class AdminSectionManagementService {
         .publishedAt(section.getPublishedAt())
         .createdAt(section.getCreatedAt())
         .updatedAt(section.getUpdatedAt())
-        .lessons(lessons)
+        .items(items)
         .build();
   }
 
@@ -135,6 +160,40 @@ public class AdminSectionManagementService {
         .isFree(lesson.getIsFree())
         .durationSeconds(lesson.getDurationSeconds())
         .createdAt(lesson.getCreatedAt())
+        .build();
+  }
+
+  private AdminQuizSummaryResponse toQuizSummary(Quiz quiz) {
+    return AdminQuizSummaryResponse.builder()
+        .quizId(quiz.getId())
+        .sectionId(quiz.getSection().getId())
+        .position(quiz.getPosition())
+        .title(quiz.getTitle())
+        .status(quiz.getStatus().name())
+        .passingScorePct(quiz.getPassingScorePct())
+        .maxAttempts(quiz.getMaxAttempts())
+        .timeLimitSec(quiz.getTimeLimitSec())
+        .createdAt(quiz.getCreatedAt())
+        .build();
+  }
+
+  private AdminSectionItemResponse toSectionItemResponse(
+      SectionItem item,
+      Map<UUID, AdminLessonSummaryResponse> lessonById,
+      Map<UUID, AdminQuizSummaryResponse> quizById) {
+    AdminLessonSummaryResponse lesson = null;
+    AdminQuizSummaryResponse quiz = null;
+    if (item.getItemType() == SectionItemType.LESSON) {
+      lesson = lessonById.get(item.getItemId());
+    } else if (item.getItemType() == SectionItemType.QUIZ) {
+      quiz = quizById.get(item.getItemId());
+    }
+    return AdminSectionItemResponse.builder()
+        .itemId(item.getItemId())
+        .itemType(item.getItemType().name())
+        .position(item.getPosition())
+        .lesson(lesson)
+        .quiz(quiz)
         .build();
   }
 

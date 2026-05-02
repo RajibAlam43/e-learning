@@ -9,13 +9,16 @@ import com.gii.api.model.request.admin.UpdateQuizRequest;
 import com.gii.api.model.response.admin.AdminQuizChoiceResponse;
 import com.gii.api.model.response.admin.AdminQuizDetailResponse;
 import com.gii.api.model.response.admin.AdminQuizQuestionResponse;
-import com.gii.common.entity.course.Course;
+import com.gii.common.entity.course.CourseSection;
+import com.gii.common.entity.course.SectionItem;
 import com.gii.common.entity.quiz.Quiz;
 import com.gii.common.entity.quiz.QuizChoice;
 import com.gii.common.entity.quiz.QuizQuestion;
 import com.gii.common.enums.PublishStatus;
 import com.gii.common.enums.QuestionType;
-import com.gii.common.repository.course.CourseRepository;
+import com.gii.common.enums.SectionItemType;
+import com.gii.common.repository.course.CourseSectionRepository;
+import com.gii.common.repository.course.SectionItemRepository;
 import com.gii.common.repository.quiz.QuizChoiceRepository;
 import com.gii.common.repository.quiz.QuizQuestionRepository;
 import com.gii.common.repository.quiz.QuizRepository;
@@ -32,20 +35,28 @@ import org.springframework.web.server.ResponseStatusException;
 @Transactional
 public class AdminQuizManagementService {
 
-  private final CourseRepository courseRepository;
+  private final CourseSectionRepository sectionRepository;
+  private final SectionItemRepository sectionItemRepository;
   private final QuizRepository quizRepository;
   private final QuizQuestionRepository questionRepository;
   private final QuizChoiceRepository choiceRepository;
 
-  public AdminQuizDetailResponse create(UUID courseId, CreateQuizRequest request) {
-    Course course =
-        courseRepository
-            .findById(courseId)
+  public AdminQuizDetailResponse create(UUID sectionId, CreateQuizRequest request) {
+    CourseSection section =
+        sectionRepository
+            .findById(sectionId)
             .orElseThrow(
-                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found"));
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Section not found"));
+    if (!section.getId().equals(request.sectionId())) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Section mismatch");
+    }
+    ensurePositionAvailable(section.getId(), request.position(), null);
+
     Quiz quiz =
         Quiz.builder()
-            .course(course)
+            .course(section.getCourse())
+            .section(section)
+            .position(request.position())
             .title(request.title().trim())
             .passingScorePct(request.passingScorePct())
             .maxAttempts(request.maxAttempts())
@@ -53,6 +64,13 @@ public class AdminQuizManagementService {
             .status(PublishStatus.DRAFT)
             .build();
     Quiz savedQuiz = quizRepository.save(quiz);
+    sectionItemRepository.save(
+        SectionItem.builder()
+            .section(section)
+            .itemType(SectionItemType.QUIZ)
+            .itemId(savedQuiz.getId())
+            .position(savedQuiz.getPosition())
+            .build());
     createQuestions(savedQuiz, request.questions());
     return toDetail(savedQuiz.getId());
   }
@@ -62,6 +80,22 @@ public class AdminQuizManagementService {
         quizRepository
             .findById(quizId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Quiz not found"));
+    if (request.sectionId() != null && !request.sectionId().equals(quiz.getSection().getId())) {
+      CourseSection section =
+          sectionRepository
+              .findById(request.sectionId())
+              .orElseThrow(
+                  () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Section not found"));
+      if (!section.getCourse().getId().equals(quiz.getCourse().getId())) {
+        throw new ResponseStatusException(
+            HttpStatus.BAD_REQUEST, "Section must belong to the same course");
+      }
+      quiz.setSection(section);
+    }
+    if (request.position() != null) {
+      ensurePositionAvailable(quiz.getSection().getId(), request.position(), quiz.getId());
+      quiz.setPosition(request.position());
+    }
     if (request.title() != null && !request.title().isBlank()) {
       quiz.setTitle(request.title().trim());
     }
@@ -74,7 +108,17 @@ public class AdminQuizManagementService {
     if (request.timeLimitSec() != null) {
       quiz.setTimeLimitSec(request.timeLimitSec());
     }
-    quizRepository.save(quiz);
+    Quiz savedQuiz = quizRepository.save(quiz);
+    SectionItem sectionItem =
+        sectionItemRepository
+            .findByItemTypeAndItemId(SectionItemType.QUIZ, savedQuiz.getId())
+            .orElseThrow(
+                () ->
+                    new ResponseStatusException(
+                        HttpStatus.INTERNAL_SERVER_ERROR, "Section item missing"));
+    sectionItem.setSection(savedQuiz.getSection());
+    sectionItem.setPosition(savedQuiz.getPosition());
+    sectionItemRepository.save(sectionItem);
 
     if (request.questions() != null) {
       replaceQuestions(quiz, request.questions());
@@ -178,6 +222,8 @@ public class AdminQuizManagementService {
             .toList();
     return AdminQuizDetailResponse.builder()
         .quizId(quiz.getId())
+        .sectionId(quiz.getSection().getId())
+        .position(quiz.getPosition())
         .title(quiz.getTitle())
         .passingScorePct(quiz.getPassingScorePct())
         .maxAttempts(quiz.getMaxAttempts())
@@ -187,6 +233,26 @@ public class AdminQuizManagementService {
         .updatedAt(quiz.getUpdatedAt())
         .questions(questions)
         .build();
+  }
+
+  private void ensurePositionAvailable(
+      UUID sectionId, Integer requestedPosition, UUID currentQuizId) {
+    if (requestedPosition == null || requestedPosition <= 0) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "position must be positive");
+    }
+    sectionItemRepository
+        .findBySectionIdAndPosition(sectionId, requestedPosition)
+        .ifPresent(
+            item -> {
+              boolean sameQuiz =
+                  item.getItemType() == SectionItemType.QUIZ
+                      && currentQuizId != null
+                      && currentQuizId.equals(item.getItemId());
+              if (!sameQuiz) {
+                throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Position is already used in this section");
+              }
+            });
   }
 
   private AdminQuizQuestionResponse toQuestionResponse(QuizQuestion question) {

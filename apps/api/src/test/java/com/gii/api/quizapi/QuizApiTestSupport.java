@@ -146,7 +146,8 @@ abstract class QuizApiTestSupport {
     return quizRepository.save(
         Quiz.builder()
             .course(course)
-            .lesson(lesson)
+            .section(lesson.getSection())
+            .position(lesson.getPosition())
             .title(title)
             .status(status)
             .passingScorePct(passingScorePct)

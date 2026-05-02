@@ -11,24 +11,32 @@ import com.gii.api.service.enrollment.CurrentUserService;
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.course.CourseInstructor;
 import com.gii.common.entity.course.CourseSection;
+import com.gii.common.entity.course.SectionItem;
 import com.gii.common.entity.user.User;
 import com.gii.common.enums.CourseLanguage;
 import com.gii.common.enums.CourseLevel;
 import com.gii.common.enums.EnrollmentStatus;
 import com.gii.common.enums.InstructorRole;
 import com.gii.common.enums.PublishStatus;
+import com.gii.common.enums.SectionItemType;
 import com.gii.common.enums.StudyMode;
 import com.gii.common.repository.course.CourseInstructorRepository;
 import com.gii.common.repository.course.CourseRepository;
 import com.gii.common.repository.course.CourseSectionRepository;
 import com.gii.common.repository.course.LessonRepository;
+import com.gii.common.repository.course.SectionItemRepository;
 import com.gii.common.repository.enrollment.EnrollmentRepository;
+import com.gii.common.repository.quiz.QuizRepository;
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -43,6 +51,8 @@ public class AdminCourseManagementService {
   private final CourseRepository courseRepository;
   private final CourseSectionRepository sectionRepository;
   private final LessonRepository lessonRepository;
+  private final QuizRepository quizRepository;
+  private final SectionItemRepository sectionItemRepository;
   private final CourseInstructorRepository instructorRepository;
   private final EnrollmentRepository enrollmentRepository;
   private final CurrentUserService currentUserService;
@@ -211,30 +221,111 @@ public class AdminCourseManagementService {
             .findById(courseId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found"));
-    for (var secReq : request.sections()) {
-      CourseSection sec =
-          sectionRepository
-              .findById(secReq.sectionId())
-              .orElseThrow(
-                  () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Section not found"));
-      if (!sec.getCourse().getId().equals(course.getId())) {
-        continue;
+    try {
+      for (var secReq : request.sections()) {
+        CourseSection sec =
+            sectionRepository
+                .findById(secReq.sectionId())
+                .orElseThrow(
+                    () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Section not found"));
+        if (!sec.getCourse().getId().equals(course.getId())) {
+          continue;
+        }
+        sec.setPosition(secReq.newPosition());
+        sectionRepository.saveAndFlush(sec);
+        if (secReq.items() == null || secReq.items().isEmpty()) {
+          continue;
+        }
+        applyItemReorder(secReq, sec);
       }
-      sec.setPosition(secReq.newPosition());
-      sectionRepository.save(sec);
-      if (secReq.lessons() != null) {
-        for (var lessonReq : secReq.lessons()) {
-          lessonRepository
-              .findById(lessonReq.lessonId())
-              .ifPresent(
-                  lesson -> {
-                    if (lesson.getSection().getId().equals(sec.getId())) {
-                      lesson.setPosition(lessonReq.newPosition());
-                      lessonRepository.save(lesson);
-                    }
-                  });
+    } catch (DataIntegrityViolationException ex) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Invalid reorder payload or duplicate positions");
+    }
+  }
+
+  private void applyItemReorder(
+      com.gii.api.model.request.admin.SectionReorderRequest secReq, CourseSection sec) {
+    Set<UUID> seenItemIds = new HashSet<>();
+    Set<Integer> seenPositions = new HashSet<>();
+    List<SectionItem> itemsToReposition = new java.util.ArrayList<>();
+    Map<UUID, Integer> targetPositionByItemId = new LinkedHashMap<>();
+    for (var itemReq : secReq.items()) {
+      if (itemReq.itemId() == null
+          || itemReq.itemType() == null
+          || itemReq.newPosition() == null) {
+        throw new ResponseStatusException(
+            HttpStatus.BAD_REQUEST, "Invalid section item reorder entry");
+      }
+      if (itemReq.newPosition() <= 0) {
+        throw new ResponseStatusException(
+            HttpStatus.BAD_REQUEST, "Item position must be positive");
+      }
+      if (!seenItemIds.add(itemReq.itemId()) || !seenPositions.add(itemReq.newPosition())) {
+        throw new ResponseStatusException(
+            HttpStatus.BAD_REQUEST, "Duplicate item id or position in section reorder request");
+      }
+      targetPositionByItemId.put(itemReq.itemId(), itemReq.newPosition());
+      SectionItemType itemType = itemReq.itemType();
+      SectionItem sectionItem =
+          sectionItemRepository
+              .findByItemTypeAndItemId(itemType, itemReq.itemId())
+              .orElseThrow(
+                  () ->
+                      new ResponseStatusException(HttpStatus.NOT_FOUND, "Section item not found"));
+      if (!sectionItem.getSection().getId().equals(sec.getId())) {
+        throw new ResponseStatusException(
+            HttpStatus.BAD_REQUEST, "Section item does not belong to section");
+      }
+      itemsToReposition.add(sectionItem);
+    }
+
+    int tempBase = 1000000;
+    for (int i = 0; i < itemsToReposition.size(); i++) {
+      SectionItem item = itemsToReposition.get(i);
+      item.setPosition(tempBase + i);
+    }
+    sectionItemRepository.saveAllAndFlush(itemsToReposition);
+
+    for (SectionItem item : itemsToReposition) {
+      Integer finalPosition = targetPositionByItemId.get(item.getItemId());
+      if (finalPosition == null) {
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Section item missing");
+      }
+      item.setPosition(finalPosition);
+    }
+    sectionItemRepository.saveAllAndFlush(itemsToReposition);
+
+    List<UUID> lessonIds =
+        itemsToReposition.stream()
+            .filter(item -> item.getItemType() == SectionItemType.LESSON)
+            .map(SectionItem::getItemId)
+            .toList();
+    if (!lessonIds.isEmpty()) {
+      List<com.gii.common.entity.course.Lesson> lessons = lessonRepository.findAllById(lessonIds);
+      for (com.gii.common.entity.course.Lesson lesson : lessons) {
+        Integer finalPosition = targetPositionByItemId.get(lesson.getId());
+        if (finalPosition != null) {
+          lesson.setPosition(finalPosition);
         }
       }
+      lessonRepository.saveAll(lessons);
+    }
+
+    List<UUID> quizIds =
+        itemsToReposition.stream()
+            .filter(item -> item.getItemType() == SectionItemType.QUIZ)
+            .map(SectionItem::getItemId)
+            .toList();
+    if (!quizIds.isEmpty()) {
+      List<com.gii.common.entity.quiz.Quiz> quizzes = quizRepository.findAllById(quizIds);
+      for (com.gii.common.entity.quiz.Quiz quiz : quizzes) {
+        Integer finalPosition = targetPositionByItemId.get(quiz.getId());
+        if (finalPosition != null) {
+          quiz.setPosition(finalPosition);
+        }
+      }
+      quizRepository.saveAll(quizzes);
     }
   }
 

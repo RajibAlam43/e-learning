@@ -44,4 +44,20 @@ class QuizReadRepositoriesDataJpaTest extends AbstractQuizDataJpaTest {
             orderedQuestions.stream().map(x -> x.getId()).toList());
     assertThat(allChoices).hasSize(3);
   }
+
+  @Test
+  void sectionQuizOrderingQueriesShouldReturnPositionOrder() {
+    var creator = user("Creator", "creator-quiz-jpa2@example.com");
+    var course = course("Quiz JPA 2", "quiz-jpa-2", creator, PublishStatus.PUBLISHED);
+    var sec = section(course, 1, PublishStatus.PUBLISHED);
+    var lesson1 = lesson(course, sec, 1, PublishStatus.PUBLISHED);
+    var lesson2 = lesson(course, sec, 2, PublishStatus.PUBLISHED);
+    var quiz2 = quiz(course, lesson2, "Quiz 2", PublishStatus.PUBLISHED, 60, 3, 600);
+    var quiz1 = quiz(course, lesson1, "Quiz 1", PublishStatus.PUBLISHED, 60, 3, 600);
+
+    var quizzes = quizRepository.findBySectionIdOrderByPositionAsc(sec.getId());
+    assertThat(quizzes).hasSize(2);
+    assertThat(quizzes.get(0).getId()).isEqualTo(quiz1.getId());
+    assertThat(quizzes.get(1).getId()).isEqualTo(quiz2.getId());
+  }
 }
