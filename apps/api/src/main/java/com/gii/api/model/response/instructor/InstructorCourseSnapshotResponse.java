@@ -33,4 +33,4 @@ public record InstructorCourseSnapshotResponse(
     // Quick actions
     String editUrl, // Link to edit course
     String analyticsUrl // Link to course analytics
-) {}
+    ) {}

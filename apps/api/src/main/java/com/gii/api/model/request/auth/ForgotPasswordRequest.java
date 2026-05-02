@@ -9,4 +9,4 @@ import lombok.Builder;
 public record ForgotPasswordRequest(
     @NotNull VerificationChannel channel, // EMAIL or PHONE
     @NotBlank String identifier // Email or phone
-) {}
+    ) {}

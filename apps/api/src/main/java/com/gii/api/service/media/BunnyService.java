@@ -1,6 +1,7 @@
 package com.gii.api.service.media;
 
 import com.gii.api.model.response.MediaPlaybackResponse;
+import com.gii.api.service.util.CryptoOperationException;
 import com.gii.common.entity.course.MediaAsset;
 import com.gii.common.enums.MediaProvider;
 import java.nio.charset.StandardCharsets;
@@ -82,7 +83,7 @@ public class BunnyService implements MediaProviderService {
 
       return hex.toString();
     } catch (Exception e) {
-      throw new RuntimeException("Failed to generate Bunny token", e);
+      throw new CryptoOperationException("Failed to generate Bunny token", e);
     }
   }
 }

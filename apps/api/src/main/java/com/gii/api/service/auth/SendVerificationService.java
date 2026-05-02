@@ -2,6 +2,7 @@ package com.gii.api.service.auth;
 
 import static com.gii.api.service.util.IdentifierNormalizationUtil.normalizeIdentifier;
 
+import com.gii.api.exception.BadRequestApiException;
 import com.gii.api.model.request.auth.SendVerificationRequest;
 import com.gii.common.entity.user.User;
 import com.gii.common.enums.VerificationChannel;
@@ -31,11 +32,11 @@ public class SendVerificationService {
 
     if (request.purpose() == VerificationPurpose.EMAIL_VERIFICATION
         && request.channel() != VerificationChannel.EMAIL) {
-      throw new RuntimeException("Invalid verification request");
+      throw new BadRequestApiException("Invalid verification request");
     }
     if (request.purpose() == VerificationPurpose.PHONE_VERIFICATION
         && request.channel() != VerificationChannel.PHONE) {
-      throw new RuntimeException("Invalid verification request");
+      throw new BadRequestApiException("Invalid verification request");
     }
 
     if (request.purpose() == VerificationPurpose.EMAIL_VERIFICATION

@@ -1,6 +1,5 @@
 name: Deploy App
 
-# Manual trigger from GitHub Actions UI.
 on:
   workflow_dispatch:
     inputs:
@@ -10,12 +9,9 @@ on:
         type: choice
         options: [stage, prod]
 
-# Minimal token permissions (good security baseline).
 permissions:
   contents: read
 
-# Prevent overlapping deploys for the same environment.
-# Example groups: deploy-stage, deploy-prod
 concurrency:
   group: deploy-${{ inputs.target_env }}
   cancel-in-progress: false
@@ -23,16 +19,14 @@ concurrency:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-
-    # Uses GitHub Environments ("stage"/"prod") so you can scope secrets per env.
     environment: ${{ inputs.target_env }}
 
     steps:
-      # Pull repository source code into the runner.
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
 
-      # Install JDK 25 (Temurin) and enable Gradle dependency cache.
       - name: Set up Java
         uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
         with:
@@ -40,12 +34,18 @@ jobs:
           java-version: 25
           cache: gradle
 
-      # Build + test + create bootable jars.
       - name: Build
         run: ./gradlew clean test bootJar
 
-      # Copy exactly one runnable API jar and one runnable Worker jar to stable names.
-      # This avoids accidental deployment of "*-plain.jar".
+      - name: JaCoCo and SonarQube analysis non-blocking
+        continue-on-error: true
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          ./gradlew jacocoTestReport sonar --continue \
+            -Dsonar.host.url=https://sonarcloud.io \
+            -Dsonar.token=${SONAR_TOKEN}
+
       - name: Prepare artifacts deterministically
         shell: bash
         run: |
@@ -53,7 +53,6 @@ jobs:
           api_jars=(apps/api/build/libs/*.jar)
           worker_jars=(apps/worker/build/libs/*.jar)
 
-          # Prefer runnable jar, avoid *-plain.jar
           api_jar=$(printf "%s\n" "${api_jars[@]}" | grep -v -- '-plain\.jar$' | head -n1)
           worker_jar=$(printf "%s\n" "${worker_jars[@]}" | grep -v -- '-plain\.jar$' | head -n1)
 
@@ -63,34 +62,26 @@ jobs:
           cp "${api_jar}" api.jar
           cp "${worker_jar}" worker.jar
 
-      # Configure SSH key + known_hosts for secure non-interactive deployment.
       - name: Setup SSH
         shell: bash
         run: |
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
 
-          # Private key used by runner to SSH/SCP into droplets.
           printf '%s\n' "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
-          # Pre-verified host keys to prevent MITM on first connection.
           printf '%s\n' "${{ secrets.SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
           chmod 644 ~/.ssh/known_hosts
 
-      # Deploy API jar and API env file, then repoint "current" symlink and restart service.
       - name: Deploy API
         shell: bash
         run: |
           RELEASE_ID="${GITHUB_SHA::12}"
 
-          # Create immutable release directory.
           ssh deploy@${{ vars.API_HOST }} "mkdir -p /opt/e-learning/releases/${RELEASE_ID}"
-
-          # Upload built artifact.
           scp api.jar deploy@${{ vars.API_HOST }}:/opt/e-learning/releases/${RELEASE_ID}/api.jar
 
-          # Write runtime environment file.
           cat <<'EOF' | ssh deploy@${{ vars.API_HOST }} "cat > /opt/e-learning/.env && chmod 600 /opt/e-learning/.env"
           SPRING_PROFILES_ACTIVE=${{ vars.SPRING_PROFILES_ACTIVE }}
           SPRING_DATASOURCE_URL=${{ secrets.SPRING_DATASOURCE_URL }}
@@ -115,14 +106,11 @@ jobs:
           BUNNY_TOKEN_TTL=${{ vars.BUNNY_TOKEN_TTL }}
           EOF
 
-          # Atomically switch current release and restart service.
-          # Uses stop + start instead of restart to avoid restart timing weirdness.
-          # Health check waits longer because Spring Boot startup can take time on small droplets.
           ssh deploy@${{ vars.API_HOST }} "
             set -e
-  
+
             ln -sfn /opt/e-learning/releases/${RELEASE_ID} /opt/e-learning/current
-  
+
             sudo /usr/bin/systemctl stop e-learning-api || true
             sleep 5
             sudo /usr/bin/systemctl start e-learning-api
@@ -141,19 +129,14 @@ jobs:
             exit 1
           "
 
-      # Deploy Worker jar and Worker env file, then repoint "current" symlink and restart service.
       - name: Deploy Worker
         shell: bash
         run: |
           RELEASE_ID="${GITHUB_SHA::12}"
 
-          # Create immutable release directory.
           ssh deploy@${{ vars.WORKER_HOST }} "mkdir -p /opt/e-learning/releases/${RELEASE_ID}"
-
-          # Upload built artifact.
           scp worker.jar deploy@${{ vars.WORKER_HOST }}:/opt/e-learning/releases/${RELEASE_ID}/worker.jar
 
-          # Write runtime environment file.
           cat <<'EOF' | ssh deploy@${{ vars.WORKER_HOST }} "cat > /opt/e-learning/.env && chmod 600 /opt/e-learning/.env"
           SPRING_PROFILES_ACTIVE=${{ vars.SPRING_PROFILES_ACTIVE }}
           SPRING_DATASOURCE_URL=${{ secrets.SPRING_DATASOURCE_URL }}
@@ -166,7 +149,6 @@ jobs:
           AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
           EOF
 
-          # Atomically switch current release and restart service.          
           ssh deploy@${{ vars.WORKER_HOST }} "
             set -e
 

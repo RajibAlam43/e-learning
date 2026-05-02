@@ -9,6 +9,7 @@ import com.gii.common.repository.certificate.CertificateRepository;
 import com.gii.common.repository.course.CourseInstructorRepository;
 import com.gii.common.repository.course.LessonRepository;
 import com.gii.common.repository.enrollment.LessonProgressRepository;
+import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -26,9 +27,10 @@ public class CertificateVerificationService {
   private final LessonProgressRepository lessonProgressRepository;
 
   public PublicCertificateVerificationResponse execute(String code) {
+    String normalizedCode = normalizeCode(code);
     Certificate certificate =
         certificateRepository
-            .findByCertificateCode(code)
+            .findByCertificateCode(normalizedCode)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Certificate not found"));
 
@@ -82,5 +84,9 @@ public class CertificateVerificationService {
         .completionCriteria("Completed all published lessons")
         .completionPercentage(completionPct)
         .build();
+  }
+
+  private String normalizeCode(String code) {
+    return code == null ? null : code.trim().toUpperCase(Locale.ROOT);
   }
 }

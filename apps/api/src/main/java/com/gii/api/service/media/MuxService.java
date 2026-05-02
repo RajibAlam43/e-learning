@@ -1,6 +1,7 @@
 package com.gii.api.service.media;
 
 import com.gii.api.model.response.MediaPlaybackResponse;
+import com.gii.api.service.util.CryptoOperationException;
 import com.gii.common.entity.course.MediaAsset;
 import com.gii.common.enums.MediaProvider;
 import io.jsonwebtoken.Jwts;
@@ -78,7 +79,7 @@ public class MuxService implements MediaProviderService {
 
       return keyFactory.generatePrivate(keySpec);
     } catch (Exception e) {
-      throw new RuntimeException("Failed to load Mux private key", e);
+      throw new CryptoOperationException("Failed to load Mux private key", e);
     }
   }
 }

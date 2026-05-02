@@ -73,6 +73,10 @@ public class QuizAttemptSubmitService {
     }
 
     List<QuizQuestion> questions = questionRepository.findByQuizIdOrderByPositionAsc(quiz.getId());
+    if (questionIds.size() != questions.size()) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "All quiz questions must be answered");
+    }
     Map<UUID, QuizQuestion> questionById =
         questions.stream().collect(Collectors.toMap(QuizQuestion::getId, Function.identity()));
     Map<UUID, QuizChoice> choiceById =

@@ -58,8 +58,23 @@ public class PaymentWebhookService {
 
   private WebhookAckResponse acknowledge(
       OrderProvider provider, String eventType, Map<String, String> headers, String payload) {
-    String providerEventId = firstNonBlank(
-        headers.get("x-event-id"), headers.get("x-transaction-id"), headers.get("x-request-id"));
+    String providerEventId =
+        firstNonBlank(
+            headers.get("x-event-id"),
+            headers.get("x-transaction-id"),
+            headers.get("x-request-id"));
+    if (providerEventId != null) {
+      var existing =
+          paymentEventRepository.findByProviderAndProviderEventId(provider, providerEventId);
+      if (existing.isPresent()) {
+        return WebhookAckResponse.builder()
+            .acknowledged(Boolean.TRUE)
+            .message("Webhook already received")
+            .webhookId(existing.get().getId().toString())
+            .processingDelayMs(0L)
+            .build();
+      }
+    }
     Order order = findOrderFromHeaders(provider, headers).orElse(null);
 
     Map<String, Object> rawPayload = new HashMap<>();
@@ -177,8 +192,9 @@ public class PaymentWebhookService {
 
   private java.util.Optional<Order> findOrderFromHeaders(
       OrderProvider provider, Map<String, String> headers) {
-    String txnId = firstNonBlank(
-        headers.get("x-transaction-id"), headers.get("x-tran-id"), headers.get("x-payment-id"));
+    String txnId =
+        firstNonBlank(
+            headers.get("x-transaction-id"), headers.get("x-tran-id"), headers.get("x-payment-id"));
     if (txnId == null) {
       return java.util.Optional.empty();
     }

@@ -16,6 +16,7 @@ import com.gii.common.repository.enrollment.EnrollmentRepository;
 import com.gii.common.repository.order.OrderItemRepository;
 import com.gii.common.repository.order.OrderRepository;
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -31,7 +32,8 @@ import org.springframework.web.server.ResponseStatusException;
 @Transactional
 public class PendingOrderService {
 
-  private static final long ORDER_EXPIRY_SECONDS = 30 * 60;
+  private static final long ORDER_EXPIRY_SECONDS =
+          Duration.ofMinutes(30).getSeconds();
 
   private final CurrentUserService currentUserService;
   private final CourseRepository courseRepository;
@@ -63,9 +65,7 @@ public class PendingOrderService {
     }
 
     BigDecimal price =
-        course.getIsFree() != null && course.getIsFree()
-            ? BigDecimal.ZERO
-            : course.getPriceBdt();
+        course.getIsFree() != null && course.getIsFree() ? BigDecimal.ZERO : course.getPriceBdt();
     Order order =
         Order.builder()
             .user(user)

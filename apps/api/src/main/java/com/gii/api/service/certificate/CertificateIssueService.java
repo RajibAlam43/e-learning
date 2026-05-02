@@ -18,6 +18,7 @@ import com.gii.common.repository.enrollment.EnrollmentRepository;
 import com.gii.common.repository.enrollment.LessonProgressRepository;
 import java.security.SecureRandom;
 import java.time.Instant;
+import java.util.Locale;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -60,11 +61,17 @@ public class CertificateIssueService {
 
     Enrollment enrollment =
         enrollmentRepository
-            .findByUserIdAndCourseId(user.getId(), courseId)
+            .findByUserIdAndCourseIdForUpdate(user.getId(), courseId)
             .orElseThrow(
                 () ->
                     new ResponseStatusException(
                         HttpStatus.FORBIDDEN, "Not enrolled in this course"));
+
+    // Re-check after lock so concurrent issue requests become idempotent.
+    existing = certificateRepository.findByUserIdAndCourseId(user.getId(), courseId).orElse(null);
+    if (existing != null) {
+      return toResponse(existing, true, "CERTIFICATE_ALREADY_EXISTS");
+    }
 
     if (enrollment.getStatus() != EnrollmentStatus.ACTIVE) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Enrollment is not active");
@@ -86,7 +93,7 @@ public class CertificateIssueService {
 
     Certificate certificate =
         Certificate.builder()
-            .certificateCode(generateUniqueCode())
+            .certificateCode(normalizeCode(generateUniqueCode()))
             .user(user)
             .course(enrollment.getCourse())
             .issuedBy(user)
@@ -163,5 +170,9 @@ public class CertificateIssueService {
       builder.append(CHARS[RANDOM.nextInt(CHARS.length)]);
     }
     return builder.toString();
+  }
+
+  private String normalizeCode(String code) {
+    return code == null ? null : code.trim().toUpperCase(Locale.ROOT);
   }
 }

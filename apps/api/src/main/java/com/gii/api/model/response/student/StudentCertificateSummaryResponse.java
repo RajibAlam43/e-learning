@@ -24,4 +24,4 @@ public record StudentCertificateSummaryResponse(
     // Access
     String pdfUrl, // Download link
     String verificationUrl // Public verification page URL
-) {}
+    ) {}

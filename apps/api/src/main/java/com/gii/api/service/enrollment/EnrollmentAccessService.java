@@ -1,12 +1,15 @@
 package com.gii.api.service.enrollment;
 
+import com.gii.api.exception.ForbiddenApiException;
 import com.gii.common.entity.course.Lesson;
 import com.gii.common.enums.EnrollmentStatus;
 import com.gii.common.repository.course.LessonRepository;
 import com.gii.common.repository.enrollment.EnrollmentRepository;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @RequiredArgsConstructor
@@ -19,7 +22,8 @@ public class EnrollmentAccessService {
     Lesson lesson =
         lessonRepository
             .findById(lessonId)
-            .orElseThrow(() -> new RuntimeException("Lesson not found"));
+            .orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lesson not found"));
 
     if (lesson.getIsFree()) {
       return;
@@ -32,7 +36,7 @@ public class EnrollmentAccessService {
             userId, courseId, EnrollmentStatus.ACTIVE);
 
     if (!hasAccess) {
-      throw new RuntimeException("You do not have access to this lesson");
+      throw new ForbiddenApiException("You do not have access to this lesson");
     }
   }
 }

@@ -2,10 +2,12 @@ package com.gii.common.repository.enrollment;
 
 import com.gii.common.entity.enrollment.LessonProgress;
 import com.gii.common.entity.enrollment.LessonProgressId;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface LessonProgressRepository extends JpaRepository<LessonProgress, LessonProgressId> {
 
@@ -22,5 +24,14 @@ public interface LessonProgressRepository extends JpaRepository<LessonProgress, 
         AND lp.completedAt IS NOT NULL
         GROUP BY lp.lesson.course.id
       """)
-  List<Object[]> countCompletedByUserIdAndCourseIds(UUID userId, List<UUID> courseIds);
+  List<Object[]> countCompletedByUserIdAndCourseIds(
+      @Param("userId") UUID userId, @Param("courseIds") List<UUID> courseIds);
+
+  @Query(
+      """
+        SELECT MAX(lp.updatedAt)
+        FROM LessonProgress lp
+        WHERE lp.user.id = :userId
+      """)
+  Instant findLatestActivityAtByUserId(@Param("userId") UUID userId);
 }

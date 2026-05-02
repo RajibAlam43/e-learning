@@ -34,4 +34,4 @@ public record StudentLiveClassJoinResponse(
     // Recording availability
     Boolean recordingAvailable,
     String recordingUrl // If class is completed/recorded
-) {}
+    ) {}

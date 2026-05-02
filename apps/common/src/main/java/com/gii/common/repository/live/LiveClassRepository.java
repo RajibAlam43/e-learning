@@ -8,6 +8,7 @@ import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface LiveClassRepository extends JpaRepository<LiveClass, UUID> {
 
@@ -24,7 +25,9 @@ public interface LiveClassRepository extends JpaRepository<LiveClass, UUID> {
         ORDER BY lc.startsAt ASC
       """)
   List<LiveClass> findUpcomingByCourseIds(
-      List<UUID> courseIds, List<LiveClassStatus> statuses, Instant now);
+      @Param("courseIds") List<UUID> courseIds,
+      @Param("statuses") List<LiveClassStatus> statuses,
+      @Param("now") Instant now);
 
   @Query(
       """
@@ -32,7 +35,7 @@ public interface LiveClassRepository extends JpaRepository<LiveClass, UUID> {
         WHERE lc.course.id = :courseId
         ORDER BY lc.startsAt ASC
       """)
-  List<LiveClass> findByCourseIdOrderByStartsAtAsc(UUID courseId);
+  List<LiveClass> findByCourseIdOrderByStartsAtAsc(@Param("courseId") UUID courseId);
 
   @Query(
       """
@@ -41,5 +44,5 @@ public interface LiveClassRepository extends JpaRepository<LiveClass, UUID> {
         WHERE lc.course.id IN :courseIds
         GROUP BY lc.course.id
       """)
-  List<Object[]> countByCourseIds(List<UUID> courseIds);
+  List<Object[]> countByCourseIds(@Param("courseIds") List<UUID> courseIds);
 }

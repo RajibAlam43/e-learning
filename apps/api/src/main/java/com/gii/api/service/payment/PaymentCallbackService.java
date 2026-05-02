@@ -32,14 +32,21 @@ public class PaymentCallbackService {
   private final PaymentEventRepository paymentEventRepository;
 
   public PaymentStatusResponse success(UUID orderId, Map<String, String> queryParams) {
+    String providerEventId =
+        firstNonBlank(queryParams.get("tran_id"), queryParams.get("payment_id"));
+    if (providerEventId == null) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Missing required callback transaction identifier");
+    }
     Order order = requireOrder(orderId);
+    validateProviderTransactionId(order, providerEventId);
     recordCallbackEvent(order, "callback_success", queryParams, PaymentEventStatus.PROCESSED);
 
     // Idempotent success transition.
     if (order.getStatus() == OrderStatus.PAID) {
       return toStatus(order);
     }
-    if (order.getStatus() != OrderStatus.PENDING) {
+    if (order.getStatus() == OrderStatus.REFUNDED) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Order is not payable");
     }
 
@@ -54,6 +61,9 @@ public class PaymentCallbackService {
 
   public PaymentStatusResponse failed(UUID orderId, Map<String, String> queryParams) {
     Order order = requireOrder(orderId);
+    String providerEventId =
+        firstNonBlank(queryParams.get("tran_id"), queryParams.get("payment_id"));
+    validateProviderTransactionId(order, providerEventId);
     recordCallbackEvent(order, "callback_failed", queryParams, PaymentEventStatus.PROCESSED);
     if (order.getStatus() == OrderStatus.PENDING) {
       order.setStatus(OrderStatus.FAILED);
@@ -64,6 +74,9 @@ public class PaymentCallbackService {
 
   public PaymentStatusResponse cancelled(UUID orderId, Map<String, String> queryParams) {
     Order order = requireOrder(orderId);
+    String providerEventId =
+        firstNonBlank(queryParams.get("tran_id"), queryParams.get("payment_id"));
+    validateProviderTransactionId(order, providerEventId);
     recordCallbackEvent(order, "callback_cancelled", queryParams, PaymentEventStatus.PROCESSED);
     if (order.getStatus() == OrderStatus.PENDING) {
       order.setStatus(OrderStatus.CANCELLED);
@@ -98,17 +111,41 @@ public class PaymentCallbackService {
 
   private void recordCallbackEvent(
       Order order, String eventType, Map<String, String> payload, PaymentEventStatus status) {
+    String providerEventId =
+        firstNonBlank(payload.get("event_id"), payload.get("eventId"), payload.get("event_ref"));
     PaymentEvent event =
         PaymentEvent.builder()
             .order(order)
             .provider(order.getProvider())
             .eventType(eventType)
-            .providerEventId(payload.getOrDefault("tran_id", payload.get("payment_id")))
+            .providerEventId(providerEventId)
             .rawPayloadJson(Map.copyOf(payload))
             .status(status)
             .processedAt(Instant.now())
             .build();
     paymentEventRepository.save(event);
+  }
+
+  private String firstNonBlank(String... values) {
+    for (String value : values) {
+      if (value != null && !value.isBlank()) {
+        return value;
+      }
+    }
+    return null;
+  }
+
+  private void validateProviderTransactionId(Order order, String callbackTxnId) {
+    if (callbackTxnId == null || callbackTxnId.isBlank()) {
+      return;
+    }
+    if (order.getProviderTxnId() == null || order.getProviderTxnId().isBlank()) {
+      return;
+    }
+    if (!order.getProviderTxnId().equals(callbackTxnId)) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Callback transaction identifier does not match order");
+    }
   }
 
   private PaymentStatusResponse toStatus(Order order) {
@@ -137,9 +174,7 @@ public class PaymentCallbackService {
         .coursesEnrolled(order.getStatus() == OrderStatus.PAID)
         .enrolledCourseCount(enrolledCount)
         .nextAction(
-            order.getStatus() == OrderStatus.PAID
-                ? "REDIRECT_TO_DASHBOARD"
-                : "INITIATE_PAYMENT")
+            order.getStatus() == OrderStatus.PAID ? "REDIRECT_TO_DASHBOARD" : "INITIATE_PAYMENT")
         .actionUrl(
             order.getStatus() == OrderStatus.PAID
                 ? "/student/courses"

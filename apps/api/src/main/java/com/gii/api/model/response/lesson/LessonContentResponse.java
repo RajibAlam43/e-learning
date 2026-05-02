@@ -37,4 +37,4 @@ public record LessonContentResponse(
     UUID courseId,
     UUID sectionId,
     String courseName // For breadcrumb/context
-) {}
+    ) {}

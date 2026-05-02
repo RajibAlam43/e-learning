@@ -2,6 +2,7 @@ package com.gii.api.service.auth;
 
 import static com.gii.api.service.util.IdentifierNormalizationUtil.normalizeIdentifier;
 
+import com.gii.api.exception.BadRequestApiException;
 import com.gii.api.model.request.auth.VerifyRequest;
 import com.gii.common.entity.user.User;
 import com.gii.common.enums.VerificationChannel;
@@ -26,7 +27,7 @@ public class VerifyService {
     Optional<User> userOpt = findUserByChannel(request.channel(), normalizedIdentifier);
 
     if (userOpt.isEmpty()) {
-      throw new RuntimeException("Invalid verification code");
+      throw new BadRequestApiException("Invalid verification code");
     }
     User user = userOpt.orElseThrow();
 

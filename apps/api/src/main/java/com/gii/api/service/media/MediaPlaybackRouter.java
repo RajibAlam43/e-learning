@@ -25,7 +25,7 @@ public class MediaPlaybackRouter {
     MediaProviderService service = services.get(mediaAsset.getProvider());
 
     if (service == null) {
-      throw new RuntimeException("Unsupported media provider: " + mediaAsset.getProvider());
+      throw new IllegalStateException("Unsupported media provider: " + mediaAsset.getProvider());
     }
 
     return service.getPlayback(mediaAsset);

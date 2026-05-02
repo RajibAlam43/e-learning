@@ -2,6 +2,8 @@ package com.gii.api.service.security;
 
 import static com.gii.api.service.util.TokenHashUtil.hash;
 
+import com.gii.api.exception.ForbiddenApiException;
+import com.gii.api.exception.UnauthorizedApiException;
 import com.gii.common.entity.user.RefreshToken;
 import com.gii.common.entity.user.User;
 import com.gii.common.repository.user.RefreshTokenRepository;
@@ -28,6 +30,7 @@ public class RefreshTokenStoreService {
 
   public record RefreshRotationResult(User user, String refreshToken) {}
 
+  @Transactional(noRollbackFor = ForbiddenApiException.class)
   public RefreshRotationResult rotateRefreshToken(String rawToken) {
     String hash = hash(rawToken);
     Instant now = Instant.now();
@@ -35,17 +38,17 @@ public class RefreshTokenStoreService {
     RefreshToken token =
         repository
             .findByTokenHash(hash)
-            .orElseThrow(() -> new RuntimeException("Invalid refresh token"));
+            .orElseThrow(() -> new UnauthorizedApiException("Invalid refresh token"));
 
     if (token.getRevokedAt() != null || token.getUsedAt() != null) {
       revokeActiveTokensBySession(token.getSessionId(), now);
-      throw new RuntimeException("Refresh token reuse detected");
+      throw new ForbiddenApiException("Refresh token reuse detected");
     }
 
     if (token.getExpiresAt().isBefore(now)) {
       token.setRevokedAt(now);
       repository.save(token);
-      throw new RuntimeException("Token expired");
+      throw new UnauthorizedApiException("Token expired");
     }
 
     String newRawToken = generateRawToken();
@@ -61,7 +64,6 @@ public class RefreshTokenStoreService {
 
     repository.save(replacement);
 
-    token.setUsedAt(now);
     token.setRevokedAt(now);
     token.setReplacedByToken(replacement);
     repository.save(token);

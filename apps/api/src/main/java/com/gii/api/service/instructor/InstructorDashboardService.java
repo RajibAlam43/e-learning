@@ -21,8 +21,11 @@ import com.gii.common.repository.live.LiveClassRegistrantRepository;
 import com.gii.common.repository.live.LiveClassRepository;
 import com.gii.common.repository.user.InstructorProfileRepository;
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -35,6 +38,10 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class InstructorDashboardService {
+  private static final String DISPLAY_TIMEZONE = "Asia/Dhaka";
+  private static final ZoneId DISPLAY_ZONE_ID = ZoneId.of(DISPLAY_TIMEZONE);
+  private static final DateTimeFormatter TIME_LABEL_FORMATTER =
+      DateTimeFormatter.ofPattern("EEE, MMM d, h:mm a z", Locale.US).withZone(DISPLAY_ZONE_ID);
 
   private final CurrentUserService currentUserService;
   private final InstructorProfileRepository instructorProfileRepository;
@@ -58,8 +65,7 @@ public class InstructorDashboardService {
         courseIds.isEmpty()
             ? Map.of()
             : toCountMap(
-                enrollmentRepository.countByCourseIdsAndStatus(
-                    courseIds, EnrollmentStatus.ACTIVE));
+                enrollmentRepository.countByCourseIdsAndStatus(courseIds, EnrollmentStatus.ACTIVE));
     Map<UUID, Integer> completedEnrollmentsByCourseId =
         courseIds.isEmpty()
             ? Map.of()
@@ -104,9 +110,7 @@ public class InstructorDashboardService {
         courseIds.isEmpty()
             ? List.of()
             : liveClassRepository.findUpcomingByCourseIds(
-                courseIds,
-                List.of(LiveClassStatus.SCHEDULED, LiveClassStatus.LIVE),
-                Instant.now());
+                courseIds, List.of(LiveClassStatus.SCHEDULED, LiveClassStatus.LIVE), Instant.now());
 
     List<InstructorUpcomingLiveClassResponse> upcomingResponses =
         toUpcomingLiveClassResponses(upcoming, instructor.getId());
@@ -138,9 +142,7 @@ public class InstructorDashboardService {
     List<LiveClass> filtered =
         upcoming.stream()
             .filter(
-                lc ->
-                    lc.getInstructor() != null
-                        && lc.getInstructor().getId().equals(instructorId))
+                lc -> lc.getInstructor() != null && lc.getInstructor().getId().equals(instructorId))
             .limit(10)
             .toList();
 
@@ -198,7 +200,7 @@ public class InstructorDashboardService {
         .description(liveClass.getDescription())
         .startsAt(liveClass.getStartsAt())
         .endsAt(liveClass.getEndsAt())
-        .timeLabel(null)
+        .timeLabel(TIME_LABEL_FORMATTER.format(liveClass.getStartsAt()))
         .courseId(liveClass.getCourse().getId())
         .courseName(liveClass.getCourse().getTitle())
         .sectionTitle(liveClass.getSection().getTitle())

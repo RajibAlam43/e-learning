@@ -18,4 +18,4 @@ public record QuizQuestionResponse(
 
     // UI hints (shown only during attempt, not in preview)
     Boolean showAsShuffled // Whether to shuffle choices
-) {}
+    ) {}

@@ -8,4 +8,4 @@ import lombok.Builder;
 public record QuizAnswerSubmissionRequest(
     @NotNull UUID questionId, // Which question this answer is for
     @NotNull UUID choiceId // Which choice was selected
-) {}
+    ) {}

@@ -57,8 +57,7 @@ public class AdminCourseManagementService {
         courseIds.isEmpty()
             ? Map.of()
             : toCountMap(
-                enrollmentRepository.countByCourseIdsAndStatus(
-                    courseIds, EnrollmentStatus.ACTIVE));
+                enrollmentRepository.countByCourseIdsAndStatus(courseIds, EnrollmentStatus.ACTIVE));
 
     return courses.stream()
         .map(
@@ -182,6 +181,15 @@ public class AdminCourseManagementService {
             .findById(courseId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found"));
+    List<CourseSection> sections = sectionRepository.findByCourseIdOrderByPositionAsc(courseId);
+    if (sections.isEmpty()) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Course must have at least one section before publishing");
+    }
+    if (lessonRepository.findByCourseIdOrderByPositionAsc(courseId).isEmpty()) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Course must have at least one lesson before publishing");
+    }
     course.setStatus(PublishStatus.PUBLISHED);
     course.setPublishedAt(Instant.now());
     courseRepository.save(course);

@@ -22,4 +22,4 @@ public record QuizAttemptStartResponse(
     // Instructions/meta
     String quizTitle,
     String instructions // Re-confirm quiz-level instructions
-) {}
+    ) {}

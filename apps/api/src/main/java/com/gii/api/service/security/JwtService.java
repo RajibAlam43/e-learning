@@ -1,5 +1,6 @@
 package com.gii.api.service.security;
 
+import com.gii.api.exception.UnauthorizedApiException;
 import com.gii.common.entity.user.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -38,7 +39,9 @@ public class JwtService {
             // Use immutable user id as token subject so phone-only accounts are supported.
             .subject(user.getId().toString())
             .issuer(issuer)
-            .audience().add(audience).and()
+            .audience()
+            .add(audience)
+            .and()
             .issuedAt(new Date())
             .expiration(new Date(System.currentTimeMillis() + accessTokenExpiration));
 
@@ -86,10 +89,10 @@ public class JwtService {
     Claims claims =
         Jwts.parser().verifyWith(getSigningKey()).build().parseSignedClaims(token).getPayload();
     if (!Objects.equals(issuer, claims.getIssuer())) {
-      throw new RuntimeException("Invalid token issuer");
+      throw new UnauthorizedApiException("Invalid token issuer");
     }
     if (claims.getAudience() == null || !claims.getAudience().contains(audience)) {
-      throw new RuntimeException("Invalid token audience");
+      throw new UnauthorizedApiException("Invalid token audience");
     }
     return claims;
   }

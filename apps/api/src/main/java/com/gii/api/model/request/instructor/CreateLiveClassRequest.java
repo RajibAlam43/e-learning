@@ -21,4 +21,4 @@ public record CreateLiveClassRequest(
     String hostStartUrl, // Optional: host/instructor start URL
     String participantJoinUrl, // Optional: participant join URL
     String zoomMeetingLink // Legacy alias fallback for participantJoinUrl
-) {}
+    ) {}

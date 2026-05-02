@@ -21,4 +21,4 @@ public record CreateLessonRequest(
     Instant releaseAt,
     Integer unlockAfterDays,
     UUID mediaAssetId // Optional: link to existing media
-) {}
+    ) {}

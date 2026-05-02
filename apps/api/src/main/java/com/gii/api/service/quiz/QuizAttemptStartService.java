@@ -11,6 +11,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -38,7 +39,13 @@ public class QuizAttemptStartService {
 
     int attemptNo = (int) usedAttempts + 1;
     QuizAttempt attempt = QuizAttempt.builder().quiz(quiz).user(user).attemptNo(attemptNo).build();
-    attemptRepository.save(attempt);
+    try {
+      attemptRepository.save(attempt);
+    } catch (DataIntegrityViolationException ex) {
+      // Concurrent start requests can race on attemptNo; map unique-key conflict to contract
+      // response.
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Maximum attempts reached");
+    }
 
     List<QuizQuestion> questions = questionRepository.findByQuizIdOrderByPositionAsc(quizId);
     int totalPoints = questions.stream().mapToInt(QuizQuestion::getPoints).sum();

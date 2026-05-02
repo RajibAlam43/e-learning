@@ -3,10 +3,10 @@ package com.gii.common.repository.course;
 import com.gii.common.entity.course.Lesson;
 import com.gii.common.enums.PublishStatus;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface LessonRepository extends JpaRepository<Lesson, UUID> {
 
@@ -21,7 +21,7 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID> {
         ORDER BY l.position ASC
       """)
   List<Lesson> findByCourseIdAndStatusWithMediaOrderByPositionAsc(
-      UUID courseId, PublishStatus status);
+      @Param("courseId") UUID courseId, @Param("status") PublishStatus status);
 
   long countByCourseIdAndStatus(UUID courseId, PublishStatus status);
 
@@ -33,5 +33,6 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID> {
         AND l.status = :status
         GROUP BY l.course.id
       """)
-  List<Object[]> countByCourseIdsAndStatus(List<UUID> courseIds, PublishStatus status);
+  List<Object[]> countByCourseIdsAndStatus(
+      @Param("courseIds") List<UUID> courseIds, @Param("status") PublishStatus status);
 }

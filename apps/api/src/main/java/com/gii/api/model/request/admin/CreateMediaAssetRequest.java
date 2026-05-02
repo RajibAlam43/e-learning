@@ -11,8 +11,8 @@ import lombok.Builder;
 @Builder
 public record CreateMediaAssetRequest(
     @NotNull UUID lessonId,
-    @NotBlank MediaProvider provider, // MUX, YOUTUBE, BUNNY
-    @NotBlank MediaAssetType assetType, // VIDEO, PDF, IMAGE
+    @NotNull MediaProvider provider, // MUX, YOUTUBE, BUNNY
+    @NotNull MediaAssetType assetType, // VIDEO, PDF, IMAGE
     String providerAssetId,
     String providerLibraryId,
     String playbackId,
@@ -22,4 +22,4 @@ public record CreateMediaAssetRequest(
     String maxResolution,
     Integer durationSec,
     String preferredPlaybackMode // IFRAME, HLS
-) {}
+    ) {}
