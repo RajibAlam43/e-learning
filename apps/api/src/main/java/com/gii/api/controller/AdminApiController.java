@@ -194,8 +194,8 @@ public class AdminApiController implements AdminApi {
 
   @Override
   public ResponseEntity<AdminQuizDetailResponse> createQuiz(
-      UUID courseId, CreateQuizRequest request) {
-    return ResponseEntity.ok(quizManagementService.create(courseId, request));
+      UUID sectionId, CreateQuizRequest request) {
+    return ResponseEntity.ok(quizManagementService.create(sectionId, request));
   }
 
   @Override

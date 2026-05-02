@@ -125,12 +125,14 @@ class AdminOperationsApiIt extends AbstractAdminApiIntegrationTest {
 
     mockMvc
         .perform(
-            post("/admin/courses/{courseId}/quizzes", course.getId())
+            post("/admin/sections/{sectionId}/quizzes", sec.getId())
                 .with(authentication(adminAuth(admin.getId())))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     """
                     {
+                      "sectionId":"%s",
+                      "position":2,
                       "title":"Quiz 1",
                       "passingScorePct":70,
                       "maxAttempts":2,
@@ -142,7 +144,8 @@ class AdminOperationsApiIt extends AbstractAdminApiIntegrationTest {
                         ]}
                       ]
                     }
-                    """))
+                    """
+                        .formatted(sec.getId())))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.title").value("Quiz 1"));
 

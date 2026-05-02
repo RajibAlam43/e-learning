@@ -3,7 +3,7 @@ package com.gii.common.entity.quiz;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.gii.common.entity.common.BaseUuidEntity;
 import com.gii.common.entity.course.Course;
-import com.gii.common.entity.course.Lesson;
+import com.gii.common.entity.course.CourseSection;
 import com.gii.common.enums.PublishStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -35,8 +35,11 @@ public class Quiz extends BaseUuidEntity {
 
   @JsonIgnore
   @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "lesson_id")
-  private Lesson lesson;
+  @JoinColumn(name = "section_id", nullable = false)
+  private CourseSection section;
+
+  @Column(name = "position", nullable = false)
+  private Integer position;
 
   @Column(name = "title", nullable = false)
   private String title;

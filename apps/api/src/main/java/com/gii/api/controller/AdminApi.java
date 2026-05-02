@@ -264,10 +264,10 @@ public interface AdminApi {
   ResponseEntity<AdminLiveClassStartResponse> startLiveClass(@PathVariable UUID liveClassId);
 
   // ===== QUIZ MANAGEMENT =====
-  @PostMapping("/courses/{courseId}/quizzes")
+  @PostMapping("/sections/{sectionId}/quizzes")
   @Operation(summary = "Create quiz")
   ResponseEntity<AdminQuizDetailResponse> createQuiz(
-      @PathVariable UUID courseId, @Valid @RequestBody CreateQuizRequest request);
+      @PathVariable UUID sectionId, @Valid @RequestBody CreateQuizRequest request);
 
   @PatchMapping("/quizzes/{quizId}")
   @Operation(summary = "Update quiz")
