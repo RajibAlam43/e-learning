@@ -8,6 +8,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.gii.common.enums.EnrollmentStatus;
 import com.gii.common.enums.PublishStatus;
 import java.math.BigDecimal;
+import java.time.temporal.ChronoUnit;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,6 +51,7 @@ class StudentDashboardApiIT extends AbstractStudentApiIntegrationTest {
         .andExpect(jsonPath("$.ongoingCourses.length()").value(1))
         .andExpect(jsonPath("$.ongoingCourses[0].completedLessons").value(1))
         .andExpect(jsonPath("$.ongoingCourses[0].totalLessons").value(2))
-        .andExpect(jsonPath("$.lastLearningActivityAt").value(progress.getUpdatedAt().toString()));
+        .andExpect(jsonPath("$.lastLearningActivityAt")
+          .value(progress.getUpdatedAt().truncatedTo(ChronoUnit.MICROS).toString()));
   }
 }
