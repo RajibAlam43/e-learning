@@ -13,6 +13,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
@@ -85,7 +86,7 @@ public interface LessonApi {
       })
   ResponseEntity<Void> saveLessonProgress(
       @PathVariable UUID lessonId,
-      @RequestBody SaveLessonProgressRequest request,
+      @Valid @RequestBody SaveLessonProgressRequest request,
       Authentication authentication);
 
   @PostMapping("/lessons/{lessonId}/complete")

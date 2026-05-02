@@ -27,4 +27,4 @@ public record QuizQuestionsResponse(
     String instructions, // Optional quiz instructions
     Boolean shuffleQuestions, // Whether questions are randomized
     Boolean showCorrectAnswers // After submission or only at end
-) {}
+    ) {}

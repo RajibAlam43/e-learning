@@ -2,6 +2,7 @@ package com.gii.api.service.auth;
 
 import static com.gii.api.service.util.IdentifierNormalizationUtil.normalizeIdentifier;
 
+import com.gii.api.exception.UnauthorizedApiException;
 import com.gii.api.model.request.auth.LoginRequest;
 import com.gii.api.model.response.auth.AuthResponse;
 import com.gii.api.service.security.JwtService;
@@ -32,7 +33,7 @@ public class LoginService {
   public AuthResponse execute(LoginRequest request, HttpServletResponse response) {
     String normalizedIdentifier = normalizeIdentifier(request.channel(), request.identifier());
     if (normalizedIdentifier == null || normalizedIdentifier.isBlank()) {
-      throw new RuntimeException("Invalid credentials");
+      throw new UnauthorizedApiException("Invalid credentials");
     }
 
     User user;
@@ -41,12 +42,12 @@ public class LoginService {
         user =
             userRepository
                 .findByEmail(normalizedIdentifier)
-                .orElseThrow(() -> new RuntimeException("Invalid credentials"));
+                .orElseThrow(() -> new UnauthorizedApiException("Invalid credentials"));
         ensureActiveUser(user);
         verifyPassword(request, user.getPasswordHash());
 
         if (user.getEmail() == null) {
-          throw new RuntimeException("Invalid credentials");
+          throw new UnauthorizedApiException("Invalid credentials");
         }
 
         if (user.getEmailVerifiedAt() != null) {
@@ -60,12 +61,12 @@ public class LoginService {
         user =
             userRepository
                 .findByPhone(normalizedIdentifier)
-                .orElseThrow(() -> new RuntimeException("Invalid credentials"));
+                .orElseThrow(() -> new UnauthorizedApiException("Invalid credentials"));
         ensureActiveUser(user);
         verifyPassword(request, user.getPasswordHash());
 
         if (user.getPhone() == null) {
-          throw new RuntimeException("Invalid credentials");
+          throw new UnauthorizedApiException("Invalid credentials");
         }
 
         if (user.getPhoneVerifiedAt() != null) {
@@ -75,7 +76,7 @@ public class LoginService {
               user, request, VerificationPurpose.PHONE_VERIFICATION, user.getPhone());
         }
       }
-      default -> throw new RuntimeException("Invalid credentials");
+      default -> throw new UnauthorizedApiException("Invalid credentials");
     }
   }
 
@@ -106,13 +107,13 @@ public class LoginService {
 
   private void verifyPassword(LoginRequest request, String passwordHash) {
     if (!passwordEncoder.matches(request.password(), passwordHash)) {
-      throw new RuntimeException("Invalid credentials");
+      throw new UnauthorizedApiException("Invalid credentials");
     }
   }
 
   private void ensureActiveUser(User user) {
     if (user.getStatus() != UserStatus.ACTIVE) {
-      throw new RuntimeException("Invalid credentials");
+      throw new UnauthorizedApiException("Invalid credentials");
     }
   }
 }

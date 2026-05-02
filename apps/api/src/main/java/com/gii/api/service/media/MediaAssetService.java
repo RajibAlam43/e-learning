@@ -1,5 +1,7 @@
 package com.gii.api.service.media;
 
+import com.gii.api.exception.BadRequestApiException;
+import com.gii.api.exception.ConflictApiException;
 import com.gii.api.model.request.admin.CreateMediaAssetRequest;
 import com.gii.api.model.request.admin.UpdateMediaAssetRequest;
 import com.gii.api.model.response.MediaAssetResponse;
@@ -10,8 +12,10 @@ import com.gii.common.repository.course.LessonRepository;
 import com.gii.common.repository.course.MediaAssetRepository;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @RequiredArgsConstructor
@@ -29,14 +33,15 @@ public class MediaAssetService {
     Lesson lesson =
         lessonRepository
             .findById(lessonId)
-            .orElseThrow(() -> new RuntimeException("Lesson not found"));
+            .orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lesson not found"));
 
     if (!lesson.getCourse().getId().equals(courseId)) {
-      throw new RuntimeException("Lesson does not belong to course");
+      throw new BadRequestApiException("Lesson does not belong to course");
     }
 
     if (mediaAssetRepository.existsByLessonId(lessonId)) {
-      throw new RuntimeException("Lesson already has a media asset");
+      throw new ConflictApiException("Lesson already has a media asset");
     }
 
     validateCreateRequest(request);
@@ -75,26 +80,27 @@ public class MediaAssetService {
   private MediaAsset getAssetOrThrow(UUID assetId) {
     return mediaAssetRepository
         .findById(assetId)
-        .orElseThrow(() -> new RuntimeException("Media asset not found"));
+        .orElseThrow(
+            () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Media asset not found"));
   }
 
   private void validateCreateRequest(CreateMediaAssetRequest request) {
     if (request.provider() == null) {
-      throw new RuntimeException("Provider is required");
+      throw new BadRequestApiException("Provider is required");
     }
 
     if (request.title() == null || request.title().isBlank()) {
-      throw new RuntimeException("Title is required");
+      throw new BadRequestApiException("Title is required");
     }
   }
 
   private void validateAsset(MediaAsset asset) {
     if (asset.getProvider() == null) {
-      throw new RuntimeException("Media provider is required");
+      throw new BadRequestApiException("Media provider is required");
     }
 
     if (asset.getTitle() == null || asset.getTitle().isBlank()) {
-      throw new RuntimeException("Media title is required");
+      throw new BadRequestApiException("Media title is required");
     }
 
     switch (asset.getProvider()) {
@@ -118,11 +124,7 @@ public class MediaAssetService {
 
   private void require(String value, String message) {
     if (value == null || value.isBlank()) {
-      throw new RuntimeException(message);
+      throw new BadRequestApiException(message);
     }
-  }
-
-  private boolean isBlank(String value) {
-    return value == null || value.isBlank();
   }
 }

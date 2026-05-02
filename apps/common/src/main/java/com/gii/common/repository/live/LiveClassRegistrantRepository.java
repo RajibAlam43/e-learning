@@ -7,6 +7,7 @@ import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface LiveClassRegistrantRepository extends JpaRepository<LiveClassRegistrant, UUID> {
 
@@ -21,7 +22,8 @@ public interface LiveClassRegistrantRepository extends JpaRepository<LiveClassRe
         WHERE r.user.id = :userId
         AND r.liveClass.id IN :liveClassIds
       """)
-  List<LiveClassRegistrant> findByUserIdAndLiveClassIds(UUID userId, List<UUID> liveClassIds);
+  List<LiveClassRegistrant> findByUserIdAndLiveClassIds(
+      @Param("userId") UUID userId, @Param("liveClassIds") List<UUID> liveClassIds);
 
   long countByLiveClassIdAndStatus(UUID liveClassId, LiveClassRegistrantStatus status);
 
@@ -34,5 +36,6 @@ public interface LiveClassRegistrantRepository extends JpaRepository<LiveClassRe
         GROUP BY r.liveClass.id
       """)
   List<Object[]> countByLiveClassIdsAndStatus(
-      List<UUID> liveClassIds, LiveClassRegistrantStatus status);
+      @Param("liveClassIds") List<UUID> liveClassIds,
+      @Param("status") LiveClassRegistrantStatus status);
 }

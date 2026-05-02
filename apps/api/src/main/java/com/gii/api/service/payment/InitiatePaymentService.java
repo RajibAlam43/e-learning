@@ -6,6 +6,8 @@ import com.gii.api.service.enrollment.CurrentUserService;
 import com.gii.common.entity.order.Order;
 import com.gii.common.enums.OrderStatus;
 import com.gii.common.repository.order.OrderRepository;
+
+import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -20,8 +22,11 @@ import org.springframework.web.server.ResponseStatusException;
 @Transactional
 public class InitiatePaymentService {
 
-  private static final long PAYMENT_TIMEOUT_SECONDS = 20 * 60;
-  private static final long ORDER_EXPIRY_SECONDS = 30 * 60;
+  private static final long PAYMENT_TIMEOUT_SECONDS =
+          Duration.ofMinutes(20).getSeconds();
+
+  private static final long ORDER_EXPIRY_SECONDS =
+          Duration.ofMinutes(30).getSeconds();
 
   private final CurrentUserService currentUserService;
   private final OrderRepository orderRepository;

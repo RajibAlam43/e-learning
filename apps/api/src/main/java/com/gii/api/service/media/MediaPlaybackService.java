@@ -10,9 +10,11 @@ import com.gii.common.repository.course.LessonRepository;
 import com.gii.common.repository.course.MediaAssetRepository;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @RequiredArgsConstructor
@@ -29,15 +31,19 @@ public class MediaPlaybackService {
     Lesson lesson =
         lessonRepository
             .findById(lessonId)
-            .orElseThrow(() -> new RuntimeException("Lesson not found"));
+            .orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lesson not found"));
 
     MediaAsset mediaAsset =
         mediaAssetRepository
             .findByLessonId(lessonId)
-            .orElseThrow(() -> new RuntimeException("Media asset not found for lesson"));
+            .orElseThrow(
+                () ->
+                    new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Media asset not found for lesson"));
 
     if (mediaAsset.getStatus() != MediaStatus.READY) {
-      throw new RuntimeException("Media is not ready");
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Media is not ready");
     }
 
     if (!lesson.getIsFree()) {

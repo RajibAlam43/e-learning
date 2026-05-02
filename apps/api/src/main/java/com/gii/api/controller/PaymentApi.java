@@ -13,6 +13,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
@@ -26,10 +27,10 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 
 @Tag(name = "Payments", description = "Course checkout, payment initiation, and webhook handling")
-@PreAuthorize("hasRole('STUDENT') or hasRole('ADMIN')")
 public interface PaymentApi {
 
   @PostMapping("/checkout/courses/{courseId}")
+  @PreAuthorize("hasRole('STUDENT') or hasRole('ADMIN')")
   @Operation(
       summary = "Create pending order",
       description = "Create a pending checkout order for a course.",
@@ -48,6 +49,7 @@ public interface PaymentApi {
       @PathVariable UUID courseId, Authentication authentication);
 
   @GetMapping("/checkout/orders/{orderId}")
+  @PreAuthorize("hasRole('STUDENT') or hasRole('ADMIN')")
   @Operation(
       summary = "Get order status",
       description = "Check payment status of an order.",
@@ -65,6 +67,7 @@ public interface PaymentApi {
       @PathVariable UUID orderId, Authentication authentication);
 
   @PostMapping("/payments/{orderId}/initiate")
+  @PreAuthorize("hasRole('STUDENT') or hasRole('ADMIN')")
   @Operation(
       summary = "Initiate payment",
       description = "Start payment process with selected provider (SSLCommerz, bKash, Nagad).",
@@ -81,7 +84,7 @@ public interface PaymentApi {
       })
   ResponseEntity<PaymentInitiationResponse> initiatePayment(
       @PathVariable UUID orderId,
-      @RequestBody InitiatePaymentRequest request,
+      @RequestBody @Valid InitiatePaymentRequest request,
       Authentication authentication);
 
   @GetMapping("/payments/{orderId}/success")
@@ -182,6 +185,7 @@ public interface PaymentApi {
       @RequestHeader Map<String, String> headers, @RequestBody String payload);
 
   @GetMapping("/student/orders/{orderId}/receipt")
+  @PreAuthorize("hasRole('STUDENT') or hasRole('ADMIN')")
   @Operation(
       summary = "Get order receipt",
       description = "Retrieve receipt for a paid order.",

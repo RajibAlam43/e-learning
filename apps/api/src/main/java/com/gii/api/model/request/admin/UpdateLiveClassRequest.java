@@ -10,4 +10,4 @@ public record UpdateLiveClassRequest(
     Instant startsAt,
     Instant endsAt,
     String status // SCHEDULED, LIVE, COMPLETED, CANCELLED, FAILED
-) {}
+    ) {}

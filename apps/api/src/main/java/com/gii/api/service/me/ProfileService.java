@@ -261,8 +261,18 @@ public class ProfileService {
   }
 
   private String normalizeCountryCode(String code) {
+    if (code == null) {
+      return null;
+    }
     String digits = code.replaceAll("[^0-9]", "");
-    return digits.isBlank() ? null : "+" + digits;
+    if (digits.isBlank()) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Phone country code is invalid");
+    }
+    String normalized = "+" + digits;
+    if (normalized.length() > 5) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Phone country code is too long");
+    }
+    return normalized;
   }
 
   private String blankToNull(String value) {

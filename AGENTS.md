@@ -13,6 +13,7 @@ All services share PostgreSQL database, Redis (Valkey) cache, and AWS SQS (Elast
 
 **Key Config Files:**
 - Root: `settings.gradle`, `build.gradle`, `docker-compose.yml`
+- App-only runtime: `docker-compose.app-only.yml`
 - Modules: `apps/{api,common,worker}/build.gradle`, `src/main/resources/application*.properties`
 - Migrations: Flyway SQL files in `apps/api/src/main/resources/db/migration/`
 - Deployment: Shell scripts in `scripts/stage/`
@@ -140,6 +141,7 @@ public class JobsListener {
 spring.jpa.hibernate.ddl-auto=validate
 spring.flyway.enabled=false  # Spring doesn't auto-run; migrations handled separately
 ```
+For local Docker-only runs, `docker-compose.yml` sets `SPRING_FLYWAY_ENABLED=true` on the API container.
 
 **Deployment flow:** Server has Flyway CLI (`/opt/flyway/flyway`) for independent migrations before app startup.
 
@@ -148,6 +150,12 @@ spring.flyway.enabled=false  # Spring doesn't auto-run; migrations handled separ
 **Build everything:**
 ```bash
 ./gradlew clean test bootJar
+```
+
+**Code quality gates (configured in all modules):**
+```bash
+./gradlew spotlessApply
+./gradlew checkstyleMain checkstyleTest
 ```
 
 Outputs:
@@ -171,6 +179,7 @@ Set via `SPRING_PROFILES_ACTIVE` env var (docker-compose, systemd service files)
 ## External Integrations
 
 - **Video:** Mux (config: `mux.signing-key-id`, `mux.private-key-prem`) and Bunny (config: `bunny.token-security-key`)
+- **Object Storage:** Cloudflare R2 S3-compatible signed downloads via `R2PresignedUrlService` (config: `storage.r2.*`)
 - **Payments:** SSL Commerce, bKash, Nagad webhook handlers in `PaymentApiController`
 - **Email:** Spring Mail in worker module
 
@@ -179,6 +188,9 @@ Set via `SPRING_PROFILES_ACTIVE` env var (docker-compose, systemd service files)
 ```bash
 # Start all services (api, worker, postgres, redis, sqs)
 docker-compose up -d
+
+# Start only API/worker containers (when DB/Redis/SQS are external)
+docker-compose -f docker-compose.app-only.yml up -d
 
 # View logs
 docker-compose logs -f api
@@ -210,4 +222,3 @@ docker-compose down
 - API controllers: `apps/api/src/main/java/com/gii/api/controller/`
 - Services: `apps/api/src/main/java/com/gii/api/service/`
 - Migrations: `apps/api/src/main/resources/db/migration/`
-

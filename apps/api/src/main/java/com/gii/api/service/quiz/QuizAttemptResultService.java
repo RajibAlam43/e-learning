@@ -111,9 +111,7 @@ public class QuizAttemptResultService {
     int scorePct = totalPoints == 0 ? 0 : (int) Math.round((earnedPoints * 100.0) / totalPoints);
     int totalAttempts = (int) attemptRepository.countByQuizIdAndUserId(quiz.getId(), userId);
     int bestScore =
-        attemptRepository
-            .findByQuizIdAndUserIdOrderByAttemptNoDesc(quiz.getId(), userId)
-            .stream()
+        attemptRepository.findByQuizIdAndUserIdOrderByAttemptNoDesc(quiz.getId(), userId).stream()
             .map(QuizAttempt::getScorePct)
             .filter(Objects::nonNull)
             .max(Integer::compareTo)

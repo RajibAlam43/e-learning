@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface CourseSectionRepository extends JpaRepository<CourseSection, UUID> {
 
@@ -21,5 +22,5 @@ public interface CourseSectionRepository extends JpaRepository<CourseSection, UU
         WHERE cs.course.id IN :courseIds
         GROUP BY cs.course.id
       """)
-  List<Object[]> countByCourseIds(List<UUID> courseIds);
+  List<Object[]> countByCourseIds(@Param("courseIds") List<UUID> courseIds);
 }

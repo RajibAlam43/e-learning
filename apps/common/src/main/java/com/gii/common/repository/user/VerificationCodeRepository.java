@@ -12,6 +12,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -32,7 +33,10 @@ public interface VerificationCodeRepository extends JpaRepository<VerificationCo
       """)
   @Lock(LockModeType.PESSIMISTIC_WRITE)
   List<VerificationCode> findLatestValidOtp(
-      UUID userId, VerificationPurpose purpose, VerificationChannel channel, Pageable pageable);
+      @Param("userId") UUID userId,
+      @Param("purpose") VerificationPurpose purpose,
+      @Param("channel") VerificationChannel channel,
+      Pageable pageable);
 
   default Optional<VerificationCode> findLatestValidOtp(
       UUID userId, VerificationPurpose purpose, VerificationChannel channel) {
@@ -46,7 +50,10 @@ public interface VerificationCodeRepository extends JpaRepository<VerificationCo
         AND o.channel = :channel
         AND o.createdAt >= :threshold
       """)
-  long countRecentByUserAndChannel(UUID userId, VerificationChannel channel, Instant threshold);
+  long countRecentByUserAndChannel(
+      @Param("userId") UUID userId,
+      @Param("channel") VerificationChannel channel,
+      @Param("threshold") Instant threshold);
 
   @Query(
       """
@@ -56,7 +63,9 @@ public interface VerificationCodeRepository extends JpaRepository<VerificationCo
         AND o.createdAt >= :threshold
       """)
   long countRecentByChannelAndHash(
-      VerificationChannel channel, String channelHash, Instant threshold);
+      @Param("channel") VerificationChannel channel,
+      @Param("channelHash") String channelHash,
+      @Param("threshold") Instant threshold);
 
   // Cleanup expired/revoked OTPs (run periodically)
   void deleteByExpiresAtBeforeAndUsedAtIsNotNull(Instant expiryTime);

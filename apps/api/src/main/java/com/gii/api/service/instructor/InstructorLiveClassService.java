@@ -40,6 +40,7 @@ import org.springframework.web.server.ResponseStatusException;
 @RequiredArgsConstructor
 @Transactional
 public class InstructorLiveClassService {
+  private static final String DISPLAY_TIMEZONE = "Asia/Dhaka";
 
   private final CurrentUserService currentUserService;
   private final CourseRepository courseRepository;
@@ -271,7 +272,7 @@ public class InstructorLiveClassService {
         .endsAt(liveClass.getEndsAt())
         .durationMinutes(
             Duration.between(liveClass.getStartsAt(), liveClass.getEndsAt()).toMinutes())
-        .timezone(null)
+        .timezone(DISPLAY_TIMEZONE)
         .status(liveClass.getStatus())
         .zoomMeetingId(liveClass.effectiveMeetingId())
         .zoomStartUrl(liveClass.effectiveHostStartUrl())

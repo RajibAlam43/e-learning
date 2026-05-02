@@ -68,8 +68,7 @@ public interface StudentApi {
         @ApiResponse(
             responseCode = "200",
             description = "Course details retrieved",
-            content =
-                @Content(schema = @Schema(implementation = StudentCourseHomeResponse.class))),
+            content = @Content(schema = @Schema(implementation = StudentCourseHomeResponse.class))),
         @ApiResponse(responseCode = "401", description = "Unauthorized"),
         @ApiResponse(responseCode = "404", description = "Course not found or not enrolled")
       })

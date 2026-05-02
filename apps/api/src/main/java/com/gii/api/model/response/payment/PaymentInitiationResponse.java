@@ -27,4 +27,4 @@ public record PaymentInitiationResponse(
     // Client-side hints
     String successCallbackUrl, // Where to return after success
     String failureCallbackUrl // Where to return after failure
-) {}
+    ) {}

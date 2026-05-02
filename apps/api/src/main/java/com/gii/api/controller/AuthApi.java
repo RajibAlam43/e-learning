@@ -60,7 +60,7 @@ public interface AuthApi {
         @ApiResponse(responseCode = "404", description = "User not found")
       })
   ResponseEntity<AuthResponse> login(
-      @RequestBody LoginRequest request, HttpServletResponse response);
+      @Valid @RequestBody LoginRequest request, HttpServletResponse response);
 
   @PostMapping("/refresh")
   @Operation(
@@ -90,7 +90,7 @@ public interface AuthApi {
         @ApiResponse(responseCode = "400", description = "Invalid email or phone"),
         @ApiResponse(responseCode = "404", description = "User not found")
       })
-  ResponseEntity<Void> forgotPassword(@RequestBody ForgotPasswordRequest request);
+  ResponseEntity<Void> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request);
 
   @PostMapping("/reset-password")
   @Operation(
@@ -102,7 +102,7 @@ public interface AuthApi {
         @ApiResponse(responseCode = "400", description = "Invalid or expired token"),
         @ApiResponse(responseCode = "422", description = "Password validation failed")
       })
-  ResponseEntity<Void> resetPassword(@RequestBody ResetPasswordRequest request);
+  ResponseEntity<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest request);
 
   @PostMapping("/send-code")
   @Operation(
@@ -114,7 +114,7 @@ public interface AuthApi {
         @ApiResponse(responseCode = "400", description = "Invalid email or phone"),
         @ApiResponse(responseCode = "429", description = "Too many verification attempts")
       })
-  ResponseEntity<Void> sendVerification(@RequestBody SendVerificationRequest request);
+  ResponseEntity<Void> sendVerification(@Valid @RequestBody SendVerificationRequest request);
 
   @PostMapping("/verify-code")
   @Operation(
@@ -126,7 +126,7 @@ public interface AuthApi {
         @ApiResponse(responseCode = "400", description = "Invalid or expired code"),
         @ApiResponse(responseCode = "403", description = "Too many failed attempts")
       })
-  ResponseEntity<Void> verify(@RequestBody VerifyRequest request);
+  ResponseEntity<Void> verify(@Valid @RequestBody VerifyRequest request);
 
   @PostMapping("/logout")
   @Operation(

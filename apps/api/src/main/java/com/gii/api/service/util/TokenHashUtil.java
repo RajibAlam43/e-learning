@@ -15,7 +15,7 @@ public class TokenHashUtil {
       byte[] digest = md.digest(value.getBytes(StandardCharsets.UTF_8));
       return Base64.getEncoder().encodeToString(digest);
     } catch (NoSuchAlgorithmException e) {
-      throw new RuntimeException("Hashing failed", e);
+      throw new CryptoOperationException("Hashing failed", e);
     }
   }
 }

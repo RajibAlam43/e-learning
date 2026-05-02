@@ -7,13 +7,14 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface CourseInstructorRepository
     extends JpaRepository<CourseInstructor, CourseInstructorId> {
 
   @Query(
       "SELECT ci FROM CourseInstructor ci JOIN FETCH ci.instructor WHERE ci.course.id = :courseId")
-  List<CourseInstructor> findByCourseId(UUID courseId);
+  List<CourseInstructor> findByCourseId(@Param("courseId") UUID courseId);
 
   @Query(
       """
@@ -21,10 +22,10 @@ public interface CourseInstructorRepository
         FROM CourseInstructor ci JOIN FETCH ci.instructor
         WHERE ci.course.id IN :courseIds
       """)
-  List<CourseInstructor> findByCourseIds(List<UUID> courseIds);
+  List<CourseInstructor> findByCourseIds(@Param("courseIds") List<UUID> courseIds);
 
   @Query("SELECT ci FROM CourseInstructor ci WHERE ci.instructor.id = :instructorUserId")
-  List<CourseInstructor> findByInstructorId(UUID instructorUserId);
+  List<CourseInstructor> findByInstructorId(@Param("instructorUserId") UUID instructorUserId);
 
   @Query(
       """
@@ -33,7 +34,7 @@ public interface CourseInstructorRepository
         WHERE ci.instructor.id IN :instructorUserIds
         GROUP BY ci.instructor.id
       """)
-  List<Object[]> countByInstructorIds(List<UUID> instructorUserIds);
+  List<Object[]> countByInstructorIds(@Param("instructorUserIds") List<UUID> instructorUserIds);
 
   @Query(
       """
@@ -44,7 +45,8 @@ public interface CourseInstructorRepository
         GROUP BY ci.instructor.id
       """)
   List<Object[]> countByInstructorIdsAndCourseStatus(
-      List<UUID> instructorUserIds, PublishStatus status);
+      @Param("instructorUserIds") List<UUID> instructorUserIds,
+      @Param("status") PublishStatus status);
 
   @Query(
       """
@@ -54,7 +56,7 @@ public interface CourseInstructorRepository
         AND c.status = :status
       """)
   List<CourseInstructor> findByInstructorIdAndCourseStatus(
-      UUID instructorUserId, PublishStatus status);
+      @Param("instructorUserId") UUID instructorUserId, @Param("status") PublishStatus status);
 
   @Query(
       """
@@ -63,5 +65,6 @@ public interface CourseInstructorRepository
         WHERE ci.course.id = :courseId
         AND ci.instructor.id = :instructorUserId
       """)
-  boolean existsByCourseIdAndInstructorId(UUID courseId, UUID instructorUserId);
+  boolean existsByCourseIdAndInstructorId(
+      @Param("courseId") UUID courseId, @Param("instructorUserId") UUID instructorUserId);
 }

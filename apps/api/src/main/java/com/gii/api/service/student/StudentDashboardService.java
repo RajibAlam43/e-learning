@@ -8,6 +8,7 @@ import com.gii.api.model.response.student.StudentOngoingCourseSnapshot;
 import com.gii.api.service.enrollment.CurrentUserService;
 import com.gii.common.entity.user.User;
 import com.gii.common.entity.user.UserProfile;
+import com.gii.common.repository.enrollment.LessonProgressRepository;
 import com.gii.common.repository.user.UserProfileRepository;
 import java.time.Instant;
 import java.util.Comparator;
@@ -24,6 +25,7 @@ public class StudentDashboardService {
 
   private final CurrentUserService currentUserService;
   private final UserProfileRepository userProfileRepository;
+  private final LessonProgressRepository lessonProgressRepository;
   private final EnrolledCoursesService enrolledCoursesService;
   private final StudentCertificatesService studentCertificatesService;
   private final StudentUpcomingLiveClasses studentUpcomingLiveClasses;
@@ -55,6 +57,9 @@ public class StudentDashboardService {
                 .filter(c -> c.completionPercentage() != null && c.completionPercentage() >= 100.0)
                 .count();
 
+    Instant lastLearningActivityAt =
+        lessonProgressRepository.findLatestActivityAtByUserId(user.getId());
+
     return StudentDashboardResponse.builder()
         .fullName(user.getFullName())
         .email(user.getEmail())
@@ -67,7 +72,8 @@ public class StudentDashboardService {
         .recentCertificates(certificates.stream().limit(5).toList())
         .upcomingLiveClasses(upcoming.stream().limit(5).toList())
         .learningStreak(null)
-        .lastLearningActivityAt(Instant.now().toString())
+        .lastLearningActivityAt(
+            lastLearningActivityAt != null ? lastLearningActivityAt.toString() : null)
         .build();
   }
 

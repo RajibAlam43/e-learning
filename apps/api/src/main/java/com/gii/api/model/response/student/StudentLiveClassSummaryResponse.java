@@ -40,4 +40,4 @@ public record StudentLiveClassSummaryResponse(
     // Recording (if available)
     Boolean hasRecording,
     String recordingUrl // If available
-) {}
+    ) {}

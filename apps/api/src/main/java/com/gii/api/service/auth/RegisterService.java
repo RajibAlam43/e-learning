@@ -1,5 +1,9 @@
 package com.gii.api.service.auth;
 
+import static com.gii.api.service.util.PasswordPolicyUtil.validate;
+
+import com.gii.api.exception.BadRequestApiException;
+import com.gii.api.exception.ConflictApiException;
 import com.gii.api.model.request.auth.RegisterRequest;
 import com.gii.api.model.response.auth.RegisterResponse;
 import com.gii.common.entity.user.Role;
@@ -29,32 +33,33 @@ public class RegisterService {
   private final UserRoleRepository userRoleRepository;
 
   public RegisterResponse execute(RegisterRequest request) {
+    validate(request.password());
 
     String email = normalizeIdentifier(VerificationChannel.EMAIL, request.email());
     String phone = normalizeIdentifier(VerificationChannel.PHONE, request.phoneNumber());
     // Needs at least one of email or phone
     if (email == null && phone == null) {
-      throw new RuntimeException("Either email or phone number must be provided");
+      throw new BadRequestApiException("Either email or phone number must be provided");
     }
 
     // Don't allow both email and phone together
     if (email != null && phone != null) {
-      throw new RuntimeException("Only one of email or phone number should be provided");
+      throw new BadRequestApiException("Only one of email or phone number should be provided");
     }
 
     // Check email/phone uniqueness
     if (email != null && userRepository.existsByEmail(email)) {
-      throw new RuntimeException("Email already in use");
+      throw new ConflictApiException("Email already in use");
     }
 
     // Check email/phone uniqueness
     if (phone != null && userRepository.existsByPhone(phone)) {
-      throw new RuntimeException("Phone number already in use");
+      throw new ConflictApiException("Phone number already in use");
     }
 
     String countryCode = normalizeCountryCode(request.phoneCountryCode());
     if (phone != null && countryCode == null) {
-      throw new RuntimeException("Country code is required when phone number is provided");
+      throw new BadRequestApiException("Country code is required when phone number is provided");
     }
 
     // Create user with NOT verified status
@@ -73,7 +78,7 @@ public class RegisterService {
     Role studentRole =
         roleRepository
             .findByName("STUDENT")
-            .orElseThrow(() -> new RuntimeException("STUDENT role not found"));
+            .orElseThrow(() -> new BadRequestApiException("STUDENT role not found"));
 
     UserRole userRole =
         UserRole.builder()

@@ -3,7 +3,9 @@ package com.gii.api.service.media;
 import com.gii.api.model.response.MediaPlaybackResponse;
 import com.gii.common.entity.course.MediaAsset;
 import com.gii.common.enums.MediaProvider;
+import org.springframework.stereotype.Service;
 
+@Service
 public class YoutubeService implements MediaProviderService {
 
   @Override

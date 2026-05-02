@@ -12,4 +12,4 @@ public record UpdateLiveClassRequest(
     @Future Instant startsAt, // Optional: update start time
     @Future Instant endsAt, // Optional: update end time
     LiveClassStatus status // Optional: e.g., "SCHEDULED", "CANCELLED"
-) {}
+    ) {}

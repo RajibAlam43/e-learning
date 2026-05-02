@@ -1,5 +1,7 @@
 package com.gii.api.service.auth;
 
+import com.gii.api.exception.ForbiddenApiException;
+import com.gii.api.exception.UnauthorizedApiException;
 import com.gii.api.model.response.auth.AuthResponse;
 import com.gii.api.service.security.JwtService;
 import com.gii.api.service.security.RefreshTokenCookieService;
@@ -20,9 +22,10 @@ public class RefreshService {
   private final RefreshTokenStoreService refreshTokenStoreService;
   private final RefreshTokenCookieService refreshTokenCookieService;
 
+  @Transactional(noRollbackFor = ForbiddenApiException.class)
   public AuthResponse execute(String oldRefreshToken, HttpServletResponse response) {
     if (oldRefreshToken == null || oldRefreshToken.isBlank()) {
-      throw new RuntimeException("Invalid refresh token");
+      throw new UnauthorizedApiException("Invalid refresh token");
     }
 
     RefreshTokenStoreService.RefreshRotationResult rotation =
@@ -47,7 +50,7 @@ public class RefreshService {
 
   private void ensureActiveUser(User user) {
     if (user.getStatus() != UserStatus.ACTIVE) {
-      throw new RuntimeException("Invalid refresh token");
+      throw new UnauthorizedApiException("Invalid refresh token");
     }
   }
 }

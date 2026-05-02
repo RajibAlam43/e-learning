@@ -71,10 +71,7 @@ public interface PublicApi {
   @Operation(
       summary = "List published instructors",
       description = "Get all instructors with public profiles.")
-  @ApiResponses(
-      value = {
-        @ApiResponse(responseCode = "200", description = "Instructors retrieved")
-      })
+  @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Instructors retrieved")})
   ResponseEntity<List<InstructorSummaryResponse>> getAllInstructors();
 
   @GetMapping("/instructors/{slug}")
@@ -98,6 +95,5 @@ public interface PublicApi {
         @ApiResponse(responseCode = "400", description = "Invalid input"),
         @ApiResponse(responseCode = "429", description = "Rate limit exceeded")
       })
-  ResponseEntity<Void> createSupportTicket(
-      @Valid @RequestBody CreateSupportTicketRequest request);
+  ResponseEntity<Void> createSupportTicket(@Valid @RequestBody CreateSupportTicketRequest request);
 }

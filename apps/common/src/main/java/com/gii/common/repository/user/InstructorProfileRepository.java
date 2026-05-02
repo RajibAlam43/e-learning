@@ -7,6 +7,7 @@ import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface InstructorProfileRepository extends JpaRepository<InstructorProfile, UUID> {
 
@@ -21,7 +22,7 @@ public interface InstructorProfileRepository extends JpaRepository<InstructorPro
         AND u.status = :status
         ORDER BY ip.createdAt DESC
       """)
-  List<InstructorProfile> findPublicByUserStatus(UserStatus status);
+  List<InstructorProfile> findPublicByUserStatus(@Param("status") UserStatus status);
 
   @Query(
       """
@@ -32,5 +33,6 @@ public interface InstructorProfileRepository extends JpaRepository<InstructorPro
         AND ip.isPublic = true
         AND u.status = :status
       """)
-  Optional<InstructorProfile> findPublicByUserIdAndStatus(UUID userId, UserStatus status);
+  Optional<InstructorProfile> findPublicByUserIdAndStatus(
+      @Param("userId") UUID userId, @Param("status") UserStatus status);
 }

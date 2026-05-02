@@ -62,3 +62,30 @@ Extend OrderProvider with NAGAD if you want full Nagad support.
 ◦
 Add webhook idempotency uniqueness where provider event id exists.
 If you want, I can turn this into a prioritized migration checklist (P0/P1/P2) with exact Flyway changes.
+
+
+Remaining gaps (likely needs implementation change)
+These are the ones still left where behavior is unclear/missing enough that tests alone would likely fail without code changes:
+1.
+Provider-specific callback schema contracts
+•
+strict required field sets per provider (not just one transaction id field),
+•
+cross-field consistency checks (amount/currency/provider refs).
+2.
+Callback/webhook cross-channel ordering rules
+•
+deterministic behavior when webhook arrives before callback (or vice versa),
+•
+conflict-resolution rules when channels disagree.
+3.
+Refund lifecycle completeness
+•
+explicit refund flow endpoints/state transitions + receipt/output semantics post-refund if you want stronger contract guarantees.
+4.
+Deeper payment anti-replay semantics
+•
+idempotency keys beyond providerEventId uniqueness for callbacks too (not only webhooks),
+•
+duplicate callback behavior when provider sends distinct ids for same order event.
+If you want, I can take one of these (recommended: callback/webhook ordering contract) and implement both contract tests + minimal code changes next.

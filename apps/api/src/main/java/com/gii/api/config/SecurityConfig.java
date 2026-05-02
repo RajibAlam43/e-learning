@@ -55,11 +55,11 @@ public class SecurityConfig {
             auth ->
                 auth.requestMatchers(
                         "/actuator/health",
-                                "/public/**",
-                                "/webhooks/**",
-                                "/v3/api-docs/**",
-                                "/swagger-ui/**",
-                                "/swagger-ui.html")
+                        "/public/**",
+                        "/webhooks/**",
+                        "/v3/api-docs/**",
+                        "/swagger-ui/**",
+                        "/swagger-ui.html")
                     .permitAll()
                     .anyRequest()
                     .authenticated())

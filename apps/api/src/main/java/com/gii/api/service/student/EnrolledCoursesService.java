@@ -105,8 +105,7 @@ public class EnrolledCoursesService {
     return counts;
   }
 
-  private Map<UUID, Integer> getCompletedLessonCountByCourseId(
-      UUID userId, List<UUID> courseIds) {
+  private Map<UUID, Integer> getCompletedLessonCountByCourseId(UUID userId, List<UUID> courseIds) {
     Map<UUID, Integer> counts = new HashMap<>();
     for (Object[] row :
         lessonProgressRepository.countCompletedByUserIdAndCourseIds(userId, courseIds)) {

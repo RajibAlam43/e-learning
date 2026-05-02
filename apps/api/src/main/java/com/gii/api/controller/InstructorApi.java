@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -70,7 +71,7 @@ public interface InstructorApi {
       })
   ResponseEntity<InstructorLiveClassResponse> createLiveClass(
       @PathVariable UUID courseId,
-      @RequestBody CreateLiveClassRequest request,
+      @RequestBody @Valid CreateLiveClassRequest request,
       Authentication authentication);
 
   @PostMapping("/live-classes/{liveClassId}/start")
@@ -113,7 +114,7 @@ public interface InstructorApi {
       })
   ResponseEntity<InstructorLiveClassResponse> updateLiveClass(
       @PathVariable UUID liveClassId,
-      @RequestBody UpdateLiveClassRequest request,
+      @Valid @RequestBody UpdateLiveClassRequest request,
       Authentication authentication);
 
   @DeleteMapping("/live-classes/{liveClassId}")

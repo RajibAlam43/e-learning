@@ -60,11 +60,13 @@ public class StudentJoinLiveClassesService {
                     new ResponseStatusException(
                         HttpStatus.FORBIDDEN, "Not registered for live class"));
 
-    boolean liveOrCompleted =
-        liveClass.getStatus() == LiveClassStatus.LIVE
-            || liveClass.getStatus() == LiveClassStatus.COMPLETED;
-    if (!liveOrCompleted && Instant.now().isBefore(liveClass.getStartsAt().minusSeconds(300))) {
-      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Class not yet joinable");
+    Instant now = Instant.now();
+    boolean withinJoinWindow =
+        !now.isBefore(liveClass.getStartsAt().minusSeconds(300))
+            && now.isBefore(liveClass.getEndsAt());
+
+    if (liveClass.getStatus() != LiveClassStatus.LIVE || !withinJoinWindow) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Class not joinable");
     }
 
     String joinUrl =

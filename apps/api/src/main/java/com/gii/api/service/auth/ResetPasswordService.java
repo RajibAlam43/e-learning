@@ -1,5 +1,8 @@
 package com.gii.api.service.auth;
 
+import static com.gii.api.service.util.PasswordPolicyUtil.validate;
+
+import com.gii.api.exception.BadRequestApiException;
 import com.gii.api.model.request.auth.ResetPasswordRequest;
 import com.gii.api.service.util.IdentifierNormalizationUtil;
 import com.gii.common.entity.user.RefreshToken;
@@ -27,11 +30,13 @@ public class ResetPasswordService {
   private final RefreshTokenRepository refreshTokenRepository;
 
   public void execute(ResetPasswordRequest request) {
+    validate(request.newPassword());
+
     String normalizedIdentifier =
         IdentifierNormalizationUtil.normalizeIdentifier(request.channel(), request.identifier());
     Optional<User> userOpt = findUserByChannel(request.channel(), normalizedIdentifier);
 
-    User user = userOpt.orElseThrow(() -> new RuntimeException("Invalid reset code"));
+    User user = userOpt.orElseThrow(() -> new BadRequestApiException("Invalid reset code"));
 
     verificationCodeService.verifyOtp(
         user.getId(), request.code(), VerificationPurpose.PASSWORD_RESET, request.channel());

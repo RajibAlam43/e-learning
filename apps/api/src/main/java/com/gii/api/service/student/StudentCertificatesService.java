@@ -22,8 +22,7 @@ public class StudentCertificatesService {
 
   public List<StudentCertificateSummaryResponse> execute(Authentication authentication) {
     java.util.UUID userId = currentUserService.getCurrentUserId(authentication);
-    List<Certificate> certificates =
-        certificateRepository.findByUserIdOrderByIssuedAtDesc(userId);
+    List<Certificate> certificates = certificateRepository.findByUserIdOrderByIssuedAtDesc(userId);
 
     return certificates.stream().map(this::toCertificateSummary).toList();
   }

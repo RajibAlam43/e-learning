@@ -35,9 +35,7 @@ public class AllInstructorsService {
             courseInstructorRepository.countByInstructorIdsAndCourseStatus(
                 instructorIds, PublishStatus.PUBLISHED));
 
-    return profiles.stream()
-        .map(profile -> toSummary(profile, publishedCourseCounts))
-        .toList();
+    return profiles.stream().map(profile -> toSummary(profile, publishedCourseCounts)).toList();
   }
 
   private InstructorSummaryResponse toSummary(

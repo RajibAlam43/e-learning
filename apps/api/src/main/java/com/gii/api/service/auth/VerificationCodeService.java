@@ -1,5 +1,8 @@
 package com.gii.api.service.auth;
 
+import com.gii.api.exception.BadRequestApiException;
+import com.gii.api.exception.ForbiddenApiException;
+import com.gii.api.exception.TooManyRequestsApiException;
 import com.gii.api.service.util.IdentifierNormalizationUtil;
 import com.gii.api.service.util.TokenHashUtil;
 import com.gii.common.entity.user.User;
@@ -46,7 +49,9 @@ public class VerificationCodeService {
   public void generateAndSend(
       UUID userId, VerificationPurpose purpose, VerificationChannel channel, String channelValue) {
     final User user =
-        userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
+        userRepository
+            .findById(userId)
+            .orElseThrow(() -> new BadRequestApiException("User not found"));
     final Instant now = Instant.now();
     String normalizedChannelValue =
         IdentifierNormalizationUtil.normalizeIdentifier(channel, channelValue);
@@ -57,7 +62,7 @@ public class VerificationCodeService {
     long userRecentCount =
         verificationCodeRepository.countRecentByUserAndChannel(userId, channel, cooldownThreshold);
     if (userRecentCount > 0) {
-      throw new RuntimeException("OTP already sent. Please try again later");
+      throw new TooManyRequestsApiException("OTP already sent. Please try again later");
     }
 
     // Per-identifier cooldown (prevents same email/phone hammering)
@@ -65,7 +70,7 @@ public class VerificationCodeService {
         verificationCodeRepository.countRecentByChannelAndHash(
             channel, channelHash, cooldownThreshold);
     if (identifierRecentCount > 0) {
-      throw new RuntimeException("OTP already sent. Please try again later");
+      throw new TooManyRequestsApiException("OTP already sent. Please try again later");
     }
 
     // Revoke previous valid OTP for same purpose+channel
@@ -117,34 +122,34 @@ public class VerificationCodeService {
     String normalizedOtp = normalizeOtp(providedOtp);
 
     if (normalizedOtp.length() != 6 || !normalizedOtp.chars().allMatch(Character::isDigit)) {
-      throw new RuntimeException("Invalid OTP");
+      throw new BadRequestApiException("Invalid OTP");
     }
 
     VerificationCode verificationCode =
         verificationCodeRepository
             .findLatestValidOtp(userId, purpose, channel)
-            .orElseThrow(() -> new RuntimeException("No valid OTP found"));
+            .orElseThrow(() -> new BadRequestApiException("No valid OTP found"));
 
     // Security checks in order
     if (verificationCode.isRevoked()) {
-      throw new RuntimeException("OTP has been revoked");
+      throw new ForbiddenApiException("OTP has been revoked");
     }
 
     if (verificationCode.isAlreadyUsed()) {
-      throw new RuntimeException("OTP already used");
+      throw new ForbiddenApiException("OTP already used");
     }
 
     if (verificationCode.isExpired()) {
       verificationCode.setRevokedAt(now);
       verificationCodeRepository.save(verificationCode);
-      throw new RuntimeException("OTP expired");
+      throw new BadRequestApiException("OTP expired");
     }
 
     if (verificationCode.isAttemptLimitReached()) {
       verificationCode.setRevokedAt(now);
       verificationCodeRepository.save(verificationCode);
       log.warn("Max OTP attempts reached for user {}", userId);
-      throw new RuntimeException("Maximum attempts exceeded. Request new OTP");
+      throw new ForbiddenApiException("Maximum attempts exceeded. Request new OTP");
     }
 
     // Increment attempt counter
@@ -155,12 +160,11 @@ public class VerificationCodeService {
 
     if (!isValid) {
       verificationCodeRepository.save(verificationCode);
-      throw new RuntimeException("Invalid OTP");
+      throw new BadRequestApiException("Invalid OTP");
     }
 
     // Mark as used
     verificationCode.setUsedAt(now);
-    verificationCode.setRevokedAt(now);
     verificationCodeRepository.save(verificationCode);
 
     log.info("OTP verified successfully for user {} via {} for {}", userId, channel, purpose);

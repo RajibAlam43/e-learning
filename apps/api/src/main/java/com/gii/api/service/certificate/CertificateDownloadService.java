@@ -26,9 +26,12 @@ public class CertificateDownloadService {
     UUID userId = currentUserService.getCurrentUserId(authentication);
     Certificate certificate =
         certificateRepository
-            .findByIdAndUserId(certificateId, userId)
+            .findById(certificateId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Certificate not found"));
+    if (!certificate.getUser().getId().equals(userId)) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not certificate owner");
+    }
     if (certificate.getRevokedAt() != null) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Certificate has been revoked");
     }
