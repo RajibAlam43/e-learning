@@ -9,4 +9,4 @@ public record LessonProgressResponse(
     Instant completedAt, // When user completed (null if not completed)
     Integer lastPositionSec, // Last video playback position in seconds
     Instant lastUpdatedAt // When progress was last updated
-    ) {}
+) {}

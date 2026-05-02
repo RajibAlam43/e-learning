@@ -10,4 +10,4 @@ public record QuizChoiceResponse(
     // Note: isCorrect is NOT exposed here during the attempt
     // It will only be shown in results after submission
     Boolean isCorrect // Null or false during attempt, true after submission if correct
-    ) {}
+) {}

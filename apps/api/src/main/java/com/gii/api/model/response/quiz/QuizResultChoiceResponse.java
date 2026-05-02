@@ -9,4 +9,4 @@ public record QuizResultChoiceResponse(
     String choiceText,
     Boolean isCorrect, // Now visible after submission
     Boolean wasUserChoice // Whether user selected this
-    ) {}
+) {}

@@ -31,4 +31,4 @@ public record StudentCourseSummaryResponse(
     // Certificates
     Boolean hasCertificate,
     String certificateCode // If earned
-    ) {}
+) {}

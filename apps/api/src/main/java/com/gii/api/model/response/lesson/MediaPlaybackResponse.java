@@ -28,4 +28,4 @@ public record MediaPlaybackResponse(
     // Player hints
     String subtitlesUrl, // Optional: captions/subtitle URL
     String thumbnailUrl // Optional: cover image
-    ) {}
+) {}

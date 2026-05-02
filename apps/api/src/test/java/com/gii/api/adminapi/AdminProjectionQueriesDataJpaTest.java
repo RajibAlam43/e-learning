@@ -33,7 +33,7 @@ class AdminProjectionQueriesDataJpaTest extends AbstractAdminDataJpaTest {
     var student3 = user("Student Three", "student-three-enroll-cnt@example.com");
     var courseA = course("Course A", "course-a-enroll-cnt", creator);
 
-    var courseB = course("Course B", "course-b-enroll-cnt", creator);
+    final var courseB = course("Course B", "course-b-enroll-cnt", creator);
     enrollment(student1, courseA, EnrollmentStatus.ACTIVE);
     enrollment(student2, courseA, EnrollmentStatus.ACTIVE);
     enrollment(student3, courseA, EnrollmentStatus.REVOKED);
@@ -90,8 +90,8 @@ class AdminProjectionQueriesDataJpaTest extends AbstractAdminDataJpaTest {
     var courseB = course("Course Live B", "course-live-b-cnt", creator);
     var sectionA = section(courseA, 1);
     var sectionB = section(courseB, 1);
-    var student2 = user("Student L2", "student-l2-live-cnt@example.com");
-    var student3 = user("Student L3", "student-l3-live-cnt@example.com");
+    final var student2 = user("Student L2", "student-l2-live-cnt@example.com");
+    final var student3 = user("Student L3", "student-l3-live-cnt@example.com");
     var lessonA1 = lesson(courseA, sectionA, 1);
     lesson(courseA, sectionA, 2);
     lesson(courseB, sectionB, 1);

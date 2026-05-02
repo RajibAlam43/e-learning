@@ -18,4 +18,4 @@ public record CheckoutOrderItemResponse(
 
     // Discount reason (if any)
     String discountReason // e.g., "PROMOTIONAL_CODE", "BULK_PURCHASE", "EARLY_BIRD"
-    ) {}
+) {}

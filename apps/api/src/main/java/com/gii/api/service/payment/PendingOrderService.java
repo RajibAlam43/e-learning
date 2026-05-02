@@ -32,8 +32,7 @@ import org.springframework.web.server.ResponseStatusException;
 @Transactional
 public class PendingOrderService {
 
-  private static final long ORDER_EXPIRY_SECONDS =
-          Duration.ofMinutes(30).getSeconds();
+  private static final long ORDER_EXPIRY_SECONDS = Duration.ofMinutes(30).getSeconds();
 
   private final CurrentUserService currentUserService;
   private final CourseRepository courseRepository;
