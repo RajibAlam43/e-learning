@@ -37,6 +37,23 @@ jobs:
       - name: Build
         run: ./gradlew clean test bootJar
 
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            apps/api/build/reports/tests/test/
+            apps/api/build/reports/jacoco/
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs
+          path: |
+            apps/api/build/test-results/test/
+
       - name: JaCoCo and SonarQube analysis non-blocking
         continue-on-error: true
         env:
