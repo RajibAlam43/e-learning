@@ -18,7 +18,7 @@ import tools.jackson.databind.ObjectMapper;
 public class RedisConfig {
 
   @Bean
-  ObjectMapper objectMapper() {
+  ObjectMapper redisObjectMapper() {
     return new ObjectMapper();
   }
 
@@ -29,7 +29,7 @@ public class RedisConfig {
         .disableCachingNullValues()
         .serializeValuesWith(
             RedisSerializationContext.SerializationPair.fromSerializer(
-                new GenericJacksonJsonRedisSerializer(objectMapper())));
+                new GenericJacksonJsonRedisSerializer(redisObjectMapper())));
   }
 
   @Bean
