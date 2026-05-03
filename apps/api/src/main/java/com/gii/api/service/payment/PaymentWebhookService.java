@@ -13,6 +13,7 @@ import java.time.Instant;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +30,7 @@ public class PaymentWebhookService {
 
   private final PaymentEventRepository paymentEventRepository;
   private final OrderRepository orderRepository;
+  private final PaymentCallbackService paymentCallbackService;
 
   @Value("${payments.sslcommerz.webhook-secret:}")
   private String sslcommerzWebhookSecret;
@@ -75,20 +77,37 @@ public class PaymentWebhookService {
             .build();
       }
     }
-    Order order = findOrderFromHeaders(provider, headers).orElse(null);
+    Optional<Order> orderOpt = findOrderFromHeaders(provider, headers);
 
     Map<String, Object> rawPayload = new HashMap<>();
     rawPayload.put("headers", new HashMap<>(headers));
     rawPayload.put("payload", payload);
 
+    PaymentEventStatus processingStatus = PaymentEventStatus.RECEIVED;
+    if (orderOpt.isPresent()) {
+      PaymentWebhookEvent webhookEvent = inferWebhookEvent(headers, payload);
+      if (webhookEvent == PaymentWebhookEvent.SUCCESS) {
+        paymentCallbackService.success(orderOpt.get().getId(), callbackParamsFromHeaders(headers));
+        paymentCallbackService.grantEnrollmentsForPaidOrder(orderOpt.get().getId());
+        processingStatus = PaymentEventStatus.PROCESSED;
+      } else if (webhookEvent == PaymentWebhookEvent.FAILED) {
+        paymentCallbackService.failed(orderOpt.get().getId(), callbackParamsFromHeaders(headers));
+        processingStatus = PaymentEventStatus.PROCESSED;
+      } else if (webhookEvent == PaymentWebhookEvent.CANCELLED) {
+        paymentCallbackService.cancelled(
+            orderOpt.get().getId(), callbackParamsFromHeaders(headers));
+        processingStatus = PaymentEventStatus.PROCESSED;
+      }
+    }
+
     PaymentEvent event =
         PaymentEvent.builder()
-            .order(order)
+            .order(orderOpt.orElse(null))
             .provider(provider)
             .eventType(eventType)
             .providerEventId(providerEventId)
             .rawPayloadJson(rawPayload)
-            .status(PaymentEventStatus.RECEIVED)
+            .status(processingStatus)
             .processedAt(Instant.now())
             .build();
     PaymentEvent savedEvent = paymentEventRepository.save(event);
@@ -199,6 +218,51 @@ public class PaymentWebhookService {
       return java.util.Optional.empty();
     }
     return orderRepository.findByProviderAndProviderTxnId(provider, txnId);
+  }
+
+  private Map<String, String> callbackParamsFromHeaders(Map<String, String> headers) {
+    Map<String, String> params = new HashMap<>();
+    String txnId =
+        firstNonBlank(
+            headers.get("x-transaction-id"), headers.get("x-tran-id"), headers.get("x-payment-id"));
+    if (txnId != null) {
+      params.put("tran_id", txnId);
+    }
+    return params;
+  }
+
+  private PaymentWebhookEvent inferWebhookEvent(Map<String, String> headers, String payload) {
+    String hint =
+        firstNonBlank(
+            headers.get("x-event-type"),
+            headers.get("x-payment-status"),
+            headers.get("x-status"),
+            headers.get("event"),
+            payload);
+    if (hint == null) {
+      return PaymentWebhookEvent.UNKNOWN;
+    }
+    String normalized = hint.toLowerCase();
+    if (normalized.contains("fail") || normalized.contains("declin") || normalized.contains("error")) {
+      return PaymentWebhookEvent.FAILED;
+    }
+    if (normalized.contains("cancel")) {
+      return PaymentWebhookEvent.CANCELLED;
+    }
+    if (normalized.contains("success")
+        || normalized.contains("paid")
+        || normalized.contains("complete")
+        || normalized.contains("\"payment\"")) {
+      return PaymentWebhookEvent.SUCCESS;
+    }
+    return PaymentWebhookEvent.UNKNOWN;
+  }
+
+  private enum PaymentWebhookEvent {
+    SUCCESS,
+    FAILED,
+    CANCELLED,
+    UNKNOWN
   }
 
   private String firstNonBlank(String... values) {

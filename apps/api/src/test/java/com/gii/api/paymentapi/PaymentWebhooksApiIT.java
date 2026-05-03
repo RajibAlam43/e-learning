@@ -68,7 +68,7 @@ class PaymentWebhooksApiIt extends AbstractPaymentApiIntegrationTest {
         .anyMatch(
             event ->
                 event.getProvider() == OrderProvider.SSLCOMMERZ
-                    && event.getStatus() == PaymentEventStatus.RECEIVED);
+                    && event.getStatus() == PaymentEventStatus.PROCESSED);
   }
 
   @Test

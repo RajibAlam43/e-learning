@@ -13,7 +13,10 @@ import com.gii.common.enums.OrderStatus;
 import com.gii.common.enums.PublishStatus;
 import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -122,7 +125,21 @@ class PaymentCheckoutAndLifecycleApiIt extends AbstractPaymentApiIntegrationTest
                 .with(authentication(studentAuth(student.getId()))))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("PAID"))
-        .andExpect(jsonPath("$.coursesEnrolled").value(true));
+        .andExpect(jsonPath("$.coursesEnrolled").value(false))
+        .andExpect(jsonPath("$.enrolledCourseCount").value(0));
+
+    String payload = "{\"event\":\"payment_success\",\"txn\":\"" + initiatedOrder.getProviderTxnId() + "\"}";
+    String signature = hmacBase64(payload, "bkash-test-secret");
+    mockMvc
+        .perform(
+            post("/public/webhooks/payments/bkash")
+                .contentType(MediaType.TEXT_PLAIN)
+                .header("x-signature", signature)
+                .header("x-transaction-id", initiatedOrder.getProviderTxnId())
+                .header("x-event-id", "evt-lifecycle-success")
+                .header("x-event-type", "payment_success")
+                .content(payload))
+        .andExpect(status().isOk());
 
     mockMvc
         .perform(
@@ -215,5 +232,16 @@ class PaymentCheckoutAndLifecycleApiIt extends AbstractPaymentApiIntegrationTest
     mockMvc
         .perform(get("/payments/{orderId}/success", order.getId()))
         .andExpect(status().isBadRequest());
+  }
+
+  private String hmacBase64(String payload, String secret) {
+    try {
+      Mac mac = Mac.getInstance("HmacSHA256");
+      mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+      return java.util.Base64.getEncoder()
+          .encodeToString(mac.doFinal(payload.getBytes(StandardCharsets.UTF_8)));
+    } catch (Exception ex) {
+      throw new RuntimeException(ex);
+    }
   }
 }

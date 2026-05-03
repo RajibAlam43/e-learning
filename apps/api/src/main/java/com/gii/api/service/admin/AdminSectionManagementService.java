@@ -19,6 +19,7 @@ import com.gii.common.repository.course.CourseSectionRepository;
 import com.gii.common.repository.course.LessonRepository;
 import com.gii.common.repository.course.SectionItemRepository;
 import com.gii.common.repository.quiz.QuizRepository;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -107,6 +108,29 @@ public class AdminSectionManagementService {
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Section not found"));
     sectionRepository.delete(section);
+  }
+
+  public void publish(UUID sectionId) {
+    CourseSection section =
+        sectionRepository
+            .findById(sectionId)
+            .orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Section not found"));
+    section.setStatus(PublishStatus.PUBLISHED);
+    if (section.getPublishedAt() == null) {
+      section.setPublishedAt(Instant.now());
+    }
+    sectionRepository.save(section);
+  }
+
+  public void unpublish(UUID sectionId) {
+    CourseSection section =
+        sectionRepository
+            .findById(sectionId)
+            .orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Section not found"));
+    section.setStatus(PublishStatus.DRAFT);
+    sectionRepository.save(section);
   }
 
   AdminCourseSectionResponse toResponse(CourseSection section) {

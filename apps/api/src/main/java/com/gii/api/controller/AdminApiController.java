@@ -105,6 +105,18 @@ public class AdminApiController implements AdminApi {
   }
 
   @Override
+  public ResponseEntity<Void> publishSection(UUID sectionId) {
+    sectionManagementService.publish(sectionId);
+    return ResponseEntity.ok().build();
+  }
+
+  @Override
+  public ResponseEntity<Void> unpublishSection(UUID sectionId) {
+    sectionManagementService.unpublish(sectionId);
+    return ResponseEntity.ok().build();
+  }
+
+  @Override
   public ResponseEntity<Void> deleteSection(UUID sectionId) {
     sectionManagementService.delete(sectionId);
     return ResponseEntity.ok().build();
@@ -120,6 +132,18 @@ public class AdminApiController implements AdminApi {
   public ResponseEntity<AdminLessonDetailResponse> updateLesson(
       UUID lessonId, UpdateLessonRequest request) {
     return ResponseEntity.ok(lessonManagementService.update(lessonId, request));
+  }
+
+  @Override
+  public ResponseEntity<Void> publishLesson(UUID lessonId) {
+    lessonManagementService.publish(lessonId);
+    return ResponseEntity.ok().build();
+  }
+
+  @Override
+  public ResponseEntity<Void> unpublishLesson(UUID lessonId) {
+    lessonManagementService.unpublish(lessonId);
+    return ResponseEntity.ok().build();
   }
 
   @Override
@@ -207,6 +231,12 @@ public class AdminApiController implements AdminApi {
   @Override
   public ResponseEntity<Void> publishQuiz(UUID quizId) {
     quizManagementService.publish(quizId);
+    return ResponseEntity.ok().build();
+  }
+
+  @Override
+  public ResponseEntity<Void> unpublishQuiz(UUID quizId) {
+    quizManagementService.unpublish(quizId);
     return ResponseEntity.ok().build();
   }
 

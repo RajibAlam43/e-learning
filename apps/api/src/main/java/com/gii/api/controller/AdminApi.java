@@ -150,6 +150,14 @@ public interface AdminApi {
   ResponseEntity<AdminCourseSectionResponse> updateSection(
       @PathVariable UUID sectionId, @Valid @RequestBody UpdateSectionRequest request);
 
+  @PostMapping("/sections/{sectionId}/publish")
+  @Operation(summary = "Publish section")
+  ResponseEntity<Void> publishSection(@PathVariable UUID sectionId);
+
+  @PostMapping("/sections/{sectionId}/unpublish")
+  @Operation(summary = "Unpublish section")
+  ResponseEntity<Void> unpublishSection(@PathVariable UUID sectionId);
+
   @DeleteMapping("/sections/{sectionId}")
   @Operation(summary = "Delete section")
   @ApiResponses(
@@ -179,6 +187,14 @@ public interface AdminApi {
       })
   ResponseEntity<AdminLessonDetailResponse> updateLesson(
       @PathVariable UUID lessonId, @Valid @RequestBody UpdateLessonRequest request);
+
+  @PostMapping("/lessons/{lessonId}/publish")
+  @Operation(summary = "Publish lesson")
+  ResponseEntity<Void> publishLesson(@PathVariable UUID lessonId);
+
+  @PostMapping("/lessons/{lessonId}/unpublish")
+  @Operation(summary = "Unpublish lesson")
+  ResponseEntity<Void> unpublishLesson(@PathVariable UUID lessonId);
 
   @DeleteMapping("/lessons/{lessonId}")
   @Operation(summary = "Delete lesson")
@@ -277,6 +293,10 @@ public interface AdminApi {
   @PostMapping("/quizzes/{quizId}/publish")
   @Operation(summary = "Publish quiz")
   ResponseEntity<Void> publishQuiz(@PathVariable UUID quizId);
+
+  @PostMapping("/quizzes/{quizId}/unpublish")
+  @Operation(summary = "Unpublish quiz")
+  ResponseEntity<Void> unpublishQuiz(@PathVariable UUID quizId);
 
   // ===== ORDER MANAGEMENT =====
   @GetMapping("/orders")

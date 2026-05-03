@@ -66,6 +66,7 @@ class AuthRegisterApiIt extends AbstractAuthApiIntegrationTest {
         .andExpect(jsonPath("$.channel").value("PHONE"));
 
     verify(emailJobPublisherService, never()).publish(any());
+    verify(smsJobPublisherService, times(1)).publish(any());
   }
 
   @Test

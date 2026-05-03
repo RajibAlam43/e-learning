@@ -48,6 +48,28 @@ class AuthVerificationApiIt extends AbstractAuthApiIntegrationTest {
 
     assertThat(verificationCodeRepository.count()).isEqualTo(1);
     verify(emailJobPublisherService, times(1)).publish(any());
+    verify(smsJobPublisherService, never()).publish(any());
+  }
+
+  @Test
+  void sendVerificationForExistingUnverifiedPhoneCreatesCodeAndPublishesSms() throws Exception {
+    user("Verify Phone", null, "8801711111111", "Secret123!", UserStatus.ACTIVE);
+    String body =
+        """
+        {
+          "channel":"PHONE",
+          "identifier":"+8801711111111",
+          "purpose":"PHONE_VERIFICATION"
+        }
+        """;
+
+    mockMvc
+        .perform(post("/public/auth/send-code").contentType(APPLICATION_JSON).content(body))
+        .andExpect(status().isOk());
+
+    assertThat(verificationCodeRepository.count()).isEqualTo(1);
+    verify(smsJobPublisherService, times(1)).publish(any());
+    verify(emailJobPublisherService, never()).publish(any());
   }
 
   @Test

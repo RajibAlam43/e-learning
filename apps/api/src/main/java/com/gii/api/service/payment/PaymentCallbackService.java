@@ -13,6 +13,7 @@ import com.gii.common.repository.order.OrderItemRepository;
 import com.gii.common.repository.order.OrderRepository;
 import com.gii.common.repository.order.PaymentEventRepository;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -55,8 +56,15 @@ public class PaymentCallbackService {
       order.setPaidAt(Instant.now());
     }
     Order savedOrder = orderRepository.save(order);
-    grantEnrollments(savedOrder);
     return toStatus(savedOrder);
+  }
+
+  public void grantEnrollmentsForPaidOrder(UUID orderId) {
+    Order order = requireOrder(orderId);
+    if (order.getStatus() != OrderStatus.PAID) {
+      return;
+    }
+    grantEnrollments(order);
   }
 
   public PaymentStatusResponse failed(UUID orderId, Map<String, String> queryParams) {
@@ -149,9 +157,11 @@ public class PaymentCallbackService {
   }
 
   private PaymentStatusResponse toStatus(Order order) {
+    List<OrderItem> items = orderItemRepository.findByOrderId(order.getId());
+    int itemCount = items.size();
     int enrolledCount =
         (int)
-            orderItemRepository.findByOrderId(order.getId()).stream()
+            items.stream()
                 .filter(
                     item ->
                         enrollmentRepository.existsByUserIdAndCourseIdAndStatus(
@@ -171,7 +181,7 @@ public class PaymentCallbackService {
         .refundedAt(order.getRefundedAt())
         .customerEmail(order.getUser().getEmail())
         .customerPhone(order.getUser().getPhone())
-        .coursesEnrolled(order.getStatus() == OrderStatus.PAID)
+        .coursesEnrolled(enrolledCount == itemCount && itemCount > 0)
         .enrolledCourseCount(enrolledCount)
         .nextAction(
             order.getStatus() == OrderStatus.PAID ? "REDIRECT_TO_DASHBOARD" : "INITIATE_PAYMENT")

@@ -61,6 +61,19 @@ class PaymentOrderingAndConsistencyApiIt extends AbstractPaymentApiIntegrationTe
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("PAID"));
 
+    String payload = "{\"event\":\"payment_success\",\"txn\":\"txn-ordering-1\"}";
+    String signature = hmacBase64(payload, "ssl-test-secret");
+    mockMvc
+        .perform(
+            post("/public/webhooks/payments/sslcommerz")
+                .contentType(MediaType.TEXT_PLAIN)
+                .header("x-signature", signature)
+                .header("x-transaction-id", "txn-ordering-1")
+                .header("x-event-id", "evt-ordering-1")
+                .header("x-event-type", "payment_success")
+                .content(payload))
+        .andExpect(status().isOk());
+
     assertThat(orderRepository.findById(order.getId()).orElseThrow().getStatus())
         .isEqualTo(OrderStatus.PAID);
     assertThat(
@@ -101,6 +114,19 @@ class PaymentOrderingAndConsistencyApiIt extends AbstractPaymentApiIntegrationTe
             get("/payments/{orderId}/success", order.getId()).param("payment_id", "txn-ordering-2"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("PAID"));
+
+    String payload = "{\"event\":\"payment_success\",\"txn\":\"txn-ordering-2\"}";
+    String signature = hmacBase64(payload, "bkash-test-secret");
+    mockMvc
+        .perform(
+            post("/public/webhooks/payments/bkash")
+                .contentType(MediaType.TEXT_PLAIN)
+                .header("x-signature", signature)
+                .header("x-transaction-id", "txn-ordering-2")
+                .header("x-event-id", "evt-ordering-2")
+                .header("x-event-type", "payment_success")
+                .content(payload))
+        .andExpect(status().isOk());
 
     assertThat(orderRepository.findById(order.getId()).orElseThrow().getStatus())
         .isEqualTo(OrderStatus.PAID);
