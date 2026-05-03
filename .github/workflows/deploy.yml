@@ -121,6 +121,7 @@ jobs:
           BUNNY_PULL_ZONE_HOSTNAME=${{ secrets.BUNNY_PULL_ZONE_HOSTNAME }}
           BUNNY_TOKEN_AUTH_KEY=${{ secrets.BUNNY_TOKEN_AUTH_KEY }}
           BUNNY_TOKEN_TTL=${{ vars.BUNNY_TOKEN_TTL }}
+          EMAIL_JOBS_PUBLISH_TIMEOUT_MS=${{ vars.EMAIL_JOBS_PUBLISH_TIMEOUT_MS }}
           EOF
 
           ssh deploy@${{ vars.API_HOST }} "
