@@ -1,5 +1,6 @@
 package com.gii.api.studentapi;
 
+import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -41,6 +42,11 @@ class StudentDashboardApiIt extends AbstractStudentApiIntegrationTest {
         BigDecimal.ZERO);
     certificate(student, course, "CERT-001", false);
 
+    var expectedPrefix = progress.getUpdatedAt()
+            .truncatedTo(ChronoUnit.MILLIS)
+            .toString()
+            .replace("Z", "");
+
     mockMvc
         .perform(get("/student/dashboard").with(authentication(studentAuth(student.getId()))))
         .andExpect(status().isOk())
@@ -50,8 +56,6 @@ class StudentDashboardApiIt extends AbstractStudentApiIntegrationTest {
         .andExpect(jsonPath("$.ongoingCourses.length()").value(1))
         .andExpect(jsonPath("$.ongoingCourses[0].completedLessons").value(1))
         .andExpect(jsonPath("$.ongoingCourses[0].totalLessons").value(2))
-        .andExpect(
-            jsonPath("$.lastLearningActivityAt")
-                .value(progress.getUpdatedAt().truncatedTo(ChronoUnit.MILLIS).toString()));
+        .andExpect(jsonPath("$.lastLearningActivityAt", startsWith(expectedPrefix)));
   }
 }

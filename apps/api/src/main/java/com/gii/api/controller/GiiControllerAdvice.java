@@ -7,6 +7,8 @@ import java.net.URI;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -22,16 +24,19 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import org.springframework.web.server.ResponseStatusException;
 
 @RestControllerAdvice
+@Slf4j
 public class GiiControllerAdvice {
 
   @ExceptionHandler(GiiApiException.class)
   public ProblemDetail handleGiiApiException(GiiApiException ex, HttpServletRequest request) {
+    logException("GiiApiException", ex, request);
     return problem(ex.getStatus(), ex.getTitle(), ex.getMessage(), request);
   }
 
   @ExceptionHandler(ResponseStatusException.class)
   public ProblemDetail handleResponseStatus(
       ResponseStatusException ex, HttpServletRequest request) {
+    logException("ResponseStatusException", ex, request);
     String detail = ex.getReason() == null ? "Request failed" : ex.getReason();
     return problem(
         HttpStatus.valueOf(ex.getStatusCode().value()), "Request failed", detail, request);
@@ -39,6 +44,7 @@ public class GiiControllerAdvice {
 
   @ExceptionHandler(AccessDeniedException.class)
   public ProblemDetail handleAccessDenied(AccessDeniedException ex, HttpServletRequest request) {
+    logException("AccessDeniedException", ex, request);
     return problem(
         HttpStatus.FORBIDDEN,
         "Access denied",
@@ -49,6 +55,7 @@ public class GiiControllerAdvice {
   @ExceptionHandler(MethodArgumentNotValidException.class)
   public ProblemDetail handleValidation(
       MethodArgumentNotValidException ex, HttpServletRequest request) {
+    logException("MethodArgumentNotValidException", ex, request);
     List<Map<String, String>> errors =
         ex.getBindingResult().getFieldErrors().stream().map(this::toFieldError).toList();
 
@@ -66,6 +73,7 @@ public class GiiControllerAdvice {
   @ExceptionHandler(ConstraintViolationException.class)
   public ProblemDetail handleConstraintViolation(
       ConstraintViolationException ex, HttpServletRequest request) {
+    logException("ConstraintViolationException", ex, request);
     List<Map<String, String>> errors =
         ex.getConstraintViolations().stream()
             .map(
@@ -89,6 +97,7 @@ public class GiiControllerAdvice {
   @ExceptionHandler(MethodArgumentTypeMismatchException.class)
   public ProblemDetail handleTypeMismatch(
       MethodArgumentTypeMismatchException ex, HttpServletRequest request) {
+    logException("MethodArgumentTypeMismatchException", ex, request);
     return problem(
         HttpStatus.BAD_REQUEST,
         "Invalid parameter",
@@ -99,6 +108,7 @@ public class GiiControllerAdvice {
   @ExceptionHandler(HttpMessageNotReadableException.class)
   public ProblemDetail handleMessageNotReadable(
       HttpMessageNotReadableException ex, HttpServletRequest request) {
+    logException("HttpMessageNotReadableException", ex, request);
     return problem(
         HttpStatus.BAD_REQUEST,
         "Malformed request",
@@ -109,6 +119,7 @@ public class GiiControllerAdvice {
   @ExceptionHandler(MissingServletRequestParameterException.class)
   public ProblemDetail handleMissingRequestParam(
       MissingServletRequestParameterException ex, HttpServletRequest request) {
+    logException("MissingServletRequestParameterException", ex, request);
     return problem(
         HttpStatus.BAD_REQUEST,
         "Missing parameter",
@@ -119,6 +130,7 @@ public class GiiControllerAdvice {
   @ExceptionHandler(MissingRequestCookieException.class)
   public ProblemDetail handleMissingCookie(
       MissingRequestCookieException ex, HttpServletRequest request) {
+    logException("MissingRequestCookieException", ex, request);
     return problem(
         HttpStatus.BAD_REQUEST,
         "Missing cookie",
@@ -129,12 +141,14 @@ public class GiiControllerAdvice {
   @ExceptionHandler(DataIntegrityViolationException.class)
   public ProblemDetail handleDataIntegrity(
       DataIntegrityViolationException ex, HttpServletRequest request) {
+    logException("DataIntegrityViolationException", ex, request);
     return problem(
         HttpStatus.CONFLICT, "Data conflict", "The request conflicts with existing data.", request);
   }
 
   @ExceptionHandler(Exception.class)
   public ProblemDetail handleGeneric(Exception ex, HttpServletRequest request) {
+    logException("UnhandledException", ex, request);
     return problem(
         HttpStatus.INTERNAL_SERVER_ERROR,
         "Internal server error",
@@ -150,6 +164,16 @@ public class GiiControllerAdvice {
     problem.setInstance(URI.create(request.getRequestURI()));
     problem.setProperty("timestamp", Instant.now());
     return problem;
+  }
+
+  private void logException(String handler, Exception ex, HttpServletRequest request) {
+    log.error(
+        "[{}] {} {} failed: {}",
+        handler,
+        request.getMethod(),
+        request.getRequestURI(),
+        ex.getMessage(),
+        ex);
   }
 
   private Map<String, String> toFieldError(FieldError error) {
