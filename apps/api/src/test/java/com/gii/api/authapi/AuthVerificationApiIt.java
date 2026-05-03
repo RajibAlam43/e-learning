@@ -1,6 +1,10 @@
 package com.gii.api.authapi;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -41,6 +45,7 @@ class AuthVerificationApiIt extends AbstractAuthApiIntegrationTest {
         .andExpect(status().isOk());
 
     assertThat(verificationCodeRepository.count()).isEqualTo(1);
+    verify(emailJobPublisherService, times(1)).publish(any());
   }
 
   @Test
@@ -57,6 +62,8 @@ class AuthVerificationApiIt extends AbstractAuthApiIntegrationTest {
     mockMvc
         .perform(post("/public/auth/send-code").contentType(APPLICATION_JSON).content(body))
         .andExpect(status().isOk());
+
+    verify(emailJobPublisherService, never()).publish(any());
   }
 
   @Test

@@ -3,10 +3,13 @@ package com.gii.api.service.auth;
 import com.gii.api.exception.BadRequestApiException;
 import com.gii.api.exception.ForbiddenApiException;
 import com.gii.api.exception.TooManyRequestsApiException;
+import com.gii.api.service.util.EmailJobPublisherService;
 import com.gii.api.service.util.IdentifierNormalizationUtil;
 import com.gii.api.service.util.TokenHashUtil;
+import com.gii.common.dto.EmailJobMessage;
 import com.gii.common.entity.user.User;
 import com.gii.common.entity.user.VerificationCode;
+import com.gii.common.enums.EmailJobType;
 import com.gii.common.enums.VerificationChannel;
 import com.gii.common.enums.VerificationPurpose;
 import com.gii.common.repository.user.UserRepository;
@@ -33,6 +36,7 @@ public class VerificationCodeService {
   private final VerificationCodeRepository verificationCodeRepository;
   private final UserRepository userRepository;
   private final PasswordEncoder passwordEncoder;
+  private final EmailJobPublisherService emailJobPublisherService;
 
   @Value("${otp.validity.minutes:15}")
   private int otpValidityMinutes;
@@ -112,7 +116,7 @@ public class VerificationCodeService {
 
     verificationCodeRepository.save(verificationCode);
 
-    queueOtpSend(channel, normalizedChannelValue, secureCode, purpose);
+    queueOtpSend(userId, channel, normalizedChannelValue, secureCode, purpose);
   }
 
   /** Verify OTP with comprehensive security checks. */
@@ -215,7 +219,28 @@ public class VerificationCodeService {
   }
 
   private void queueOtpSend(
+      UUID userId,
       VerificationChannel channel, String channelValue, String code, VerificationPurpose purpose) {
-    // TODO: Queue to SQS/worker for async email/SMS delivery
+    if (channel != VerificationChannel.EMAIL) {
+      log.info("Skipping email job publish for non-email channel {}", channel);
+      return;
+    }
+
+    EmailJobMessage job =
+        EmailJobMessage.builder()
+            .userId(userId)
+            .jobType(EmailJobType.OTP_VERIFICATION)
+            .toEmail(channelValue)
+            .subject("Your verification code")
+            .body(
+                "Your verification code is: %s. It will expire in %d minutes."
+                    .formatted(code, otpValidityMinutes))
+            .verificationPurpose(purpose)
+            .verificationChannel(channel)
+            .verificationCode(code)
+            .createdAt(Instant.now())
+            .build();
+
+    emailJobPublisherService.publish(job);
   }
 }

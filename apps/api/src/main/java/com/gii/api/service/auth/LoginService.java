@@ -41,7 +41,7 @@ public class LoginService {
       case EMAIL -> {
         user =
             userRepository
-                .findByEmail(normalizedIdentifier)
+                .findByEmailWithRoles(normalizedIdentifier)
                 .orElseThrow(() -> new UnauthorizedApiException("Invalid credentials"));
         ensureActiveUser(user);
         verifyPassword(request, user.getPasswordHash());
@@ -60,7 +60,7 @@ public class LoginService {
       case PHONE -> {
         user =
             userRepository
-                .findByPhone(normalizedIdentifier)
+                .findByPhoneWithRoles(normalizedIdentifier)
                 .orElseThrow(() -> new UnauthorizedApiException("Invalid credentials"));
         ensureActiveUser(user);
         verifyPassword(request, user.getPasswordHash());
