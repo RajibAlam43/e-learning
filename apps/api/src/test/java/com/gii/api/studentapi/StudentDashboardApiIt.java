@@ -52,6 +52,6 @@ class StudentDashboardApiIt extends AbstractStudentApiIntegrationTest {
         .andExpect(jsonPath("$.ongoingCourses[0].totalLessons").value(2))
         .andExpect(
             jsonPath("$.lastLearningActivityAt")
-                .value(progress.getUpdatedAt().truncatedTo(ChronoUnit.MICROS).toString()));
+                .value(progress.getUpdatedAt().truncatedTo(ChronoUnit.MILLIS).toString()));
   }
 }
