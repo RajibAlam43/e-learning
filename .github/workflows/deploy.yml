@@ -45,6 +45,7 @@ jobs:
           path: |
             apps/api/build/reports/tests/test/
             apps/api/build/reports/jacoco/
+          retention-days: 3
 
       - name: Upload logs
         if: always()
@@ -53,6 +54,7 @@ jobs:
           name: logs
           path: |
             apps/api/build/test-results/test/
+          retention-days: 3
 
       - name: JaCoCo and SonarQube analysis non-blocking
         continue-on-error: true
