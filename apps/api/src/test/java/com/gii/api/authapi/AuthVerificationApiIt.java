@@ -7,6 +7,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.gii.common.entity.user.User;
@@ -69,6 +71,7 @@ class AuthVerificationApiIt extends AbstractAuthApiIntegrationTest {
   @Test
   void verifyCodeMarksEmailVerified() throws Exception {
     User user = user("Verify OTP", "otp@example.com", null, "Secret123!", UserStatus.ACTIVE);
+    addRole(user, "STUDENT");
     verificationCode(
         user,
         VerificationPurpose.EMAIL_VERIFICATION,
@@ -89,9 +92,39 @@ class AuthVerificationApiIt extends AbstractAuthApiIntegrationTest {
 
     mockMvc
         .perform(post("/public/auth/verify-code").contentType(APPLICATION_JSON).content(body))
-        .andExpect(status().isOk());
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.isVerified").value(true))
+        .andExpect(jsonPath("$.accessToken").isNotEmpty())
+        .andExpect(
+            header().string("Set-Cookie", org.hamcrest.Matchers.containsString("refresh_token=")));
 
     assertThat(userRepository.findById(user.getId()).orElseThrow().getEmailVerifiedAt())
         .isNotNull();
+  }
+
+  @Test
+  void verifyCodeRejectsPasswordResetPurpose() throws Exception {
+    User user = user("Verify Purpose", "purpose@example.com", null, "Secret123!", UserStatus.ACTIVE);
+    verificationCode(
+        user,
+        VerificationPurpose.PASSWORD_RESET,
+        VerificationChannel.EMAIL,
+        "purpose@example.com",
+        "112233",
+        Instant.now().plusSeconds(1200));
+
+    String body =
+        """
+        {
+          "channel":"EMAIL",
+          "identifier":"purpose@example.com",
+          "code":"112233",
+          "purpose":"PASSWORD_RESET"
+        }
+        """;
+
+    mockMvc
+        .perform(post("/public/auth/verify-code").contentType(APPLICATION_JSON).content(body))
+        .andExpect(status().isBadRequest());
   }
 }

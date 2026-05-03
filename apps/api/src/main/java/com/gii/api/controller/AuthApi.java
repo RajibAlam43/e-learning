@@ -95,14 +95,20 @@ public interface AuthApi {
   @PostMapping("/reset-password")
   @Operation(
       summary = "Reset password using token",
-      description = "Reset password by providing valid reset token and new password.")
+      description =
+          "Reset password by providing valid reset token and new password. Returns JWT access"
+              + " token and sets refresh token in httpOnly cookie.")
   @ApiResponses(
       value = {
-        @ApiResponse(responseCode = "200", description = "Password reset successfully"),
+        @ApiResponse(
+            responseCode = "200",
+            description = "Password reset and login successful",
+            content = @Content(schema = @Schema(implementation = AuthResponse.class))),
         @ApiResponse(responseCode = "400", description = "Invalid or expired token"),
         @ApiResponse(responseCode = "422", description = "Password validation failed")
       })
-  ResponseEntity<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest request);
+  ResponseEntity<AuthResponse> resetPassword(
+      @Valid @RequestBody ResetPasswordRequest request, HttpServletResponse response);
 
   @PostMapping("/send-code")
   @Operation(
@@ -119,14 +125,20 @@ public interface AuthApi {
   @PostMapping("/verify-code")
   @Operation(
       summary = "Verify email or phone",
-      description = "Verify email or phone by submitting the OTP/code received.")
+      description =
+          "Verify email or phone by submitting the OTP/code received. Returns JWT access token"
+              + " and sets refresh token in httpOnly cookie.")
   @ApiResponses(
       value = {
-        @ApiResponse(responseCode = "200", description = "Email/phone verified successfully"),
+        @ApiResponse(
+            responseCode = "200",
+            description = "Email/phone verified and login successful",
+            content = @Content(schema = @Schema(implementation = AuthResponse.class))),
         @ApiResponse(responseCode = "400", description = "Invalid or expired code"),
         @ApiResponse(responseCode = "403", description = "Too many failed attempts")
       })
-  ResponseEntity<Void> verify(@Valid @RequestBody VerifyRequest request);
+  ResponseEntity<AuthResponse> verify(
+      @Valid @RequestBody VerifyRequest request, HttpServletResponse response);
 
   @PostMapping("/logout")
   @Operation(
