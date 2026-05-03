@@ -2,6 +2,9 @@ package com.gii.api.authapi;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.nullValue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -83,5 +86,6 @@ class AuthLoginApiIt extends AbstractAuthApiIntegrationTest {
         .andExpect(jsonPath("$.accessToken").value(nullValue()));
 
     assertThat(verificationCodeRepository.count()).isEqualTo(1);
+    verify(emailJobPublisherService, times(1)).publish(any());
   }
 }

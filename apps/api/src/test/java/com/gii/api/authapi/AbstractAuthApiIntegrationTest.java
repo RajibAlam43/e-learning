@@ -1,15 +1,19 @@
 package com.gii.api.authapi;
 
+import com.gii.api.service.util.EmailJobPublisherService;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("local")
 abstract class AbstractAuthApiIntegrationTest extends AuthApiTestSupport {
+
+  @MockitoBean protected EmailJobPublisherService emailJobPublisherService;
 
   @DynamicPropertySource
   static void registerProperties(DynamicPropertyRegistry registry) {
