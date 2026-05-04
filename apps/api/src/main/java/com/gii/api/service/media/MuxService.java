@@ -5,6 +5,8 @@ import com.gii.api.service.util.CryptoOperationException;
 import com.gii.common.entity.course.MediaAsset;
 import com.gii.common.enums.MediaProvider;
 import io.jsonwebtoken.Jwts;
+
+import java.nio.charset.StandardCharsets;
 import java.security.KeyFactory;
 import java.security.PrivateKey;
 import java.security.spec.PKCS8EncodedKeySpec;
@@ -66,14 +68,15 @@ public class MuxService implements MediaProviderService {
 
   private PrivateKey loadPrivateKey() {
     try {
-      String normalizedPem = privateKeyPem.replace("\\n", "\n");
+      String pem = new String(
+              Base64.getDecoder().decode(privateKeyPem.trim()),
+              StandardCharsets.UTF_8
+      ).trim();
 
-      String privateKey = normalizedPem
+      String privateKey = pem
               .replace("-----BEGIN PRIVATE KEY-----", "")
               .replace("-----END PRIVATE KEY-----", "")
-              .replace("-----BEGIN RSA PRIVATE KEY-----", "")
-              .replace("-----END RSA PRIVATE KEY-----", "")
-              .replaceAll("\\s", "");
+              .replaceAll("\\s+", "");
 
       byte[] decoded = Base64.getDecoder().decode(privateKey);
 

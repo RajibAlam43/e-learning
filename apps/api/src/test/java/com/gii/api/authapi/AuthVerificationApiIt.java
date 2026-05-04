@@ -53,7 +53,7 @@ class AuthVerificationApiIt extends AbstractAuthApiIntegrationTest {
 
   @Test
   void sendVerificationForExistingUnverifiedPhoneCreatesCodeAndPublishesSms() throws Exception {
-    user("Verify Phone", null, "8801711111111", "Secret123!", UserStatus.ACTIVE);
+    user("Verify Phone", null, "+8801711111111", "Secret123!", UserStatus.ACTIVE);
     String body =
         """
         {

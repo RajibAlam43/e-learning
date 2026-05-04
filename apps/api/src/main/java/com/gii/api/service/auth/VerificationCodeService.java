@@ -247,17 +247,26 @@ public class VerificationCodeService {
     if (channel == VerificationChannel.PHONE) {
       SmsJobMessage job =
           SmsJobMessage.builder()
-            .userId(userId)
-            .toPhoneNumber(channelValue)
-            .message("Your verification code is: %s. It will expire in %d minutes.".formatted(code, otpValidityMinutes))
-            .verificationPurpose(purpose)
-            .verificationCode(code)
-            .createdAt(Instant.now())
-            .build();
+              .userId(userId)
+              .toPhoneNumber(stripLeadingPlus(channelValue))
+              .message(
+                  "Your verification code is: %s. It will expire in %d minutes."
+                      .formatted(code, otpValidityMinutes))
+              .verificationPurpose(purpose)
+              .verificationCode(code)
+              .createdAt(Instant.now())
+              .build();
       smsJobPublisherService.publish(job);
       return;
     }
 
     log.warn("Unsupported verification channel {}", channel);
+  }
+
+  private String stripLeadingPlus(String value) {
+    if (value == null || value.isBlank()) {
+      return value;
+    }
+    return value.startsWith("+") ? value.substring(1) : value;
   }
 }
