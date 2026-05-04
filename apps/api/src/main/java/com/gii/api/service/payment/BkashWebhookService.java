@@ -39,7 +39,7 @@ class BkashWebhookService {
   private final PaymentCallbackService paymentCallbackService;
   private final ObjectMapper objectMapper;
 
-  @Value("${payments.bkash.webhook-secret:}")
+  @Value("${payments.bkash.webhook-secret}")
   private String bkashWebhookSecret;
 
   WebhookAckResponse handle(Map<String, String> headers, String payload) {

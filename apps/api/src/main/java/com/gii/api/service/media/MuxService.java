@@ -66,12 +66,14 @@ public class MuxService implements MediaProviderService {
 
   private PrivateKey loadPrivateKey() {
     try {
-      String privateKey =
-              privateKeyPem
-                      .replace("\\n", "\n")
-                      .replace("-----BEGIN PRIVATE KEY-----", "")
-                      .replace("-----END PRIVATE KEY-----", "")
-                      .replaceAll("\\s", "");
+      String normalizedPem = privateKeyPem.replace("\\n", "\n");
+
+      String privateKey = normalizedPem
+              .replace("-----BEGIN PRIVATE KEY-----", "")
+              .replace("-----END PRIVATE KEY-----", "")
+              .replace("-----BEGIN RSA PRIVATE KEY-----", "")
+              .replace("-----END RSA PRIVATE KEY-----", "")
+              .replaceAll("\\s", "");
 
       byte[] decoded = Base64.getDecoder().decode(privateKey);
 
