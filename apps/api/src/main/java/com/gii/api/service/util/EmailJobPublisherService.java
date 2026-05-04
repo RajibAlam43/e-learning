@@ -21,7 +21,7 @@ public class EmailJobPublisherService {
   @Value("${email.jobs.main.queue}")
   private String emailQueue;
 
-  @Value("${email.jobs.publish-timeout-ms:5000}")
+  @Value("${email.jobs.publish-timeout-ms}")
   private long publishTimeoutMs;
 
   public void publish(EmailJobMessage message) {

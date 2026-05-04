@@ -40,10 +40,7 @@ public class BkashCheckoutService {
   @Value("${payments.bkash.app-secret}")
   private String appSecret;
 
-  @Value("${payments.bkash.intent:sale}")
-  private String intent;
-
-  @Value("${payments.bkash.timeout-ms:10000}")
+  @Value("${payments.bkash.timeout-ms}")
   private long timeoutMs;
 
   private String idToken;
@@ -59,7 +56,7 @@ public class BkashCheckoutService {
             Map.of(
                 "amount", order.getAmountBdt().toPlainString(),
                 "currency", order.getCurrency(),
-                "intent", intent,
+                "intent", "sale",
                 "merchantInvoiceNumber", order.getId().toString()));
     String paymentId = asString(response.get("paymentID"));
     require(!isBlank(paymentId), HttpStatus.BAD_REQUEST, "Invalid payment response");

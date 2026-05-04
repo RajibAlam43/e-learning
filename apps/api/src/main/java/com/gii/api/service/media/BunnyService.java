@@ -18,7 +18,7 @@ public class BunnyService implements MediaProviderService {
   @Value("${bunny.token-security-key}")
   private String tokenSecurityKey;
 
-  @Value("${bunny.playback-token-ttl-s:3600}")
+  @Value("${bunny.playback-token-ttl-s}")
   private long playbackTokenTtlSeconds;
 
   @Override

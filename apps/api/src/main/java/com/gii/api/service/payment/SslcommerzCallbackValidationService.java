@@ -31,8 +31,8 @@ public class SslcommerzCallbackValidationService {
   private final ObjectMapper objectMapper;
   private final WebClient.Builder webClientBuilder;
 
-  @Value("${payments.sslcommerz.validation-base-url}")
-  private String validationBaseUrl;
+  @Value("${payments.sslcommerz.validation-api-url}")
+  private String validationApiUrl;
 
   @Value("${payments.sslcommerz.store-id}")
   private String storeId;
@@ -44,16 +44,19 @@ public class SslcommerzCallbackValidationService {
   private long validationTimeoutMs;
 
   public void validateSuccessCallback(Order order, Map<String, String> callbackParams) {
-    String tranId = callbackParams.get("tran_id");
-    require(!isBlank(tranId), HttpStatus.BAD_REQUEST, "Invalid callback");
-    Map<String, String> validated = validateByTranId(tranId);
-    validateAgainstOrder(order, validated);
+    String valId = callbackParams.get("val_id");
+    if (isBlank(valId)) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid callback");
+    }
+    validateAgainstOrder(order, validateByValId(valId));
   }
 
   public void validateWebhookSignature(Map<String, String> callbackParams) {
     String verifyKey = callbackParams.get("verify_key");
     String verifySign = callbackParams.get("verify_sign");
-    require(!isBlank(verifyKey) && !isBlank(verifySign), HttpStatus.BAD_REQUEST, "Invalid callback");
+    if (isBlank(verifyKey) || isBlank(verifySign)) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid callback");
+    }
 
     List<String> fragments = new ArrayList<>();
     for (String key : verifyKey.split(",")) {
@@ -62,10 +65,14 @@ public class SslcommerzCallbackValidationService {
         continue;
       }
       String value = callbackParams.get(trimmed);
-      require(value != null, HttpStatus.BAD_REQUEST, "Invalid callback");
+      if (value == null) {
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid callback");
+      }
       fragments.add(trimmed + "=" + value);
     }
-    require(!fragments.isEmpty(), HttpStatus.BAD_REQUEST, "Invalid callback");
+    if (fragments.isEmpty()) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid callback");
+    }
 
     fragments.sort(Comparator.naturalOrder());
     String source = String.join("&", fragments) + "&store_passwd=" + md5Hex(storePassword == null ? "" : storePassword);
@@ -73,15 +80,20 @@ public class SslcommerzCallbackValidationService {
     boolean valid =
         MessageDigest.isEqual(
             computed.getBytes(StandardCharsets.UTF_8), verifySign.trim().toUpperCase().getBytes(StandardCharsets.UTF_8));
-    require(valid, HttpStatus.BAD_REQUEST, "Invalid callback");
+    if (!valid) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid callback");
+    }
   }
 
-  private Map<String, String> validateByTranId(String expectedTranId) {
+  private Map<String, Object> validateByValId(String valId) {
+    if (isBlank(validationApiUrl) || isBlank(storeId) || isBlank(storePassword)) {
+      throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "SSLCommerz is not configured");
+    }
     try {
       String url =
-          validationBaseUrl
-              + "/validator/api/merchantTransIDvalidationAPI.php?tran_id="
-              + encode(expectedTranId)
+          validationApiUrl
+              + "?val_id="
+              + encode(valId)
               + "&store_id="
               + encode(storeId)
               + "&store_passwd="
@@ -99,22 +111,10 @@ public class SslcommerzCallbackValidationService {
                           .defaultIfEmpty("")
                           .map(body -> new RawHttpResponse(clientResponse.statusCode().value(), body)))
               .block(Duration.ofMillis(validationTimeoutMs));
-      require(response != null && is2xx(response.statusCode()), HttpStatus.BAD_REQUEST, "Invalid callback");
-
-      Map<String, Object> body = objectMapper.readValue(response.body(), MAP_TYPE);
-      Object elementObj = body.get("element");
-      List<?> elements = elementObj instanceof List<?> list ? list : List.of();
-      for (Object item : elements) {
-        if (item instanceof Map<?, ?> raw) {
-          @SuppressWarnings("unchecked")
-          Map<String, String> candidate = (Map<String, String>) raw;
-          if (VALID_STATUSES.contains(normalize(candidate.get("status")))
-              && expectedTranId.equals(candidate.get("tran_id"))) {
-            return candidate;
-          }
-        }
+      if (response == null || response.statusCode() < 200 || response.statusCode() >= 300) {
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid callback");
       }
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid callback");
+      return objectMapper.readValue(response.body(), MAP_TYPE);
     } catch (Exception ex) {
       if (ex instanceof ResponseStatusException rse) {
         throw rse;
@@ -123,17 +123,48 @@ public class SslcommerzCallbackValidationService {
     }
   }
 
-  private void validateAgainstOrder(Order order, Map<String, String> validated) {
-    String transactionId = validated.get("tran_id");
-    String currency = validated.get("currency_type");
-    BigDecimal amount = new BigDecimal(validated.get("currency_amount"));
+  private void validateAgainstOrder(Order order, Map<String, Object> validated) {
+    String status = normalize(asString(validated.get("status")));
+    String tranId = asString(validated.get("tran_id"));
+    String currency = asString(validated.get("currency_type"));
+    if (isBlank(currency)) {
+      currency = asString(validated.get("currency"));
+    }
+    String amountRaw = asString(validated.get("amount"));
+    if (isBlank(amountRaw)) {
+      amountRaw = asString(validated.get("currency_amount"));
+    }
+    if (isBlank(amountRaw)) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid callback");
+    }
+    BigDecimal amount = new BigDecimal(amountRaw);
+
     boolean valid =
-        transactionId != null
-            && transactionId.equals(order.getProviderTxnId())
+        VALID_STATUSES.contains(status)
+            && tranId != null
+            && tranId.equals(order.getProviderTxnId())
             && currency != null
             && currency.equalsIgnoreCase(order.getCurrency())
             && order.getAmountBdt().subtract(amount).abs().compareTo(MAX_DIFF) < 0;
-    require(valid, HttpStatus.BAD_REQUEST, "Invalid callback");
+    if (!valid) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid callback");
+    }
+  }
+
+  private String encode(String value) {
+    return URLEncoder.encode(value, StandardCharsets.UTF_8);
+  }
+
+  private String normalize(String value) {
+    return value == null ? "" : value.trim().toUpperCase();
+  }
+
+  private String asString(Object value) {
+    return value == null ? null : String.valueOf(value);
+  }
+
+  private boolean isBlank(String value) {
+    return value == null || value.isBlank();
   }
 
   private String md5Hex(String input) {
@@ -147,28 +178,6 @@ public class SslcommerzCallbackValidationService {
       return sb.toString();
     } catch (Exception ex) {
       throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Signature check failed");
-    }
-  }
-
-  private String encode(String value) {
-    return URLEncoder.encode(value, StandardCharsets.UTF_8);
-  }
-
-  private String normalize(String value) {
-    return value == null ? "" : value.trim().toUpperCase();
-  }
-
-  private boolean isBlank(String value) {
-    return value == null || value.isBlank();
-  }
-
-  private boolean is2xx(int statusCode) {
-    return statusCode >= 200 && statusCode < 300;
-  }
-
-  private void require(boolean condition, HttpStatus status, String message) {
-    if (!condition) {
-      throw new ResponseStatusException(status, message);
     }
   }
 

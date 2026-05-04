@@ -140,7 +140,6 @@ class BkashCheckoutServiceTest {
     ReflectionTestUtils.setField(service, "appKey", "app-key");
     ReflectionTestUtils.setField(service, "appSecret", "app-secret");
     ReflectionTestUtils.setField(service, "timeoutMs", 3000L);
-    ReflectionTestUtils.setField(service, "intent", "sale");
     return service;
   }
 

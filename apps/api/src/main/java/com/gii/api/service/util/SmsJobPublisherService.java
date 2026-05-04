@@ -21,7 +21,7 @@ public class SmsJobPublisherService {
   @Value("${sms.jobs.main.queue}")
   private String smsQueue;
 
-  @Value("${sms.jobs.publish-timeout-ms:5000}")
+  @Value("${sms.jobs.publish-timeout-ms}")
   private long publishTimeoutMs;
 
   public void publish(SmsJobMessage message) {

@@ -42,20 +42,22 @@ class SslcommerzCallbackValidationServiceTest {
   void strictValidationShouldRejectLargeAmountMismatch() throws Exception {
     server = HttpServer.create(new InetSocketAddress(0), 0);
     server.createContext(
-        "/validator/api/merchantTransIDvalidationAPI.php",
+        "/validator/api/validationserverAPI.php",
         exchange ->
             writeJson(
                 exchange,
                 200,
-                "{\"APIConnect\":\"DONE\",\"no_of_trans_found\":1,\"element\":[{\"status\":\"VALID\",\"tran_id\":\"txn-1\",\"currency_type\":\"BDT\",\"currency_amount\":\"1000.50\"}]}"));
+                "{\"status\":\"VALID\",\"tran_id\":\"txn-1\",\"currency_type\":\"BDT\",\"amount\":\"1000.50\"}"));
     server.start();
 
     SslcommerzCallbackValidationService service = buildService();
     ReflectionTestUtils.setField(
-        service, "validationBaseUrl", "http://127.0.0.1:" + server.getAddress().getPort());
+        service,
+        "validationApiUrl",
+        "http://127.0.0.1:" + server.getAddress().getPort() + "/validator/api/validationserverAPI.php");
 
     Order order = sampleOrder("txn-1", new BigDecimal("1000.00"));
-    Map<String, String> params = callbackParams("txn-1", "1000.00", "BDT", "VALID");
+    Map<String, String> params = callbackParams("txn-1", "val-1", "1000.00", "BDT", "VALID");
 
     assertThatThrownBy(() -> service.validateSuccessCallback(order, params))
         .isInstanceOf(ResponseStatusException.class)
@@ -68,17 +70,17 @@ class SslcommerzCallbackValidationServiceTest {
   @Test
   void strictValidationShouldRequireBaseUrl() {
     SslcommerzCallbackValidationService service = buildService();
-    ReflectionTestUtils.setField(service, "validationBaseUrl", "");
+    ReflectionTestUtils.setField(service, "validationApiUrl", "");
 
     Order order = sampleOrder("txn-1", new BigDecimal("1000.00"));
-    Map<String, String> params = callbackParams("txn-1", "1000.00", "BDT", "VALID");
+    Map<String, String> params = callbackParams("txn-1", "val-1", "1000.00", "BDT", "VALID");
 
     assertThatThrownBy(() -> service.validateSuccessCallback(order, params))
         .isInstanceOf(ResponseStatusException.class)
         .satisfies(
             ex ->
                 assertThat(((ResponseStatusException) ex).getStatusCode())
-                    .isEqualTo(HttpStatus.BAD_REQUEST));
+                    .isEqualTo(HttpStatus.SERVICE_UNAVAILABLE));
   }
 
   @Test
@@ -115,7 +117,7 @@ class SslcommerzCallbackValidationServiceTest {
   private SslcommerzCallbackValidationService buildService() {
     SslcommerzCallbackValidationService service =
         new SslcommerzCallbackValidationService(new ObjectMapper(), WebClient.builder());
-    ReflectionTestUtils.setField(service, "validationBaseUrl", "http://127.0.0.1:0");
+    ReflectionTestUtils.setField(service, "validationApiUrl", "http://127.0.0.1:0/validator/api/validationserverAPI.php");
     ReflectionTestUtils.setField(service, "storeId", "store-id");
     ReflectionTestUtils.setField(service, "storePassword", "store-pass");
     ReflectionTestUtils.setField(service, "validationTimeoutMs", 3000L);
@@ -123,9 +125,10 @@ class SslcommerzCallbackValidationServiceTest {
   }
 
   private Map<String, String> callbackParams(
-      String tranId, String amount, String currency, String status) {
+      String tranId, String valId, String amount, String currency, String status) {
     Map<String, String> params = new HashMap<>();
     params.put("tran_id", tranId);
+    params.put("val_id", valId);
     params.put("status", status);
     params.put("amount", amount);
     params.put("currency", currency);

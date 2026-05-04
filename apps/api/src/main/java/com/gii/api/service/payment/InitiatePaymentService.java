@@ -29,6 +29,7 @@ public class InitiatePaymentService {
   private final CurrentUserService currentUserService;
   private final OrderRepository orderRepository;
   private final BkashCheckoutService bkashCheckoutService;
+  private final SslcommerzCheckoutService sslcommerzCheckoutService;
 
   public PaymentInitiationResponse execute(
       UUID orderId, InitiatePaymentRequest request, Authentication authentication) {
@@ -54,6 +55,18 @@ public class InitiatePaymentService {
       if (createResult.bkashUrl() != null && !createResult.bkashUrl().isBlank()) {
         redirectUrl = createResult.bkashUrl();
       }
+    } else if (request.provider() == OrderProvider.SSLCOMMERZ) {
+      if (sslcommerzCheckoutService.isConfigured()) {
+        String customerEmail =
+            firstNonBlank(request.customerEmail(), order.getUser().getEmail());
+        String customerPhone =
+            firstNonBlank(request.customerPhone(), order.getUser().getPhone());
+        SslcommerzCheckoutService.InitiationResult result =
+            sslcommerzCheckoutService.createSession(
+                order, order.getUser().getFullName(), customerEmail, customerPhone);
+        sessionId = result.tranId();
+        redirectUrl = result.gatewayPageUrl();
+      }
     }
 
     order.setProvider(request.provider());
@@ -72,5 +85,15 @@ public class InitiatePaymentService {
         .successCallbackUrl("/payments/" + order.getId() + "/success")
         .failureCallbackUrl("/payments/" + order.getId() + "/failed")
         .build();
+  }
+
+  private String firstNonBlank(String first, String second) {
+    if (first != null && !first.isBlank()) {
+      return first;
+    }
+    if (second != null && !second.isBlank()) {
+      return second;
+    }
+    return null;
   }
 }
