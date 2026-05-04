@@ -2,6 +2,7 @@ package com.gii.api.service.student;
 
 import com.gii.api.model.response.student.StudentCourseHomeResponse;
 import com.gii.api.model.response.student.StudentLessonHomeResponse;
+import com.gii.api.model.response.student.StudentQuizHomeResponse;
 import com.gii.api.model.response.student.StudentSectionHomeResponse;
 import com.gii.api.service.enrollment.CurrentUserService;
 import com.gii.common.entity.certificate.Certificate;
@@ -11,6 +12,7 @@ import com.gii.common.entity.course.CourseSection;
 import com.gii.common.entity.course.Lesson;
 import com.gii.common.entity.enrollment.Enrollment;
 import com.gii.common.entity.enrollment.LessonProgress;
+import com.gii.common.entity.quiz.Quiz;
 import com.gii.common.enums.EnrollmentStatus;
 import com.gii.common.enums.InstructorRole;
 import com.gii.common.enums.PublishStatus;
@@ -20,6 +22,7 @@ import com.gii.common.repository.course.CourseSectionRepository;
 import com.gii.common.repository.course.LessonRepository;
 import com.gii.common.repository.enrollment.EnrollmentRepository;
 import com.gii.common.repository.enrollment.LessonProgressRepository;
+import com.gii.common.repository.quiz.QuizRepository;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
@@ -45,6 +48,7 @@ public class EnrolledCourseDetailsService {
   private final CourseSectionRepository courseSectionRepository;
   private final CourseInstructorRepository courseInstructorRepository;
   private final CertificateRepository certificateRepository;
+  private final QuizRepository quizRepository;
 
   public StudentCourseHomeResponse execute(UUID courseId, Authentication authentication) {
     UUID userId = currentUserService.getCurrentUserId(authentication);
@@ -64,6 +68,8 @@ public class EnrolledCourseDetailsService {
     List<Lesson> lessons =
         lessonRepository.findByCourseIdAndStatusWithMediaOrderByPositionAsc(
             courseId, PublishStatus.PUBLISHED);
+    List<Quiz> quizzes =
+        quizRepository.findByCourseIdAndStatusOrderByPositionAsc(courseId, PublishStatus.PUBLISHED);
     List<LessonProgress> progresses =
         lessonProgressRepository.findByUserIdAndLessonCourseId(userId, courseId);
 
@@ -82,6 +88,9 @@ public class EnrolledCourseDetailsService {
     Map<UUID, List<Lesson>> lessonsBySectionId =
         lessons.stream()
             .collect(java.util.stream.Collectors.groupingBy(l -> l.getSection().getId()));
+    Map<UUID, List<Quiz>> quizzesBySectionId =
+        quizzes.stream()
+            .collect(java.util.stream.Collectors.groupingBy(q -> q.getSection().getId()));
 
     List<StudentSectionHomeResponse> sectionResponses =
         sections.stream()
@@ -90,6 +99,7 @@ public class EnrolledCourseDetailsService {
                     toSectionHome(
                         section,
                         lessonsBySectionId.getOrDefault(section.getId(), List.of()),
+                        quizzesBySectionId.getOrDefault(section.getId(), List.of()),
                         progressByLessonId))
             .toList();
 
@@ -124,7 +134,10 @@ public class EnrolledCourseDetailsService {
   }
 
   private StudentSectionHomeResponse toSectionHome(
-      CourseSection section, List<Lesson> lessons, Map<UUID, LessonProgress> progressByLessonId) {
+      CourseSection section,
+      List<Lesson> lessons,
+      List<Quiz> quizzes,
+      Map<UUID, LessonProgress> progressByLessonId) {
     int totalLessons = lessons.size();
     int completedLessons =
         (int)
@@ -170,6 +183,21 @@ public class EnrolledCourseDetailsService {
         .isAccessible(true)
         .accessReason("AVAILABLE")
         .lessons(lessonResponses)
+        .quizzes(
+            quizzes.stream()
+                .map(
+                    quiz ->
+                        StudentQuizHomeResponse.builder()
+                            .quizId(quiz.getId())
+                            .quizTitle(quiz.getTitle())
+                            .position(quiz.getPosition())
+                            .isAccessible(true)
+                            .accessReason("AVAILABLE")
+                            .passingScorePct(quiz.getPassingScorePct())
+                            .maxAttempts(quiz.getMaxAttempts())
+                            .timeLimitSec(quiz.getTimeLimitSec())
+                            .build())
+                .toList())
         .build();
   }
 
