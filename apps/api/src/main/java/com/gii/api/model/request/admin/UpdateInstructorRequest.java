@@ -8,7 +8,6 @@ public record UpdateInstructorRequest(
     String fullName,
     String email,
     String phone,
-    String phoneCountryCode,
     String displayName,
     String headline,
     String institution,

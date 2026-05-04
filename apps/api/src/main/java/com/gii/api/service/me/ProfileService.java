@@ -184,7 +184,6 @@ public class ProfileService {
         .fullName(user.getFullName())
         .email(user.getEmail())
         .phone(user.getPhone())
-        .phoneCountryCode(user.getPhoneCountryCode())
         .status(user.getStatus().name())
         .emailVerified(user.getEmailVerifiedAt() != null)
         .phoneVerified(user.getPhoneVerifiedAt() != null)
