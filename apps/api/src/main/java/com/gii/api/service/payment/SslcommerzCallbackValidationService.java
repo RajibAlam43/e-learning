@@ -167,6 +167,7 @@ public class SslcommerzCallbackValidationService {
     return value == null || value.isBlank();
   }
 
+  @SuppressWarnings("java:S4790") // SSLCommerz verify_sign contract requires MD5 hashing.
   private String md5Hex(String input) {
     try {
       MessageDigest md = MessageDigest.getInstance("MD5");
