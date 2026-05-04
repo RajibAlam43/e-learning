@@ -22,9 +22,9 @@ dependencies {
     runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.13.0'
 
     // SQS
-    implementation 'io.awspring.cloud:spring-cloud-aws-starter-sqs:4.0.1'
-    implementation 'io.awspring.cloud:spring-cloud-aws-starter:4.0.1'
-    implementation 'software.amazon.awssdk:s3:2.42.41'
+    implementation 'io.awspring.cloud:spring-cloud-aws-starter-sqs:4.0.2'
+    implementation 'io.awspring.cloud:spring-cloud-aws-starter:4.0.2'
+    implementation 'software.amazon.awssdk:s3:2.44.0'
 
     // POSTGRESQL
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
@@ -39,7 +39,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-cache'
 
     // OTHERS
-    implementation 'org.projectlombok:lombok:1.18.44'
+    implementation 'org.projectlombok:lombok:1.18.46'
     implementation 'org.jetbrains:annotations:26.1.0'
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3'
     implementation 'com.googlecode.libphonenumber:libphonenumber:9.0.29'
