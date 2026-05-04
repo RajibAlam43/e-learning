@@ -9,7 +9,6 @@ import lombok.Builder;
 public record RegisterRequest(
     @NotBlank String fullName,
     @Email String email, // Optional, but at least one of email/phone required
-    @Pattern(regexp = "^\\+?[1-9]\\d{1,14}$")
-        String phoneNumber, // Optional, E.164 format, but at least one of email/phone required
-    String phoneCountryCode, // e.g., "+880" for BD
+    @Pattern(regexp = "^[0-9+\\-\\s()]+$")
+        String phoneNumber, // Optional, but at least one of email/phone required
     @NotBlank String password) {}

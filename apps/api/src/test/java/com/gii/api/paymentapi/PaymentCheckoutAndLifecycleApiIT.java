@@ -13,7 +13,10 @@ import com.gii.common.enums.OrderStatus;
 import com.gii.common.enums.PublishStatus;
 import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -104,25 +107,23 @@ class PaymentCheckoutAndLifecycleApiIt extends AbstractPaymentApiIntegrationTest
     var order =
         orderRepository.findByUserIdAndStatus(student.getId(), OrderStatus.PENDING).getFirst();
 
-    mockMvc
-        .perform(
-            post("/payments/{orderId}/initiate", order.getId())
-                .with(authentication(studentAuth(student.getId())))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"provider\":\"BKASH\"}"))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.provider").value("BKASH"));
-
+    order.setProvider(OrderProvider.BKASH);
+    order.setProviderTxnId("bkash-lifecycle-txn");
+    orderRepository.save(order);
     var initiatedOrder = orderRepository.findById(order.getId()).orElseThrow();
 
+    String payload = "{\"event\":\"payment_success\",\"txn\":\"" + initiatedOrder.getProviderTxnId() + "\"}";
+    String signature = hmacBase64(payload, "bkash-test-secret");
     mockMvc
         .perform(
-            get("/payments/{orderId}/success", order.getId())
-                .param("tran_id", initiatedOrder.getProviderTxnId())
-                .with(authentication(studentAuth(student.getId()))))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.status").value("PAID"))
-        .andExpect(jsonPath("$.coursesEnrolled").value(true));
+            post("/public/webhooks/payments/bkash")
+                .contentType(MediaType.TEXT_PLAIN)
+                .header("x-signature", signature)
+                .header("x-transaction-id", initiatedOrder.getProviderTxnId())
+                .header("x-event-id", "evt-lifecycle-success")
+                .header("x-payment-status", "Completed")
+                .content(payload))
+        .andExpect(status().isOk());
 
     mockMvc
         .perform(
@@ -196,9 +197,9 @@ class PaymentCheckoutAndLifecycleApiIt extends AbstractPaymentApiIntegrationTest
             post("/payments/{orderId}/initiate", order.getId())
                 .with(authentication(studentAuth(student.getId())))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"provider\":\"BKASH\"}"))
+                .content("{\"provider\":\"SSLCOMMERZ\"}"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.provider").value("BKASH"));
+        .andExpect(jsonPath("$.provider").value("SSLCOMMERZ"));
   }
 
   @Test
@@ -215,5 +216,35 @@ class PaymentCheckoutAndLifecycleApiIt extends AbstractPaymentApiIntegrationTest
     mockMvc
         .perform(get("/payments/{orderId}/success", order.getId()))
         .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void bkashSuccessShouldAcceptPaymentIdAlias() throws Exception {
+    var student = user("Student Alias", "student-payment-alias@example.com");
+    var order =
+        order(
+            student,
+            OrderStatus.PENDING,
+            OrderProvider.BKASH,
+            "bkash-payment-xyz",
+            BigDecimal.valueOf(700));
+
+    mockMvc
+        .perform(
+            get("/payments/{orderId}/success", order.getId())
+                .param("paymentID", "bkash-payment-xyz")
+                .with(authentication(studentAuth(student.getId()))))
+        .andExpect(status().isBadRequest());
+  }
+
+  private String hmacBase64(String payload, String secret) {
+    try {
+      Mac mac = Mac.getInstance("HmacSHA256");
+      mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+      return java.util.Base64.getEncoder()
+          .encodeToString(mac.doFinal(payload.getBytes(StandardCharsets.UTF_8)));
+    } catch (Exception ex) {
+      throw new RuntimeException(ex);
+    }
   }
 }

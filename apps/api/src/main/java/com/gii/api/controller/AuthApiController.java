@@ -56,9 +56,9 @@ public class AuthApiController implements AuthApi {
     return ResponseEntity.ok().build();
   }
 
-  public ResponseEntity<@NotNull Void> resetPassword(@RequestBody ResetPasswordRequest request) {
-    resetPasswordService.execute(request);
-    return ResponseEntity.ok().build();
+  public ResponseEntity<@NotNull AuthResponse> resetPassword(
+      @RequestBody ResetPasswordRequest request, HttpServletResponse response) {
+    return ResponseEntity.ok(resetPasswordService.execute(request, response));
   }
 
   public ResponseEntity<@NotNull Void> sendVerification(
@@ -67,9 +67,9 @@ public class AuthApiController implements AuthApi {
     return ResponseEntity.ok().build();
   }
 
-  public ResponseEntity<@NotNull Void> verify(@RequestBody VerifyRequest request) {
-    verifyService.execute(request);
-    return ResponseEntity.ok().build();
+  public ResponseEntity<@NotNull AuthResponse> verify(
+      @RequestBody VerifyRequest request, HttpServletResponse response) {
+    return ResponseEntity.ok(verifyService.execute(request, response));
   }
 
   public ResponseEntity<@NotNull Void> logout(

@@ -4,6 +4,7 @@ import com.gii.api.model.request.payment.InitiatePaymentRequest;
 import com.gii.api.model.response.payment.PaymentInitiationResponse;
 import com.gii.api.service.enrollment.CurrentUserService;
 import com.gii.common.entity.order.Order;
+import com.gii.common.enums.OrderProvider;
 import com.gii.common.enums.OrderStatus;
 import com.gii.common.repository.order.OrderRepository;
 import java.time.Duration;
@@ -27,6 +28,8 @@ public class InitiatePaymentService {
 
   private final CurrentUserService currentUserService;
   private final OrderRepository orderRepository;
+  private final BkashCheckoutService bkashCheckoutService;
+  private final SslcommerzCheckoutService sslcommerzCheckoutService;
 
   public PaymentInitiationResponse execute(
       UUID orderId, InitiatePaymentRequest request, Authentication authentication) {
@@ -44,12 +47,31 @@ public class InitiatePaymentService {
     }
 
     String sessionId = "pay_" + UUID.randomUUID();
+    String redirectUrl = "/payments/" + order.getId() + "/gateway/" + request.provider().name().toLowerCase();
+
+    if (request.provider() == OrderProvider.BKASH) {
+      BkashCheckoutService.CreatePaymentResult createResult = bkashCheckoutService.createPayment(order);
+      sessionId = createResult.paymentId();
+      if (createResult.bkashUrl() != null && !createResult.bkashUrl().isBlank()) {
+        redirectUrl = createResult.bkashUrl();
+      }
+    } else if (request.provider() == OrderProvider.SSLCOMMERZ) {
+      if (sslcommerzCheckoutService.isConfigured()) {
+        String customerEmail =
+            firstNonBlank(request.customerEmail(), order.getUser().getEmail());
+        String customerPhone =
+            firstNonBlank(request.customerPhone(), order.getUser().getPhone());
+        SslcommerzCheckoutService.InitiationResult result =
+            sslcommerzCheckoutService.createSession(
+                order, order.getUser().getFullName(), customerEmail, customerPhone);
+        sessionId = result.tranId();
+        redirectUrl = result.gatewayPageUrl();
+      }
+    }
+
     order.setProvider(request.provider());
     order.setProviderTxnId(sessionId);
     orderRepository.save(order);
-
-    String redirectUrl =
-        "/payments/" + order.getId() + "/gateway/" + request.provider().name().toLowerCase();
     return PaymentInitiationResponse.builder()
         .orderId(order.getId())
         .provider(order.getProvider())
@@ -63,5 +85,15 @@ public class InitiatePaymentService {
         .successCallbackUrl("/payments/" + order.getId() + "/success")
         .failureCallbackUrl("/payments/" + order.getId() + "/failed")
         .build();
+  }
+
+  private String firstNonBlank(String first, String second) {
+    if (first != null && !first.isBlank()) {
+      return first;
+    }
+    if (second != null && !second.isBlank()) {
+      return second;
+    }
+    return null;
   }
 }

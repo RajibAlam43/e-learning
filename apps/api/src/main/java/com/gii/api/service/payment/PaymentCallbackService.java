@@ -6,6 +6,7 @@ import com.gii.common.entity.order.Order;
 import com.gii.common.entity.order.OrderItem;
 import com.gii.common.entity.order.PaymentEvent;
 import com.gii.common.enums.EnrollmentStatus;
+import com.gii.common.enums.OrderProvider;
 import com.gii.common.enums.OrderStatus;
 import com.gii.common.enums.PaymentEventStatus;
 import com.gii.common.repository.enrollment.EnrollmentRepository;
@@ -13,6 +14,7 @@ import com.gii.common.repository.order.OrderItemRepository;
 import com.gii.common.repository.order.OrderRepository;
 import com.gii.common.repository.order.PaymentEventRepository;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -30,18 +32,48 @@ public class PaymentCallbackService {
   private final OrderItemRepository orderItemRepository;
   private final EnrollmentRepository enrollmentRepository;
   private final PaymentEventRepository paymentEventRepository;
+  private final SslcommerzCallbackValidationService sslcommerzCallbackValidationService;
+  private final BkashCheckoutService bkashCheckoutService;
 
   public PaymentStatusResponse success(UUID orderId, Map<String, String> queryParams) {
     String providerEventId =
-        firstNonBlank(queryParams.get("tran_id"), queryParams.get("payment_id"));
+        firstNonBlank(
+            queryParams.get("tran_id"),
+            queryParams.get("payment_id"),
+            queryParams.get("paymentID"));
     if (providerEventId == null) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "Missing required callback transaction identifier");
     }
     Order order = requireOrder(orderId);
     validateProviderTransactionId(order, providerEventId);
+    if (order.getProvider() == OrderProvider.SSLCOMMERZ) {
+      sslcommerzCallbackValidationService.validateSuccessCallback(order, queryParams);
+    } else if (order.getProvider() == OrderProvider.BKASH) {
+      bkashCheckoutService.validateSuccessCallback(order, queryParams);
+    }
     recordCallbackEvent(order, "callback_success", queryParams, PaymentEventStatus.PROCESSED);
+    PaymentStatusResponse response = markPaidAndBuildResponse(order);
+    grantEnrollmentsForPaidOrder(order.getId());
+    return response;
+  }
 
+  public PaymentStatusResponse successFromVerifiedWebhook(UUID orderId, Map<String, String> params) {
+    String providerEventId =
+        firstNonBlank(params.get("tran_id"), params.get("payment_id"), params.get("paymentID"));
+    if (providerEventId == null) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Missing required webhook transaction identifier");
+    }
+    Order order = requireOrder(orderId);
+    validateProviderTransactionId(order, providerEventId);
+    recordCallbackEvent(order, "webhook_success", params, PaymentEventStatus.PROCESSED);
+    PaymentStatusResponse response = markPaidAndBuildResponse(order);
+    grantEnrollmentsForPaidOrder(order.getId());
+    return response;
+  }
+
+  private PaymentStatusResponse markPaidAndBuildResponse(Order order) {
     // Idempotent success transition.
     if (order.getStatus() == OrderStatus.PAID) {
       return toStatus(order);
@@ -55,14 +87,24 @@ public class PaymentCallbackService {
       order.setPaidAt(Instant.now());
     }
     Order savedOrder = orderRepository.save(order);
-    grantEnrollments(savedOrder);
     return toStatus(savedOrder);
+  }
+
+  public void grantEnrollmentsForPaidOrder(UUID orderId) {
+    Order order = requireOrder(orderId);
+    if (order.getStatus() != OrderStatus.PAID) {
+      return;
+    }
+    grantEnrollments(order);
   }
 
   public PaymentStatusResponse failed(UUID orderId, Map<String, String> queryParams) {
     Order order = requireOrder(orderId);
     String providerEventId =
-        firstNonBlank(queryParams.get("tran_id"), queryParams.get("payment_id"));
+        firstNonBlank(
+            queryParams.get("tran_id"),
+            queryParams.get("payment_id"),
+            queryParams.get("paymentID"));
     validateProviderTransactionId(order, providerEventId);
     recordCallbackEvent(order, "callback_failed", queryParams, PaymentEventStatus.PROCESSED);
     if (order.getStatus() == OrderStatus.PENDING) {
@@ -75,7 +117,10 @@ public class PaymentCallbackService {
   public PaymentStatusResponse cancelled(UUID orderId, Map<String, String> queryParams) {
     Order order = requireOrder(orderId);
     String providerEventId =
-        firstNonBlank(queryParams.get("tran_id"), queryParams.get("payment_id"));
+        firstNonBlank(
+            queryParams.get("tran_id"),
+            queryParams.get("payment_id"),
+            queryParams.get("paymentID"));
     validateProviderTransactionId(order, providerEventId);
     recordCallbackEvent(order, "callback_cancelled", queryParams, PaymentEventStatus.PROCESSED);
     if (order.getStatus() == OrderStatus.PENDING) {
@@ -149,9 +194,11 @@ public class PaymentCallbackService {
   }
 
   private PaymentStatusResponse toStatus(Order order) {
+    List<OrderItem> items = orderItemRepository.findByOrderId(order.getId());
+    int itemCount = items.size();
     int enrolledCount =
         (int)
-            orderItemRepository.findByOrderId(order.getId()).stream()
+            items.stream()
                 .filter(
                     item ->
                         enrollmentRepository.existsByUserIdAndCourseIdAndStatus(
@@ -171,7 +218,7 @@ public class PaymentCallbackService {
         .refundedAt(order.getRefundedAt())
         .customerEmail(order.getUser().getEmail())
         .customerPhone(order.getUser().getPhone())
-        .coursesEnrolled(order.getStatus() == OrderStatus.PAID)
+        .coursesEnrolled(enrolledCount == itemCount && itemCount > 0)
         .enrolledCourseCount(enrolledCount)
         .nextAction(
             order.getStatus() == OrderStatus.PAID ? "REDIRECT_TO_DASHBOARD" : "INITIATE_PAYMENT")

@@ -22,6 +22,24 @@ abstract class AbstractPaymentApiIntegrationTest extends PaymentApiTestSupport {
     registry.add("spring.flyway.enabled", () -> "true");
     registry.add("app.jwt.secret", () -> "dGVzdF9zZWNyZXRfdGVzdF9zZWNyZXRfdGVzdF9zZWNyZXRfMTIz");
     registry.add("app.jwt.access-token-expiration-ms", () -> "900000");
+    registry.add("mux.signing-key-id", () -> "test-mux-signing-key");
+    registry.add("mux.private-key-pem", () -> "test-mux-private-key");
+    registry.add("bunny.token-security-key", () -> "test-bunny-key");
+    registry.add("storage.r2.account-id", () -> "test-r2-account");
+    registry.add("storage.r2.access-key-id", () -> "test-r2-access");
+    registry.add("storage.r2.secret-access-key", () -> "test-r2-secret");
+    registry.add("storage.r2.bucket", () -> "test-r2-bucket");
+    registry.add("payments.callback-base-url", () -> "");
+    registry.add("payments.sslcommerz.session-api-url", () -> "");
+    registry.add(
+        "payments.sslcommerz.validation-api-url",
+        () -> "http://127.0.0.1:9/validator/api/validationserverAPI.php");
+    registry.add("payments.sslcommerz.store-id", () -> "test-store");
+    registry.add("payments.sslcommerz.store-password", () -> "test-password");
+    registry.add("payments.bkash.username", () -> "test-user");
+    registry.add("payments.bkash.password", () -> "test-pass");
+    registry.add("payments.bkash.app-key", () -> "test-app-key");
+    registry.add("payments.bkash.app-secret", () -> "test-app-secret");
     registry.add("payments.sslcommerz.webhook-secret", () -> "ssl-test-secret");
     registry.add("payments.bkash.webhook-secret", () -> "bkash-test-secret");
   }

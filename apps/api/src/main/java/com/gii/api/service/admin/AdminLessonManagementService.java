@@ -144,6 +144,26 @@ public class AdminLessonManagementService {
     lessonRepository.delete(lesson);
   }
 
+  public void publish(UUID lessonId) {
+    Lesson lesson =
+        lessonRepository
+            .findById(lessonId)
+            .orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lesson not found"));
+    lesson.setStatus(PublishStatus.PUBLISHED);
+    lessonRepository.save(lesson);
+  }
+
+  public void unpublish(UUID lessonId) {
+    Lesson lesson =
+        lessonRepository
+            .findById(lessonId)
+            .orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lesson not found"));
+    lesson.setStatus(PublishStatus.DRAFT);
+    lessonRepository.save(lesson);
+  }
+
   private void ensurePositionAvailable(
       UUID sectionId, Integer requestedPosition, UUID currentLessonId) {
     if (requestedPosition == null || requestedPosition <= 0) {

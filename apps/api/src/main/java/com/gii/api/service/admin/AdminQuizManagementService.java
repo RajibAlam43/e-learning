@@ -150,6 +150,15 @@ public class AdminQuizManagementService {
     quizRepository.save(quiz);
   }
 
+  public void unpublish(UUID quizId) {
+    Quiz quiz =
+        quizRepository
+            .findById(quizId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Quiz not found"));
+    quiz.setStatus(PublishStatus.DRAFT);
+    quizRepository.save(quiz);
+  }
+
   private void createQuestions(Quiz quiz, List<CreateQuizQuestionRequest> questionRequests) {
     for (CreateQuizQuestionRequest request : questionRequests) {
       QuizQuestion question =

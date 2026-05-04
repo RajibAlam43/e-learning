@@ -12,6 +12,10 @@ import com.gii.common.enums.OrderStatus;
 import com.gii.common.enums.PublishStatus;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.junit.jupiter.api.AfterEach;
@@ -55,11 +59,14 @@ class PaymentOrderingAndConsistencyApiIt extends AbstractPaymentApiIntegrationTe
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("FAILED"));
 
+    String payload = signedSslPayload("tran_id=txn-ordering-1&status=VALID&val_id=val-ordering-1");
     mockMvc
         .perform(
-            get("/payments/{orderId}/success", order.getId()).param("tran_id", "txn-ordering-1"))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.status").value("PAID"));
+            post("/public/webhooks/payments/sslcommerz")
+                .contentType(MediaType.TEXT_PLAIN)
+                .header("x-event-id", "evt-ordering-1")
+                .content(payload))
+        .andExpect(status().isOk());
 
     assertThat(orderRepository.findById(order.getId()).orElseThrow().getStatus())
         .isEqualTo(OrderStatus.PAID);
@@ -96,11 +103,18 @@ class PaymentOrderingAndConsistencyApiIt extends AbstractPaymentApiIntegrationTe
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("CANCELLED"));
 
+    String payload = "{\"event\":\"payment_success\",\"txn\":\"txn-ordering-2\"}";
+    String signature = hmacBase64(payload, "bkash-test-secret");
     mockMvc
         .perform(
-            get("/payments/{orderId}/success", order.getId()).param("payment_id", "txn-ordering-2"))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.status").value("PAID"));
+            post("/public/webhooks/payments/bkash")
+                .contentType(MediaType.TEXT_PLAIN)
+                .header("x-signature", signature)
+                .header("x-transaction-id", "txn-ordering-2")
+                .header("x-event-id", "evt-ordering-2")
+                .header("x-payment-status", "Completed")
+                .content(payload))
+        .andExpect(status().isOk());
 
     assertThat(orderRepository.findById(order.getId()).orElseThrow().getStatus())
         .isEqualTo(OrderStatus.PAID);
@@ -146,23 +160,16 @@ class PaymentOrderingAndConsistencyApiIt extends AbstractPaymentApiIntegrationTe
             BigDecimal.valueOf(1300));
     orderItem(order, course, BigDecimal.valueOf(1300), BigDecimal.ZERO);
 
-    String payload = "{\"event\":\"payment\",\"txn\":\"txn-ordering-4\"}";
-    String signature = hmacBase64(payload, "ssl-test-secret");
+    String payload = signedSslPayload("tran_id=txn-ordering-4&status=VALID&val_id=val-ordering-4");
     mockMvc
         .perform(
             post("/public/webhooks/payments/sslcommerz")
                 .contentType(MediaType.TEXT_PLAIN)
-                .header("x-signature", signature)
-                .header("x-transaction-id", "txn-ordering-4")
                 .header("x-event-id", "evt-ordering-4")
                 .content(payload))
         .andExpect(status().isOk());
-
-    mockMvc
-        .perform(
-            get("/payments/{orderId}/success", order.getId()).param("tran_id", "txn-ordering-4"))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.status").value("PAID"));
+    assertThat(orderRepository.findById(order.getId()).orElseThrow().getStatus())
+        .isEqualTo(OrderStatus.PAID);
   }
 
   private String hmacBase64(String payload, String secret) {
@@ -171,6 +178,42 @@ class PaymentOrderingAndConsistencyApiIt extends AbstractPaymentApiIntegrationTe
       mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
       return java.util.Base64.getEncoder()
           .encodeToString(mac.doFinal(payload.getBytes(StandardCharsets.UTF_8)));
+    } catch (Exception ex) {
+      throw new RuntimeException(ex);
+    }
+  }
+
+  private String signedSslPayload(String basePayload) {
+    String verifyKey = "status,tran_id,val_id";
+    String signSource = signSource(basePayload, verifyKey);
+    String verifySign = md5Hex(signSource + "&store_passwd=" + md5Hex("test-password")).toUpperCase();
+    return basePayload + "&verify_key=" + verifyKey + "&verify_sign=" + verifySign;
+  }
+
+  private String signSource(String payload, String verifyKey) {
+    List<String> fragments = new ArrayList<>();
+    String[] pairs = payload.split("&");
+    for (String key : verifyKey.split(",")) {
+      for (String pair : pairs) {
+        if (pair.startsWith(key + "=")) {
+          fragments.add(pair);
+          break;
+        }
+      }
+    }
+    fragments.sort(Comparator.naturalOrder());
+    return String.join("&", fragments);
+  }
+
+  private String md5Hex(String input) {
+    try {
+      MessageDigest md = MessageDigest.getInstance("MD5");
+      byte[] digest = md.digest(input.getBytes(StandardCharsets.UTF_8));
+      StringBuilder sb = new StringBuilder(digest.length * 2);
+      for (byte b : digest) {
+        sb.append(String.format("%02x", b));
+      }
+      return sb.toString();
     } catch (Exception ex) {
       throw new RuntimeException(ex);
     }

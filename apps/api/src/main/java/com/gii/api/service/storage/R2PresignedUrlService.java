@@ -24,12 +24,12 @@ public class R2PresignedUrlService {
   private final String region;
 
   public R2PresignedUrlService(
-      @Value("${storage.r2.account-id:}") String accountId,
-      @Value("${storage.r2.access-key-id:}") String accessKeyId,
-      @Value("${storage.r2.secret-access-key:}") String secretAccessKey,
-      @Value("${storage.r2.bucket:}") String bucket,
-      @Value("${storage.r2.download-url-ttl-seconds:600}") long downloadTtlSeconds,
-      @Value("${storage.r2.region:auto}") String region) {
+      @Value("${storage.r2.account-id}") String accountId,
+      @Value("${storage.r2.access-key-id}") String accessKeyId,
+      @Value("${storage.r2.secret-access-key}") String secretAccessKey,
+      @Value("${storage.r2.bucket}") String bucket,
+      @Value("${storage.r2.download-url-ttl-seconds}") long downloadTtlSeconds,
+      @Value("${storage.r2.region}") String region) {
     this.accountId = accountId;
     this.accessKeyId = accessKeyId;
     this.secretAccessKey = secretAccessKey;

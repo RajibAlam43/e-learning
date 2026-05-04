@@ -6,6 +6,7 @@ import com.gii.api.exception.BadRequestApiException;
 import com.gii.api.exception.ConflictApiException;
 import com.gii.api.model.request.auth.RegisterRequest;
 import com.gii.api.model.response.auth.RegisterResponse;
+import com.gii.api.service.util.IdentifierNormalizationUtil;
 import com.gii.common.entity.user.Role;
 import com.gii.common.entity.user.User;
 import com.gii.common.entity.user.UserRole;
@@ -15,7 +16,6 @@ import com.gii.common.enums.VerificationPurpose;
 import com.gii.common.repository.user.RoleRepository;
 import com.gii.common.repository.user.UserRepository;
 import com.gii.common.repository.user.UserRoleRepository;
-import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -57,18 +57,12 @@ public class RegisterService {
       throw new ConflictApiException("Phone number already in use");
     }
 
-    String countryCode = normalizeCountryCode(request.phoneCountryCode());
-    if (phone != null && countryCode == null) {
-      throw new BadRequestApiException("Country code is required when phone number is provided");
-    }
-
     // Create user with NOT verified status
     User user =
         User.builder()
             .fullName(request.fullName())
             .email(email)
             .phone(phone)
-            .phoneCountryCode(countryCode)
             .passwordHash(passwordEncoder.encode(request.password()))
             .build();
 
@@ -116,17 +110,6 @@ public class RegisterService {
       return null;
     }
 
-    return switch (channel) {
-      case EMAIL -> value.toLowerCase(Locale.ROOT);
-      case PHONE -> value.replaceAll("[^0-9]", "");
-    };
-  }
-
-  private String normalizeCountryCode(String countryCode) {
-    if (countryCode == null) {
-      return null;
-    }
-    String digits = countryCode.replaceAll("[^0-9]", "");
-    return digits.isEmpty() ? null : "+" + digits;
+    return IdentifierNormalizationUtil.normalizeIdentifier(channel, value);
   }
 }

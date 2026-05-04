@@ -5,8 +5,10 @@ import com.gii.api.exception.ForbiddenApiException;
 import com.gii.api.exception.TooManyRequestsApiException;
 import com.gii.api.service.util.EmailJobPublisherService;
 import com.gii.api.service.util.IdentifierNormalizationUtil;
+import com.gii.api.service.util.SmsJobPublisherService;
 import com.gii.api.service.util.TokenHashUtil;
 import com.gii.common.dto.EmailJobMessage;
+import com.gii.common.dto.SmsJobMessage;
 import com.gii.common.entity.user.User;
 import com.gii.common.entity.user.VerificationCode;
 import com.gii.common.enums.EmailJobType;
@@ -37,14 +39,15 @@ public class VerificationCodeService {
   private final UserRepository userRepository;
   private final PasswordEncoder passwordEncoder;
   private final EmailJobPublisherService emailJobPublisherService;
+  private final SmsJobPublisherService smsJobPublisherService;
 
-  @Value("${otp.validity.minutes:15}")
+  @Value("${otp.validity.minutes}")
   private int otpValidityMinutes;
 
-  @Value("${otp.max-attempts:3}")
+  @Value("${otp.max-attempts}")
   private int maxAttempts;
 
-  @Value("${otp.rate-limit.seconds:30}")
+  @Value("${otp.rate-limit.seconds}")
   private int rateLimitSeconds;
 
   private static final SecureRandom RANDOM = new SecureRandom();
@@ -221,26 +224,49 @@ public class VerificationCodeService {
   private void queueOtpSend(
       UUID userId,
       VerificationChannel channel, String channelValue, String code, VerificationPurpose purpose) {
-    if (channel != VerificationChannel.EMAIL) {
-      log.info("Skipping email job publish for non-email channel {}", channel);
+    if (channel == VerificationChannel.EMAIL) {
+      EmailJobMessage job =
+          EmailJobMessage.builder()
+              .userId(userId)
+              .jobType(EmailJobType.OTP_VERIFICATION)
+              .toEmail(channelValue)
+              .subject("Your verification code")
+              .body(
+                  "Your verification code is: %s. It will expire in %d minutes."
+                      .formatted(code, otpValidityMinutes))
+              .verificationPurpose(purpose)
+              .verificationChannel(channel)
+              .verificationCode(code)
+              .createdAt(Instant.now())
+              .build();
+
+      emailJobPublisherService.publish(job);
       return;
     }
 
-    EmailJobMessage job =
-        EmailJobMessage.builder()
-            .userId(userId)
-            .jobType(EmailJobType.OTP_VERIFICATION)
-            .toEmail(channelValue)
-            .subject("Your verification code")
-            .body(
-                "Your verification code is: %s. It will expire in %d minutes."
-                    .formatted(code, otpValidityMinutes))
-            .verificationPurpose(purpose)
-            .verificationChannel(channel)
-            .verificationCode(code)
-            .createdAt(Instant.now())
-            .build();
+    if (channel == VerificationChannel.PHONE) {
+      SmsJobMessage job =
+          SmsJobMessage.builder()
+              .userId(userId)
+              .toPhoneNumber(stripLeadingPlus(channelValue))
+              .message(
+                  "Your verification code is: %s. It will expire in %d minutes."
+                      .formatted(code, otpValidityMinutes))
+              .verificationPurpose(purpose)
+              .verificationCode(code)
+              .createdAt(Instant.now())
+              .build();
+      smsJobPublisherService.publish(job);
+      return;
+    }
 
-    emailJobPublisherService.publish(job);
+    log.warn("Unsupported verification channel {}", channel);
+  }
+
+  private String stripLeadingPlus(String value) {
+    if (value == null || value.isBlank()) {
+      return value;
+    }
+    return value.startsWith("+") ? value.substring(1) : value;
   }
 }

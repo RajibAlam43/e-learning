@@ -5,6 +5,8 @@ import com.gii.api.service.util.CryptoOperationException;
 import com.gii.common.entity.course.MediaAsset;
 import com.gii.common.enums.MediaProvider;
 import io.jsonwebtoken.Jwts;
+
+import java.nio.charset.StandardCharsets;
 import java.security.KeyFactory;
 import java.security.PrivateKey;
 import java.security.spec.PKCS8EncodedKeySpec;
@@ -22,10 +24,10 @@ public class MuxService implements MediaProviderService {
   @Value("${mux.signing-key-id}")
   private String signingKeyId;
 
-  @Value("${mux.private-key-prem}")
+  @Value("${mux.private-key-pem}")
   private String privateKeyPem;
 
-  @Value("${mux.playback-token-ttl-s:3600}")
+  @Value("${mux.playback-token-ttl-s}")
   private long playbackTokenTtlSeconds;
 
   @Override
@@ -38,17 +40,15 @@ public class MuxService implements MediaProviderService {
     Instant expiresAt = Instant.now().plusSeconds(playbackTokenTtlSeconds);
 
     String token =
-        Jwts.builder()
-            .header()
-            .keyId(signingKeyId)
-            .and()
-            .subject(mediaAsset.getPlaybackId())
-            .audience()
-            .add("v")
-            .and()
-            .expiration(Date.from(expiresAt))
-            .signWith(loadPrivateKey())
-            .compact();
+            Jwts.builder()
+                    .header()
+                    .keyId(signingKeyId)
+                    .and()
+                    .subject(mediaAsset.getPlaybackId())
+                    .claim("aud", "v")
+                    .expiration(Date.from(expiresAt))
+                    .signWith(loadPrivateKey(), Jwts.SIG.RS256)
+                    .compact();
 
     String playbackUrl =
         "https://stream.mux.com/" + mediaAsset.getPlaybackId() + ".m3u8?token=" + token;
@@ -66,11 +66,15 @@ public class MuxService implements MediaProviderService {
 
   private PrivateKey loadPrivateKey() {
     try {
-      String privateKey =
-          privateKeyPem
+      String pem = new String(
+              Base64.getDecoder().decode(privateKeyPem.trim()),
+              StandardCharsets.UTF_8
+      ).trim();
+
+      String privateKey = pem
               .replace("-----BEGIN PRIVATE KEY-----", "")
               .replace("-----END PRIVATE KEY-----", "")
-              .replaceAll("\\s", "");
+              .replaceAll("\\s+", "");
 
       byte[] decoded = Base64.getDecoder().decode(privateKey);
 

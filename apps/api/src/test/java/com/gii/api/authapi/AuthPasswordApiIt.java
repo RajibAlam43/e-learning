@@ -3,6 +3,8 @@ package com.gii.api.authapi;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.gii.common.entity.user.User;
@@ -51,6 +53,7 @@ class AuthPasswordApiIt extends AbstractAuthApiIntegrationTest {
   @Test
   void resetPasswordUpdatesHashAndRevokesRefreshTokens() throws Exception {
     User user = user("Reset User", "reset@example.com", null, "OldSecret123!", UserStatus.ACTIVE);
+    addRole(user, "STUDENT");
     verificationCode(
         user,
         VerificationPurpose.PASSWORD_RESET,
@@ -72,11 +75,15 @@ class AuthPasswordApiIt extends AbstractAuthApiIntegrationTest {
 
     mockMvc
         .perform(post("/public/auth/reset-password").contentType(APPLICATION_JSON).content(body))
-        .andExpect(status().isOk());
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.isVerified").value(true))
+        .andExpect(jsonPath("$.accessToken").isNotEmpty())
+        .andExpect(
+            header().string("Set-Cookie", org.hamcrest.Matchers.containsString("refresh_token=")));
 
     var updated = userRepository.findById(user.getId()).orElseThrow();
     assertThat(passwordEncoder.matches("NewSecret123!", updated.getPasswordHash())).isTrue();
-    assertThat(refreshTokenRepository.findByUserIdAndRevokedAtIsNull(user.getId())).isEmpty();
+    assertThat(refreshTokenRepository.findByUserIdAndRevokedAtIsNull(user.getId())).hasSize(1);
   }
 
   @Test

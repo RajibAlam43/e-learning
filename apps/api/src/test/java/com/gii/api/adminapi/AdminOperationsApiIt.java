@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.gii.common.enums.OrderStatus;
+import com.gii.common.enums.PublishStatus;
 import java.math.BigDecimal;
 import java.time.Instant;
 import org.junit.jupiter.api.AfterEach;
@@ -36,6 +37,42 @@ class AdminOperationsApiIt extends AbstractAdminApiIntegrationTest {
     var course = course("Ops Course", "ops-course", creator);
     var sec = section(course, 1);
     var lesson = lesson(course, sec, 1);
+
+    mockMvc
+        .perform(
+            post("/admin/sections/{sectionId}/publish", sec.getId())
+                .with(authentication(adminAuth(admin.getId()))))
+        .andExpect(status().isOk());
+    org.assertj.core.api.Assertions.assertThat(
+            courseSectionRepository.findById(sec.getId()).orElseThrow().getStatus())
+        .isEqualTo(PublishStatus.PUBLISHED);
+
+    mockMvc
+        .perform(
+            post("/admin/sections/{sectionId}/unpublish", sec.getId())
+                .with(authentication(adminAuth(admin.getId()))))
+        .andExpect(status().isOk());
+    org.assertj.core.api.Assertions.assertThat(
+            courseSectionRepository.findById(sec.getId()).orElseThrow().getStatus())
+        .isEqualTo(PublishStatus.DRAFT);
+
+    mockMvc
+        .perform(
+            post("/admin/lessons/{lessonId}/publish", lesson.getId())
+                .with(authentication(adminAuth(admin.getId()))))
+        .andExpect(status().isOk());
+    org.assertj.core.api.Assertions.assertThat(
+            lessonRepository.findById(lesson.getId()).orElseThrow().getStatus())
+        .isEqualTo(PublishStatus.PUBLISHED);
+
+    mockMvc
+        .perform(
+            post("/admin/lessons/{lessonId}/unpublish", lesson.getId())
+                .with(authentication(adminAuth(admin.getId()))))
+        .andExpect(status().isOk());
+    org.assertj.core.api.Assertions.assertThat(
+            lessonRepository.findById(lesson.getId()).orElseThrow().getStatus())
+        .isEqualTo(PublishStatus.DRAFT);
 
     mockMvc
         .perform(
@@ -155,6 +192,16 @@ class AdminOperationsApiIt extends AbstractAdminApiIntegrationTest {
             post("/admin/quizzes/{quizId}/publish", quiz.getId())
                 .with(authentication(adminAuth(admin.getId()))))
         .andExpect(status().isOk());
+    org.assertj.core.api.Assertions.assertThat(quizRepository.findById(quiz.getId()).orElseThrow().getStatus())
+        .isEqualTo(PublishStatus.PUBLISHED);
+
+    mockMvc
+        .perform(
+            post("/admin/quizzes/{quizId}/unpublish", quiz.getId())
+                .with(authentication(adminAuth(admin.getId()))))
+        .andExpect(status().isOk());
+    org.assertj.core.api.Assertions.assertThat(quizRepository.findById(quiz.getId()).orElseThrow().getStatus())
+        .isEqualTo(PublishStatus.DRAFT);
 
     var buyer = user("Buyer One", "buyer-one@example.com");
     var order = order(buyer, OrderStatus.PENDING);
