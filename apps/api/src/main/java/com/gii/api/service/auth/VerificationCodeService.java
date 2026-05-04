@@ -41,13 +41,13 @@ public class VerificationCodeService {
   private final EmailJobPublisherService emailJobPublisherService;
   private final SmsJobPublisherService smsJobPublisherService;
 
-  @Value("${otp.validity.minutes:15}")
+  @Value("${otp.validity.minutes}")
   private int otpValidityMinutes;
 
-  @Value("${otp.max-attempts:3}")
+  @Value("${otp.max-attempts}")
   private int maxAttempts;
 
-  @Value("${otp.rate-limit.seconds:30}")
+  @Value("${otp.rate-limit.seconds}")
   private int rateLimitSeconds;
 
   private static final SecureRandom RANDOM = new SecureRandom();
