@@ -4,6 +4,7 @@ import com.gii.api.model.request.payment.InitiatePaymentRequest;
 import com.gii.api.model.response.payment.PaymentInitiationResponse;
 import com.gii.api.service.enrollment.CurrentUserService;
 import com.gii.common.entity.order.Order;
+import com.gii.common.enums.OrderProvider;
 import com.gii.common.enums.OrderStatus;
 import com.gii.common.repository.order.OrderRepository;
 import java.time.Duration;
@@ -27,6 +28,7 @@ public class InitiatePaymentService {
 
   private final CurrentUserService currentUserService;
   private final OrderRepository orderRepository;
+  private final BkashCheckoutService bkashCheckoutService;
 
   public PaymentInitiationResponse execute(
       UUID orderId, InitiatePaymentRequest request, Authentication authentication) {
@@ -44,12 +46,19 @@ public class InitiatePaymentService {
     }
 
     String sessionId = "pay_" + UUID.randomUUID();
+    String redirectUrl = "/payments/" + order.getId() + "/gateway/" + request.provider().name().toLowerCase();
+
+    if (request.provider() == OrderProvider.BKASH) {
+      BkashCheckoutService.CreatePaymentResult createResult = bkashCheckoutService.createPayment(order);
+      sessionId = createResult.paymentId();
+      if (createResult.bkashUrl() != null && !createResult.bkashUrl().isBlank()) {
+        redirectUrl = createResult.bkashUrl();
+      }
+    }
+
     order.setProvider(request.provider());
     order.setProviderTxnId(sessionId);
     orderRepository.save(order);
-
-    String redirectUrl =
-        "/payments/" + order.getId() + "/gateway/" + request.provider().name().toLowerCase();
     return PaymentInitiationResponse.builder()
         .orderId(order.getId())
         .provider(order.getProvider())

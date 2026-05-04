@@ -23,7 +23,7 @@ abstract class AbstractAdminApiIntegrationTest extends AdminApiTestSupport {
     registry.add("bunny.token-security-key", () -> "test-bunny-key");
     registry.add("mux.signing-key-id", () -> "test-signing-key");
     registry.add(
-        "mux.private-key-prem",
+        "mux.private-key-pem",
         () ->
             "-----BEGIN PRIVATE KEY-----\n"
                 + "MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCe/6Z+X4rnW+2I\n"

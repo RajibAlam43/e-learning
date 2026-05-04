@@ -79,12 +79,6 @@ public class PaymentApiController implements PaymentApi {
   }
 
   @Override
-  public ResponseEntity<WebhookAckResponse> nagadWebhook(
-      Map<String, String> headers, String payload) {
-    return ResponseEntity.ok(paymentWebhookService.nagad(headers, payload));
-  }
-
-  @Override
   public ResponseEntity<ReceiptResponse> getReceipt(UUID orderId, Authentication authentication) {
     return ResponseEntity.ok(receiptService.execute(orderId, authentication));
   }

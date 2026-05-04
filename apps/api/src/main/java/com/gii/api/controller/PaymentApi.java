@@ -168,22 +168,6 @@ public interface PaymentApi {
   ResponseEntity<WebhookAckResponse> bkashWebhook(
       @RequestHeader Map<String, String> headers, @RequestBody String payload);
 
-  @PostMapping("/public/webhooks/payments/nagad")
-  @Operation(
-      summary = "Nagad webhook",
-      description = "Receive and process Nagad webhook notifications.",
-      security = {})
-  @ApiResponses(
-      value = {
-        @ApiResponse(
-            responseCode = "200",
-            description = "Webhook acknowledged",
-            content = @Content(schema = @Schema(implementation = WebhookAckResponse.class))),
-        @ApiResponse(responseCode = "400", description = "Invalid webhook signature")
-      })
-  ResponseEntity<WebhookAckResponse> nagadWebhook(
-      @RequestHeader Map<String, String> headers, @RequestBody String payload);
-
   @GetMapping("/student/orders/{orderId}/receipt")
   @PreAuthorize("hasRole('STUDENT') or hasRole('ADMIN')")
   @Operation(

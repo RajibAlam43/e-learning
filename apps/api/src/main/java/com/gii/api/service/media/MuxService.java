@@ -22,10 +22,10 @@ public class MuxService implements MediaProviderService {
   @Value("${mux.signing-key-id}")
   private String signingKeyId;
 
-  @Value("${mux.private-key-prem}")
+  @Value("${mux.private-key-pem}")
   private String privateKeyPem;
 
-  @Value("${mux.playback-token-ttl-s:3600}")
+  @Value("${mux.playback-token-ttl-s}")
   private long playbackTokenTtlSeconds;
 
   @Override
@@ -67,10 +67,11 @@ public class MuxService implements MediaProviderService {
   private PrivateKey loadPrivateKey() {
     try {
       String privateKey =
-          privateKeyPem
-              .replace("-----BEGIN PRIVATE KEY-----", "")
-              .replace("-----END PRIVATE KEY-----", "")
-              .replaceAll("\\s", "");
+              privateKeyPem
+                      .replace("\\n", "\n")
+                      .replace("-----BEGIN PRIVATE KEY-----", "")
+                      .replace("-----END PRIVATE KEY-----", "")
+                      .replaceAll("\\s", "");
 
       byte[] decoded = Base64.getDecoder().decode(privateKey);
 

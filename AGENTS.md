@@ -178,7 +178,7 @@ Set via `SPRING_PROFILES_ACTIVE` env var (docker-compose, systemd service files)
 
 ## External Integrations
 
-- **Video:** Mux (config: `mux.signing-key-id`, `mux.private-key-prem`) and Bunny (config: `bunny.token-security-key`)
+- **Video:** Mux (config: `mux.signing-key-id`, `mux.private-key-pem`) and Bunny (config: `bunny.token-security-key`)
 - **Object Storage:** Cloudflare R2 S3-compatible signed downloads via `R2PresignedUrlService` (config: `storage.r2.*`)
 - **Payments:** SSL Commerce, bKash, Nagad webhook handlers in `PaymentApiController`
 - **Email:** Spring Mail in worker module

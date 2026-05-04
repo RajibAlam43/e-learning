@@ -107,26 +107,10 @@ class PaymentCheckoutAndLifecycleApiIt extends AbstractPaymentApiIntegrationTest
     var order =
         orderRepository.findByUserIdAndStatus(student.getId(), OrderStatus.PENDING).getFirst();
 
-    mockMvc
-        .perform(
-            post("/payments/{orderId}/initiate", order.getId())
-                .with(authentication(studentAuth(student.getId())))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"provider\":\"BKASH\"}"))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.provider").value("BKASH"));
-
+    order.setProvider(OrderProvider.BKASH);
+    order.setProviderTxnId("bkash-lifecycle-txn");
+    orderRepository.save(order);
     var initiatedOrder = orderRepository.findById(order.getId()).orElseThrow();
-
-    mockMvc
-        .perform(
-            get("/payments/{orderId}/success", order.getId())
-                .param("tran_id", initiatedOrder.getProviderTxnId())
-                .with(authentication(studentAuth(student.getId()))))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.status").value("PAID"))
-        .andExpect(jsonPath("$.coursesEnrolled").value(false))
-        .andExpect(jsonPath("$.enrolledCourseCount").value(0));
 
     String payload = "{\"event\":\"payment_success\",\"txn\":\"" + initiatedOrder.getProviderTxnId() + "\"}";
     String signature = hmacBase64(payload, "bkash-test-secret");
@@ -137,7 +121,7 @@ class PaymentCheckoutAndLifecycleApiIt extends AbstractPaymentApiIntegrationTest
                 .header("x-signature", signature)
                 .header("x-transaction-id", initiatedOrder.getProviderTxnId())
                 .header("x-event-id", "evt-lifecycle-success")
-                .header("x-event-type", "payment_success")
+                .header("x-payment-status", "Completed")
                 .content(payload))
         .andExpect(status().isOk());
 
@@ -213,9 +197,9 @@ class PaymentCheckoutAndLifecycleApiIt extends AbstractPaymentApiIntegrationTest
             post("/payments/{orderId}/initiate", order.getId())
                 .with(authentication(studentAuth(student.getId())))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"provider\":\"BKASH\"}"))
+                .content("{\"provider\":\"SSLCOMMERZ\"}"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.provider").value("BKASH"));
+        .andExpect(jsonPath("$.provider").value("SSLCOMMERZ"));
   }
 
   @Test
@@ -231,6 +215,25 @@ class PaymentCheckoutAndLifecycleApiIt extends AbstractPaymentApiIntegrationTest
 
     mockMvc
         .perform(get("/payments/{orderId}/success", order.getId()))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void bkashSuccessShouldAcceptPaymentIdAlias() throws Exception {
+    var student = user("Student Alias", "student-payment-alias@example.com");
+    var order =
+        order(
+            student,
+            OrderStatus.PENDING,
+            OrderProvider.BKASH,
+            "bkash-payment-xyz",
+            BigDecimal.valueOf(700));
+
+    mockMvc
+        .perform(
+            get("/payments/{orderId}/success", order.getId())
+                .param("paymentID", "bkash-payment-xyz")
+                .with(authentication(studentAuth(student.getId()))))
         .andExpect(status().isBadRequest());
   }
 

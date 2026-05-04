@@ -22,7 +22,7 @@ abstract class AbstractLessonApiIntegrationTest extends LessonApiTestSupport {
     registry.add("app.jwt.access-token-expiration-ms", () -> "900000");
     registry.add("bunny.token-security-key", () -> "test-bunny-key");
     registry.add(
-        "mux.private-key-prem",
+        "mux.private-key-pem",
         () ->
             "-----BEGIN PRIVATE KEY-----\n"
                 + "MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCe/6Z+X4rnW+2I\n"

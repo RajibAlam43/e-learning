@@ -12,7 +12,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 @Slf4j
 public class SmsDeliveryService {
 
-  @Value("${sms.provider.bulksmsbd.base-url:http://bulksmsbd.net}")
+  @Value("${sms.provider.bulksmsbd.base-url}")
   private String baseUrl;
 
   @Value("${sms.provider.bulksmsbd.api-key}")
@@ -21,7 +21,7 @@ public class SmsDeliveryService {
   @Value("${sms.provider.bulksmsbd.sender-id}")
   private String senderId;
 
-  @Value("${sms.provider.bulksmsbd.timeout-ms:10000}")
+  @Value("${sms.provider.bulksmsbd.timeout-ms:5000}")
   private long timeoutMs;
 
   private final WebClient webClient;

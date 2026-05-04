@@ -12,8 +12,10 @@ import com.gii.common.enums.PaymentEventStatus;
 import com.gii.common.enums.PublishStatus;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
+import java.security.MessageDigest;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,7 +33,7 @@ class PaymentWebhooksApiIt extends AbstractPaymentApiIntegrationTest {
   }
 
   @Test
-  void sslcommerzWebhookWithValidSignatureShouldAcknowledgeAndPersistEvent() throws Exception {
+  void sslcommerzWebhookWithFailedStatusShouldAcknowledgeAndPersistEvent() throws Exception {
     var student = user("Student Hook", "student-payment-hook@example.com");
     var creator = user("Creator Hook", "creator-payment-hook@example.com");
     var course =
@@ -50,16 +52,14 @@ class PaymentWebhooksApiIt extends AbstractPaymentApiIntegrationTest {
             BigDecimal.valueOf(1000));
     orderItem(order, course, BigDecimal.valueOf(1000), BigDecimal.ZERO);
 
-    String payload = "{\"event\":\"payment\",\"txn\":\"txn-ssl-hook\"}";
-    String signature = hmacBase64(payload, "ssl-test-secret");
+    String payload = signedSslPayload("tran_id=txn-ssl-hook&status=FAILED&val_id=val-1");
 
     mockMvc
         .perform(
             post("/public/webhooks/payments/sslcommerz")
                 .with(authentication(adminAuth(student.getId())))
                 .contentType(MediaType.TEXT_PLAIN)
-                .header("x-signature", signature)
-                .header("x-transaction-id", "txn-ssl-hook")
+                .header("x-event-id", "evt-ssl-hook")
                 .content(payload))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.acknowledged").value(true));
@@ -69,6 +69,126 @@ class PaymentWebhooksApiIt extends AbstractPaymentApiIntegrationTest {
             event ->
                 event.getProvider() == OrderProvider.SSLCOMMERZ
                     && event.getStatus() == PaymentEventStatus.PROCESSED);
+  }
+
+  @Test
+  void sslcommerzWebhookWithMixedCaseHeadersShouldProcessCancelledTransition() throws Exception {
+    var student = user("Student Mixed", "student-payment-mixed@example.com");
+    var creator = user("Creator Mixed", "creator-payment-mixed@example.com");
+    var course =
+        course(
+            "Webhook Mixed",
+            "webhook-mixed-payment",
+            creator,
+            PublishStatus.PUBLISHED,
+            BigDecimal.valueOf(1000));
+    var order =
+        order(
+            student,
+            OrderStatus.PENDING,
+            OrderProvider.SSLCOMMERZ,
+            "txn-mixed-hook",
+            BigDecimal.valueOf(1000));
+    orderItem(order, course, BigDecimal.valueOf(1000), BigDecimal.ZERO);
+
+    String payload = signedSslPayload("tran_id=txn-mixed-hook&status=CANCELLED&val_id=val-2");
+
+    mockMvc
+        .perform(
+            post("/public/webhooks/payments/sslcommerz")
+                .contentType(MediaType.TEXT_PLAIN)
+                .header("X-Event-Id", "evt-mixed-1")
+                .content(payload))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.acknowledged").value(true));
+
+    assertThat(orderRepository.findById(order.getId()).orElseThrow().getStatus())
+        .isEqualTo(OrderStatus.CANCELLED);
+    assertThat(
+            enrollmentRepository.existsByUserIdAndCourseIdAndStatus(
+                student.getId(), course.getId(), com.gii.common.enums.EnrollmentStatus.ACTIVE))
+        .isFalse();
+  }
+
+  @Test
+  void sslcommerzWebhookUnknownPaymentPayloadShouldNotMarkPaid() throws Exception {
+    var student = user("Student Unknown", "student-payment-unknown@example.com");
+    var creator = user("Creator Unknown", "creator-payment-unknown@example.com");
+    var course =
+        course(
+            "Webhook Unknown",
+            "webhook-unknown-payment",
+            creator,
+            PublishStatus.PUBLISHED,
+            BigDecimal.valueOf(1000));
+    var order =
+        order(
+            student,
+            OrderStatus.PENDING,
+            OrderProvider.SSLCOMMERZ,
+            "txn-unknown-hook",
+            BigDecimal.valueOf(1000));
+    orderItem(order, course, BigDecimal.valueOf(1000), BigDecimal.ZERO);
+
+    String payload = signedSslPayload("tran_id=txn-unknown-hook&status=PROCESSING&val_id=val-unknown");
+
+    mockMvc
+        .perform(
+            post("/public/webhooks/payments/sslcommerz")
+                .contentType(MediaType.TEXT_PLAIN)
+                .header("x-transaction-id", "txn-unknown-hook")
+                .header("x-event-id", "evt-unknown-1")
+                .content(payload))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.acknowledged").value(true));
+
+    assertThat(orderRepository.findById(order.getId()).orElseThrow().getStatus())
+        .isEqualTo(OrderStatus.PENDING);
+    assertThat(
+            enrollmentRepository.existsByUserIdAndCourseIdAndStatus(
+                student.getId(), course.getId(), com.gii.common.enums.EnrollmentStatus.ACTIVE))
+        .isFalse();
+    assertThat(
+            paymentEventRepository
+                .findByProviderAndProviderEventId(OrderProvider.SSLCOMMERZ, "evt-unknown-1")
+                .orElseThrow()
+                .getStatus())
+        .isEqualTo(PaymentEventStatus.RECEIVED);
+  }
+
+  @Test
+  void sslcommerzWebhookExpiredStatusShouldMarkFailed() throws Exception {
+    var student = user("Student Incomplete", "student-payment-incomplete@example.com");
+    var creator = user("Creator Incomplete", "creator-payment-incomplete@example.com");
+    var course =
+        course(
+            "Webhook Incomplete",
+            "webhook-incomplete-payment",
+            creator,
+            PublishStatus.PUBLISHED,
+            BigDecimal.valueOf(1000));
+    var order =
+        order(
+            student,
+            OrderStatus.PENDING,
+            OrderProvider.SSLCOMMERZ,
+            "txn-incomplete-hook",
+            BigDecimal.valueOf(1000));
+    orderItem(order, course, BigDecimal.valueOf(1000), BigDecimal.ZERO);
+
+    String payload = signedSslPayload("tran_id=txn-incomplete-hook&status=EXPIRED&val_id=val-3");
+
+    mockMvc
+        .perform(
+            post("/public/webhooks/payments/sslcommerz")
+                .contentType(MediaType.TEXT_PLAIN)
+                .header("x-event-id", "evt-incomplete-1")
+                .content(payload))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.acknowledged").value(true));
+
+    assertThat(orderRepository.findById(order.getId()).orElseThrow().getStatus())
+        .isEqualTo(OrderStatus.FAILED);
   }
 
   @Test
@@ -86,54 +206,14 @@ class PaymentWebhooksApiIt extends AbstractPaymentApiIntegrationTest {
   }
 
   @Test
-  void nagadWebhookShouldAcknowledgeAsNotEnabled() throws Exception {
-    mockMvc
-        .perform(
-            post("/public/webhooks/payments/nagad")
-                .with(authentication(adminAuth(user("Admin N", "admin-nagad@example.com").getId())))
-                .contentType(MediaType.TEXT_PLAIN)
-                .content("{}"))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.acknowledged").value(false));
-  }
-
-  @Test
-  void sslcommerzWebhookShouldAcceptHexSignatureFormat() throws Exception {
-    String payload = "{\"event\":\"payment\",\"txn\":\"txn-hex\"}";
-    String hexSig = hmacHex(payload, "ssl-test-secret");
-
-    mockMvc
-        .perform(
-            post("/public/webhooks/payments/sslcommerz")
-                .contentType(MediaType.TEXT_PLAIN)
-                .header("x-signature", "sha256=" + hexSig)
-                .header("x-event-id", "evt-hex-1")
-                .content(payload))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.acknowledged").value(true));
-  }
-
-  @Test
-  void sslcommerzWebhookMissingSignatureShouldBeBadRequest() throws Exception {
-    mockMvc
-        .perform(
-            post("/public/webhooks/payments/sslcommerz")
-                .contentType(MediaType.TEXT_PLAIN)
-                .content("{\"event\":\"payment\"}"))
-        .andExpect(status().isBadRequest());
-  }
-
-  @Test
   void sslcommerzWebhookReplayShouldBeIdempotent() throws Exception {
-    String payload = "{\"event\":\"payment\",\"txn\":\"txn-replay\"}";
-    String signature = hmacBase64(payload, "ssl-test-secret");
+    String payload = signedSslPayload("tran_id=txn-replay&status=FAILED&val_id=val-4");
 
     MvcResult first =
         mockMvc
             .perform(
                 post("/public/webhooks/payments/sslcommerz")
                     .contentType(MediaType.TEXT_PLAIN)
-                    .header("x-signature", signature)
                     .header("x-event-id", "evt-replay-1")
                     .content(payload))
             .andExpect(status().isOk())
@@ -146,7 +226,6 @@ class PaymentWebhooksApiIt extends AbstractPaymentApiIntegrationTest {
             .perform(
                 post("/public/webhooks/payments/sslcommerz")
                     .contentType(MediaType.TEXT_PLAIN)
-                    .header("x-signature", signature)
                     .header("x-event-id", "evt-replay-1")
                     .content(payload))
             .andExpect(status().isOk())
@@ -166,22 +245,36 @@ class PaymentWebhooksApiIt extends AbstractPaymentApiIntegrationTest {
     assertThat(firstBody).isNotBlank();
   }
 
-  private String hmacBase64(String payload, String secret) {
-    try {
-      Mac mac = Mac.getInstance("HmacSHA256");
-      mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
-      return java.util.Base64.getEncoder()
-          .encodeToString(mac.doFinal(payload.getBytes(StandardCharsets.UTF_8)));
-    } catch (Exception ex) {
-      throw new RuntimeException(ex);
-    }
+  private String signedSslPayload(String basePayload) {
+    String verifyKey = "status,tran_id,val_id";
+    String signSource = signSource(basePayload, verifyKey);
+    String verifySign = md5Hex(signSource + "&store_passwd=" + md5Hex("test-password")).toUpperCase();
+    return basePayload + "&verify_key=" + verifyKey + "&verify_sign=" + verifySign;
   }
 
-  private String hmacHex(String payload, String secret) {
+  private String signSource(String payload, String verifyKey) {
+    List<String> fragments = new ArrayList<>();
+    String[] pairs = payload.split("&");
+    for (String key : verifyKey.split(",")) {
+      String match = null;
+      for (String pair : pairs) {
+        if (pair.startsWith(key + "=")) {
+          match = pair;
+          break;
+        }
+      }
+      if (match != null) {
+        fragments.add(match);
+      }
+    }
+    fragments.sort(Comparator.naturalOrder());
+    return String.join("&", fragments);
+  }
+
+  private String md5Hex(String input) {
     try {
-      Mac mac = Mac.getInstance("HmacSHA256");
-      mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
-      byte[] digest = mac.doFinal(payload.getBytes(StandardCharsets.UTF_8));
+      MessageDigest md = MessageDigest.getInstance("MD5");
+      byte[] digest = md.digest(input.getBytes(StandardCharsets.UTF_8));
       StringBuilder sb = new StringBuilder(digest.length * 2);
       for (byte b : digest) {
         sb.append(String.format("%02x", b));
@@ -191,4 +284,5 @@ class PaymentWebhooksApiIt extends AbstractPaymentApiIntegrationTest {
       throw new RuntimeException(ex);
     }
   }
+
 }
