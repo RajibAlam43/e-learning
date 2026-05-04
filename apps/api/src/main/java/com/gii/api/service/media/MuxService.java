@@ -40,17 +40,15 @@ public class MuxService implements MediaProviderService {
     Instant expiresAt = Instant.now().plusSeconds(playbackTokenTtlSeconds);
 
     String token =
-        Jwts.builder()
-            .header()
-            .keyId(signingKeyId)
-            .and()
-            .subject(mediaAsset.getPlaybackId())
-            .audience()
-            .add("v")
-            .and()
-            .expiration(Date.from(expiresAt))
-            .signWith(loadPrivateKey())
-            .compact();
+            Jwts.builder()
+                    .header()
+                    .keyId(signingKeyId)
+                    .and()
+                    .subject(mediaAsset.getPlaybackId())
+                    .claim("aud", "v")
+                    .expiration(Date.from(expiresAt))
+                    .signWith(loadPrivateKey(), Jwts.SIG.RS256)
+                    .compact();
 
     String playbackUrl =
         "https://stream.mux.com/" + mediaAsset.getPlaybackId() + ".m3u8?token=" + token;
