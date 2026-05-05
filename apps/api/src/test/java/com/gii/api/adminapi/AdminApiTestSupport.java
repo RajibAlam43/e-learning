@@ -194,8 +194,8 @@ abstract class AdminApiTestSupport {
   }
 
   protected void ensureInstructorRolePresent() {
-    if (roleRepository.findByName("ROLE_INSTRUCTOR").isEmpty()) {
-      roleRepository.save(Role.builder().name("ROLE_INSTRUCTOR").build());
+    if (roleRepository.findByName("INSTRUCTOR").isEmpty()) {
+      roleRepository.save(Role.builder().name("INSTRUCTOR").build());
     }
   }
 

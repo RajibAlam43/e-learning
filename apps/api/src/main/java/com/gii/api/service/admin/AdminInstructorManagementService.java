@@ -189,11 +189,11 @@ public class AdminInstructorManagementService {
   private void attachInstructorRole(User user) {
     Role role =
         roleRepository
-            .findByName("ROLE_INSTRUCTOR")
+            .findByName("INSTRUCTOR")
             .orElseThrow(
                 () ->
                     new ResponseStatusException(
-                        HttpStatus.INTERNAL_SERVER_ERROR, "ROLE_INSTRUCTOR missing"));
+                        HttpStatus.INTERNAL_SERVER_ERROR, "INSTRUCTOR role missing"));
     UserRoleId id = UserRoleId.builder().userId(user.getId()).roleId(role.getId()).build();
     userRoleRepository.save(UserRole.builder().id(id).user(user).role(role).build());
   }
