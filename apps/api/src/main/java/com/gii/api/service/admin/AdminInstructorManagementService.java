@@ -70,7 +70,6 @@ public class AdminInstructorManagementService {
             .fullName(request.fullName().trim())
             .email(trimToNull(request.email()))
             .phone(trimToNull(request.phone()))
-            .phoneCountryCode(trimToNull(request.phoneCountryCode()))
             // Generated placeholder hash; instructor should set real password through reset flow.
             .passwordHash(passwordEncoder.encode(UUID.randomUUID().toString()))
             .status(UserStatus.ACTIVE)
@@ -113,9 +112,6 @@ public class AdminInstructorManagementService {
     }
     if (request.phone() != null) {
       user.setPhone(trimToNull(request.phone()));
-    }
-    if (request.phoneCountryCode() != null) {
-      user.setPhoneCountryCode(trimToNull(request.phoneCountryCode()));
     }
 
     InstructorProfile profile =
@@ -193,11 +189,11 @@ public class AdminInstructorManagementService {
   private void attachInstructorRole(User user) {
     Role role =
         roleRepository
-            .findByName("ROLE_INSTRUCTOR")
+            .findByName("INSTRUCTOR")
             .orElseThrow(
                 () ->
                     new ResponseStatusException(
-                        HttpStatus.INTERNAL_SERVER_ERROR, "ROLE_INSTRUCTOR missing"));
+                        HttpStatus.INTERNAL_SERVER_ERROR, "INSTRUCTOR role missing"));
     UserRoleId id = UserRoleId.builder().userId(user.getId()).roleId(role.getId()).build();
     userRoleRepository.save(UserRole.builder().id(id).user(user).role(role).build());
   }
@@ -230,7 +226,6 @@ public class AdminInstructorManagementService {
         .fullName(user.getFullName())
         .email(user.getEmail())
         .phone(user.getPhone())
-        .phoneCountryCode(user.getPhoneCountryCode())
         .displayName(profile.getDisplayName())
         .headline(profile.getHeadline())
         .institution(profile.getInstitution())

@@ -1,4 +1,4 @@
-package com.gii.api.service.payment;
+package com.gii.api.service.payment.bkash;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -43,12 +43,16 @@ public class BkashCheckoutService {
   @Value("${payments.bkash.timeout-ms}")
   private long timeoutMs;
 
+  @Value("${redirect.subdomain}")
+  private String redirectSubdomain;
+
   private String idToken;
   private String refreshToken;
   private Instant tokenExpiresAt;
 
   public CreatePaymentResult createPayment(Order order) {
     ensureCredentials();
+    String orderId = order.getId().toString();
     Map<String, Object> response =
         call(
             "/checkout/payment/create",
@@ -57,6 +61,10 @@ public class BkashCheckoutService {
                 "amount", order.getAmountBdt().toPlainString(),
                 "currency", order.getCurrency(),
                 "intent", "sale",
+                "mode", "0011",
+                "successCallbackURL", String.format("https://%s.globalislamicinstitute.com/payments/%s/success", redirectSubdomain, orderId),
+                "failureCallbackURL", String.format("https://%s.globalislamicinstitute.com/payments/%s/failed", redirectSubdomain, orderId),
+                "cancelledCallbackURL", String.format("https://%s.globalislamicinstitute.com/payments/%s/cancelled", redirectSubdomain,  orderId),
                 "merchantInvoiceNumber", order.getId().toString()));
     String paymentId = asString(response.get("paymentID"));
     require(!isBlank(paymentId), HttpStatus.BAD_REQUEST, "Invalid payment response");

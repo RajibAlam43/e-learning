@@ -15,7 +15,6 @@ public record MeResponse(
     String fullName,
     String email,
     String phone,
-    String phoneCountryCode,
 
     // Account status
     String status, // ACTIVE, SUSPENDED, DELETED
