@@ -45,7 +45,6 @@ abstract class AuthApiTestSupport {
             .fullName(fullName)
             .email(email)
             .phone(phone)
-            .phoneCountryCode(phone != null ? "+880" : null)
             .passwordHash(passwordEncoder.encode(password))
             .status(status)
             .build());

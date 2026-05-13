@@ -206,6 +206,165 @@ class PaymentWebhooksApiIt extends AbstractPaymentApiIntegrationTest {
   }
 
   @Test
+  void bkashWebhookCompletedShouldMarkPaidAndGrantEnrollment() throws Exception {
+    var student = user("Student BKash Paid", "student-payment-bk-paid@example.com");
+    var creator = user("Creator BKash Paid", "creator-payment-bk-paid@example.com");
+    var course =
+        course(
+            "BKash Paid Course",
+            "bkash-paid-course-payment",
+            creator,
+            PublishStatus.PUBLISHED,
+            BigDecimal.valueOf(1000));
+    var order =
+        order(
+            student,
+            OrderStatus.PENDING,
+            OrderProvider.BKASH,
+            "bkash-paid-1",
+            BigDecimal.valueOf(1000));
+    orderItem(order, course, BigDecimal.valueOf(1000), BigDecimal.ZERO);
+
+    mockMvc
+        .perform(
+            post("/public/webhooks/payments/bkash")
+                .contentType(MediaType.TEXT_PLAIN)
+                .header("x-amz-sns-message-type", "Notification")
+                .content(bkashSnsNotification("evt-bk-paid-1", "bkash-paid-1", "Completed")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.acknowledged").value(true));
+
+    assertThat(orderRepository.findById(order.getId()).orElseThrow().getStatus())
+        .isEqualTo(OrderStatus.PAID);
+    assertThat(
+            enrollmentRepository.existsByUserIdAndCourseIdAndStatus(
+                student.getId(), course.getId(), com.gii.common.enums.EnrollmentStatus.ACTIVE))
+        .isTrue();
+  }
+
+  @Test
+  void bkashWebhookFailedShouldMarkOrderFailed() throws Exception {
+    var student = user("Student BKash Failed", "student-payment-bk-failed@example.com");
+    var creator = user("Creator BKash Failed", "creator-payment-bk-failed@example.com");
+    var course =
+        course(
+            "BKash Failed Course",
+            "bkash-failed-course-payment",
+            creator,
+            PublishStatus.PUBLISHED,
+            BigDecimal.valueOf(1000));
+    var order =
+        order(
+            student,
+            OrderStatus.PENDING,
+            OrderProvider.BKASH,
+            "bkash-failed-1",
+            BigDecimal.valueOf(1000));
+    orderItem(order, course, BigDecimal.valueOf(1000), BigDecimal.ZERO);
+
+    mockMvc
+        .perform(
+            post("/public/webhooks/payments/bkash")
+                .contentType(MediaType.TEXT_PLAIN)
+                .header("x-amz-sns-message-type", "Notification")
+                .content(bkashSnsNotification("evt-bk-failed-1", "bkash-failed-1", "FAILED")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.acknowledged").value(true));
+
+    assertThat(orderRepository.findById(order.getId()).orElseThrow().getStatus())
+        .isEqualTo(OrderStatus.FAILED);
+  }
+
+  @Test
+  void bkashWebhookReplayShouldBeIdempotent() throws Exception {
+    var student = user("Student BKash Replay", "student-payment-bk-replay@example.com");
+    var creator = user("Creator BKash Replay", "creator-payment-bk-replay@example.com");
+    var course =
+        course(
+            "BKash Replay Course",
+            "bkash-replay-course-payment",
+            creator,
+            PublishStatus.PUBLISHED,
+            BigDecimal.valueOf(1000));
+    var order =
+        order(
+            student,
+            OrderStatus.PENDING,
+            OrderProvider.BKASH,
+            "bkash-replay-1",
+            BigDecimal.valueOf(1000));
+    orderItem(order, course, BigDecimal.valueOf(1000), BigDecimal.ZERO);
+    String payload = bkashSnsNotification("evt-bk-replay-1", "bkash-replay-1", "Completed");
+
+    mockMvc
+        .perform(
+            post("/public/webhooks/payments/bkash")
+                .contentType(MediaType.TEXT_PLAIN)
+                .header("x-amz-sns-message-type", "Notification")
+                .content(payload))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.acknowledged").value(true));
+
+    mockMvc
+        .perform(
+            post("/public/webhooks/payments/bkash")
+                .contentType(MediaType.TEXT_PLAIN)
+                .header("x-amz-sns-message-type", "Notification")
+                .content(payload))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.acknowledged").value(true))
+        .andExpect(jsonPath("$.message").value("Webhook already received"));
+
+    assertThat(
+            paymentEventRepository.findAll().stream()
+                .filter(
+                    event ->
+                        event.getProvider() == OrderProvider.BKASH
+                            && "evt-bk-replay-1".equals(event.getProviderEventId()))
+                .count())
+        .isEqualTo(1);
+  }
+
+  @Test
+  void bkashWebhookUnknownStatusShouldRemainPendingAndPersistReceivedEvent() throws Exception {
+    var student = user("Student BKash Unknown", "student-payment-bk-unknown@example.com");
+    var creator = user("Creator BKash Unknown", "creator-payment-bk-unknown@example.com");
+    var course =
+        course(
+            "BKash Unknown Course",
+            "bkash-unknown-course-payment",
+            creator,
+            PublishStatus.PUBLISHED,
+            BigDecimal.valueOf(1000));
+    var order =
+        order(
+            student,
+            OrderStatus.PENDING,
+            OrderProvider.BKASH,
+            "bkash-unknown-1",
+            BigDecimal.valueOf(1000));
+    orderItem(order, course, BigDecimal.valueOf(1000), BigDecimal.ZERO);
+
+    mockMvc
+        .perform(
+            post("/public/webhooks/payments/bkash")
+                .contentType(MediaType.TEXT_PLAIN)
+                .header("x-amz-sns-message-type", "Notification")
+                .content(bkashSnsNotification("evt-bk-unknown-1", "bkash-unknown-1", "PROCESSING")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.acknowledged").value(true));
+
+    assertThat(orderRepository.findById(order.getId()).orElseThrow().getStatus())
+        .isEqualTo(OrderStatus.PENDING);
+    assertThat(
+            paymentEventRepository
+                .findByProviderAndProviderEventId(OrderProvider.BKASH, "evt-bk-unknown-1")
+                .orElseThrow()
+                .getStatus())
+        .isEqualTo(PaymentEventStatus.RECEIVED);
+  }
+
+  @Test
   void sslcommerzWebhookReplayShouldBeIdempotent() throws Exception {
     String payload = signedSslPayload("tran_id=txn-replay&status=FAILED&val_id=val-4");
 
@@ -283,6 +442,22 @@ class PaymentWebhooksApiIt extends AbstractPaymentApiIntegrationTest {
     } catch (Exception ex) {
       throw new RuntimeException(ex);
     }
+  }
+
+  private String bkashSnsNotification(String messageId, String trxId, String transactionStatus) {
+    return """
+        {
+          "Type":"Notification",
+          "MessageId":"%s",
+          "TopicArn":"arn:aws:sns:ap-southeast-1:123456789012:test",
+          "Message":"{\\"trxID\\":\\"%s\\",\\"transactionStatus\\":\\"%s\\"}",
+          "Timestamp":"2018-04-19T12:22:46.236Z",
+          "SignatureVersion":"1",
+          "Signature":"test-signature",
+          "SigningCertURL":"https://sns.ap-southeast-1.amazonaws.com/test.pem"
+        }
+        """
+        .formatted(messageId, trxId, transactionStatus);
   }
 
 }

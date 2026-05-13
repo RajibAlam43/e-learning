@@ -31,7 +31,6 @@ class AuthApiContractGapIt extends AbstractAuthApiIntegrationTest {
           "fullName":"Gap Case",
           "email":"gap@example.com",
           "phoneNumber":"+8801712345678",
-          "phoneCountryCode":"+880",
           "password":"Secret123!"
         }
         """;

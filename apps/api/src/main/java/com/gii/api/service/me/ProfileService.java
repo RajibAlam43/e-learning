@@ -4,10 +4,12 @@ import com.gii.api.model.request.me.UpdateProfileRequest;
 import com.gii.api.model.response.me.InstructorProfileResponse;
 import com.gii.api.model.response.me.MeResponse;
 import com.gii.api.service.enrollment.CurrentUserService;
+import com.gii.api.service.util.IdentifierNormalizationUtil;
 import com.gii.common.entity.user.InstructorProfile;
 import com.gii.common.entity.user.User;
 import com.gii.common.entity.user.UserProfile;
 import com.gii.common.enums.EnrollmentStatus;
+import com.gii.common.enums.VerificationChannel;
 import com.gii.common.repository.certificate.CertificateRepository;
 import com.gii.common.repository.enrollment.EnrollmentRepository;
 import com.gii.common.repository.live.LiveClassAttendanceRepository;
@@ -15,7 +17,6 @@ import com.gii.common.repository.user.InstructorProfileRepository;
 import com.gii.common.repository.user.UserProfileRepository;
 import com.gii.common.repository.user.UserRepository;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -72,7 +73,7 @@ public class ProfileService {
     }
 
     if (request.email() != null) {
-      String normalizedEmail = normalizeEmail(request.email());
+      String normalizedEmail = IdentifierNormalizationUtil.normalizeIdentifier(VerificationChannel.EMAIL, request.email());
       if (!normalizedEmail.equals(user.getEmail())
           && userRepository.existsByEmail(normalizedEmail)) {
         throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already in use");
@@ -85,7 +86,7 @@ public class ProfileService {
     }
 
     if (request.phone() != null) {
-      String normalizedPhone = normalizePhone(request.phone());
+      String normalizedPhone = IdentifierNormalizationUtil.normalizeIdentifier(VerificationChannel.PHONE, request.phone());
       if (!normalizedPhone.equals(user.getPhone())
           && userRepository.existsByPhone(normalizedPhone)) {
         throw new ResponseStatusException(HttpStatus.CONFLICT, "Phone already in use");
@@ -95,10 +96,6 @@ public class ProfileService {
         user.setPhone(normalizedPhone);
         user.setPhoneVerifiedAt(null);
       }
-    }
-
-    if (request.phoneCountryCode() != null) {
-      user.setPhoneCountryCode(normalizeCountryCode(request.phoneCountryCode()));
     }
   }
 
@@ -187,7 +184,6 @@ public class ProfileService {
         .fullName(user.getFullName())
         .email(user.getEmail())
         .phone(user.getPhone())
-        .phoneCountryCode(user.getPhoneCountryCode())
         .status(user.getStatus().name())
         .emailVerified(user.getEmailVerifiedAt() != null)
         .phoneVerified(user.getPhoneVerifiedAt() != null)
@@ -242,37 +238,6 @@ public class ProfileService {
         || request.credentialsText() != null
         || request.specialties() != null
         || request.yearsExperience() != null;
-  }
-
-  private String normalizeEmail(String email) {
-    String normalized = email.trim().toLowerCase(Locale.ROOT);
-    if (normalized.isBlank()) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email cannot be blank");
-    }
-    return normalized;
-  }
-
-  private String normalizePhone(String phone) {
-    String normalized = phone.trim().replaceAll("[^0-9+]", "");
-    if (normalized.isBlank()) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Phone cannot be blank");
-    }
-    return normalized;
-  }
-
-  private String normalizeCountryCode(String code) {
-    if (code == null) {
-      return null;
-    }
-    String digits = code.replaceAll("[^0-9]", "");
-    if (digits.isBlank()) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Phone country code is invalid");
-    }
-    String normalized = "+" + digits;
-    if (normalized.length() > 5) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Phone country code is too long");
-    }
-    return normalized;
   }
 
   private String blankToNull(String value) {
