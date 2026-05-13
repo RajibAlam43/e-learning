@@ -20,7 +20,7 @@ class MeApiContractGapIt extends AbstractMeApiIntegrationTest {
   }
 
   @Test
-  void invalidPhoneCountryCodeShouldBe400() throws Exception {
+  void invalidPhoneShouldBe400() throws Exception {
     var user = user("Gap User", "gap-user@example.com", "+8801710000012");
     profile(user, "bn-BD", null, null, null);
 
@@ -29,7 +29,7 @@ class MeApiContractGapIt extends AbstractMeApiIntegrationTest {
             patch("/me/profile")
                 .with(authentication(userAuth(user.getId())))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"phoneCountryCode\":\"abc\"}"))
+                .content("{\"phone\":\"abc###\"}"))
         .andExpect(status().isBadRequest());
   }
 }

@@ -16,8 +16,6 @@ import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -103,16 +101,25 @@ class PaymentOrderingAndConsistencyApiIt extends AbstractPaymentApiIntegrationTe
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("CANCELLED"));
 
-    String payload = "{\"event\":\"payment_success\",\"txn\":\"txn-ordering-2\"}";
-    String signature = hmacBase64(payload, "bkash-test-secret");
+    String payload =
+        """
+        {
+          "Type":"Notification",
+          "MessageId":"evt-ordering-2",
+          "TopicArn":"arn:aws:sns:ap-southeast-1:123456789012:test",
+          "Message":"{\\"trxID\\":\\"txn-ordering-2\\",\\"transactionStatus\\":\\"Completed\\"}",
+          "Timestamp":"2018-04-19T12:22:46.236Z",
+          "SignatureVersion":"1",
+          "Signature":"test-signature",
+          "SigningCertURL":"https://sns.ap-southeast-1.amazonaws.com/test.pem"
+        }
+        """;
     mockMvc
         .perform(
             post("/public/webhooks/payments/bkash")
                 .contentType(MediaType.TEXT_PLAIN)
-                .header("x-signature", signature)
-                .header("x-transaction-id", "txn-ordering-2")
                 .header("x-event-id", "evt-ordering-2")
-                .header("x-payment-status", "Completed")
+                .header("x-amz-sns-message-type", "Notification")
                 .content(payload))
         .andExpect(status().isOk());
 
@@ -170,17 +177,6 @@ class PaymentOrderingAndConsistencyApiIt extends AbstractPaymentApiIntegrationTe
         .andExpect(status().isOk());
     assertThat(orderRepository.findById(order.getId()).orElseThrow().getStatus())
         .isEqualTo(OrderStatus.PAID);
-  }
-
-  private String hmacBase64(String payload, String secret) {
-    try {
-      Mac mac = Mac.getInstance("HmacSHA256");
-      mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
-      return java.util.Base64.getEncoder()
-          .encodeToString(mac.doFinal(payload.getBytes(StandardCharsets.UTF_8)));
-    } catch (Exception ex) {
-      throw new RuntimeException(ex);
-    }
   }
 
   private String signedSslPayload(String basePayload) {

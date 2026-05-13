@@ -21,4 +21,7 @@ public record StudentSectionHomeResponse(
     String accessReason, // e.g., "AVAILABLE", "PENDING_RELEASE", "LOCKED"
 
     // Lessons in section
-    List<StudentLessonHomeResponse> lessons) {}
+    List<StudentLessonHomeResponse> lessons,
+
+    // Quizzes in section
+    List<StudentQuizHomeResponse> quizzes) {}

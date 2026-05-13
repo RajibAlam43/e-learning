@@ -64,6 +64,7 @@ class StudentCoursesApiIt extends AbstractStudentApiIntegrationTest {
     var sec = section(course, 1, PublishStatus.PUBLISHED);
     var l1 = lesson(course, sec, 1, PublishStatus.PUBLISHED, true);
     lesson(course, sec, 2, PublishStatus.PUBLISHED, false);
+    var quiz = quiz(course, sec, 3, PublishStatus.PUBLISHED, "Section Quiz");
     enrollment(student, course, EnrollmentStatus.ACTIVE, null);
     completedProgress(student, l1);
 
@@ -75,6 +76,9 @@ class StudentCoursesApiIt extends AbstractStudentApiIntegrationTest {
         .andExpect(jsonPath("$.courseName").value("Course Home"))
         .andExpect(jsonPath("$.sections.length()").value(1))
         .andExpect(jsonPath("$.sections[0].lessons.length()").value(2))
+        .andExpect(jsonPath("$.sections[0].quizzes.length()").value(1))
+        .andExpect(jsonPath("$.sections[0].quizzes[0].quizId").value(quiz.getId().toString()))
+        .andExpect(jsonPath("$.sections[0].quizzes[0].quizTitle").value("Section Quiz"))
         .andExpect(jsonPath("$.sections[0].completedLessons").value(1));
   }
 }
