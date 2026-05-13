@@ -3,6 +3,7 @@ package com.gii.api.service.payment.callback;
 import com.gii.api.model.response.payment.PaymentStatusResponse;
 import com.gii.api.service.payment.PaymentFlowSupportService;
 import com.gii.common.entity.order.Order;
+import com.gii.common.enums.OrderProvider;
 import com.gii.common.enums.PaymentEventStatus;
 import com.gii.common.enums.PaymentEventType;
 import java.util.Map;
@@ -30,6 +31,12 @@ public class PaymentFailedCallbackService {
     }
     Order order = paymentFlowSupportService.requireOrder(orderId);
     paymentFlowSupportService.validateProviderTransactionId(order, providerEventId);
+    if (order.getProvider() == OrderProvider.SSLCOMMERZ
+        && !"true".equalsIgnoreCase(queryParams.get("_verified_webhook"))) {
+      paymentFlowSupportService.recordCallbackEvent(
+          order, PaymentEventType.CALLBACK_FAILED, queryParams, PaymentEventStatus.RECEIVED);
+      return paymentFlowSupportService.toStatus(order);
+    }
     paymentFlowSupportService.recordCallbackEvent(
         order, PaymentEventType.CALLBACK_FAILED, queryParams, PaymentEventStatus.PROCESSED);
     return paymentFlowSupportService.transitionFailedAndBuild(order);

@@ -68,6 +68,7 @@ public class SslcommerzCheckoutService {
     form.add("success_url", callbackBaseUrl + "/payments/" + order.getId() + "/success");
     form.add("fail_url", callbackBaseUrl + "/payments/" + order.getId() + "/failed");
     form.add("cancel_url", callbackBaseUrl + "/payments/" + order.getId() + "/cancelled");
+    form.add("ipn_url", callbackBaseUrl + "/public/webhooks/payments/sslcommerz");
     form.add("cus_name", customerName == null || customerName.isBlank() ? "Student" : customerName);
     form.add("cus_email", customerEmail);
     form.add("cus_phone", customerPhone);

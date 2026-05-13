@@ -55,7 +55,7 @@ class PaymentOrderingAndConsistencyApiIt extends AbstractPaymentApiIntegrationTe
         .perform(
             get("/payments/{orderId}/failed", order.getId()).param("tran_id", "txn-ordering-1"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.status").value("FAILED"));
+        .andExpect(jsonPath("$.status").value("PENDING"));
 
     String payload = signedSslPayload("tran_id=txn-ordering-1&status=VALID&val_id=val-ordering-1");
     mockMvc

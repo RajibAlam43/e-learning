@@ -43,7 +43,6 @@ Thumbs.db
 # =========================
 .env
 .env.*
-application-prod.properties
 application-prod.yml
 
 # =========================

@@ -83,7 +83,7 @@ class PaymentGuardsAndStatusApiIt extends AbstractPaymentApiIntegrationTest {
   }
 
   @Test
-  void failedAndCancelledCallbacksShouldTransitionPendingOrder() throws Exception {
+  void failedAndCancelledCallbacksShouldRespectProviderSpecificTransitionRules() throws Exception {
     var student = user("Student FC", "student-failed-cancelled@example.com");
     var failedOrder =
         order(
@@ -105,7 +105,7 @@ class PaymentGuardsAndStatusApiIt extends AbstractPaymentApiIntegrationTest {
             get("/payments/{orderId}/failed", failedOrder.getId())
                 .param("tran_id", "txn-failed-callback"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.status").value("FAILED"))
+        .andExpect(jsonPath("$.status").value("PENDING"))
         .andExpect(jsonPath("$.nextAction").value("INITIATE_PAYMENT"));
 
     mockMvc

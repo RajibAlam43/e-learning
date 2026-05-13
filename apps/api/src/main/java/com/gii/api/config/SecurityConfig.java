@@ -29,8 +29,12 @@ public class SecurityConfig {
 
   private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-  @Value("${app.cors.allowed-origins}")
+  @Value("${app.cors.allowed-origins:}")
   private List<String> allowedOrigins;
+
+  @Value("${app.cors.allowed-origin-patterns:}")
+  private List<String> allowedOriginPatterns;
+
 
   @Profile("local")
   @Bean
@@ -73,11 +77,29 @@ public class SecurityConfig {
     return new BCryptPasswordEncoder();
   }
 
+  private boolean hasValues(List<String> values) {
+    return values != null && values.stream().anyMatch(value -> value != null && !value.isBlank());
+  }
+
   @Bean
   public CorsConfigurationSource corsConfigurationSource() {
     CorsConfiguration config = new CorsConfiguration();
 
-    config.setAllowedOrigins(allowedOrigins);
+    if (hasValues(allowedOriginPatterns)) {
+      config.setAllowedOriginPatterns(
+              allowedOriginPatterns.stream()
+                      .filter(value -> value != null && !value.isBlank())
+                      .toList());
+    } else if (hasValues(allowedOrigins)) {
+      config.setAllowedOrigins(
+              allowedOrigins.stream()
+                      .filter(value -> value != null && !value.isBlank())
+                      .toList());
+    } else {
+      throw new IllegalStateException(
+              "CORS is not configured. Set app.cors.allowed-origins or app.cors.allowed-origin-patterns.");
+    }
+
     config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
     config.setAllowedHeaders(List.of("*"));
     config.setAllowCredentials(true);
