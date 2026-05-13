@@ -42,15 +42,15 @@ dependencies {
     implementation 'org.projectlombok:lombok:1.18.46'
     implementation 'org.jetbrains:annotations:26.1.0'
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3'
-    implementation 'com.googlecode.libphonenumber:libphonenumber:9.0.29'
+    implementation 'com.googlecode.libphonenumber:libphonenumber:9.0.30'
 
     // TESTS
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.boot:spring-boot-webmvc-test'
     testImplementation 'org.springframework.boot:spring-boot-data-jpa-test'
     testImplementation 'org.springframework.security:spring-security-test'
-    testImplementation 'org.testcontainers:junit-jupiter:1.21.3'
-    testImplementation 'org.testcontainers:postgresql:1.21.3'
+    testImplementation 'org.testcontainers:junit-jupiter:1.21.4'
+    testImplementation 'org.testcontainers:postgresql:1.21.4'
 }
 
 tasks.named('bootJar') {
