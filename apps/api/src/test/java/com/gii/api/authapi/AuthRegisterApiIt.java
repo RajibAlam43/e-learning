@@ -55,7 +55,6 @@ class AuthRegisterApiIt extends AbstractAuthApiIntegrationTest {
         {
           "fullName":"Rajib",
           "phoneNumber":"+8801712345678",
-          "phoneCountryCode":"+880",
           "password":"Secret123!"
         }
         """;

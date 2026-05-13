@@ -10,7 +10,6 @@ public record CreateInstructorRequest(
     @NotBlank String fullName,
     @Email String email,
     String phone,
-    String phoneCountryCode,
     @NotBlank String displayName,
     String headline,
     String institution,

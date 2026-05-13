@@ -47,9 +47,6 @@ public class AdminQuizManagementService {
             .findById(sectionId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Section not found"));
-    if (!section.getId().equals(request.sectionId())) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Section mismatch");
-    }
     ensurePositionAvailable(section.getId(), request.position(), null);
 
     Quiz quiz =

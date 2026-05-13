@@ -1,4 +1,4 @@
-package com.gii.api.service.payment;
+package com.gii.api.service.payment.sslcommerz;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;

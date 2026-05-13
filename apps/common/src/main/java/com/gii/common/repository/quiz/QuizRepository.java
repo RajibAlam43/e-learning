@@ -13,5 +13,7 @@ public interface QuizRepository extends JpaRepository<Quiz, UUID> {
 
   List<Quiz> findBySectionIdOrderByPositionAsc(UUID sectionId);
 
+  List<Quiz> findByCourseIdAndStatusOrderByPositionAsc(UUID courseId, PublishStatus status);
+
   boolean existsBySectionIdAndPosition(UUID sectionId, Integer position);
 }
