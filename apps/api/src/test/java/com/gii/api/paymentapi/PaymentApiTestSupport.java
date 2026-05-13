@@ -12,6 +12,7 @@ import com.gii.common.enums.EnrollmentStatus;
 import com.gii.common.enums.OrderProvider;
 import com.gii.common.enums.OrderStatus;
 import com.gii.common.enums.PaymentEventStatus;
+import com.gii.common.enums.PaymentEventType;
 import com.gii.common.enums.PublishStatus;
 import com.gii.common.enums.StudyMode;
 import com.gii.common.enums.UserStatus;
@@ -128,7 +129,7 @@ abstract class PaymentApiTestSupport {
         PaymentEvent.builder()
             .order(order)
             .provider(provider)
-            .eventType("webhook")
+            .eventType(PaymentEventType.BKASH_WEBHOOK)
             .providerEventId(eventId)
             .rawPayloadJson(java.util.Map.of("k", "v"))
             .status(status)

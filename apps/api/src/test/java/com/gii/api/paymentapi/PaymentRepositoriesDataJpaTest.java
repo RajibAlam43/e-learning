@@ -7,6 +7,7 @@ import com.gii.common.entity.order.PaymentEvent;
 import com.gii.common.enums.OrderProvider;
 import com.gii.common.enums.OrderStatus;
 import com.gii.common.enums.PaymentEventStatus;
+import com.gii.common.enums.PaymentEventType;
 import com.gii.common.enums.PublishStatus;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -84,7 +85,7 @@ class PaymentRepositoriesDataJpaTest extends AbstractPaymentDataJpaTest {
                 PaymentEvent.builder()
                     .order(order)
                     .provider(OrderProvider.SSLCOMMERZ)
-                    .eventType("webhook")
+                    .eventType(PaymentEventType.SSLCOMMERZ_WEBHOOK)
                     .providerEventId("evt-uniq-1")
                     .rawPayloadJson(java.util.Map.of("k", "v2"))
                     .status(PaymentEventStatus.PROCESSED)

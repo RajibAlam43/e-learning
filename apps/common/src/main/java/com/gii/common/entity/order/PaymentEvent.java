@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.gii.common.entity.common.CreatedOnlyUuidEntity;
 import com.gii.common.enums.OrderProvider;
 import com.gii.common.enums.PaymentEventStatus;
+import com.gii.common.enums.PaymentEventType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -40,8 +41,9 @@ public class PaymentEvent extends CreatedOnlyUuidEntity {
   @Column(name = "provider", nullable = false, length = 50)
   private OrderProvider provider;
 
+  @Enumerated(EnumType.STRING)
   @Column(name = "event_type", nullable = false, length = 100)
-  private String eventType;
+  private PaymentEventType eventType;
 
   @Column(name = "provider_event_id")
   private String providerEventId;

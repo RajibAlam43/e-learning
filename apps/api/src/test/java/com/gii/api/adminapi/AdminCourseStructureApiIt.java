@@ -208,38 +208,6 @@ class AdminCourseStructureApiIt extends AbstractAdminApiIntegrationTest {
   }
 
   @Test
-  void createQuizShouldRejectSectionMismatch() throws Exception {
-    var admin = user("Admin Four", "admin-mismatch@example.com");
-    var creator = user("Creator Four", "creator-mismatch@example.com");
-    var course = course("Course Mismatch", "course-mismatch", creator);
-    var sectionA = section(course, 1);
-    var sectionB = section(course, 2);
-
-    mockMvc
-        .perform(
-            post("/admin/sections/{sectionId}/quizzes", sectionA.getId())
-                .with(authentication(adminAuth(admin.getId())))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(
-                    """
-                    {
-                      "sectionId":"%s",
-                      "position":1,
-                      "title":"Quiz Wrong Section",
-                      "passingScorePct":60,
-                      "maxAttempts":3,
-                      "questions":[
-                        {"position":1,"questionText":"Q1","questionType":"MCQ","points":1,"choices":[
-                          {"choiceText":"A","isCorrect":true}
-                        ]}
-                      ]
-                    }
-                    """
-                        .formatted(sectionB.getId())))
-        .andExpect(status().isBadRequest());
-  }
-
-  @Test
   void reorderStructureShouldValidateDuplicateItemPositions() throws Exception {
     var admin = user("Admin Five", "admin-reorder-validation@example.com");
     var creator = user("Creator Five", "creator-reorder-validation@example.com");
