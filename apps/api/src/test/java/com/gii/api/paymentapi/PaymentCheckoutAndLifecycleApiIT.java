@@ -13,10 +13,7 @@ import com.gii.common.enums.OrderStatus;
 import com.gii.common.enums.PublishStatus;
 import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -112,16 +109,26 @@ class PaymentCheckoutAndLifecycleApiIt extends AbstractPaymentApiIntegrationTest
     orderRepository.save(order);
     var initiatedOrder = orderRepository.findById(order.getId()).orElseThrow();
 
-    String payload = "{\"event\":\"payment_success\",\"txn\":\"" + initiatedOrder.getProviderTxnId() + "\"}";
-    String signature = hmacBase64(payload, "bkash-test-secret");
+    String payload =
+        """
+        {
+          "Type":"Notification",
+          "MessageId":"evt-lifecycle-success",
+          "TopicArn":"arn:aws:sns:ap-southeast-1:123456789012:test",
+          "Message":"{\\"trxID\\":\\"%s\\",\\"transactionStatus\\":\\"Completed\\"}",
+          "Timestamp":"2018-04-19T12:22:46.236Z",
+          "SignatureVersion":"1",
+          "Signature":"test-signature",
+          "SigningCertURL":"https://sns.ap-southeast-1.amazonaws.com/test.pem"
+        }
+        """
+            .formatted(initiatedOrder.getProviderTxnId());
     mockMvc
         .perform(
             post("/public/webhooks/payments/bkash")
                 .contentType(MediaType.TEXT_PLAIN)
-                .header("x-signature", signature)
-                .header("x-transaction-id", initiatedOrder.getProviderTxnId())
                 .header("x-event-id", "evt-lifecycle-success")
-                .header("x-payment-status", "Completed")
+                .header("x-amz-sns-message-type", "Notification")
                 .content(payload))
         .andExpect(status().isOk());
 
@@ -219,6 +226,38 @@ class PaymentCheckoutAndLifecycleApiIt extends AbstractPaymentApiIntegrationTest
   }
 
   @Test
+  void paymentFailedShouldRequireProviderTransactionIdentifier() throws Exception {
+    var student = user("Student Failed Callback", "student-payment-failed-cb@example.com");
+    var order =
+        order(
+            student,
+            OrderStatus.PENDING,
+            OrderProvider.SSLCOMMERZ,
+            "txn-failed-callback",
+            BigDecimal.valueOf(700));
+
+    mockMvc
+        .perform(get("/payments/{orderId}/failed", order.getId()))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void paymentCancelledShouldRequireProviderTransactionIdentifier() throws Exception {
+    var student = user("Student Cancel Callback", "student-payment-cancel-cb@example.com");
+    var order =
+        order(
+            student,
+            OrderStatus.PENDING,
+            OrderProvider.SSLCOMMERZ,
+            "txn-cancel-callback",
+            BigDecimal.valueOf(700));
+
+    mockMvc
+        .perform(get("/payments/{orderId}/cancelled", order.getId()))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
   void bkashSuccessShouldAcceptPaymentIdAlias() throws Exception {
     var student = user("Student Alias", "student-payment-alias@example.com");
     var order =
@@ -237,14 +276,4 @@ class PaymentCheckoutAndLifecycleApiIt extends AbstractPaymentApiIntegrationTest
         .andExpect(status().isBadRequest());
   }
 
-  private String hmacBase64(String payload, String secret) {
-    try {
-      Mac mac = Mac.getInstance("HmacSHA256");
-      mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
-      return java.util.Base64.getEncoder()
-          .encodeToString(mac.doFinal(payload.getBytes(StandardCharsets.UTF_8)));
-    } catch (Exception ex) {
-      throw new RuntimeException(ex);
-    }
-  }
 }
