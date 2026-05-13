@@ -1,4 +1,4 @@
-package com.gii.api.service.payment;
+package com.gii.api.service.payment.sslcommerz;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -44,11 +44,21 @@ public class SslcommerzCallbackValidationService {
   private long validationTimeoutMs;
 
   public void validateSuccessCallback(Order order, Map<String, String> callbackParams) {
+    ValidationOutcome outcome = validateIpnNotification(order, callbackParams);
+    if (!VALID_STATUSES.contains(outcome.status())) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid callback");
+    }
+  }
+
+  public ValidationOutcome validateIpnNotification(Order order, Map<String, String> callbackParams) {
     String valId = callbackParams.get("val_id");
     if (isBlank(valId)) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid callback");
     }
-    validateAgainstOrder(order, validateByValId(valId));
+    Map<String, Object> validated = validateByValId(valId);
+    validateAgainstOrder(order, validated);
+    return new ValidationOutcome(
+        normalize(asString(validated.get("status"))), parseRiskLevel(asString(validated.get("risk_level"))));
   }
 
   public void validateWebhookSignature(Map<String, String> callbackParams) {
@@ -124,7 +134,6 @@ public class SslcommerzCallbackValidationService {
   }
 
   private void validateAgainstOrder(Order order, Map<String, Object> validated) {
-    String status = normalize(asString(validated.get("status")));
     String tranId = asString(validated.get("tran_id"));
     String currency = asString(validated.get("currency_type"));
     if (isBlank(currency)) {
@@ -140,8 +149,7 @@ public class SslcommerzCallbackValidationService {
     BigDecimal amount = new BigDecimal(amountRaw);
 
     boolean valid =
-        VALID_STATUSES.contains(status)
-            && tranId != null
+        tranId != null
             && tranId.equals(order.getProviderTxnId())
             && currency != null
             && currency.equalsIgnoreCase(order.getCurrency())
@@ -161,6 +169,14 @@ public class SslcommerzCallbackValidationService {
 
   private String asString(Object value) {
     return value == null ? null : String.valueOf(value);
+  }
+
+  private int parseRiskLevel(String value) {
+    try {
+      return value == null ? 0 : Integer.parseInt(value.trim());
+    } catch (Exception ex) {
+      return 0;
+    }
   }
 
   private boolean isBlank(String value) {
@@ -183,4 +199,6 @@ public class SslcommerzCallbackValidationService {
   }
 
   private record RawHttpResponse(int statusCode, String body) {}
+
+  public record ValidationOutcome(String status, int riskLevel) {}
 }

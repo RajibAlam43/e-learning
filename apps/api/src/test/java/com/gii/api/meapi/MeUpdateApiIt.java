@@ -32,7 +32,6 @@ class MeUpdateApiIt extends AbstractMeApiIntegrationTest {
           "fullName":"  New Name  ",
           "email":"NEW@EXAMPLE.COM",
           "phone":"+8801710000011",
-          "phoneCountryCode":"880",
           "avatarUrl":" https://cdn.test/new.png ",
           "bio":" About me ",
           "locale":" en-US ",
@@ -54,7 +53,6 @@ class MeUpdateApiIt extends AbstractMeApiIntegrationTest {
         .andExpect(jsonPath("$.fullName").value("New Name"))
         .andExpect(jsonPath("$.email").value("new@example.com"))
         .andExpect(jsonPath("$.phone").value("+8801710000011"))
-        .andExpect(jsonPath("$.phoneCountryCode").value("+880"))
         .andExpect(jsonPath("$.avatarUrl").value("https://cdn.test/new.png"))
         .andExpect(jsonPath("$.bio").value("About me"))
         .andExpect(jsonPath("$.locale").value("en-US"))
@@ -86,7 +84,7 @@ class MeUpdateApiIt extends AbstractMeApiIntegrationTest {
   }
 
   @Test
-  void updateProfileRejectsTooLongPhoneCountryCode() throws Exception {
+  void updateProfileRejectsInvalidPhonePattern() throws Exception {
     var user = user("User Len", "ulen@example.com", "+8801710000005");
     profile(user, "bn-BD", null, null, null);
 
@@ -95,7 +93,7 @@ class MeUpdateApiIt extends AbstractMeApiIntegrationTest {
             patch("/me/profile")
                 .with(authentication(userAuth(user.getId())))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"phoneCountryCode\":\"123456\"}"))
+                .content("{\"phone\":\"invalid_phone\"}"))
         .andExpect(status().isBadRequest());
   }
 

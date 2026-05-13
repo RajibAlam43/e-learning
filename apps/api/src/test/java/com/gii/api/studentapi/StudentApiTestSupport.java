@@ -11,6 +11,7 @@ import com.gii.common.entity.live.LiveClass;
 import com.gii.common.entity.live.LiveClassRegistrant;
 import com.gii.common.entity.order.Order;
 import com.gii.common.entity.order.OrderItem;
+import com.gii.common.entity.quiz.Quiz;
 import com.gii.common.entity.user.User;
 import com.gii.common.entity.user.UserProfile;
 import com.gii.common.enums.CourseLanguage;
@@ -35,6 +36,7 @@ import com.gii.common.repository.live.LiveClassRegistrantRepository;
 import com.gii.common.repository.live.LiveClassRepository;
 import com.gii.common.repository.order.OrderItemRepository;
 import com.gii.common.repository.order.OrderRepository;
+import com.gii.common.repository.quiz.QuizRepository;
 import com.gii.common.repository.user.UserProfileRepository;
 import com.gii.common.repository.user.UserRepository;
 import java.math.BigDecimal;
@@ -57,6 +59,7 @@ abstract class StudentApiTestSupport {
   @Autowired protected OrderRepository orderRepository;
   @Autowired protected OrderItemRepository orderItemRepository;
   @Autowired protected CertificateRepository certificateRepository;
+  @Autowired protected QuizRepository quizRepository;
   @Autowired protected LiveClassRepository liveClassRepository;
   @Autowired protected LiveClassRegistrantRepository liveClassRegistrantRepository;
 
@@ -68,6 +71,7 @@ abstract class StudentApiTestSupport {
     orderItemRepository.deleteAll();
     orderRepository.deleteAll();
     certificateRepository.deleteAll();
+    quizRepository.deleteAll();
     lessonRepository.deleteAll();
     courseSectionRepository.deleteAll();
     courseRepository.deleteAll();
@@ -137,6 +141,21 @@ abstract class StudentApiTestSupport {
             .lessonType(LessonType.VIDEO)
             .status(status)
             .isFree(isFree)
+            .build());
+  }
+
+  protected Quiz quiz(
+      Course course, CourseSection section, int position, PublishStatus status, String title) {
+    return quizRepository.save(
+        Quiz.builder()
+            .course(course)
+            .section(section)
+            .position(position)
+            .title(title)
+            .status(status)
+            .passingScorePct(60)
+            .maxAttempts(3)
+            .timeLimitSec(600)
             .build());
   }
 

@@ -74,7 +74,6 @@ abstract class MeApiTestSupport {
             .fullName(fullName)
             .email(email)
             .phone(phone)
-            .phoneCountryCode("+880")
             .passwordHash("x")
             .status(UserStatus.ACTIVE)
             .build());
