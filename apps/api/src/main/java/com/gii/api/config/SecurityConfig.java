@@ -32,6 +32,10 @@ public class SecurityConfig {
   @Value("${app.cors.allowed-origins}")
   private List<String> allowedOrigins;
 
+  @Value("${app.cors.allowed-origin-patterns}")
+  private List<String> allowedOriginPatterns;
+
+
   @Profile("local")
   @Bean
   SecurityFilterChain securityFilterChainLocal(HttpSecurity http) {
@@ -77,7 +81,12 @@ public class SecurityConfig {
   public CorsConfigurationSource corsConfigurationSource() {
     CorsConfiguration config = new CorsConfiguration();
 
-    config.setAllowedOrigins(allowedOrigins);
+    if (allowedOriginPatterns != null && !allowedOriginPatterns.isEmpty()) {
+      config.setAllowedOriginPatterns(allowedOriginPatterns);
+    } else {
+      config.setAllowedOrigins(allowedOrigins);
+    }
+
     config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
     config.setAllowedHeaders(List.of("*"));
     config.setAllowCredentials(true);

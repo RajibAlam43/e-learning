@@ -64,6 +64,7 @@ public class SslcommerzWebhookService {
     if (orderOpt.isPresent()) {
       Order order = orderOpt.get();
       Map<String, String> params = callbackParams(parsed, txnId);
+      params.put("_verified_webhook", "true");
       String resolvedStatus = normalizeUpper(firstNonBlank(asString(parsed.get("status")), h.get("x-status")));
       int riskLevel = 0;
       if (validateOnWebhook) {
