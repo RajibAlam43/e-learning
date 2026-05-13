@@ -31,7 +31,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-cache'
 
     // EMAIL (SES)
-    implementation 'software.amazon.awssdk:ses:2.44.0'
+    implementation 'software.amazon.awssdk:ses:2.44.4'
 
     // OTHERS
     implementation 'org.projectlombok:lombok:1.18.46'
