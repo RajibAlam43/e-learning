@@ -20,6 +20,8 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     environment: ${{ inputs.target_env }}
+    env:
+      GRADLE_OPTS: "-Xmx2g -XX:MaxMetaspaceSize=512m -Dfile.encoding=UTF-8"
 
     steps:
       - name: Checkout
