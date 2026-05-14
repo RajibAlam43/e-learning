@@ -2,44 +2,34 @@ package com.gii.api.controller;
 
 import com.gii.api.model.request.admin.CreateLiveClassRequest;
 import com.gii.api.model.request.admin.UpdateLiveClassRequest;
-import com.gii.api.model.response.live.LiveClassStartResponse;
-import com.gii.api.model.response.live.LiveClassUpsertResponse;
 import com.gii.api.model.response.admin.AdminLiveClassDetailResponse;
 import com.gii.api.model.response.admin.AdminLiveClassStartResponse;
 import com.gii.api.model.response.instructor.InstructorLiveClassResponse;
 import com.gii.api.model.response.instructor.InstructorLiveClassStartResponse;
+import com.gii.api.model.response.live.LiveClassStartResponse;
+import com.gii.api.model.response.live.LiveClassUpsertResponse;
 import com.gii.api.model.response.student.StudentLiveClassJoinResponse;
 import com.gii.api.service.admin.AdminLiveClassManagementService;
 import com.gii.api.service.instructor.InstructorLiveClassService;
 import com.gii.api.service.student.StudentJoinLiveClassesService;
-import jakarta.validation.Valid;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/live-classes")
-public class LiveClassApiController {
+public class LiveClassApiController implements LiveClassApi {
 
   private final InstructorLiveClassService instructorLiveClassService;
   private final AdminLiveClassManagementService adminLiveClassManagementService;
   private final StudentJoinLiveClassesService studentJoinLiveClassesService;
 
-  @PostMapping("/courses/{courseId}")
+  @Override
   public ResponseEntity<LiveClassUpsertResponse> create(
-      @PathVariable UUID courseId,
-      @RequestBody @Valid com.gii.api.model.request.instructor.CreateLiveClassRequest request,
+      UUID courseId,
+      com.gii.api.model.request.instructor.CreateLiveClassRequest request,
       Authentication authentication) {
     if (hasRole(authentication, "ROLE_ADMIN")) {
       CreateLiveClassRequest adminRequest =
@@ -58,13 +48,13 @@ public class LiveClassApiController {
       return ResponseEntity.ok(
           toUpsertResponse(instructorLiveClassService.create(courseId, request, authentication)));
     }
-    throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only admin/instructor can create");
+    throw new IllegalStateException("Authenticated role not eligible for create");
   }
 
-  @PatchMapping("/{liveClassId}")
+  @Override
   public ResponseEntity<LiveClassUpsertResponse> update(
-      @PathVariable UUID liveClassId,
-      @RequestBody @Valid com.gii.api.model.request.instructor.UpdateLiveClassRequest request,
+      UUID liveClassId,
+      com.gii.api.model.request.instructor.UpdateLiveClassRequest request,
       Authentication authentication) {
     if (hasRole(authentication, "ROLE_ADMIN")) {
       UpdateLiveClassRequest adminRequest =
@@ -82,12 +72,12 @@ public class LiveClassApiController {
       return ResponseEntity.ok(
           toUpsertResponse(instructorLiveClassService.update(liveClassId, request, authentication)));
     }
-    throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only admin/instructor can update");
+    throw new IllegalStateException("Authenticated role not eligible for update");
   }
 
-  @PostMapping("/{liveClassId}/start")
+  @Override
   public ResponseEntity<LiveClassStartResponse> start(
-      @PathVariable UUID liveClassId, Authentication authentication) {
+      UUID liveClassId, Authentication authentication) {
     if (hasRole(authentication, "ROLE_ADMIN")) {
       return ResponseEntity.ok(toStartResponse(adminLiveClassManagementService.start(liveClassId)));
     }
@@ -95,12 +85,12 @@ public class LiveClassApiController {
       return ResponseEntity.ok(
           toStartResponse(instructorLiveClassService.start(liveClassId, authentication)));
     }
-    throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only admin/instructor can start");
+    throw new IllegalStateException("Authenticated role not eligible for start");
   }
 
-  @DeleteMapping("/{liveClassId}")
+  @Override
   public ResponseEntity<LiveClassUpsertResponse> cancel(
-      @PathVariable UUID liveClassId, Authentication authentication) {
+      UUID liveClassId, Authentication authentication) {
     if (hasRole(authentication, "ROLE_ADMIN")) {
       return ResponseEntity.ok(toUpsertResponse(adminLiveClassManagementService.cancel(liveClassId)));
     }
@@ -108,15 +98,12 @@ public class LiveClassApiController {
       return ResponseEntity.ok(
           toUpsertResponse(instructorLiveClassService.cancel(liveClassId, authentication)));
     }
-    throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only admin/instructor can cancel");
+    throw new IllegalStateException("Authenticated role not eligible for cancel");
   }
 
-  @PostMapping("/{liveClassId}/join")
+  @Override
   public ResponseEntity<StudentLiveClassJoinResponse> join(
-      @PathVariable UUID liveClassId, Authentication authentication) {
-    if (!hasRole(authentication, "ROLE_STUDENT") && !hasRole(authentication, "ROLE_ADMIN")) {
-      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only student/admin can join");
-    }
+      UUID liveClassId, Authentication authentication) {
     return ResponseEntity.ok(studentJoinLiveClassesService.execute(liveClassId, authentication));
   }
 

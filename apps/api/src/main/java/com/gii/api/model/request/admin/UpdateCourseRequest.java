@@ -8,7 +8,7 @@ import lombok.Builder;
 public record UpdateCourseRequest(
     String title,
     String slug,
-    String thumbnailUrl,
+    String thumbnailObjectKey,
     String shortDescription,
     String description,
     List<String> highlights,

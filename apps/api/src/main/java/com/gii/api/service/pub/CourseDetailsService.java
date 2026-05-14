@@ -6,6 +6,7 @@ import com.gii.api.model.response.CourseSectionResponse;
 import com.gii.api.model.response.InstructorSummaryResponse;
 import com.gii.api.model.response.LessonSummaryResponse;
 import com.gii.api.model.response.LessonVideoResponse;
+import com.gii.api.service.course.CourseThumbnailUrlService;
 import com.gii.common.entity.course.Category;
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.course.CourseSection;
@@ -39,6 +40,7 @@ public class CourseDetailsService {
   private final LessonRepository lessonRepository;
   private final CourseCategoryRepository courseCategoryRepository;
   private final CourseInstructorRepository courseInstructorRepository;
+  private final CourseThumbnailUrlService courseThumbnailUrlService;
 
   public CourseDetailsResponse execute(String slug) {
     Course course =
@@ -88,7 +90,7 @@ public class CourseDetailsService {
         .description(course.getDescription())
         .language(course.getLanguage())
         .level(course.getLevel())
-        .thumbnailUrl(course.getThumbnailUrl())
+        .thumbnailUrl(courseThumbnailUrlService.buildCourseThumbnailUrl(course))
         .priceBdt(course.getPriceBdt())
         .highlights(course.getHighlights())
         .courseOutcomes(course.getCourseOutcomes())
