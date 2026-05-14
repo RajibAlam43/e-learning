@@ -6,18 +6,21 @@ import com.gii.api.model.response.admin.AdminLiveClassDetailResponse;
 import com.gii.api.model.response.admin.AdminLiveClassRegistrantResponse;
 import com.gii.api.model.response.admin.AdminLiveClassStartResponse;
 import com.gii.api.model.response.admin.AdminLiveClassSummaryResponse;
+import com.gii.api.service.live.LiveMeetingCreateRequest;
+import com.gii.api.service.live.LiveMeetingCreateResult;
+import com.gii.api.service.live.LiveMeetingProvisioningService;
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.course.CourseSection;
-import com.gii.common.entity.course.Lesson;
 import com.gii.common.entity.live.LiveClass;
 import com.gii.common.entity.live.LiveClassRegistrant;
 import com.gii.common.enums.LiveClassProvider;
 import com.gii.common.enums.LiveClassStatus;
 import com.gii.common.repository.course.CourseRepository;
 import com.gii.common.repository.course.CourseSectionRepository;
-import com.gii.common.repository.course.LessonRepository;
 import com.gii.common.repository.live.LiveClassRegistrantRepository;
 import com.gii.common.repository.live.LiveClassRepository;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -30,12 +33,14 @@ import org.springframework.web.server.ResponseStatusException;
 @RequiredArgsConstructor
 @Transactional
 public class AdminLiveClassManagementService {
+  private static final Duration CREATE_LEAD_TIME = Duration.ofMinutes(2);
+  private static final int MAX_CAPACITY_LIMIT = 1000;
 
   private final LiveClassRepository liveClassRepository;
   private final LiveClassRegistrantRepository registrantRepository;
   private final CourseRepository courseRepository;
   private final CourseSectionRepository sectionRepository;
-  private final LessonRepository lessonRepository;
+  private final LiveMeetingProvisioningService liveMeetingProvisioningService;
 
   @Transactional(readOnly = true)
   public List<AdminLiveClassSummaryResponse> list() {
@@ -53,25 +58,35 @@ public class AdminLiveClassManagementService {
             .findById(request.sectionId())
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Section not found"));
-    Lesson lesson =
-        lessonRepository
-            .findById(request.lessonId())
-            .orElseThrow(
-                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lesson not found"));
-    validateHierarchy(course, section, lesson);
+    validateHierarchy(course, section);
+    validateSupportedProvider(request.provider());
     validateTimeRange(request.startsAt(), request.endsAt());
+    validateCapacity(request.maxCapacity());
+    ensureNoProviderOverlap(request.provider(), request.startsAt(), request.endsAt());
+
+    LiveMeetingCreateResult meeting =
+        liveMeetingProvisioningService.createMeeting(
+            LiveMeetingCreateRequest.builder()
+                .provider(request.provider())
+                .title(request.title().trim())
+                .description(request.description())
+                .startsAt(request.startsAt())
+                .endsAt(request.endsAt())
+                .maxCapacity(request.maxCapacity())
+                .build());
 
     LiveClass liveClass =
         LiveClass.builder()
             .course(course)
             .section(section)
-            .lesson(lesson)
             .instructor(null)
             .title(request.title().trim())
             .description(request.description())
-            .provider(LiveClassProvider.OTHER)
-            .participantJoinUrl(request.zoomMeetingLink())
-            .zoomJoinUrl(request.zoomMeetingLink())
+            .provider(request.provider())
+            .providerMeetingId(meeting.meetingId())
+            .hostStartUrl(meeting.hostStartUrl())
+            .participantJoinUrl(meeting.participantJoinUrl())
+            .maxCapacity(request.maxCapacity())
             .status(LiveClassStatus.SCHEDULED)
             .startsAt(request.startsAt())
             .endsAt(request.endsAt())
@@ -117,9 +132,9 @@ public class AdminLiveClassManagementService {
     return AdminLiveClassStartResponse.builder()
         .liveClassId(saved.getId())
         .title(saved.getTitle())
-        .zoomStartUrl(saved.effectiveHostStartUrl())
-        .zoomMeetingId(saved.effectiveMeetingId())
-        .zoomPassword(null)
+        .provider(saved.getProvider())
+        .hostStartUrl(saved.effectiveHostStartUrl())
+        .meetingId(saved.effectiveMeetingId())
         .startsAt(saved.getStartsAt())
         .endsAt(saved.getEndsAt())
         .status(saved.getStatus().name())
@@ -158,17 +173,16 @@ public class AdminLiveClassManagementService {
         .courseName(liveClass.getCourse().getTitle())
         .sectionId(liveClass.getSection().getId())
         .sectionTitle(liveClass.getSection().getTitle())
-        .lessonId(liveClass.getLesson().getId())
-        .lessonTitle(liveClass.getLesson().getTitle())
         .instructorId(liveClass.getInstructor() != null ? liveClass.getInstructor().getId() : null)
         .instructorName(
             liveClass.getInstructor() != null ? liveClass.getInstructor().getFullName() : null)
         .startsAt(liveClass.getStartsAt())
         .endsAt(liveClass.getEndsAt())
+        .provider(liveClass.getProvider())
         .status(liveClass.getStatus().name())
-        .zoomMeetingId(liveClass.effectiveMeetingId())
-        .zoomStartUrl(liveClass.effectiveHostStartUrl())
-        .zoomJoinUrl(liveClass.effectiveParticipantJoinUrl())
+        .meetingId(liveClass.effectiveMeetingId())
+        .hostStartUrl(liveClass.effectiveHostStartUrl())
+        .joinUrl(liveClass.effectiveParticipantJoinUrl())
         .createdAt(liveClass.getCreatedAt())
         .updatedAt(liveClass.getUpdatedAt())
         .registrants(registrants)
@@ -182,7 +196,7 @@ public class AdminLiveClassManagementService {
         .studentName(registrant.getUser().getFullName())
         .studentEmail(registrant.getUser().getEmail())
         .status(registrant.getStatus().name())
-        .zoomRegistrantId(registrant.getZoomRegistrantId())
+        .providerRegistrantId(registrant.getProviderRegistrantId())
         .attended(null)
         .joinedAt(null)
         .leftAt(null)
@@ -190,20 +204,47 @@ public class AdminLiveClassManagementService {
         .build();
   }
 
-  private void validateHierarchy(Course course, CourseSection section, Lesson lesson) {
+  private void validateHierarchy(Course course, CourseSection section) {
     if (!section.getCourse().getId().equals(course.getId())) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "Section does not belong to course");
     }
-    if (!lesson.getSection().getId().equals(section.getId())) {
+  }
+
+  private void validateTimeRange(Instant startsAt, Instant endsAt) {
+    if (startsAt == null || endsAt == null || !endsAt.isAfter(startsAt)) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid live class time range");
+    }
+    if (startsAt.isBefore(Instant.now().plus(CREATE_LEAD_TIME))) {
       throw new ResponseStatusException(
-          HttpStatus.BAD_REQUEST, "Lesson does not belong to section");
+          HttpStatus.BAD_REQUEST, "Start time must be at least 2 minutes in the future");
     }
   }
 
-  private void validateTimeRange(java.time.Instant startsAt, java.time.Instant endsAt) {
-    if (startsAt == null || endsAt == null || !endsAt.isAfter(startsAt)) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid live class time range");
+  private void validateSupportedProvider(LiveClassProvider provider) {
+    if (provider != LiveClassProvider.ZOOM && provider != LiveClassProvider.GOOGLE_MEET) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Provider must be ZOOM or GOOGLE_MEET");
+    }
+  }
+
+  private void validateCapacity(Integer maxCapacity) {
+    if (maxCapacity == null || maxCapacity < 1 || maxCapacity > MAX_CAPACITY_LIMIT) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Max capacity must be between 1 and 1000");
+    }
+  }
+
+  private void ensureNoProviderOverlap(LiveClassProvider provider, Instant startsAt, Instant endsAt) {
+    boolean overlap =
+        liveClassRepository.existsOverlappingByProvider(
+            provider,
+            List.of(LiveClassStatus.SCHEDULED, LiveClassStatus.LIVE),
+            startsAt,
+            endsAt);
+    if (overlap) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Provider host account already has overlapping live class");
     }
   }
 

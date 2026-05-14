@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.gii.common.entity.common.BaseUuidEntity;
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.course.CourseSection;
-import com.gii.common.entity.course.Lesson;
 import com.gii.common.entity.user.User;
 import com.gii.common.enums.LiveClassProvider;
 import com.gii.common.enums.LiveClassStatus;
@@ -45,11 +44,6 @@ public class LiveClass extends BaseUuidEntity {
   private CourseSection section;
 
   @JsonIgnore
-  @ManyToOne(fetch = FetchType.LAZY, optional = false)
-  @JoinColumn(name = "lesson_id", nullable = false)
-  private Lesson lesson;
-
-  @JsonIgnore
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "instructor_id")
   private User instructor;
@@ -77,16 +71,6 @@ public class LiveClass extends BaseUuidEntity {
   @Column(name = "provider_metadata", columnDefinition = "jsonb")
   private Map<String, Object> providerMetadata;
 
-  // Legacy Zoom fields kept for backwards compatibility with existing data.
-  @Column(name = "zoom_meeting_id", unique = true)
-  private String zoomMeetingId;
-
-  @Column(name = "zoom_start_url")
-  private String zoomStartUrl;
-
-  @Column(name = "zoom_join_url")
-  private String zoomJoinUrl;
-
   @Column(name = "starts_at", nullable = false)
   private Instant startsAt;
 
@@ -105,18 +89,18 @@ public class LiveClass extends BaseUuidEntity {
   @JoinColumn(name = "created_by")
   private User createdBy;
 
-  /** Provider-agnostic effective participant URL with legacy fallback. */
+  /** Provider participant join URL. */
   public String effectiveParticipantJoinUrl() {
-    return participantJoinUrl != null ? participantJoinUrl : zoomJoinUrl;
+    return participantJoinUrl;
   }
 
-  /** Provider-agnostic effective host URL with legacy fallback. */
+  /** Provider host start URL. */
   public String effectiveHostStartUrl() {
-    return hostStartUrl != null ? hostStartUrl : zoomStartUrl;
+    return hostStartUrl;
   }
 
-  /** Provider-agnostic meeting ID with legacy fallback. */
+  /** Provider meeting ID. */
   public String effectiveMeetingId() {
-    return providerMeetingId != null ? providerMeetingId : zoomMeetingId;
+    return providerMeetingId;
   }
 }

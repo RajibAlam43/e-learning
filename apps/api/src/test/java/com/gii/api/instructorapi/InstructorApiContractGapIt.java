@@ -29,21 +29,53 @@ class InstructorApiContractGapIt extends AbstractInstructorApiIntegrationTest {
     var course = course("Gap Course", "gap-course-inst", creator, PublishStatus.PUBLISHED);
     assignment(course, instructor, InstructorRole.PRIMARY);
     var sec = section(course, 1, PublishStatus.PUBLISHED);
-    var lesson = lesson(course, sec, 1, PublishStatus.PUBLISHED);
 
     String invalidBody =
         """
         {
           "sectionId":"%s",
-          "lessonId":"%s",
           "title":"   ",
           "startsAt":"%s",
-          "endsAt":"%s"
+          "endsAt":"%s",
+          "provider":"ZOOM",
+          "maxCapacity":100
         }
         """
             .formatted(
                 sec.getId(),
-                lesson.getId(),
+                Instant.now().plusSeconds(1800).toString(),
+                Instant.now().plusSeconds(3600).toString());
+
+    mockMvc
+        .perform(
+            post("/instructor/courses/{courseId}/live-classes", course.getId())
+                .with(authentication(instructorAuth(instructor.getId())))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(invalidBody))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void createLiveClassWithUnsupportedProviderShouldBe400() throws Exception {
+    var creator = user("Creator 2", "creator-inst-gap2@example.com");
+    var instructor = user("Instructor 2", "inst-gap2@example.com");
+    var course = course("Gap Course 2", "gap-course-inst-2", creator, PublishStatus.PUBLISHED);
+    assignment(course, instructor, InstructorRole.PRIMARY);
+    var sec = section(course, 1, PublishStatus.PUBLISHED);
+
+    String invalidBody =
+        """
+        {
+          "sectionId":"%s",
+          "title":"Live Session",
+          "startsAt":"%s",
+          "endsAt":"%s",
+          "provider":"OTHER",
+          "maxCapacity":100
+        }
+        """
+            .formatted(
+                sec.getId(),
                 Instant.now().plusSeconds(1800).toString(),
                 Instant.now().plusSeconds(3600).toString());
 

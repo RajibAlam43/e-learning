@@ -14,7 +14,7 @@ public record LiveClassRegistrantSummaryResponse(
 
     // Registration status
     LiveClassRegistrantStatus status, // PENDING, APPROVED, FAILED, CANCELLED
-    String zoomRegistrantId,
+    String providerRegistrantId,
 
     // Attendance (populated after class)
     Boolean attended,

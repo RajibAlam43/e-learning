@@ -54,7 +54,9 @@ public interface InstructorApi {
   @PostMapping("/courses/{courseId}/live-classes")
   @Operation(
       summary = "Create live class",
-      description = "Schedule a new live class for an instructor-assigned course.")
+      description =
+          "Schedule a new section-level live class for an instructor-assigned course."
+              + " Meeting links are auto-generated from provider integration.")
   @ApiResponses(
       value = {
         @ApiResponse(
@@ -64,7 +66,7 @@ public interface InstructorApi {
                 @Content(schema = @Schema(implementation = InstructorLiveClassResponse.class))),
         @ApiResponse(
             responseCode = "400",
-            description = "Invalid input - invalid schedule or lesson"),
+            description = "Invalid input - invalid schedule, capacity, provider config, or overlap"),
         @ApiResponse(responseCode = "401", description = "Unauthorized"),
         @ApiResponse(responseCode = "403", description = "Not assigned to this course"),
         @ApiResponse(responseCode = "404", description = "Course not found")
@@ -77,7 +79,7 @@ public interface InstructorApi {
   @PostMapping("/live-classes/{liveClassId}/start")
   @Operation(
       summary = "Start live class",
-      description = "Start a live class and get host URLs for Zoom.")
+      description = "Start a live class and get provider host URLs.")
   @ApiResponses(
       value = {
         @ApiResponse(

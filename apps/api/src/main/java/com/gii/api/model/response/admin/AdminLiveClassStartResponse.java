@@ -1,5 +1,6 @@
 package com.gii.api.model.response.admin;
 
+import com.gii.common.enums.LiveClassProvider;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.Builder;
@@ -8,9 +9,9 @@ import lombok.Builder;
 public record AdminLiveClassStartResponse(
     UUID liveClassId,
     String title,
-    String zoomStartUrl,
-    String zoomMeetingId,
-    String zoomPassword,
+    LiveClassProvider provider,
+    String hostStartUrl,
+    String meetingId,
     Instant startsAt,
     Instant endsAt,
     String status,

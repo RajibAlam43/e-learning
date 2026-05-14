@@ -24,8 +24,8 @@ public record StudentLiveClassSummaryResponse(
     // Course/section context
     UUID courseId,
     String courseName,
-    UUID lessonId,
-    String lessonTitle,
+    UUID sectionId,
+    String sectionTitle,
 
     // Status
     LiveClassStatus status, // SCHEDULED, LIVE, COMPLETED, CANCELLED, FAILED

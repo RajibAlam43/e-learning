@@ -3,6 +3,7 @@ package com.gii.api.instructorapi;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.gii.common.enums.InstructorRole;
+import com.gii.common.enums.LiveClassProvider;
 import com.gii.common.enums.LiveClassRegistrantStatus;
 import com.gii.common.enums.LiveClassStatus;
 import com.gii.common.enums.PublishStatus;
@@ -54,5 +55,37 @@ class InstructorLiveRepositoriesDataJpaTest extends AbstractInstructorDataJpaTes
     assertThat(liveClassRegistrantRepository.findByLiveClassIdOrderByCreatedAtAsc(live.getId()))
         .hasSize(1);
     assertThat(liveClassAttendanceRepository.findByLiveClassId(live.getId())).hasSize(1);
+  }
+
+  @Test
+  void assignedSectionLookupAndProviderOverlapQueriesWorkForCreateFlow() {
+    var creator = user("Creator 2", "creator-inst-jpa2@example.com");
+    var instructor = user("Instructor 2", "inst-jpa2@example.com");
+    var otherInstructor = user("Instructor 3", "inst-jpa3@example.com");
+    var course = course("Course JPA 2", "course-jpa-inst-2", creator, PublishStatus.PUBLISHED);
+    assignment(course, instructor, InstructorRole.PRIMARY);
+    var sec = section(course, 1, PublishStatus.PUBLISHED);
+    var lesson = lesson(course, sec, 1, PublishStatus.PUBLISHED);
+
+    var assignedSection =
+        courseSectionRepository.findAssignedSectionForInstructor(
+            course.getId(), sec.getId(), instructor.getId());
+    var missingAssignment =
+        courseSectionRepository.findAssignedSectionForInstructor(
+            course.getId(), sec.getId(), otherInstructor.getId());
+    assertThat(assignedSection).isPresent();
+    assertThat(missingAssignment).isEmpty();
+
+    var startsAt = Instant.now().plusSeconds(3600);
+    var endsAt = Instant.now().plusSeconds(5400);
+    liveClass(course, sec, lesson, instructor, LiveClassStatus.SCHEDULED, startsAt, endsAt);
+
+    assertThat(
+            liveClassRepository.existsOverlappingByProvider(
+                LiveClassProvider.ZOOM,
+                List.of(LiveClassStatus.SCHEDULED, LiveClassStatus.LIVE),
+                startsAt.plusSeconds(60),
+                endsAt.plusSeconds(60)))
+        .isTrue();
   }
 }

@@ -87,7 +87,7 @@ class StudentLiveClassesApiIt extends AbstractStudentApiIntegrationTest {
             post("/student/live-classes/{liveClassId}/join", live.getId())
                 .with(authentication(studentAuth(student.getId()))))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.zoomJoinUrl").value("https://zoom.test/join/" + live.getId()));
+        .andExpect(jsonPath("$.joinUrl").value("https://zoom.test/join/" + live.getId()));
 
     mockMvc
         .perform(

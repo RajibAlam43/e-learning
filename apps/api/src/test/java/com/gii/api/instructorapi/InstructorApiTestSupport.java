@@ -167,7 +167,7 @@ abstract class InstructorApiTestSupport {
   protected LiveClass liveClass(
       Course course,
       CourseSection section,
-      Lesson lesson,
+      Lesson ignoredLesson,
       User instructor,
       LiveClassStatus status,
       Instant startsAt,
@@ -176,17 +176,13 @@ abstract class InstructorApiTestSupport {
         LiveClass.builder()
             .course(course)
             .section(section)
-            .lesson(lesson)
             .instructor(instructor)
-            .title("Live " + lesson.getTitle())
+            .title("Live Session")
             .description("desc")
             .provider(LiveClassProvider.ZOOM)
             .providerMeetingId("m-" + UUID.randomUUID())
             .hostStartUrl("https://zoom.test/start/" + UUID.randomUUID())
             .participantJoinUrl("https://zoom.test/join/" + UUID.randomUUID())
-            .zoomMeetingId("z-" + UUID.randomUUID())
-            .zoomStartUrl("https://zoom.test/start-legacy/" + UUID.randomUUID())
-            .zoomJoinUrl("https://zoom.test/join-legacy/" + UUID.randomUUID())
             .startsAt(startsAt)
             .endsAt(endsAt)
             .status(status)
@@ -201,8 +197,8 @@ abstract class InstructorApiTestSupport {
             .user(student)
             .liveClass(liveClass)
             .status(status)
-            .zoomRegistrantId("r-" + UUID.randomUUID())
-            .zoomJoinUrl("https://zoom.test/reg/" + UUID.randomUUID())
+            .providerRegistrantId("r-" + UUID.randomUUID())
+            .participantJoinUrl("https://zoom.test/reg/" + UUID.randomUUID())
             .build());
   }
 

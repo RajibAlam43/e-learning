@@ -222,7 +222,7 @@ abstract class StudentApiTestSupport {
   protected LiveClass liveClass(
       Course course,
       CourseSection section,
-      Lesson lesson,
+      Lesson ignoredLesson,
       User instructor,
       LiveClassStatus status,
       Instant startsAt,
@@ -232,9 +232,8 @@ abstract class StudentApiTestSupport {
         LiveClass.builder()
             .course(course)
             .section(section)
-            .lesson(lesson)
             .instructor(instructor)
-            .title("Live: " + lesson.getTitle())
+            .title("Live Session")
             .provider(LiveClassProvider.ZOOM)
             .status(status)
             .startsAt(startsAt)
@@ -251,8 +250,8 @@ abstract class StudentApiTestSupport {
             .user(user)
             .liveClass(liveClass)
             .status(status)
-            .zoomJoinUrl("https://zoom.test/join/" + liveClass.getId())
-            .zoomRegistrantId("r-" + UUID.randomUUID())
+            .participantJoinUrl("https://zoom.test/join/" + liveClass.getId())
+            .providerRegistrantId("r-" + UUID.randomUUID())
             .build());
   }
 }

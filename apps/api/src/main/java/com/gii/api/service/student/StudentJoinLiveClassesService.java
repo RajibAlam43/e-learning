@@ -70,8 +70,8 @@ public class StudentJoinLiveClassesService {
     }
 
     String joinUrl =
-        registrant.getZoomJoinUrl() != null
-            ? registrant.getZoomJoinUrl()
+        registrant.getParticipantJoinUrl() != null
+            ? registrant.getParticipantJoinUrl()
             : liveClass.effectiveParticipantJoinUrl();
     if (joinUrl == null) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Join link is unavailable");
@@ -81,17 +81,18 @@ public class StudentJoinLiveClassesService {
         .liveClassId(liveClass.getId())
         .title(liveClass.getTitle())
         .status(liveClass.getStatus())
+        .provider(liveClass.getProvider())
         .startsAt(liveClass.getStartsAt())
         .endsAt(liveClass.getEndsAt())
-        .zoomJoinUrl(joinUrl)
-        .zoomMeetingId(liveClass.effectiveMeetingId())
+        .joinUrl(joinUrl)
+        .meetingId(liveClass.effectiveMeetingId())
         .instructorName(
             liveClass.getInstructor() != null ? liveClass.getInstructor().getFullName() : null)
         .instructorEmail(
             liveClass.getInstructor() != null ? liveClass.getInstructor().getEmail() : null)
         .isRegistered(true)
         .participantEmail(enrollment.getUser().getEmail())
-        .zoomRegistrantId(registrant.getZoomRegistrantId())
+        .providerRegistrantId(registrant.getProviderRegistrantId())
         .supportEmail("support@gii.com")
         .recordingAvailable(false)
         .recordingUrl(null)

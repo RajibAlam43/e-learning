@@ -6,9 +6,10 @@ import com.gii.api.model.response.instructor.InstructorLiveClassResponse;
 import com.gii.api.model.response.instructor.InstructorLiveClassStartResponse;
 import com.gii.api.model.response.instructor.LiveClassRegistrantSummaryResponse;
 import com.gii.api.service.enrollment.CurrentUserService;
-import com.gii.common.entity.course.Course;
+import com.gii.api.service.live.LiveMeetingCreateRequest;
+import com.gii.api.service.live.LiveMeetingCreateResult;
+import com.gii.api.service.live.LiveMeetingProvisioningService;
 import com.gii.common.entity.course.CourseSection;
-import com.gii.common.entity.course.Lesson;
 import com.gii.common.entity.live.LiveClass;
 import com.gii.common.entity.live.LiveClassAttendance;
 import com.gii.common.entity.live.LiveClassRegistrant;
@@ -16,10 +17,7 @@ import com.gii.common.entity.user.User;
 import com.gii.common.enums.LiveClassProvider;
 import com.gii.common.enums.LiveClassRegistrantStatus;
 import com.gii.common.enums.LiveClassStatus;
-import com.gii.common.repository.course.CourseInstructorRepository;
-import com.gii.common.repository.course.CourseRepository;
 import com.gii.common.repository.course.CourseSectionRepository;
-import com.gii.common.repository.course.LessonRepository;
 import com.gii.common.repository.live.LiveClassAttendanceRepository;
 import com.gii.common.repository.live.LiveClassRegistrantRepository;
 import com.gii.common.repository.live.LiveClassRepository;
@@ -40,61 +38,56 @@ import org.springframework.web.server.ResponseStatusException;
 @RequiredArgsConstructor
 @Transactional
 public class InstructorLiveClassService {
+  private static final Duration CREATE_LEAD_TIME = Duration.ofMinutes(2);
+  private static final int MAX_CAPACITY_LIMIT = 1000;
   private static final String DISPLAY_TIMEZONE = "Asia/Dhaka";
 
   private final CurrentUserService currentUserService;
-  private final CourseRepository courseRepository;
   private final CourseSectionRepository courseSectionRepository;
-  private final LessonRepository lessonRepository;
-  private final CourseInstructorRepository courseInstructorRepository;
   private final LiveClassRepository liveClassRepository;
   private final LiveClassRegistrantRepository liveClassRegistrantRepository;
   private final LiveClassAttendanceRepository liveClassAttendanceRepository;
+  private final LiveMeetingProvisioningService liveMeetingProvisioningService;
 
   public InstructorLiveClassResponse create(
       UUID courseId, CreateLiveClassRequest request, Authentication authentication) {
     User instructor = currentUserService.getCurrentUser(authentication);
-    final Course course =
-        courseRepository
-            .findById(courseId)
-            .orElseThrow(
-                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found"));
-    ensureInstructorAssigned(courseId, instructor.getId());
-
     CourseSection section =
         courseSectionRepository
-            .findById(request.sectionId())
+            .findAssignedSectionForInstructor(courseId, request.sectionId(), instructor.getId())
             .orElseThrow(
-                () -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Section not found"));
-    Lesson lesson =
-        lessonRepository
-            .findById(request.lessonId())
-            .orElseThrow(
-                () -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Lesson not found"));
-
-    validateCourseMapping(courseId, section, lesson);
+                () ->
+                    new ResponseStatusException(
+                        HttpStatus.FORBIDDEN, "Not assigned to this course section"));
+    validateSupportedProvider(request.provider());
     validateSchedule(request.startsAt(), request.endsAt());
+    validateCapacity(request.maxCapacity());
+    ensureNoProviderOverlap(request.provider(), request.startsAt(), request.endsAt());
 
+    LiveMeetingCreateResult meeting =
+        liveMeetingProvisioningService.createMeeting(
+            LiveMeetingCreateRequest.builder()
+                .provider(request.provider())
+                .title(request.title().trim())
+                .description(request.description())
+                .startsAt(request.startsAt())
+                .endsAt(request.endsAt())
+                .maxCapacity(request.maxCapacity())
+                .build());
     LiveClass liveClass =
         LiveClass.builder()
-            .course(course)
+            .course(section.getCourse())
             .section(section)
-            .lesson(lesson)
             .instructor(instructor)
             .title(request.title().trim())
             .description(request.description())
-            // Provider-agnostic fields (legacy zoomMeetingLink still accepted as fallback input).
-            .provider(request.provider() != null ? request.provider() : LiveClassProvider.ZOOM)
-            .providerMeetingId(request.providerMeetingId())
-            .hostStartUrl(request.hostStartUrl())
-            .participantJoinUrl(
-                firstNonBlank(request.participantJoinUrl(), request.zoomMeetingLink()))
-            // Legacy fields are mirrored for backward compatibility during migration.
-            .zoomMeetingId(request.providerMeetingId())
-            .zoomStartUrl(request.hostStartUrl())
-            .zoomJoinUrl(firstNonBlank(request.participantJoinUrl(), request.zoomMeetingLink()))
+            .provider(request.provider())
+            .providerMeetingId(meeting.meetingId())
+            .hostStartUrl(meeting.hostStartUrl())
+            .participantJoinUrl(meeting.participantJoinUrl())
             .startsAt(request.startsAt())
             .endsAt(request.endsAt())
+            .maxCapacity(request.maxCapacity())
             .status(LiveClassStatus.SCHEDULED)
             .createdBy(instructor)
             .build();
@@ -128,9 +121,9 @@ public class InstructorLiveClassService {
     return InstructorLiveClassStartResponse.builder()
         .liveClassId(liveClass.getId())
         .title(liveClass.getTitle())
-        .zoomStartUrl(liveClass.effectiveHostStartUrl())
-        .zoomMeetingId(liveClass.effectiveMeetingId())
-        .zoomPassword(null)
+        .provider(liveClass.getProvider())
+        .hostStartUrl(liveClass.effectiveHostStartUrl())
+        .meetingId(liveClass.effectiveMeetingId())
         .startsAt(liveClass.getStartsAt())
         .endsAt(liveClass.getEndsAt())
         .durationMinutes(
@@ -194,31 +187,40 @@ public class InstructorLiveClassService {
             () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Live class not found"));
   }
 
-  private void ensureInstructorAssigned(UUID courseId, UUID instructorId) {
-    boolean assigned =
-        courseInstructorRepository.existsByCourseIdAndInstructorId(courseId, instructorId);
-    if (!assigned) {
-      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not assigned to this course");
-    }
-  }
-
-  private void validateCourseMapping(UUID courseId, CourseSection section, Lesson lesson) {
-    if (!section.getCourse().getId().equals(courseId)) {
-      throw new ResponseStatusException(
-          HttpStatus.BAD_REQUEST, "Section does not belong to course");
-    }
-    if (!lesson.getCourse().getId().equals(courseId)) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Lesson does not belong to course");
-    }
-    if (!lesson.getSection().getId().equals(section.getId())) {
-      throw new ResponseStatusException(
-          HttpStatus.BAD_REQUEST, "Lesson does not belong to section");
-    }
-  }
-
   private void validateSchedule(Instant startsAt, Instant endsAt) {
     if (startsAt == null || endsAt == null || !endsAt.isAfter(startsAt)) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid schedule");
+    }
+    if (startsAt.isBefore(Instant.now().plus(CREATE_LEAD_TIME))) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Start time must be at least 2 minutes in the future");
+    }
+  }
+
+  private void validateSupportedProvider(LiveClassProvider provider) {
+    if (provider != LiveClassProvider.ZOOM && provider != LiveClassProvider.GOOGLE_MEET) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Provider must be ZOOM or GOOGLE_MEET");
+    }
+  }
+
+  private void validateCapacity(Integer maxCapacity) {
+    if (maxCapacity == null || maxCapacity < 1 || maxCapacity > MAX_CAPACITY_LIMIT) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Max capacity must be between 1 and 1000");
+    }
+  }
+
+  private void ensureNoProviderOverlap(LiveClassProvider provider, Instant startsAt, Instant endsAt) {
+    boolean overlap =
+        liveClassRepository.existsOverlappingByProvider(
+            provider,
+            List.of(LiveClassStatus.SCHEDULED, LiveClassStatus.LIVE),
+            startsAt,
+            endsAt);
+    if (overlap) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Provider host account already has overlapping live class");
     }
   }
 
@@ -242,7 +244,7 @@ public class InstructorLiveClassService {
                       .studentName(registrant.getUser().getFullName())
                       .studentEmail(registrant.getUser().getEmail())
                       .status(registrant.getStatus())
-                      .zoomRegistrantId(registrant.getZoomRegistrantId())
+                      .providerRegistrantId(registrant.getProviderRegistrantId())
                       .attended(attendance != null)
                       .joinedAt(attendance != null ? attendance.getJoinedAt() : null)
                       .leftAt(attendance != null ? attendance.getLeftAt() : null)
@@ -262,8 +264,6 @@ public class InstructorLiveClassService {
         .courseName(liveClass.getCourse().getTitle())
         .sectionId(liveClass.getSection().getId())
         .sectionTitle(liveClass.getSection().getTitle())
-        .lessonId(liveClass.getLesson().getId())
-        .lessonTitle(liveClass.getLesson().getTitle())
         .instructorName(
             liveClass.getInstructor() != null ? liveClass.getInstructor().getFullName() : null)
         .instructorEmail(
@@ -274,9 +274,10 @@ public class InstructorLiveClassService {
             Duration.between(liveClass.getStartsAt(), liveClass.getEndsAt()).toMinutes())
         .timezone(DISPLAY_TIMEZONE)
         .status(liveClass.getStatus())
-        .zoomMeetingId(liveClass.effectiveMeetingId())
-        .zoomStartUrl(liveClass.effectiveHostStartUrl())
-        .zoomJoinUrl(liveClass.effectiveParticipantJoinUrl())
+        .provider(liveClass.getProvider())
+        .meetingId(liveClass.effectiveMeetingId())
+        .hostStartUrl(liveClass.effectiveHostStartUrl())
+        .joinUrl(liveClass.effectiveParticipantJoinUrl())
         .registeredStudents(registrantSummaries.size())
         .attendedStudents(attendedStudents)
         .registrants(registrantSummaries)
@@ -298,10 +299,4 @@ public class InstructorLiveClassService {
     return result;
   }
 
-  private String firstNonBlank(String primary, String fallback) {
-    if (primary != null && !primary.isBlank()) {
-      return primary;
-    }
-    return fallback;
-  }
 }

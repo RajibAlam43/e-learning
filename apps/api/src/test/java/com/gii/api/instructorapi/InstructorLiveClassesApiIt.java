@@ -33,25 +33,21 @@ class InstructorLiveClassesApiIt extends AbstractInstructorApiIntegrationTest {
     var course = course("Course Live", "course-live-inst", creator, PublishStatus.PUBLISHED);
     assignment(course, instructor, InstructorRole.PRIMARY);
     var sec = section(course, 1, PublishStatus.PUBLISHED);
-    var lesson = lesson(course, sec, 1, PublishStatus.PUBLISHED);
     Instant startsAt = Instant.now().plusSeconds(3600);
     Instant endsAt = Instant.now().plusSeconds(5400);
     String createBody =
         """
         {
           "sectionId":"%s",
-          "lessonId":"%s",
           "title":" Weekly Session ",
           "description":"Live review",
           "startsAt":"%s",
           "endsAt":"%s",
           "provider":"ZOOM",
-          "providerMeetingId":"zoom-123",
-          "hostStartUrl":"https://zoom.test/start/123",
-          "participantJoinUrl":"https://zoom.test/join/123"
+          "maxCapacity":100
         }
         """
-            .formatted(sec.getId(), lesson.getId(), startsAt.toString(), endsAt.toString());
+            .formatted(sec.getId(), startsAt.toString(), endsAt.toString());
 
     mockMvc
         .perform(
@@ -130,15 +126,15 @@ class InstructorLiveClassesApiIt extends AbstractInstructorApiIntegrationTest {
         """
         {
           "sectionId":"%s",
-          "lessonId":"%s",
           "title":"No Access",
           "startsAt":"%s",
-          "endsAt":"%s"
+          "endsAt":"%s",
+          "provider":"ZOOM",
+          "maxCapacity":100
         }
         """
             .formatted(
                 sec.getId(),
-                lesson.getId(),
                 Instant.now().plusSeconds(1800).toString(),
                 Instant.now().plusSeconds(3600).toString());
     mockMvc

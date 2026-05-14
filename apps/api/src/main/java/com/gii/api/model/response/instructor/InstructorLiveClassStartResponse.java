@@ -1,6 +1,7 @@
 package com.gii.api.model.response.instructor;
 
 import com.gii.common.enums.LiveClassStatus;
+import com.gii.common.enums.LiveClassProvider;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.Builder;
@@ -10,10 +11,9 @@ public record InstructorLiveClassStartResponse(
     UUID liveClassId,
     String title,
 
-    // Zoom host/start URLs
-    String zoomStartUrl, // Direct URL for instructor to start meeting
-    String zoomMeetingId, // Meeting ID for reference
-    String zoomPassword, // If password-protected
+    LiveClassProvider provider,
+    String hostStartUrl,
+    String meetingId,
 
     // Schedule
     Instant startsAt,

@@ -1,6 +1,7 @@
 package com.gii.common.repository.live;
 
 import com.gii.common.entity.live.LiveClass;
+import com.gii.common.enums.LiveClassProvider;
 import com.gii.common.enums.LiveClassStatus;
 import java.time.Instant;
 import java.util.List;
@@ -45,4 +46,19 @@ public interface LiveClassRepository extends JpaRepository<LiveClass, UUID> {
         GROUP BY lc.course.id
       """)
   List<Object[]> countByCourseIds(@Param("courseIds") List<UUID> courseIds);
+
+  @Query(
+      """
+        SELECT COUNT(lc) > 0
+        FROM LiveClass lc
+        WHERE lc.provider = :provider
+        AND lc.status IN :statuses
+        AND lc.startsAt < :endsAt
+        AND lc.endsAt > :startsAt
+      """)
+  boolean existsOverlappingByProvider(
+      @Param("provider") LiveClassProvider provider,
+      @Param("statuses") List<LiveClassStatus> statuses,
+      @Param("startsAt") Instant startsAt,
+      @Param("endsAt") Instant endsAt);
 }

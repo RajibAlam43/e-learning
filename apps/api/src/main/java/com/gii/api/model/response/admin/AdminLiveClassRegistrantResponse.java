@@ -11,7 +11,7 @@ public record AdminLiveClassRegistrantResponse(
     String studentName,
     String studentEmail,
     String status, // PENDING, APPROVED, FAILED, CANCELLED
-    String zoomRegistrantId,
+    String providerRegistrantId,
     Boolean attended,
     Instant joinedAt,
     Instant leftAt,

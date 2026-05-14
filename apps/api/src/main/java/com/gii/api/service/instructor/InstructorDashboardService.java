@@ -204,7 +204,6 @@ public class InstructorDashboardService {
         .courseId(liveClass.getCourse().getId())
         .courseName(liveClass.getCourse().getTitle())
         .sectionTitle(liveClass.getSection().getTitle())
-        .lessonTitle(liveClass.getLesson().getTitle())
         .status(liveClass.getStatus())
         .registeredStudents(approvedRegistrantCountByLiveClassId.getOrDefault(liveClass.getId(), 0))
         .maxCapacity(null)

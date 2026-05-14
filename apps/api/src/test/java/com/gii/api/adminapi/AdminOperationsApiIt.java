@@ -138,15 +138,14 @@ class AdminOperationsApiIt extends AbstractAdminApiIntegrationTest {
                     {
                       "title":"Live Session 1",
                       "sectionId":"%s",
-                      "lessonId":"%s",
                       "startsAt":"%s",
                       "endsAt":"%s",
-                      "zoomMeetingLink":"https://zoom.test/join/1"
+                      "provider":"ZOOM",
+                      "maxCapacity":100
                     }
                     """
                         .formatted(
                             sec.getId(),
-                            lesson.getId(),
                             Instant.now().plusSeconds(3600),
                             Instant.now().plusSeconds(7200))))
         .andExpect(status().isOk())
