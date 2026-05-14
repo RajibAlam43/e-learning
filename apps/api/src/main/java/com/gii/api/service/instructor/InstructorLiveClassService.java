@@ -8,6 +8,8 @@ import com.gii.api.model.response.instructor.LiveClassRegistrantSummaryResponse;
 import com.gii.api.service.enrollment.CurrentUserService;
 import com.gii.api.service.live.LiveMeetingCreateRequest;
 import com.gii.api.service.live.LiveMeetingCreateResult;
+import com.gii.api.service.live.LiveMeetingUpdateRequest;
+import com.gii.api.service.live.LiveMeetingCancelRequest;
 import com.gii.api.service.live.LiveMeetingProvisioningService;
 import com.gii.common.entity.course.CourseSection;
 import com.gii.common.entity.live.LiveClass;
@@ -100,10 +102,15 @@ public class InstructorLiveClassService {
     UUID instructorId = currentUserService.getCurrentUserId(authentication);
     LiveClass liveClass = requireOwnedLiveClass(liveClassId, instructorId);
 
-    if (liveClass.getStatus() == LiveClassStatus.CANCELLED
-        || liveClass.getStatus() == LiveClassStatus.COMPLETED) {
+    if (liveClass.getStatus() != LiveClassStatus.SCHEDULED) {
       throw new ResponseStatusException(
-          HttpStatus.BAD_REQUEST, "Cannot start class in current status");
+          HttpStatus.BAD_REQUEST, "Only scheduled classes can be started");
+    }
+    if (isBlank(liveClass.effectiveMeetingId())
+        || isBlank(liveClass.effectiveParticipantJoinUrl())
+        || isBlank(liveClass.effectiveHostStartUrl())) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Live class meeting is not provisioned");
     }
 
     liveClass.setStatus(LiveClassStatus.LIVE);
@@ -144,6 +151,16 @@ public class InstructorLiveClassService {
     UUID instructorId = currentUserService.getCurrentUserId(authentication);
     LiveClass liveClass = requireOwnedLiveClass(liveClassId, instructorId);
 
+    boolean mutatingMetadata =
+        request.title() != null
+            || request.description() != null
+            || request.startsAt() != null
+            || request.endsAt() != null;
+    if (mutatingMetadata && liveClass.getStatus() != LiveClassStatus.SCHEDULED) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Only scheduled classes can be edited");
+    }
+
     if (request.title() != null && !request.title().isBlank()) {
       liveClass.setTitle(request.title().trim());
     }
@@ -151,13 +168,31 @@ public class InstructorLiveClassService {
       liveClass.setDescription(request.description());
     }
 
-    Instant startsAt = request.startsAt() != null ? request.startsAt() : liveClass.getStartsAt();
-    Instant endsAt = request.endsAt() != null ? request.endsAt() : liveClass.getEndsAt();
-    validateSchedule(startsAt, endsAt);
-    liveClass.setStartsAt(startsAt);
-    liveClass.setEndsAt(endsAt);
+    if (request.startsAt() != null || request.endsAt() != null) {
+      Instant startsAt = request.startsAt() != null ? request.startsAt() : liveClass.getStartsAt();
+      Instant endsAt = request.endsAt() != null ? request.endsAt() : liveClass.getEndsAt();
+      validateSchedule(startsAt, endsAt);
+      ensureNoProviderOverlap(liveClass.getProvider(), startsAt, endsAt, liveClass.getId());
+      syncProviderUpdate(
+          liveClass,
+          request.title() != null && !request.title().isBlank() ? request.title().trim() : liveClass.getTitle(),
+          request.description() != null ? request.description() : liveClass.getDescription(),
+          startsAt,
+          endsAt);
+      liveClass.setStartsAt(startsAt);
+      liveClass.setEndsAt(endsAt);
+    }
+    if (request.startsAt() == null && request.endsAt() == null && (request.title() != null || request.description() != null)) {
+      syncProviderUpdate(
+          liveClass,
+          request.title() != null && !request.title().isBlank() ? request.title().trim() : liveClass.getTitle(),
+          request.description() != null ? request.description() : liveClass.getDescription(),
+          liveClass.getStartsAt(),
+          liveClass.getEndsAt());
+    }
 
     if (request.status() != null) {
+      validateStatusTransitionForUpdate(liveClass.getStatus(), request.status());
       liveClass.setStatus(request.status());
     }
 
@@ -165,19 +200,46 @@ public class InstructorLiveClassService {
     return toLiveClassResponse(updated);
   }
 
-  public void delete(UUID liveClassId, Authentication authentication) {
+  public InstructorLiveClassResponse cancel(UUID liveClassId, Authentication authentication) {
     UUID instructorId = currentUserService.getCurrentUserId(authentication);
     LiveClass liveClass = requireOwnedLiveClass(liveClassId, instructorId);
 
-    if (liveClass.getStatus() == LiveClassStatus.LIVE
-        || liveClass.getStatus() == LiveClassStatus.COMPLETED) {
+    if (liveClass.getStatus() != LiveClassStatus.SCHEDULED) {
       throw new ResponseStatusException(
-          HttpStatus.FORBIDDEN, "Cannot delete started/completed class");
+          HttpStatus.BAD_REQUEST, "Only scheduled classes can be cancelled");
     }
 
-    // Soft-delete by cancellation keeps audit history and registrants intact.
+    // Cancel keeps audit history and registrants intact.
+    syncProviderCancel(liveClass);
     liveClass.setStatus(LiveClassStatus.CANCELLED);
-    liveClassRepository.save(liveClass);
+    return toLiveClassResponse(liveClassRepository.save(liveClass));
+  }
+
+  private void syncProviderUpdate(
+      LiveClass liveClass, String title, String description, Instant startsAt, Instant endsAt) {
+    if (isBlank(liveClass.effectiveMeetingId())) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Live class meeting is not provisioned");
+    }
+    liveMeetingProvisioningService.updateMeeting(
+        LiveMeetingUpdateRequest.builder()
+            .provider(liveClass.getProvider())
+            .providerMeetingId(liveClass.effectiveMeetingId())
+            .title(title)
+            .description(description)
+            .startsAt(startsAt)
+            .endsAt(endsAt)
+            .build());
+  }
+
+  private void syncProviderCancel(LiveClass liveClass) {
+    if (isBlank(liveClass.effectiveMeetingId())) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Live class meeting is not provisioned");
+    }
+    liveMeetingProvisioningService.cancelMeeting(
+        LiveMeetingCancelRequest.builder()
+            .provider(liveClass.getProvider())
+            .providerMeetingId(liveClass.effectiveMeetingId())
+            .build());
   }
 
   private LiveClass requireOwnedLiveClass(UUID liveClassId, UUID instructorId) {
@@ -221,6 +283,39 @@ public class InstructorLiveClassService {
     if (overlap) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "Provider host account already has overlapping live class");
+    }
+  }
+
+  private void ensureNoProviderOverlap(
+      LiveClassProvider provider, Instant startsAt, Instant endsAt, UUID excludingLiveClassId) {
+    boolean overlap =
+        liveClassRepository.findAll().stream()
+            .filter(
+                lc ->
+                    !lc.getId().equals(excludingLiveClassId)
+                        && lc.getProvider() == provider
+                        && (lc.getStatus() == LiveClassStatus.SCHEDULED
+                            || lc.getStatus() == LiveClassStatus.LIVE))
+            .anyMatch(lc -> lc.getStartsAt().isBefore(endsAt) && lc.getEndsAt().isAfter(startsAt));
+    if (overlap) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Provider host account already has overlapping live class");
+    }
+  }
+
+  private void validateStatusTransitionForUpdate(LiveClassStatus current, LiveClassStatus next) {
+    if (current == next) {
+      return;
+    }
+    boolean valid =
+        switch (current) {
+          case SCHEDULED -> next == LiveClassStatus.CANCELLED;
+          case LIVE -> next == LiveClassStatus.COMPLETED;
+          case COMPLETED, CANCELLED, FAILED -> false;
+        };
+    if (!valid) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Invalid live class status transition");
     }
   }
 
@@ -297,6 +392,10 @@ public class InstructorLiveClassService {
       }
     }
     return result;
+  }
+
+  private boolean isBlank(String value) {
+    return value == null || value.isBlank();
   }
 
 }

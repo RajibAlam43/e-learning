@@ -4,7 +4,6 @@ import com.gii.api.model.response.student.StudentCertificateSummaryResponse;
 import com.gii.api.model.response.student.StudentCourseHomeResponse;
 import com.gii.api.model.response.student.StudentCourseSummaryResponse;
 import com.gii.api.model.response.student.StudentDashboardResponse;
-import com.gii.api.model.response.student.StudentLiveClassJoinResponse;
 import com.gii.api.model.response.student.StudentLiveClassSummaryResponse;
 import com.gii.api.model.response.student.StudentOrderSummaryResponse;
 import com.gii.api.service.student.CourseLiveClassesService;
@@ -33,7 +32,6 @@ public class StudentApiController implements StudentApi {
   private final StudentCertificatesService studentCertificatesService;
   private final StudentUpcomingLiveClasses studentUpcomingLiveClasses;
   private final CourseLiveClassesService courseLiveClassesService;
-  private final StudentJoinLiveClassesService studentJoinLiveClassesService;
 
   @Override
   public ResponseEntity<StudentDashboardResponse> getDashboard(Authentication authentication) {
@@ -76,9 +74,4 @@ public class StudentApiController implements StudentApi {
     return ResponseEntity.ok(courseLiveClassesService.execute(courseId, authentication));
   }
 
-  @Override
-  public ResponseEntity<StudentLiveClassJoinResponse> joinLiveClass(
-      UUID liveClassId, Authentication authentication) {
-    return ResponseEntity.ok(studentJoinLiveClassesService.execute(liveClassId, authentication));
-  }
 }

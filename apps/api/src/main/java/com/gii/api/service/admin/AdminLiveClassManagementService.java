@@ -8,6 +8,8 @@ import com.gii.api.model.response.admin.AdminLiveClassStartResponse;
 import com.gii.api.model.response.admin.AdminLiveClassSummaryResponse;
 import com.gii.api.service.live.LiveMeetingCreateRequest;
 import com.gii.api.service.live.LiveMeetingCreateResult;
+import com.gii.api.service.live.LiveMeetingUpdateRequest;
+import com.gii.api.service.live.LiveMeetingCancelRequest;
 import com.gii.api.service.live.LiveMeetingProvisioningService;
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.course.CourseSection;
@@ -100,21 +102,48 @@ public class AdminLiveClassManagementService {
             .findById(liveClassId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Live class not found"));
+    boolean mutatingMetadata =
+        request.title() != null
+            || request.description() != null
+            || request.startsAt() != null
+            || request.endsAt() != null;
+    if (mutatingMetadata && liveClass.getStatus() != LiveClassStatus.SCHEDULED) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Only scheduled classes can be edited");
+    }
+
     if (request.title() != null && !request.title().isBlank()) {
       liveClass.setTitle(request.title().trim());
     }
     if (request.description() != null) {
       liveClass.setDescription(request.description());
     }
-    if (request.startsAt() != null) {
-      liveClass.setStartsAt(request.startsAt());
+    if (request.startsAt() != null || request.endsAt() != null) {
+      Instant startsAt = request.startsAt() != null ? request.startsAt() : liveClass.getStartsAt();
+      Instant endsAt = request.endsAt() != null ? request.endsAt() : liveClass.getEndsAt();
+      validateTimeRange(startsAt, endsAt);
+      ensureNoProviderOverlap(liveClass.getProvider(), startsAt, endsAt, liveClass.getId());
+      syncProviderUpdate(
+          liveClass,
+          request.title() != null && !request.title().isBlank() ? request.title().trim() : liveClass.getTitle(),
+          request.description() != null ? request.description() : liveClass.getDescription(),
+          startsAt,
+          endsAt);
+      liveClass.setStartsAt(startsAt);
+      liveClass.setEndsAt(endsAt);
     }
-    if (request.endsAt() != null) {
-      liveClass.setEndsAt(request.endsAt());
+    if (request.startsAt() == null && request.endsAt() == null && (request.title() != null || request.description() != null)) {
+      syncProviderUpdate(
+          liveClass,
+          request.title() != null && !request.title().isBlank() ? request.title().trim() : liveClass.getTitle(),
+          request.description() != null ? request.description() : liveClass.getDescription(),
+          liveClass.getStartsAt(),
+          liveClass.getEndsAt());
     }
-    validateTimeRange(liveClass.getStartsAt(), liveClass.getEndsAt());
     if (request.status() != null) {
-      liveClass.setStatus(parseStatus(request.status()));
+      LiveClassStatus nextStatus = parseStatus(request.status());
+      validateStatusTransitionForUpdate(liveClass.getStatus(), nextStatus);
+      liveClass.setStatus(nextStatus);
     }
     return toDetail(liveClassRepository.save(liveClass));
   }
@@ -125,6 +154,16 @@ public class AdminLiveClassManagementService {
             .findById(liveClassId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Live class not found"));
+    if (liveClass.getStatus() != LiveClassStatus.SCHEDULED) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Only scheduled classes can be started");
+    }
+    if (isBlank(liveClass.effectiveMeetingId())
+        || isBlank(liveClass.effectiveParticipantJoinUrl())
+        || isBlank(liveClass.effectiveHostStartUrl())) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Live class meeting is not provisioned");
+    }
     liveClass.setStatus(LiveClassStatus.LIVE);
     LiveClass saved = liveClassRepository.save(liveClass);
     int registered =
@@ -141,6 +180,48 @@ public class AdminLiveClassManagementService {
         .registeredStudents(registered)
         .recordingEnabled(Boolean.FALSE)
         .build();
+  }
+
+  public AdminLiveClassDetailResponse cancel(UUID liveClassId) {
+    LiveClass liveClass =
+        liveClassRepository
+            .findById(liveClassId)
+            .orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Live class not found"));
+    if (liveClass.getStatus() != LiveClassStatus.SCHEDULED) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Only scheduled classes can be cancelled");
+    }
+    syncProviderCancel(liveClass);
+    liveClass.setStatus(LiveClassStatus.CANCELLED);
+    return toDetail(liveClassRepository.save(liveClass));
+  }
+
+  private void syncProviderUpdate(
+      LiveClass liveClass, String title, String description, Instant startsAt, Instant endsAt) {
+    if (isBlank(liveClass.effectiveMeetingId())) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Live class meeting is not provisioned");
+    }
+    liveMeetingProvisioningService.updateMeeting(
+        LiveMeetingUpdateRequest.builder()
+            .provider(liveClass.getProvider())
+            .providerMeetingId(liveClass.effectiveMeetingId())
+            .title(title)
+            .description(description)
+            .startsAt(startsAt)
+            .endsAt(endsAt)
+            .build());
+  }
+
+  private void syncProviderCancel(LiveClass liveClass) {
+    if (isBlank(liveClass.effectiveMeetingId())) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Live class meeting is not provisioned");
+    }
+    liveMeetingProvisioningService.cancelMeeting(
+        LiveMeetingCancelRequest.builder()
+            .provider(liveClass.getProvider())
+            .providerMeetingId(liveClass.effectiveMeetingId())
+            .build());
   }
 
   private AdminLiveClassSummaryResponse toSummary(LiveClass liveClass) {
@@ -248,11 +329,48 @@ public class AdminLiveClassManagementService {
     }
   }
 
+  private void ensureNoProviderOverlap(
+      LiveClassProvider provider, Instant startsAt, Instant endsAt, UUID excludingLiveClassId) {
+    boolean overlap =
+        liveClassRepository.findAll().stream()
+            .filter(
+                lc ->
+                    !lc.getId().equals(excludingLiveClassId)
+                        && lc.getProvider() == provider
+                        && (lc.getStatus() == LiveClassStatus.SCHEDULED
+                            || lc.getStatus() == LiveClassStatus.LIVE))
+            .anyMatch(lc -> lc.getStartsAt().isBefore(endsAt) && lc.getEndsAt().isAfter(startsAt));
+    if (overlap) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Provider host account already has overlapping live class");
+    }
+  }
+
+  private void validateStatusTransitionForUpdate(LiveClassStatus current, LiveClassStatus next) {
+    if (current == next) {
+      return;
+    }
+    boolean valid =
+        switch (current) {
+          case SCHEDULED -> next == LiveClassStatus.CANCELLED;
+          case LIVE -> next == LiveClassStatus.COMPLETED;
+          case COMPLETED, CANCELLED, FAILED -> false;
+        };
+    if (!valid) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Invalid live class status transition");
+    }
+  }
+
   private LiveClassStatus parseStatus(String value) {
     try {
       return LiveClassStatus.valueOf(value.trim().toUpperCase());
     } catch (Exception ex) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid live class status");
     }
+  }
+
+  private boolean isBlank(String value) {
+    return value == null || value.isBlank();
   }
 }

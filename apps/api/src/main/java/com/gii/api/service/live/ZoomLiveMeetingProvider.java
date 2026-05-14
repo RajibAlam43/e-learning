@@ -84,6 +84,44 @@ public class ZoomLiveMeetingProvider implements LiveMeetingProvider {
         .build();
   }
 
+  @Override
+  public void update(LiveMeetingUpdateRequest request) {
+    String accessToken = issueAccessToken();
+    long durationMinutes = Math.max(1, Duration.between(request.startsAt(), request.endsAt()).toMinutes());
+    webClientBuilder
+        .baseUrl(baseUrl)
+        .build()
+        .patch()
+        .uri("/meetings/{meetingId}", request.providerMeetingId())
+        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+        .contentType(MediaType.APPLICATION_JSON)
+        .bodyValue(
+            new ZoomCreateMeetingRequest(
+                request.title(),
+                request.description(),
+                request.startsAt().atOffset(ZoneOffset.UTC).toString(),
+                durationMinutes,
+                2,
+                "UTC"))
+        .retrieve()
+        .toBodilessEntity()
+        .block();
+  }
+
+  @Override
+  public void cancel(LiveMeetingCancelRequest request) {
+    String accessToken = issueAccessToken();
+    webClientBuilder
+        .baseUrl(baseUrl)
+        .build()
+        .delete()
+        .uri("/meetings/{meetingId}", request.providerMeetingId())
+        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+        .retrieve()
+        .toBodilessEntity()
+        .block();
+  }
+
   private record ZoomCreateMeetingRequest(
       String topic, String agenda, String start_time, long duration, Integer type, String timezone) {}
 

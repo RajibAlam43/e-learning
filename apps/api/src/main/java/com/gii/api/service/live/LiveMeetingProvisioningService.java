@@ -23,6 +23,24 @@ public class LiveMeetingProvisioningService {
     return provider.create(request);
   }
 
+  public void updateMeeting(LiveMeetingUpdateRequest request) {
+    LiveMeetingProvider provider = providerIndex().get(request.provider());
+    if (provider == null) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Unsupported live class provider: " + request.provider());
+    }
+    provider.update(request);
+  }
+
+  public void cancelMeeting(LiveMeetingCancelRequest request) {
+    LiveMeetingProvider provider = providerIndex().get(request.provider());
+    if (provider == null) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Unsupported live class provider: " + request.provider());
+    }
+    provider.cancel(request);
+  }
+
   private Map<LiveClassProvider, LiveMeetingProvider> providerIndex() {
     Map<LiveClassProvider, LiveMeetingProvider> index = new EnumMap<>(LiveClassProvider.class);
     for (LiveMeetingProvider provider : providers) {

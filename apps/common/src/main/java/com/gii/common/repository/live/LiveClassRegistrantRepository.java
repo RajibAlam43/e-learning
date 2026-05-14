@@ -11,6 +11,8 @@ import org.springframework.data.repository.query.Param;
 
 public interface LiveClassRegistrantRepository extends JpaRepository<LiveClassRegistrant, UUID> {
 
+  Optional<LiveClassRegistrant> findByLiveClassIdAndUserId(UUID liveClassId, UUID userId);
+
   Optional<LiveClassRegistrant> findByLiveClassIdAndUserIdAndStatus(
       UUID liveClassId, UUID userId, LiveClassRegistrantStatus status);
 

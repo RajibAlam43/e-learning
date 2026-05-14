@@ -6,4 +6,8 @@ public interface LiveMeetingProvider {
   LiveClassProvider provider();
 
   LiveMeetingCreateResult create(LiveMeetingCreateRequest request);
+
+  void update(LiveMeetingUpdateRequest request);
+
+  void cancel(LiveMeetingCancelRequest request);
 }

@@ -4,7 +4,6 @@ import com.gii.api.model.response.student.StudentCertificateSummaryResponse;
 import com.gii.api.model.response.student.StudentCourseHomeResponse;
 import com.gii.api.model.response.student.StudentCourseSummaryResponse;
 import com.gii.api.model.response.student.StudentDashboardResponse;
-import com.gii.api.model.response.student.StudentLiveClassJoinResponse;
 import com.gii.api.model.response.student.StudentLiveClassSummaryResponse;
 import com.gii.api.model.response.student.StudentOrderSummaryResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -21,7 +20,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 @Tag(
@@ -119,21 +117,4 @@ public interface StudentApi {
   ResponseEntity<List<StudentLiveClassSummaryResponse>> getCourseLiveClasses(
       @PathVariable UUID courseId, Authentication authentication);
 
-  @PostMapping("/live-classes/{liveClassId}/join")
-  @Operation(
-      summary = "Join live class",
-      description = "Check enrollment and get join URL/credentials for a live class.")
-  @ApiResponses(
-      value = {
-        @ApiResponse(
-            responseCode = "200",
-            description = "Join information retrieved",
-            content =
-                @Content(schema = @Schema(implementation = StudentLiveClassJoinResponse.class))),
-        @ApiResponse(responseCode = "401", description = "Unauthorized"),
-        @ApiResponse(responseCode = "403", description = "Not enrolled or class not yet started"),
-        @ApiResponse(responseCode = "404", description = "Live class not found")
-      })
-  ResponseEntity<StudentLiveClassJoinResponse> joinLiveClass(
-      @PathVariable UUID liveClassId, Authentication authentication);
 }

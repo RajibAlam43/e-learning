@@ -53,12 +53,9 @@ public class StudentJoinLiveClassesService {
 
     LiveClassRegistrant registrant =
         registrantRepository
-            .findByLiveClassIdAndUserIdAndStatus(
-                liveClassId, userId, LiveClassRegistrantStatus.APPROVED)
-            .orElseThrow(
-                () ->
-                    new ResponseStatusException(
-                        HttpStatus.FORBIDDEN, "Not registered for live class"));
+            .findByLiveClassIdAndUserId(liveClassId, userId)
+            .map(this::ensureJoinableRegistrantStatus)
+            .orElseGet(() -> createApprovedRegistrant(liveClass, enrollment.getUser()));
 
     Instant now = Instant.now();
     boolean withinJoinWindow =
@@ -97,5 +94,42 @@ public class StudentJoinLiveClassesService {
         .recordingAvailable(false)
         .recordingUrl(null)
         .build();
+  }
+
+  private LiveClassRegistrant ensureJoinableRegistrantStatus(LiveClassRegistrant registrant) {
+    if (registrant.getStatus() == LiveClassRegistrantStatus.CANCELLED
+        || registrant.getStatus() == LiveClassRegistrantStatus.FAILED) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Registration is not joinable");
+    }
+    if (registrant.getStatus() == LiveClassRegistrantStatus.PENDING) {
+      registrant.setStatus(LiveClassRegistrantStatus.APPROVED);
+      return registrantRepository.save(registrant);
+    }
+    return registrant;
+  }
+
+  private LiveClassRegistrant createApprovedRegistrant(LiveClass liveClass, com.gii.common.entity.user.User user) {
+    enforceCapacityForNewRegistrant(liveClass);
+    LiveClassRegistrant registrant =
+        LiveClassRegistrant.builder()
+            .liveClass(liveClass)
+            .user(user)
+            .status(LiveClassRegistrantStatus.APPROVED)
+            .participantJoinUrl(liveClass.effectiveParticipantJoinUrl())
+            .build();
+    return registrantRepository.save(registrant);
+  }
+
+  private void enforceCapacityForNewRegistrant(LiveClass liveClass) {
+    Integer maxCapacity = liveClass.getMaxCapacity();
+    if (maxCapacity == null) {
+      return;
+    }
+    long approvedCount =
+        registrantRepository.countByLiveClassIdAndStatus(
+            liveClass.getId(), LiveClassRegistrantStatus.APPROVED);
+    if (approvedCount >= maxCapacity) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Live class is full");
+    }
   }
 }

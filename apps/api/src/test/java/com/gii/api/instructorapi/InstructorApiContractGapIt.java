@@ -48,7 +48,7 @@ class InstructorApiContractGapIt extends AbstractInstructorApiIntegrationTest {
 
     mockMvc
         .perform(
-            post("/instructor/courses/{courseId}/live-classes", course.getId())
+            post("/live-classes/courses/{courseId}", course.getId())
                 .with(authentication(instructorAuth(instructor.getId())))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(invalidBody))
@@ -81,7 +81,7 @@ class InstructorApiContractGapIt extends AbstractInstructorApiIntegrationTest {
 
     mockMvc
         .perform(
-            post("/instructor/courses/{courseId}/live-classes", course.getId())
+            post("/live-classes/courses/{courseId}", course.getId())
                 .with(authentication(instructorAuth(instructor.getId())))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(invalidBody))

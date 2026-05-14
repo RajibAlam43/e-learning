@@ -86,10 +86,54 @@ public class GoogleMeetLiveMeetingProvider implements LiveMeetingProvider {
     }
 
     return LiveMeetingCreateResult.builder()
-        .meetingId(response.conferenceData().conferenceId())
+        .meetingId(response.id())
         .hostStartUrl(response.htmlLink())
         .participantJoinUrl(response.hangoutLink())
         .build();
+  }
+
+  @Override
+  public void update(LiveMeetingUpdateRequest request) {
+    String accessToken = issueAccessToken();
+    webClientBuilder
+        .baseUrl(baseUrl)
+        .build()
+        .patch()
+        .uri(
+            uriBuilder ->
+                uriBuilder
+                    .path("/calendars/{calendarId}/events/{eventId}")
+                    .queryParam("conferenceDataVersion", "1")
+                    .build(calendarId, request.providerMeetingId()))
+        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+        .contentType(MediaType.APPLICATION_JSON)
+        .bodyValue(
+            new GoogleCalendarEventPatchRequest(
+                request.title(),
+                request.description(),
+                new DateTimeValue(request.startsAt().atOffset(ZoneOffset.UTC).toString(), "UTC"),
+                new DateTimeValue(request.endsAt().atOffset(ZoneOffset.UTC).toString(), "UTC")))
+        .retrieve()
+        .toBodilessEntity()
+        .block();
+  }
+
+  @Override
+  public void cancel(LiveMeetingCancelRequest request) {
+    String accessToken = issueAccessToken();
+    webClientBuilder
+        .baseUrl(baseUrl)
+        .build()
+        .delete()
+        .uri(
+            uriBuilder ->
+                uriBuilder
+                    .path("/calendars/{calendarId}/events/{eventId}")
+                    .build(calendarId, request.providerMeetingId()))
+        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+        .retrieve()
+        .toBodilessEntity()
+        .block();
   }
 
   private record GoogleCalendarEventRequest(
@@ -100,6 +144,9 @@ public class GoogleMeetLiveMeetingProvider implements LiveMeetingProvider {
       ConferenceData conferenceData) {}
 
   private record DateTimeValue(String dateTime, String timeZone) {}
+
+  private record GoogleCalendarEventPatchRequest(
+      String summary, String description, DateTimeValue start, DateTimeValue end) {}
 
   private record ConferenceData(CreateConferenceRequest createRequest) {}
 
