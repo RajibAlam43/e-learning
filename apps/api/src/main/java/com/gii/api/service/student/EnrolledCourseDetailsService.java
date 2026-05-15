@@ -4,6 +4,7 @@ import com.gii.api.model.response.student.StudentCourseHomeResponse;
 import com.gii.api.model.response.student.StudentLessonHomeResponse;
 import com.gii.api.model.response.student.StudentQuizHomeResponse;
 import com.gii.api.model.response.student.StudentSectionHomeResponse;
+import com.gii.api.service.course.CourseThumbnailUrlService;
 import com.gii.api.service.enrollment.CurrentUserService;
 import com.gii.common.entity.certificate.Certificate;
 import com.gii.common.entity.course.Course;
@@ -49,6 +50,7 @@ public class EnrolledCourseDetailsService {
   private final CourseInstructorRepository courseInstructorRepository;
   private final CertificateRepository certificateRepository;
   private final QuizRepository quizRepository;
+  private final CourseThumbnailUrlService courseThumbnailUrlService;
 
   public StudentCourseHomeResponse execute(UUID courseId, Authentication authentication) {
     UUID userId = currentUserService.getCurrentUserId(authentication);
@@ -113,7 +115,7 @@ public class EnrolledCourseDetailsService {
         .courseName(course.getTitle())
         .courseSlug(course.getSlug())
         .description(course.getDescription())
-        .thumbnailUrl(course.getThumbnailUrl())
+        .thumbnailUrl(courseThumbnailUrlService.buildCourseThumbnailUrl(course))
         .instructor(instructorName)
         .courseLevel(course.getLevel().name())
         .enrollmentStatus(enrollment.getStatus())

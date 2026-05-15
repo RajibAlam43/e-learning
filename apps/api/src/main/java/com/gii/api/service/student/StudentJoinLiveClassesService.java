@@ -53,12 +53,9 @@ public class StudentJoinLiveClassesService {
 
     LiveClassRegistrant registrant =
         registrantRepository
-            .findByLiveClassIdAndUserIdAndStatus(
-                liveClassId, userId, LiveClassRegistrantStatus.APPROVED)
-            .orElseThrow(
-                () ->
-                    new ResponseStatusException(
-                        HttpStatus.FORBIDDEN, "Not registered for live class"));
+            .findByLiveClassIdAndUserId(liveClassId, userId)
+            .map(this::ensureJoinableRegistrantStatus)
+            .orElseGet(() -> createApprovedRegistrant(liveClass, enrollment.getUser()));
 
     Instant now = Instant.now();
     boolean withinJoinWindow =
@@ -70,8 +67,8 @@ public class StudentJoinLiveClassesService {
     }
 
     String joinUrl =
-        registrant.getZoomJoinUrl() != null
-            ? registrant.getZoomJoinUrl()
+        registrant.getParticipantJoinUrl() != null
+            ? registrant.getParticipantJoinUrl()
             : liveClass.effectiveParticipantJoinUrl();
     if (joinUrl == null) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Join link is unavailable");
@@ -81,20 +78,58 @@ public class StudentJoinLiveClassesService {
         .liveClassId(liveClass.getId())
         .title(liveClass.getTitle())
         .status(liveClass.getStatus())
+        .provider(liveClass.getProvider())
         .startsAt(liveClass.getStartsAt())
         .endsAt(liveClass.getEndsAt())
-        .zoomJoinUrl(joinUrl)
-        .zoomMeetingId(liveClass.effectiveMeetingId())
+        .joinUrl(joinUrl)
+        .meetingId(liveClass.effectiveMeetingId())
         .instructorName(
             liveClass.getInstructor() != null ? liveClass.getInstructor().getFullName() : null)
         .instructorEmail(
             liveClass.getInstructor() != null ? liveClass.getInstructor().getEmail() : null)
         .isRegistered(true)
         .participantEmail(enrollment.getUser().getEmail())
-        .zoomRegistrantId(registrant.getZoomRegistrantId())
+        .providerRegistrantId(registrant.getProviderRegistrantId())
         .supportEmail("support@gii.com")
         .recordingAvailable(false)
         .recordingUrl(null)
         .build();
+  }
+
+  private LiveClassRegistrant ensureJoinableRegistrantStatus(LiveClassRegistrant registrant) {
+    if (registrant.getStatus() == LiveClassRegistrantStatus.CANCELLED
+        || registrant.getStatus() == LiveClassRegistrantStatus.FAILED) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Registration is not joinable");
+    }
+    if (registrant.getStatus() == LiveClassRegistrantStatus.PENDING) {
+      registrant.setStatus(LiveClassRegistrantStatus.APPROVED);
+      return registrantRepository.save(registrant);
+    }
+    return registrant;
+  }
+
+  private LiveClassRegistrant createApprovedRegistrant(LiveClass liveClass, com.gii.common.entity.user.User user) {
+    enforceCapacityForNewRegistrant(liveClass);
+    LiveClassRegistrant registrant =
+        LiveClassRegistrant.builder()
+            .liveClass(liveClass)
+            .user(user)
+            .status(LiveClassRegistrantStatus.APPROVED)
+            .participantJoinUrl(liveClass.effectiveParticipantJoinUrl())
+            .build();
+    return registrantRepository.save(registrant);
+  }
+
+  private void enforceCapacityForNewRegistrant(LiveClass liveClass) {
+    Integer maxCapacity = liveClass.getMaxCapacity();
+    if (maxCapacity == null) {
+      return;
+    }
+    long approvedCount =
+        registrantRepository.countByLiveClassIdAndStatus(
+            liveClass.getId(), LiveClassRegistrantStatus.APPROVED);
+    if (approvedCount >= maxCapacity) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Live class is full");
+    }
   }
 }

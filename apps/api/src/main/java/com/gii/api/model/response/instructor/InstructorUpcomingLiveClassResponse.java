@@ -16,11 +16,11 @@ public record InstructorUpcomingLiveClassResponse(
     Instant endsAt,
     String timeLabel, // e.g., "Tomorrow at 2:00 PM"
 
-    // Course/lesson context
+    // Course/section context
     UUID courseId,
     String courseName,
+    UUID sectionId,
     String sectionTitle,
-    String lessonTitle,
 
     // Status & registration
     LiveClassStatus status,

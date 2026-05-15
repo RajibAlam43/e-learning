@@ -50,7 +50,7 @@ class StudentApiContractGapIt extends AbstractStudentApiIntegrationTest {
 
     mockMvc
         .perform(
-            post("/student/live-classes/{liveClassId}/join", completed.getId())
+            post("/live-classes/{liveClassId}/join", completed.getId())
                 .with(authentication(studentAuth(student.getId()))))
         .andExpect(status().isForbidden());
   }

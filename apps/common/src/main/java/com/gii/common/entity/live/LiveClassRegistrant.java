@@ -43,11 +43,11 @@ public class LiveClassRegistrant extends BaseUuidEntity {
   @JoinColumn(name = "user_id", nullable = false)
   private User user;
 
-  @Column(name = "zoom_registrant_id")
-  private String zoomRegistrantId;
+  @Column(name = "provider_registrant_id")
+  private String providerRegistrantId;
 
-  @Column(name = "zoom_join_url")
-  private String zoomJoinUrl;
+  @Column(name = "participant_join_url")
+  private String participantJoinUrl;
 
   @Enumerated(EnumType.STRING)
   @Column(name = "status", nullable = false, length = 30)

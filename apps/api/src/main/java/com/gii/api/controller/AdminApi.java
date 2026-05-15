@@ -3,14 +3,12 @@ package com.gii.api.controller;
 import com.gii.api.model.request.admin.AssignInstructorToCourseRequest;
 import com.gii.api.model.request.admin.CreateCourseRequest;
 import com.gii.api.model.request.admin.CreateInstructorRequest;
-import com.gii.api.model.request.admin.CreateLiveClassRequest;
 import com.gii.api.model.request.admin.CreateMediaAssetRequest;
 import com.gii.api.model.request.admin.CreateQuizRequest;
 import com.gii.api.model.request.admin.CreateSectionRequest;
 import com.gii.api.model.request.admin.ReorderCourseStructureRequest;
 import com.gii.api.model.request.admin.UpdateCourseRequest;
 import com.gii.api.model.request.admin.UpdateInstructorRequest;
-import com.gii.api.model.request.admin.UpdateLiveClassRequest;
 import com.gii.api.model.request.admin.UpdateMediaAssetRequest;
 import com.gii.api.model.request.admin.UpdateOrderRequest;
 import com.gii.api.model.request.admin.UpdateQuizRequest;
@@ -23,9 +21,6 @@ import com.gii.api.model.response.admin.AdminCourseSummaryResponse;
 import com.gii.api.model.response.admin.AdminInstructorDetailResponse;
 import com.gii.api.model.response.admin.AdminInstructorSummaryResponse;
 import com.gii.api.model.response.admin.AdminLessonDetailResponse;
-import com.gii.api.model.response.admin.AdminLiveClassDetailResponse;
-import com.gii.api.model.response.admin.AdminLiveClassStartResponse;
-import com.gii.api.model.response.admin.AdminLiveClassSummaryResponse;
 import com.gii.api.model.response.admin.AdminMediaAssetResponse;
 import com.gii.api.model.response.admin.AdminOrderDetailResponse;
 import com.gii.api.model.response.admin.AdminOrderSummaryResponse;
@@ -259,25 +254,6 @@ public interface AdminApi {
   @Operation(summary = "Assign instructor to course")
   ResponseEntity<Void> assignInstructorToCourse(
       @PathVariable UUID courseId, @Valid @RequestBody AssignInstructorToCourseRequest request);
-
-  // ===== LIVE CLASS MANAGEMENT =====
-  @GetMapping("/live-classes")
-  @Operation(summary = "List live classes")
-  ResponseEntity<List<AdminLiveClassSummaryResponse>> listLiveClasses();
-
-  @PostMapping("/courses/{courseId}/live-classes")
-  @Operation(summary = "Create live class")
-  ResponseEntity<AdminLiveClassDetailResponse> createLiveClass(
-      @PathVariable UUID courseId, @Valid @RequestBody CreateLiveClassRequest request);
-
-  @PatchMapping("/live-classes/{liveClassId}")
-  @Operation(summary = "Update live class")
-  ResponseEntity<AdminLiveClassDetailResponse> updateLiveClass(
-      @PathVariable UUID liveClassId, @Valid @RequestBody UpdateLiveClassRequest request);
-
-  @PostMapping("/live-classes/{liveClassId}/start")
-  @Operation(summary = "Start live class")
-  ResponseEntity<AdminLiveClassStartResponse> startLiveClass(@PathVariable UUID liveClassId);
 
   // ===== QUIZ MANAGEMENT =====
   @PostMapping("/sections/{sectionId}/quizzes")

@@ -66,8 +66,8 @@ public class StudentUpcomingLiveClasses {
     boolean isRegistered =
         registrant != null && registrant.getStatus() == LiveClassRegistrantStatus.APPROVED;
     String joinUrl =
-        registrant != null && registrant.getZoomJoinUrl() != null
-            ? registrant.getZoomJoinUrl()
+        registrant != null && registrant.getParticipantJoinUrl() != null
+            ? registrant.getParticipantJoinUrl()
             : liveClass.effectiveParticipantJoinUrl();
     boolean canJoin = isLive && isRegistered && joinUrl != null;
 
@@ -85,8 +85,6 @@ public class StudentUpcomingLiveClasses {
         .timeZoneLabel(null)
         .courseId(liveClass.getCourse().getId())
         .courseName(liveClass.getCourse().getTitle())
-        .lessonId(liveClass.getLesson().getId())
-        .lessonTitle(liveClass.getLesson().getTitle())
         .status(liveClass.getStatus())
         .statusLabel(statusLabel(liveClass, isLive))
         .isLive(isLive)

@@ -1,6 +1,7 @@
 package com.gii.api.model.response.instructor;
 
 import com.gii.common.enums.LiveClassStatus;
+import com.gii.common.enums.LiveClassProvider;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -12,13 +13,11 @@ public record InstructorLiveClassResponse(
     String title,
     String description,
 
-    // Course/section/lesson mapping
+    // Course/section mapping
     UUID courseId,
     String courseName,
     UUID sectionId,
     String sectionTitle,
-    UUID lessonId,
-    String lessonTitle,
 
     // Instructor info
     String instructorName,
@@ -32,11 +31,12 @@ public record InstructorLiveClassResponse(
 
     // Status
     LiveClassStatus status,
+    LiveClassProvider provider,
 
-    // Zoom integration
-    String zoomMeetingId,
-    String zoomStartUrl, // For instructor to start
-    String zoomJoinUrl, // For participants to join
+    // Meeting provider details
+    String meetingId,
+    String hostStartUrl,
+    String joinUrl,
 
     // Registration & attendance
     Integer registeredStudents,

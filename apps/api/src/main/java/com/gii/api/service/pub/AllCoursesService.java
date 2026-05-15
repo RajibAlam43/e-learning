@@ -2,6 +2,7 @@ package com.gii.api.service.pub;
 
 import com.gii.api.model.response.CourseSummaryResponse;
 import com.gii.api.model.response.PageResponse;
+import com.gii.api.service.course.CourseThumbnailUrlService;
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.course.CourseCategory;
 import com.gii.common.entity.course.CourseInstructor;
@@ -40,6 +41,7 @@ public class AllCoursesService {
   private final CourseRepository courseRepository;
   private final CourseCategoryRepository courseCategoryRepository;
   private final CourseInstructorRepository courseInstructorRepository;
+  private final CourseThumbnailUrlService courseThumbnailUrlService;
 
   public PageResponse<CourseSummaryResponse> execute(
       UUID categoryId, CourseLevel level, CourseLanguage language, Pageable pageable) {
@@ -149,7 +151,7 @@ public class AllCoursesService {
         .title(course.getTitle())
         .slug(course.getSlug())
         .shortDescription(course.getShortDescription())
-        .thumbnailUrl(course.getThumbnailUrl())
+        .thumbnailUrl(courseThumbnailUrlService.buildCourseThumbnailUrl(course))
         .priceBdt(course.getPriceBdt())
         .level(course.getLevel())
         .language(course.getLanguage())

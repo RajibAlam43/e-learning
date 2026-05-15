@@ -1,6 +1,7 @@
 package com.gii.api.service.student;
 
 import com.gii.api.model.response.student.StudentCourseSummaryResponse;
+import com.gii.api.service.course.CourseThumbnailUrlService;
 import com.gii.api.service.enrollment.CurrentUserService;
 import com.gii.common.entity.certificate.Certificate;
 import com.gii.common.entity.course.Course;
@@ -34,6 +35,7 @@ public class EnrolledCoursesService {
   private final LessonProgressRepository lessonProgressRepository;
   private final CertificateRepository certificateRepository;
   private final CourseInstructorRepository courseInstructorRepository;
+  private final CourseThumbnailUrlService courseThumbnailUrlService;
 
   public List<StudentCourseSummaryResponse> execute(Authentication authentication) {
     UUID userId = currentUserService.getCurrentUserId(authentication);
@@ -81,7 +83,7 @@ public class EnrolledCoursesService {
         .courseName(course.getTitle())
         .courseSlug(course.getSlug())
         .instructorName(instructorNameByCourseId.get(course.getId()))
-        .courseThumbnailUrl(course.getThumbnailUrl())
+        .courseThumbnailUrl(courseThumbnailUrlService.buildCourseThumbnailUrl(course))
         .completionPercentage(round2(completion))
         .completedLessons(completedLessons)
         .totalLessons(totalLessons)

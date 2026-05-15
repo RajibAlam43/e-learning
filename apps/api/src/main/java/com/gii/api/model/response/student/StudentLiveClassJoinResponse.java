@@ -1,6 +1,7 @@
 package com.gii.api.model.response.student;
 
 import com.gii.common.enums.LiveClassStatus;
+import com.gii.common.enums.LiveClassProvider;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.Builder;
@@ -12,12 +13,13 @@ public record StudentLiveClassJoinResponse(
 
     // Live class details
     LiveClassStatus status,
+    LiveClassProvider provider,
     Instant startsAt,
     Instant endsAt,
 
     // Join information
-    String zoomJoinUrl, // Direct Zoom join link
-    String zoomMeetingId, // For manual entry if needed
+    String joinUrl,
+    String meetingId,
 
     // Instructor info
     String instructorName,
@@ -26,7 +28,7 @@ public record StudentLiveClassJoinResponse(
     // Registration confirmation
     Boolean isRegistered,
     String participantEmail,
-    String zoomRegistrantId,
+    String providerRegistrantId,
 
     // Fallback/support
     String supportEmail, // Contact if join fails

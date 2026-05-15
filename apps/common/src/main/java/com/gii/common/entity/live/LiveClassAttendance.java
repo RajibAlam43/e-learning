@@ -34,8 +34,8 @@ public class LiveClassAttendance extends CreatedOnlyUuidEntity {
   @JoinColumn(name = "user_id")
   private User user;
 
-  @Column(name = "zoom_participant_id")
-  private String zoomParticipantId;
+  @Column(name = "provider_participant_id")
+  private String providerParticipantId;
 
   @Column(name = "participant_name")
   private String participantName;

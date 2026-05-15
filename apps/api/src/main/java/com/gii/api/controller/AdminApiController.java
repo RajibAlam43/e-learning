@@ -3,14 +3,12 @@ package com.gii.api.controller;
 import com.gii.api.model.request.admin.AssignInstructorToCourseRequest;
 import com.gii.api.model.request.admin.CreateCourseRequest;
 import com.gii.api.model.request.admin.CreateInstructorRequest;
-import com.gii.api.model.request.admin.CreateLiveClassRequest;
 import com.gii.api.model.request.admin.CreateMediaAssetRequest;
 import com.gii.api.model.request.admin.CreateQuizRequest;
 import com.gii.api.model.request.admin.CreateSectionRequest;
 import com.gii.api.model.request.admin.ReorderCourseStructureRequest;
 import com.gii.api.model.request.admin.UpdateCourseRequest;
 import com.gii.api.model.request.admin.UpdateInstructorRequest;
-import com.gii.api.model.request.admin.UpdateLiveClassRequest;
 import com.gii.api.model.request.admin.UpdateMediaAssetRequest;
 import com.gii.api.model.request.admin.UpdateOrderRequest;
 import com.gii.api.model.request.admin.UpdateQuizRequest;
@@ -23,9 +21,6 @@ import com.gii.api.model.response.admin.AdminCourseSummaryResponse;
 import com.gii.api.model.response.admin.AdminInstructorDetailResponse;
 import com.gii.api.model.response.admin.AdminInstructorSummaryResponse;
 import com.gii.api.model.response.admin.AdminLessonDetailResponse;
-import com.gii.api.model.response.admin.AdminLiveClassDetailResponse;
-import com.gii.api.model.response.admin.AdminLiveClassStartResponse;
-import com.gii.api.model.response.admin.AdminLiveClassSummaryResponse;
 import com.gii.api.model.response.admin.AdminMediaAssetResponse;
 import com.gii.api.model.response.admin.AdminOrderDetailResponse;
 import com.gii.api.model.response.admin.AdminOrderSummaryResponse;
@@ -33,7 +28,6 @@ import com.gii.api.model.response.admin.AdminQuizDetailResponse;
 import com.gii.api.service.admin.AdminCourseManagementService;
 import com.gii.api.service.admin.AdminInstructorManagementService;
 import com.gii.api.service.admin.AdminLessonManagementService;
-import com.gii.api.service.admin.AdminLiveClassManagementService;
 import com.gii.api.service.admin.AdminMediaAssetManagementService;
 import com.gii.api.service.admin.AdminOrderManagementService;
 import com.gii.api.service.admin.AdminQuizManagementService;
@@ -52,7 +46,6 @@ public class AdminApiController implements AdminApi {
   private final AdminCourseManagementService courseManagementService;
   private final AdminSectionManagementService sectionManagementService;
   private final AdminLessonManagementService lessonManagementService;
-  private final AdminLiveClassManagementService liveClassManagementService;
   private final AdminMediaAssetManagementService mediaAssetManagementService;
   private final AdminQuizManagementService quizManagementService;
   private final AdminInstructorManagementService instructorManagementService;
@@ -192,28 +185,6 @@ public class AdminApiController implements AdminApi {
       UUID courseId, AssignInstructorToCourseRequest request) {
     instructorManagementService.assign(courseId, request);
     return ResponseEntity.ok().build();
-  }
-
-  @Override
-  public ResponseEntity<List<AdminLiveClassSummaryResponse>> listLiveClasses() {
-    return ResponseEntity.ok(liveClassManagementService.list());
-  }
-
-  @Override
-  public ResponseEntity<AdminLiveClassDetailResponse> createLiveClass(
-      UUID courseId, CreateLiveClassRequest request) {
-    return ResponseEntity.ok(liveClassManagementService.create(courseId, request));
-  }
-
-  @Override
-  public ResponseEntity<AdminLiveClassDetailResponse> updateLiveClass(
-      UUID liveClassId, UpdateLiveClassRequest request) {
-    return ResponseEntity.ok(liveClassManagementService.update(liveClassId, request));
-  }
-
-  @Override
-  public ResponseEntity<AdminLiveClassStartResponse> startLiveClass(UUID liveClassId) {
-    return ResponseEntity.ok(liveClassManagementService.start(liveClassId));
   }
 
   @Override

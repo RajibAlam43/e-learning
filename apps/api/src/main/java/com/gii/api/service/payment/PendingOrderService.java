@@ -2,6 +2,7 @@ package com.gii.api.service.payment;
 
 import com.gii.api.model.response.payment.CheckoutOrderItemResponse;
 import com.gii.api.model.response.payment.CheckoutOrderResponse;
+import com.gii.api.service.course.CourseThumbnailUrlService;
 import com.gii.api.service.enrollment.CurrentUserService;
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.order.Order;
@@ -39,6 +40,7 @@ public class PendingOrderService {
   private final EnrollmentRepository enrollmentRepository;
   private final OrderRepository orderRepository;
   private final OrderItemRepository orderItemRepository;
+  private final CourseThumbnailUrlService courseThumbnailUrlService;
 
   public CheckoutOrderResponse execute(UUID courseId, Authentication authentication) {
     User user = currentUserService.getCurrentUser(authentication);
@@ -111,7 +113,7 @@ public class PendingOrderService {
             .courseId(course.getId())
             .courseName(course.getTitle())
             .courseSlug(course.getSlug())
-            .courseThumbnailUrl(course.getThumbnailUrl())
+            .courseThumbnailUrl(courseThumbnailUrlService.buildCourseThumbnailUrl(course))
             .originalPrice(subtotal)
             .discountAmount(totalDiscount)
             .finalPrice(totalAmount)

@@ -41,8 +41,8 @@ public class Course extends BaseUuidEntity {
   @Column(name = "slug", nullable = false, unique = true)
   private String slug;
 
-  @Column(name = "thumbnail_url")
-  private String thumbnailUrl;
+  @Column(name = "thumbnail_object_key")
+  private String thumbnailObjectKey;
 
   @Column(name = "short_description")
   private String shortDescription;

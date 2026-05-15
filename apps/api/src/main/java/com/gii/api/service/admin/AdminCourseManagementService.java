@@ -7,6 +7,7 @@ import com.gii.api.model.response.admin.AdminCourseDetailResponse;
 import com.gii.api.model.response.admin.AdminCourseSectionResponse;
 import com.gii.api.model.response.admin.AdminCourseSummaryResponse;
 import com.gii.api.model.response.admin.AdminInstructorSummaryResponse;
+import com.gii.api.service.course.CourseThumbnailUrlService;
 import com.gii.api.service.enrollment.CurrentUserService;
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.course.CourseInstructor;
@@ -57,6 +58,7 @@ public class AdminCourseManagementService {
   private final EnrollmentRepository enrollmentRepository;
   private final CurrentUserService currentUserService;
   private final AdminSectionManagementService sectionManagementService;
+  private final CourseThumbnailUrlService courseThumbnailUrlService;
 
   @Transactional(readOnly = true)
   public List<AdminCourseSummaryResponse> list() {
@@ -95,7 +97,7 @@ public class AdminCourseManagementService {
         Course.builder()
             .title(request.title().trim())
             .slug(request.slug().trim())
-            .thumbnailUrl(request.thumbnailUrl())
+            .thumbnailObjectKey(request.thumbnailObjectKey())
             .shortDescription(request.shortDescription())
             .description(request.description())
             .highlights(request.highlights())
@@ -140,8 +142,8 @@ public class AdminCourseManagementService {
     if (request.slug() != null) {
       course.setSlug(request.slug().trim());
     }
-    if (request.thumbnailUrl() != null) {
-      course.setThumbnailUrl(request.thumbnailUrl());
+    if (request.thumbnailObjectKey() != null) {
+      course.setThumbnailObjectKey(request.thumbnailObjectKey());
     }
     if (request.shortDescription() != null) {
       course.setShortDescription(request.shortDescription());
@@ -356,7 +358,7 @@ public class AdminCourseManagementService {
         .courseId(course.getId())
         .title(course.getTitle())
         .slug(course.getSlug())
-        .thumbnailUrl(course.getThumbnailUrl())
+        .thumbnailUrl(courseThumbnailUrlService.buildCourseThumbnailUrl(course))
         .shortDescription(course.getShortDescription())
         .description(course.getDescription())
         .highlights(course.getHighlights())

@@ -13,7 +13,7 @@ import lombok.Builder;
 public record CreateCourseRequest(
     @NotBlank String title,
     @NotBlank String slug,
-    String thumbnailUrl,
+    String thumbnailObjectKey,
     String shortDescription,
     String description,
     List<String> highlights,
