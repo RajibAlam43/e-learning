@@ -1,5 +1,8 @@
 package com.gii.api.adminapi;
 
+import com.gii.common.entity.collection.Collection;
+import com.gii.common.entity.collection.CollectionCourse;
+import com.gii.common.entity.collection.CollectionCourseId;
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.course.CourseInstructor;
 import com.gii.common.entity.course.CourseInstructorId;
@@ -19,6 +22,7 @@ import com.gii.common.entity.user.Role;
 import com.gii.common.entity.user.User;
 import com.gii.common.enums.CourseLanguage;
 import com.gii.common.enums.CourseLevel;
+import com.gii.common.enums.CollectionType;
 import com.gii.common.enums.InstructorRole;
 import com.gii.common.enums.LessonType;
 import com.gii.common.enums.LiveClassProvider;
@@ -27,6 +31,7 @@ import com.gii.common.enums.LiveClassStatus;
 import com.gii.common.enums.MediaProvider;
 import com.gii.common.enums.MediaStatus;
 import com.gii.common.enums.OrderProvider;
+import com.gii.common.enums.OrderItemType;
 import com.gii.common.enums.OrderStatus;
 import com.gii.common.enums.PublishStatus;
 import com.gii.common.enums.QuestionType;
@@ -34,6 +39,8 @@ import com.gii.common.enums.SectionItemType;
 import com.gii.common.enums.StudyMode;
 import com.gii.common.enums.UserStatus;
 import com.gii.common.repository.course.CourseInstructorRepository;
+import com.gii.common.repository.collection.CollectionCourseRepository;
+import com.gii.common.repository.collection.CollectionRepository;
 import com.gii.common.repository.course.CourseRepository;
 import com.gii.common.repository.course.CourseSectionRepository;
 import com.gii.common.repository.course.LessonRepository;
@@ -64,6 +71,8 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 abstract class AdminApiTestSupport {
 
   @Autowired protected UserRepository userRepository;
+  @Autowired protected CollectionRepository collectionRepository;
+  @Autowired protected CollectionCourseRepository collectionCourseRepository;
   @Autowired protected CourseRepository courseRepository;
   @Autowired protected CourseSectionRepository courseSectionRepository;
   @Autowired protected LessonRepository lessonRepository;
@@ -84,6 +93,8 @@ abstract class AdminApiTestSupport {
   @Autowired protected OrderRepository orderRepository;
 
   protected void cleanupAdminData() {
+    collectionCourseRepository.deleteAll();
+    collectionRepository.deleteAll();
     quizAttemptAnswerRepository.deleteAll();
     quizAttemptRepository.deleteAll();
     quizChoiceRepository.deleteAll();
@@ -102,6 +113,35 @@ abstract class AdminApiTestSupport {
     courseRepository.deleteAll();
     instructorProfileRepository.deleteAll();
     userRepository.deleteAll();
+  }
+
+  protected Collection collection(String title, String slug, User creator, PublishStatus status) {
+    return collectionRepository.save(
+        Collection.builder()
+            .title(title)
+            .slug(slug)
+            .type(CollectionType.PACK)
+            .status(status)
+            .priceBdt(BigDecimal.valueOf(3000))
+            .publishedAt(status == PublishStatus.PUBLISHED ? Instant.now() : null)
+            .createdBy(creator)
+            .build());
+  }
+
+  protected CollectionCourse collectionCourse(
+      Collection collection, Course course, int position, boolean isMandatory) {
+    return collectionCourseRepository.save(
+        CollectionCourse.builder()
+            .id(
+                CollectionCourseId.builder()
+                    .collectionId(collection.getId())
+                    .courseId(course.getId())
+                    .build())
+            .collection(collection)
+            .course(course)
+            .position(position)
+            .isMandatory(isMandatory)
+            .build());
   }
 
   protected Authentication adminAuth(UUID userId) {
@@ -319,7 +359,9 @@ abstract class AdminApiTestSupport {
     return orderItemRepository.save(
         OrderItem.builder()
             .order(order)
+            .itemType(OrderItemType.COURSE)
             .course(course)
+            .titleSnapshot(course.getTitle())
             .priceBdt(price)
             .discountBdt(discount)
             .build());

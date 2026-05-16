@@ -119,12 +119,12 @@ public class SslcommerzCheckoutService {
   private String resolveProductName(java.util.UUID orderId) {
     List<OrderItem> items = orderItemRepository.findByOrderId(orderId);
     if (items.isEmpty()) {
-      return "Course";
+      return "Collection";
     }
     if (items.size() == 1) {
-      return items.getFirst().getCourse().getTitle();
+      return items.getFirst().getTitleSnapshot();
     }
-    return items.getFirst().getCourse().getTitle() + " + " + (items.size() - 1) + " more";
+    return items.getFirst().getTitleSnapshot() + " + " + (items.size() - 1) + " more";
   }
 
   private String buildTranId(String orderId) {

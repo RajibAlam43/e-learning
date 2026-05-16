@@ -4,7 +4,9 @@ import com.gii.api.model.response.payment.PaymentStatusResponse;
 import com.gii.api.service.enrollment.CurrentUserService;
 import com.gii.common.entity.order.Order;
 import com.gii.common.enums.EnrollmentStatus;
+import com.gii.common.enums.OrderItemType;
 import com.gii.common.enums.OrderStatus;
+import com.gii.common.repository.collection.CollectionEnrollmentRepository;
 import com.gii.common.repository.enrollment.EnrollmentRepository;
 import com.gii.common.repository.order.OrderItemRepository;
 import com.gii.common.repository.order.OrderRepository;
@@ -25,6 +27,7 @@ public class OrderStatusService {
   private final OrderRepository orderRepository;
   private final OrderItemRepository orderItemRepository;
   private final EnrollmentRepository enrollmentRepository;
+  private final CollectionEnrollmentRepository collectionEnrollmentRepository;
 
   public PaymentStatusResponse execute(UUID orderId, Authentication authentication) {
     UUID userId = currentUserService.getCurrentUserId(authentication);
@@ -39,9 +42,17 @@ public class OrderStatusService {
         (int)
             orderItemRepository.findByOrderId(order.getId()).stream()
                 .filter(
-                    item ->
-                        enrollmentRepository.existsByUserIdAndCourseIdAndStatus(
-                            userId, item.getCourse().getId(), EnrollmentStatus.ACTIVE))
+                    item -> {
+                      if (item.getItemType() == OrderItemType.COURSE) {
+                        return enrollmentRepository.existsByUserIdAndCourseIdAndStatus(
+                            userId, item.getCourse().getId(), EnrollmentStatus.ACTIVE);
+                      }
+                      if (item.getItemType() == OrderItemType.COLLECTION) {
+                        return collectionEnrollmentRepository.existsByUserIdAndCollectionIdAndStatus(
+                            userId, item.getCollection().getId(), EnrollmentStatus.ACTIVE);
+                      }
+                      return false;
+                    })
                 .count();
     return PaymentStatusResponse.builder()
         .orderId(order.getId())

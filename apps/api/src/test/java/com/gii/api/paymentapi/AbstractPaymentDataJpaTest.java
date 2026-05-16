@@ -1,5 +1,7 @@
 package com.gii.api.paymentapi;
 
+import com.gii.api.testsupport.SharedPostgresContainer;
+
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -11,11 +13,11 @@ abstract class AbstractPaymentDataJpaTest extends PaymentApiTestSupport {
 
   @DynamicPropertySource
   static void registerProperties(DynamicPropertyRegistry registry) {
-    registry.add("spring.datasource.url", SharedPaymentPostgresContainer.INSTANCE::getJdbcUrl);
+    registry.add("spring.datasource.url", SharedPostgresContainer.INSTANCE::getJdbcUrl);
     registry.add(
-        "spring.datasource.username", SharedPaymentPostgresContainer.INSTANCE::getUsername);
+        "spring.datasource.username", SharedPostgresContainer.INSTANCE::getUsername);
     registry.add(
-        "spring.datasource.password", SharedPaymentPostgresContainer.INSTANCE::getPassword);
+        "spring.datasource.password", SharedPostgresContainer.INSTANCE::getPassword);
     registry.add("spring.jpa.hibernate.ddl-auto", () -> "validate");
     registry.add("spring.flyway.enabled", () -> "true");
   }

@@ -1,5 +1,8 @@
 package com.gii.api.publicapi;
 
+import com.gii.common.entity.collection.Collection;
+import com.gii.common.entity.collection.CollectionCourse;
+import com.gii.common.entity.collection.CollectionCourseId;
 import com.gii.common.entity.course.Category;
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.course.CourseCategory;
@@ -12,6 +15,7 @@ import com.gii.common.entity.user.InstructorProfile;
 import com.gii.common.entity.user.User;
 import com.gii.common.enums.CourseLanguage;
 import com.gii.common.enums.CourseLevel;
+import com.gii.common.enums.CollectionType;
 import com.gii.common.enums.InstructorRole;
 import com.gii.common.enums.LessonType;
 import com.gii.common.enums.MediaProvider;
@@ -19,6 +23,8 @@ import com.gii.common.enums.PublishStatus;
 import com.gii.common.enums.StudyMode;
 import com.gii.common.enums.UserStatus;
 import com.gii.common.repository.course.CategoryRepository;
+import com.gii.common.repository.collection.CollectionCourseRepository;
+import com.gii.common.repository.collection.CollectionRepository;
 import com.gii.common.repository.course.CourseCategoryRepository;
 import com.gii.common.repository.course.CourseInstructorRepository;
 import com.gii.common.repository.course.CourseRepository;
@@ -43,6 +49,8 @@ abstract class PublicApiTestSupport {
   @Autowired protected LessonRepository lessonRepository;
   @Autowired protected MediaAssetRepository mediaAssetRepository;
   @Autowired protected CategoryRepository categoryRepository;
+  @Autowired protected CollectionRepository collectionRepository;
+  @Autowired protected CollectionCourseRepository collectionCourseRepository;
   @Autowired protected CourseCategoryRepository courseCategoryRepository;
   @Autowired protected CourseInstructorRepository courseInstructorRepository;
   @Autowired protected InstructorProfileRepository instructorProfileRepository;
@@ -50,6 +58,8 @@ abstract class PublicApiTestSupport {
 
   @AfterEach
   void cleanDb() {
+    collectionCourseRepository.deleteAll();
+    collectionRepository.deleteAll();
     mediaAssetRepository.deleteAll();
     lessonRepository.deleteAll();
     courseSectionRepository.deleteAll();
@@ -60,6 +70,41 @@ abstract class PublicApiTestSupport {
     instructorProfileRepository.deleteAll();
     supportTicketRepository.deleteAll();
     userRepository.deleteAll();
+  }
+
+  protected Collection collection(
+      String title,
+      String slug,
+      CollectionType type,
+      com.gii.common.enums.PublishStatus status,
+      User creator,
+      Instant publishedAt) {
+    return collectionRepository.save(
+        Collection.builder()
+            .title(title)
+            .slug(slug)
+            .type(type)
+            .status(status)
+            .priceBdt(BigDecimal.valueOf(3000))
+            .publishedAt(publishedAt)
+            .createdBy(creator)
+            .build());
+  }
+
+  protected void attachCourseToCollection(
+      Collection collection, Course course, int position, boolean isMandatory) {
+    collectionCourseRepository.save(
+        CollectionCourse.builder()
+            .id(
+                CollectionCourseId.builder()
+                    .collectionId(collection.getId())
+                    .courseId(course.getId())
+                    .build())
+            .collection(collection)
+            .course(course)
+            .position(position)
+            .isMandatory(isMandatory)
+            .build());
   }
 
   protected User user(String name, String email, UserStatus status) {

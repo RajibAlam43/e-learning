@@ -1,6 +1,10 @@
 package com.gii.api.studentapi;
 
 import com.gii.common.entity.certificate.Certificate;
+import com.gii.common.entity.collection.Collection;
+import com.gii.common.entity.collection.CollectionCourse;
+import com.gii.common.entity.collection.CollectionCourseId;
+import com.gii.common.entity.collection.CollectionEnrollment;
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.course.CourseSection;
 import com.gii.common.entity.course.Lesson;
@@ -14,19 +18,25 @@ import com.gii.common.entity.order.OrderItem;
 import com.gii.common.entity.quiz.Quiz;
 import com.gii.common.entity.user.User;
 import com.gii.common.entity.user.UserProfile;
+import com.gii.common.enums.CertificateTargetType;
 import com.gii.common.enums.CourseLanguage;
 import com.gii.common.enums.CourseLevel;
+import com.gii.common.enums.CollectionType;
 import com.gii.common.enums.EnrollmentStatus;
 import com.gii.common.enums.LessonType;
 import com.gii.common.enums.LiveClassProvider;
 import com.gii.common.enums.LiveClassRegistrantStatus;
 import com.gii.common.enums.LiveClassStatus;
 import com.gii.common.enums.OrderProvider;
+import com.gii.common.enums.OrderItemType;
 import com.gii.common.enums.OrderStatus;
 import com.gii.common.enums.PublishStatus;
 import com.gii.common.enums.StudyMode;
 import com.gii.common.enums.UserStatus;
 import com.gii.common.repository.certificate.CertificateRepository;
+import com.gii.common.repository.collection.CollectionCourseRepository;
+import com.gii.common.repository.collection.CollectionEnrollmentRepository;
+import com.gii.common.repository.collection.CollectionRepository;
 import com.gii.common.repository.course.CourseRepository;
 import com.gii.common.repository.course.CourseSectionRepository;
 import com.gii.common.repository.course.LessonRepository;
@@ -52,6 +62,9 @@ abstract class StudentApiTestSupport {
   @Autowired protected UserRepository userRepository;
   @Autowired protected UserProfileRepository userProfileRepository;
   @Autowired protected CourseRepository courseRepository;
+  @Autowired protected CollectionRepository collectionRepository;
+  @Autowired protected CollectionCourseRepository collectionCourseRepository;
+  @Autowired protected CollectionEnrollmentRepository collectionEnrollmentRepository;
   @Autowired protected CourseSectionRepository courseSectionRepository;
   @Autowired protected LessonRepository lessonRepository;
   @Autowired protected EnrollmentRepository enrollmentRepository;
@@ -64,19 +77,63 @@ abstract class StudentApiTestSupport {
   @Autowired protected LiveClassRegistrantRepository liveClassRegistrantRepository;
 
   protected void cleanupStudentData() {
+    certificateRepository.deleteAll();
+    collectionEnrollmentRepository.deleteAll();
+    collectionCourseRepository.deleteAll();
+    collectionRepository.deleteAll();
     liveClassRegistrantRepository.deleteAll();
     liveClassRepository.deleteAll();
     lessonProgressRepository.deleteAll();
     enrollmentRepository.deleteAll();
     orderItemRepository.deleteAll();
     orderRepository.deleteAll();
-    certificateRepository.deleteAll();
     quizRepository.deleteAll();
     lessonRepository.deleteAll();
     courseSectionRepository.deleteAll();
     courseRepository.deleteAll();
     userProfileRepository.deleteAll();
     userRepository.deleteAll();
+  }
+
+  protected Collection collection(String title, String slug, User creator, com.gii.common.enums.PublishStatus status) {
+    return collectionRepository.save(
+        Collection.builder()
+            .title(title)
+            .slug(slug)
+            .type(CollectionType.PACK)
+            .priceBdt(BigDecimal.valueOf(2500))
+            .status(status)
+            .publishedAt(status == com.gii.common.enums.PublishStatus.PUBLISHED ? Instant.now() : null)
+            .createdBy(creator)
+            .build());
+  }
+
+  protected CollectionCourse collectionCourse(
+      Collection collection, Course course, int position, boolean isMandatory) {
+    return collectionCourseRepository.save(
+        CollectionCourse.builder()
+            .id(
+                CollectionCourseId.builder()
+                    .collectionId(collection.getId())
+                    .courseId(course.getId())
+                    .build())
+            .collection(collection)
+            .course(course)
+            .position(position)
+            .isMandatory(isMandatory)
+            .build());
+  }
+
+  protected CollectionEnrollment collectionEnrollment(
+      User user, Collection collection, EnrollmentStatus status, Instant expiresAt) {
+    return collectionEnrollmentRepository.save(
+        CollectionEnrollment.builder()
+            .user(user)
+            .collection(collection)
+            .status(status)
+            .enrolledAt(Instant.now().minusSeconds(3600))
+            .expiresAt(expiresAt)
+            .build());
   }
 
   protected Authentication studentAuth(UUID userId) {
@@ -199,7 +256,9 @@ abstract class StudentApiTestSupport {
     return orderItemRepository.save(
         OrderItem.builder()
             .order(order)
+            .itemType(OrderItemType.COURSE)
             .course(course)
+            .titleSnapshot(course.getTitle())
             .priceBdt(price)
             .discountBdt(discount)
             .build());
@@ -210,9 +269,11 @@ abstract class StudentApiTestSupport {
         Certificate.builder()
             .certificateCode(code)
             .user(user)
+            .targetType(CertificateTargetType.COURSE)
             .course(course)
+            .targetTitle(course.getTitle())
+            .targetSlug(course.getSlug())
             .recipientName(user.getFullName())
-            .courseTitle(course.getTitle())
             .issuedAt(Instant.now().minusSeconds(86400))
             .revokedAt(revoked ? Instant.now().minusSeconds(1000) : null)
             .pdfUrl("https://cdn.test/" + code + ".pdf")

@@ -10,6 +10,7 @@ import com.gii.common.entity.live.LiveClassAttendance;
 import com.gii.common.entity.user.InstructorProfile;
 import com.gii.common.entity.user.User;
 import com.gii.common.entity.user.UserProfile;
+import com.gii.common.enums.CertificateTargetType;
 import com.gii.common.enums.CourseLanguage;
 import com.gii.common.enums.CourseLevel;
 import com.gii.common.enums.EnrollmentStatus;
@@ -170,10 +171,12 @@ abstract class MeApiTestSupport {
         Certificate.builder()
             .certificateCode(code)
             .user(user)
+            .targetType(CertificateTargetType.COURSE)
             .course(course)
             .issuedBy(issuedBy)
             .recipientName(user.getFullName())
-            .courseTitle(course.getTitle())
+            .targetTitle(course.getTitle())
+            .targetSlug(course.getSlug())
             .issuedAt(Instant.now().minusSeconds(7200))
             .revokedAt(revoked ? Instant.now().minusSeconds(100) : null)
             .build());

@@ -1,5 +1,6 @@
 package com.gii.api.controller;
 
+import com.gii.api.model.request.payment.CreateCheckoutOrderRequest;
 import com.gii.api.model.request.payment.InitiatePaymentRequest;
 import com.gii.api.model.response.payment.CheckoutOrderResponse;
 import com.gii.api.model.response.payment.PaymentInitiationResponse;
@@ -26,14 +27,14 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 
-@Tag(name = "Payments", description = "Course checkout, payment initiation, and webhook handling")
+@Tag(name = "Payments", description = "Cart checkout, payment initiation, and webhook handling")
 public interface PaymentApi {
 
-  @PostMapping("/checkout/courses/{courseId}")
+  @PostMapping("/checkout/orders")
   @PreAuthorize("hasRole('STUDENT') or hasRole('ADMIN')")
   @Operation(
-      summary = "Create pending order",
-      description = "Create a pending checkout order for a course.",
+      summary = "Create pending cart order",
+      description = "Create a pending checkout order for mixed COURSE/COLLECTION cart items.",
       security = @SecurityRequirement(name = "bearerAuth"))
   @ApiResponses(
       value = {
@@ -41,12 +42,13 @@ public interface PaymentApi {
             responseCode = "200",
             description = "Order created",
             content = @Content(schema = @Schema(implementation = CheckoutOrderResponse.class))),
+        @ApiResponse(responseCode = "400", description = "Invalid cart payload"),
         @ApiResponse(responseCode = "401", description = "Unauthorized"),
-        @ApiResponse(responseCode = "404", description = "Course not found"),
-        @ApiResponse(responseCode = "409", description = "Already enrolled")
+        @ApiResponse(responseCode = "404", description = "Course/collection not found"),
+        @ApiResponse(responseCode = "409", description = "Duplicate purchase conflict")
       })
-  ResponseEntity<CheckoutOrderResponse> createPendingOrder(
-      @PathVariable UUID courseId, Authentication authentication);
+  ResponseEntity<CheckoutOrderResponse> createPendingCartOrder(
+      @RequestBody @Valid CreateCheckoutOrderRequest request, Authentication authentication);
 
   @GetMapping("/checkout/orders/{orderId}")
   @PreAuthorize("hasRole('STUDENT') or hasRole('ADMIN')")

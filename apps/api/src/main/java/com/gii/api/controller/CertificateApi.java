@@ -42,6 +42,27 @@ public interface CertificateApi {
   ResponseEntity<CertificateIssueResponse> issueOrGetCertificate(
       @PathVariable UUID courseId, Authentication authentication);
 
+  @PostMapping("/student/collections/{collectionId}/certificate")
+  @PreAuthorize("hasRole('STUDENT')")
+  @Operation(
+      summary = "Issue or get collection certificate",
+      description =
+          "Check eligibility and issue collection certificate if qualified; return existing if"
+              + " already issued. Idempotent operation.",
+      security = @SecurityRequirement(name = "bearerAuth"))
+  @ApiResponses(
+      value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Certificate issued or retrieved",
+            content = @Content(schema = @Schema(implementation = CertificateIssueResponse.class))),
+        @ApiResponse(responseCode = "401", description = "Unauthorized"),
+        @ApiResponse(responseCode = "403", description = "Not eligible for certificate"),
+        @ApiResponse(responseCode = "404", description = "Collection not found")
+      })
+  ResponseEntity<CertificateIssueResponse> issueOrGetCollectionCertificate(
+      @PathVariable UUID collectionId, Authentication authentication);
+
   @GetMapping("/student/certificates/{certificateId}/download")
   @PreAuthorize("hasRole('STUDENT')")
   @Operation(

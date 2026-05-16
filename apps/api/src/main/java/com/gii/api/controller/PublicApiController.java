@@ -1,18 +1,23 @@
 package com.gii.api.controller;
 
 import com.gii.api.model.request.CreateSupportTicketRequest;
+import com.gii.api.model.response.CollectionDetailsResponse;
+import com.gii.api.model.response.CollectionSummaryResponse;
 import com.gii.api.model.response.CourseDetailsResponse;
 import com.gii.api.model.response.CourseSummaryResponse;
 import com.gii.api.model.response.InstructorDetailsResponse;
 import com.gii.api.model.response.InstructorSummaryResponse;
 import com.gii.api.model.response.PageResponse;
+import com.gii.api.service.pub.AllCollectionsService;
 import com.gii.api.service.pub.AllCoursesService;
 import com.gii.api.service.pub.AllInstructorsService;
+import com.gii.api.service.pub.CollectionDetailsService;
 import com.gii.api.service.pub.CourseDetailsService;
 import com.gii.api.service.pub.InstructorDetailsService;
 import com.gii.api.service.pub.SupportTicketService;
 import com.gii.common.enums.CourseLanguage;
 import com.gii.common.enums.CourseLevel;
+import com.gii.common.enums.CollectionType;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +30,9 @@ import org.springframework.web.bind.annotation.RestController;
 public class PublicApiController implements PublicApi {
 
   private final AllCoursesService allCoursesService;
+  private final AllCollectionsService allCollectionsService;
   private final CourseDetailsService courseDetailsService;
+  private final CollectionDetailsService collectionDetailsService;
   private final AllInstructorsService allInstructorsService;
   private final InstructorDetailsService instructorDetailsService;
   private final SupportTicketService supportTicketService;
@@ -39,6 +46,17 @@ public class PublicApiController implements PublicApi {
   @Override
   public ResponseEntity<CourseDetailsResponse> getCourseDetails(String slug) {
     return ResponseEntity.ok(courseDetailsService.execute(slug));
+  }
+
+  @Override
+  public ResponseEntity<PageResponse<CollectionSummaryResponse>> getAllCollections(
+      CollectionType type, Pageable pageable) {
+    return ResponseEntity.ok(allCollectionsService.execute(type, pageable));
+  }
+
+  @Override
+  public ResponseEntity<CollectionDetailsResponse> getCollectionDetails(String slug) {
+    return ResponseEntity.ok(collectionDetailsService.execute(slug));
   }
 
   @Override

@@ -1,5 +1,6 @@
 package com.gii.api.model.response.student;
 
+import com.gii.common.enums.CertificateTargetType;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.Builder;
@@ -9,9 +10,10 @@ public record StudentCertificateSummaryResponse(
     UUID certificateId,
     String certificateCode, // Unique verification code
 
-    // Course info
-    String courseName,
-    String courseSlug,
+    // Target info
+    CertificateTargetType targetType,
+    String targetName,
+    String targetSlug,
 
     // Recipient info
     String recipientName,

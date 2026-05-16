@@ -1,6 +1,10 @@
 package com.gii.api.certificateapi;
 
 import com.gii.common.entity.certificate.Certificate;
+import com.gii.common.entity.collection.Collection;
+import com.gii.common.entity.collection.CollectionCourse;
+import com.gii.common.entity.collection.CollectionCourseId;
+import com.gii.common.entity.collection.CollectionEnrollment;
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.course.CourseInstructor;
 import com.gii.common.entity.course.CourseInstructorId;
@@ -10,8 +14,10 @@ import com.gii.common.entity.enrollment.Enrollment;
 import com.gii.common.entity.enrollment.LessonProgress;
 import com.gii.common.entity.enrollment.LessonProgressId;
 import com.gii.common.entity.user.User;
+import com.gii.common.enums.CertificateTargetType;
 import com.gii.common.enums.CourseLanguage;
 import com.gii.common.enums.CourseLevel;
+import com.gii.common.enums.CollectionType;
 import com.gii.common.enums.EnrollmentStatus;
 import com.gii.common.enums.InstructorRole;
 import com.gii.common.enums.LessonType;
@@ -19,6 +25,9 @@ import com.gii.common.enums.PublishStatus;
 import com.gii.common.enums.StudyMode;
 import com.gii.common.enums.UserStatus;
 import com.gii.common.repository.certificate.CertificateRepository;
+import com.gii.common.repository.collection.CollectionCourseRepository;
+import com.gii.common.repository.collection.CollectionEnrollmentRepository;
+import com.gii.common.repository.collection.CollectionRepository;
 import com.gii.common.repository.course.CourseInstructorRepository;
 import com.gii.common.repository.course.CourseRepository;
 import com.gii.common.repository.course.CourseSectionRepository;
@@ -38,6 +47,9 @@ abstract class CertificateApiTestSupport {
 
   @Autowired protected UserRepository userRepository;
   @Autowired protected CourseRepository courseRepository;
+  @Autowired protected CollectionRepository collectionRepository;
+  @Autowired protected CollectionCourseRepository collectionCourseRepository;
+  @Autowired protected CollectionEnrollmentRepository collectionEnrollmentRepository;
   @Autowired protected CourseSectionRepository courseSectionRepository;
   @Autowired protected LessonRepository lessonRepository;
   @Autowired protected EnrollmentRepository enrollmentRepository;
@@ -46,14 +58,58 @@ abstract class CertificateApiTestSupport {
   @Autowired protected CourseInstructorRepository courseInstructorRepository;
 
   protected void cleanupCertificateData() {
-    lessonProgressRepository.deleteAll();
     certificateRepository.deleteAll();
+    collectionEnrollmentRepository.deleteAll();
+    collectionCourseRepository.deleteAll();
+    collectionRepository.deleteAll();
+    lessonProgressRepository.deleteAll();
     courseInstructorRepository.deleteAll();
     enrollmentRepository.deleteAll();
     lessonRepository.deleteAll();
     courseSectionRepository.deleteAll();
     courseRepository.deleteAll();
     userRepository.deleteAll();
+  }
+
+  protected Collection collection(String title, String slug, User creator, PublishStatus status) {
+    return collectionRepository.save(
+        Collection.builder()
+            .title(title)
+            .slug(slug)
+            .type(CollectionType.PACK)
+            .status(status)
+            .priceBdt(BigDecimal.valueOf(2400))
+            .publishedAt(status == PublishStatus.PUBLISHED ? Instant.now() : null)
+            .createdBy(creator)
+            .build());
+  }
+
+  protected CollectionCourse collectionCourse(
+      Collection collection, Course course, int position, boolean isMandatory) {
+    return collectionCourseRepository.save(
+        CollectionCourse.builder()
+            .id(
+                CollectionCourseId.builder()
+                    .collectionId(collection.getId())
+                    .courseId(course.getId())
+                    .build())
+            .collection(collection)
+            .course(course)
+            .position(position)
+            .isMandatory(isMandatory)
+            .build());
+  }
+
+  protected CollectionEnrollment collectionEnrollment(
+      User user, Collection collection, EnrollmentStatus status, Instant expiresAt) {
+    return collectionEnrollmentRepository.save(
+        CollectionEnrollment.builder()
+            .user(user)
+            .collection(collection)
+            .status(status)
+            .enrolledAt(Instant.now().minusSeconds(3600))
+            .expiresAt(expiresAt)
+            .build());
   }
 
   protected Authentication studentAuth(UUID userId) {
@@ -160,10 +216,12 @@ abstract class CertificateApiTestSupport {
         Certificate.builder()
             .certificateCode(code)
             .user(user)
+            .targetType(CertificateTargetType.COURSE)
             .course(course)
             .issuedBy(issuedBy)
             .recipientName(user.getFullName())
-            .courseTitle(course.getTitle())
+            .targetTitle(course.getTitle())
+            .targetSlug(course.getSlug())
             .pdfUrl(pdfUrl)
             .issuedAt(Instant.now().minusSeconds(3600))
             .revokedAt(revoked ? Instant.now().minusSeconds(1800) : null)

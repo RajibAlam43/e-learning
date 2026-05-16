@@ -12,9 +12,14 @@ import com.gii.common.enums.PublishStatus;
 import java.math.BigDecimal;
 import java.time.Instant;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 class PaymentRepositoriesDataJpaTest extends AbstractPaymentDataJpaTest {
+
+  @Autowired private JdbcTemplate jdbcTemplate;
 
   @Test
   void orderRepositoryLookupsShouldReturnOwnedStatusAndProviderTxnMatches() {
@@ -123,5 +128,55 @@ class PaymentRepositoriesDataJpaTest extends AbstractPaymentDataJpaTest {
     assertThat(paymentEventRepository.findByStatus(PaymentEventStatus.PROCESSED))
         .extracting(PaymentEvent::getProviderEventId)
         .contains("evt-status-proc-1");
+  }
+
+  @Test
+  void orderItemPricingShouldBeImmutableAtDatabaseLevel() {
+    Integer triggerCount =
+        jdbcTemplate.queryForObject(
+            """
+            SELECT COUNT(*)
+            FROM pg_trigger t
+            JOIN pg_class c ON c.oid = t.tgrelid
+            WHERE t.tgname = 'trg_order_items_pricing_immutable'
+              AND c.relname = 'order_items'
+              AND NOT t.tgisinternal
+            """,
+            Integer.class);
+    assertThat(triggerCount).isEqualTo(1);
+
+    var student = user("Student Immutable", "student-payment-immutable@example.com");
+    var creator = user("Creator Immutable", "creator-payment-immutable@example.com");
+    var course =
+        course(
+            "Immutable Price Course",
+            "immutable-price-course",
+            creator,
+            PublishStatus.PUBLISHED,
+            BigDecimal.valueOf(1000));
+    var order =
+        order(
+            student,
+            OrderStatus.PENDING,
+            OrderProvider.SSLCOMMERZ,
+            "txn-immutable-price",
+            BigDecimal.valueOf(1000));
+    var item = orderItem(order, course, BigDecimal.valueOf(1000), BigDecimal.valueOf(50));
+    orderItemRepository.flush();
+
+    assertThrows(
+        DataAccessException.class,
+        () ->
+            jdbcTemplate.update(
+                "UPDATE order_items SET price_bdt = ? WHERE id = ?",
+                BigDecimal.valueOf(999),
+                item.getId()));
+    assertThrows(
+        DataAccessException.class,
+        () ->
+            jdbcTemplate.update(
+                "UPDATE order_items SET discount_bdt = ? WHERE id = ?",
+                BigDecimal.valueOf(60),
+                item.getId()));
   }
 }

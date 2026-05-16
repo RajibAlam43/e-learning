@@ -1,12 +1,12 @@
-package com.gii.api.instructorapi;
+package com.gii.api.testsupport;
 
 import org.testcontainers.containers.PostgreSQLContainer;
 
-final class SharedInstructorPostgresContainer {
+public final class SharedPostgresContainer {
 
-  private SharedInstructorPostgresContainer() {}
+  private SharedPostgresContainer() {}
 
-  static final PostgreSQLContainer<?> INSTANCE =
+  public static final PostgreSQLContainer<?> INSTANCE =
       new PostgreSQLContainer<>("postgres:16-alpine")
           .withDatabaseName("elearning_test")
           .withUsername("postgres")

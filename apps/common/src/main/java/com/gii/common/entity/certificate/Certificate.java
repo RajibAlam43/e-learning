@@ -1,10 +1,14 @@
 package com.gii.common.entity.certificate;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.gii.common.entity.collection.Collection;
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.user.User;
+import com.gii.common.enums.CertificateTargetType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
@@ -12,7 +16,6 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.AccessLevel;
@@ -28,13 +31,7 @@ import lombok.Setter;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Entity
-@Table(
-    name = "certificates",
-    uniqueConstraints = {
-      @UniqueConstraint(
-          name = "uk_certificates_user_course",
-          columnNames = {"user_id", "course_id"})
-    })
+@Table(name = "certificates")
 public class Certificate {
 
   @Id
@@ -50,10 +47,19 @@ public class Certificate {
   @JoinColumn(name = "user_id", nullable = false)
   private User user;
 
+  @Enumerated(EnumType.STRING)
+  @Column(name = "target_type", nullable = false, length = 20)
+  private CertificateTargetType targetType;
+
   @JsonIgnore
-  @ManyToOne(fetch = FetchType.LAZY, optional = false)
-  @JoinColumn(name = "course_id", nullable = false)
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "course_id")
   private Course course;
+
+  @JsonIgnore
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "collection_id")
+  private Collection collection;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "template_id")
@@ -76,8 +82,11 @@ public class Certificate {
   @Column(name = "recipient_name", nullable = false)
   private String recipientName;
 
-  @Column(name = "course_title", nullable = false)
-  private String courseTitle;
+  @Column(name = "target_title", nullable = false)
+  private String targetTitle;
+
+  @Column(name = "target_slug", nullable = false)
+  private String targetSlug;
 
   @PrePersist
   protected void onCreate() {

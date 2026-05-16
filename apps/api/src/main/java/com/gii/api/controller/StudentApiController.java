@@ -1,5 +1,7 @@
 package com.gii.api.controller;
 
+import com.gii.api.model.response.student.StudentCollectionDetailsResponse;
+import com.gii.api.model.response.student.StudentCollectionSummaryResponse;
 import com.gii.api.model.response.student.StudentCertificateSummaryResponse;
 import com.gii.api.model.response.student.StudentCourseHomeResponse;
 import com.gii.api.model.response.student.StudentCourseSummaryResponse;
@@ -9,6 +11,8 @@ import com.gii.api.model.response.student.StudentOrderSummaryResponse;
 import com.gii.api.service.student.CourseLiveClassesService;
 import com.gii.api.service.student.EnrolledCourseDetailsService;
 import com.gii.api.service.student.EnrolledCoursesService;
+import com.gii.api.service.student.StudentCollectionDetailsService;
+import com.gii.api.service.student.StudentCollectionsService;
 import com.gii.api.service.student.StudentCertificatesService;
 import com.gii.api.service.student.StudentDashboardService;
 import com.gii.api.service.student.StudentJoinLiveClassesService;
@@ -27,6 +31,8 @@ public class StudentApiController implements StudentApi {
 
   private final StudentDashboardService studentDashboardService;
   private final EnrolledCoursesService enrolledCoursesService;
+  private final StudentCollectionsService studentCollectionsService;
+  private final StudentCollectionDetailsService studentCollectionDetailsService;
   private final EnrolledCourseDetailsService enrolledCourseDetailsService;
   private final StudentOrdersService studentOrdersService;
   private final StudentCertificatesService studentCertificatesService;
@@ -42,6 +48,18 @@ public class StudentApiController implements StudentApi {
   public ResponseEntity<List<StudentCourseSummaryResponse>> getMyCourses(
       Authentication authentication) {
     return ResponseEntity.ok(enrolledCoursesService.execute(authentication));
+  }
+
+  @Override
+  public ResponseEntity<List<StudentCollectionSummaryResponse>> getMyCollections(
+      Authentication authentication) {
+    return ResponseEntity.ok(studentCollectionsService.execute(authentication));
+  }
+
+  @Override
+  public ResponseEntity<StudentCollectionDetailsResponse> getMyCollectionDetails(
+      UUID collectionId, Authentication authentication) {
+    return ResponseEntity.ok(studentCollectionDetailsService.execute(collectionId, authentication));
   }
 
   @Override
