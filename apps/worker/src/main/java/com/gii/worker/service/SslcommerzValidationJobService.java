@@ -73,7 +73,7 @@ public class SslcommerzValidationJobService {
   @Value("${payments.sslcommerz.validation-timeout-ms}")
   private long validationTimeoutMs;
 
-  @Value("${payments.sslcommerz.validation.jobs.queue:gii-stage-sslcommerz-validation-queue}")
+  @Value("${payments.sslcommerz.validation.jobs.queue}")
   private String validationQueue;
 
   @Transactional
@@ -107,6 +107,18 @@ public class SslcommerzValidationJobService {
       validateAgainstOrder(order, validated);
       String status = normalize(asString(validated.get("status")));
       if ("VALID".equals(status) || "VALIDATED".equals(status)) {
+        int riskLevel = parseRiskLevel(asString(validated.get("risk_level")));
+        if (riskLevel == 1) {
+          recordRiskHoldEvent(order, job);
+          log.warn(
+              "SSLCommerz worker validation held for manual risk review; orderId={}, tranId={}, valId={}, attempt={}/{}",
+              order.getId(),
+              job.providerTxnId(),
+              job.valId(),
+              job.attempt(),
+              job.maxAttempts());
+          return;
+        }
         markPaid(order);
         grantEnrollmentsForPaidOrder(order.getId());
         recordEvent(order, job, PaymentEventStatus.PROCESSED);
@@ -296,6 +308,24 @@ public class SslcommerzValidationJobService {
             .build());
   }
 
+  private void recordRiskHoldEvent(Order order, SslcommerzValidationJobMessage job) {
+    paymentEventRepository.save(
+        PaymentEvent.builder()
+            .order(order)
+            .provider(OrderProvider.SSLCOMMERZ)
+            .eventType(PaymentEventType.SSLCOMMERZ_WEBHOOK_RISK_HOLD)
+            .providerEventId(job.providerTxnId())
+            .rawPayloadJson(
+                Map.of(
+                    "source", job.source(),
+                    "val_id", job.valId(),
+                    "attempt", String.valueOf(job.attempt()),
+                    "max_attempts", String.valueOf(job.maxAttempts())))
+            .status(PaymentEventStatus.RECEIVED)
+            .processedAt(Instant.now())
+            .build());
+  }
+
   private void markPaid(Order order) {
     order.setStatus(OrderStatus.PAID);
     if (order.getPaidAt() == null) {
@@ -411,6 +441,14 @@ public class SslcommerzValidationJobService {
 
   private String normalizeTxn(String value) {
     return value == null ? "" : value.replace("-", "").trim().toLowerCase();
+  }
+
+  private int parseRiskLevel(String value) {
+    try {
+      return value == null ? 0 : Integer.parseInt(value.trim());
+    } catch (Exception ex) {
+      return 0;
+    }
   }
 
   private record RawHttpResponse(int statusCode, String body) {}
