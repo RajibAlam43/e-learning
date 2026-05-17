@@ -119,7 +119,7 @@ install -d -o deploy -g deploy -m 0755 /opt/e-learning/flyway/releases
 
 # Allow deploy user to restart/check only API service via sudo (principle of least privilege).
 cat > /etc/sudoers.d/e-learning-api <<'EOF'
-deploy ALL=(root) NOPASSWD: /usr/bin/systemctl restart e-learning-api, /usr/bin/systemctl is-active --quiet e-learning-api, /usr/bin/journalctl -u e-learning-api -n 80 --no-pager
+deploy ALL=(root) NOPASSWD: /usr/bin/systemctl start e-learning-api, /usr/bin/systemctl stop e-learning-api, /usr/bin/systemctl restart e-learning-api, /usr/bin/systemctl status e-learning-api --no-pager, /usr/bin/systemctl is-active --quiet e-learning-api, /usr/bin/journalctl -u e-learning-api -n 150 --no-pager
 EOF
 chmod 440 /etc/sudoers.d/e-learning-api
 
