@@ -2,6 +2,8 @@ package com.gii.api.service.payment.sslcommerz;
 
 import com.gii.api.model.response.payment.WebhookAckResponse;
 import com.gii.api.service.payment.callback.SslcommerzCallbackService;
+import com.gii.api.service.util.SslcommerzValidationJobPublisherService;
+import com.gii.common.dto.SslcommerzValidationJobMessage;
 import com.gii.common.entity.order.Order;
 import com.gii.common.entity.order.PaymentEvent;
 import com.gii.common.enums.OrderProvider;
@@ -16,11 +18,14 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class SslcommerzWebhookService {
 
   private static final Set<String> SUCCESS = Set.of("VALID", "VALIDATED");
@@ -31,6 +36,7 @@ public class SslcommerzWebhookService {
   private final OrderRepository orderRepository;
   private final SslcommerzCallbackService sslcommerzCallbackService;
   private final SslcommerzCallbackValidationService sslcommerzCallbackValidationService;
+  private final SslcommerzValidationJobPublisherService validationJobPublisherService;
   @Value("${payments.sslcommerz.validate-on-webhook:true}")
   private boolean validateOnWebhook;
 
@@ -60,11 +66,50 @@ public class SslcommerzWebhookService {
       callbackParams.put("_verified_webhook", "true");
       String resolvedStatus = normalizeUpper(firstNonBlank(params.get("status"), h.get("x-status")));
       int riskLevel = 0;
-      if (validateOnWebhook) {
-        SslcommerzCallbackValidationService.ValidationOutcome outcome =
-            sslcommerzCallbackValidationService.validateIpnNotification(order, callbackParams);
-        resolvedStatus = normalizeUpper(outcome.status());
-        riskLevel = outcome.riskLevel();
+      if (validateOnWebhook && SUCCESS.contains(resolvedStatus)) {
+        try {
+          SslcommerzCallbackValidationService.ValidationOutcome outcome =
+              sslcommerzCallbackValidationService.validateIpnNotification(order, callbackParams, true);
+          resolvedStatus = normalizeUpper(outcome.status());
+          riskLevel = outcome.riskLevel();
+        } catch (ResponseStatusException ex) {
+          try {
+            validationJobPublisherService.publish(
+                SslcommerzValidationJobMessage.builder()
+                    .orderId(order.getId())
+                    .providerTxnId(txnId)
+                    .valId(callbackParams.get("val_id"))
+                    .source("WEBHOOK")
+                    .attempt(1)
+                    .maxAttempts(5)
+                    .createdAt(Instant.now())
+                    .build());
+          } catch (Exception publishEx) {
+            log.error(
+                "Failed to queue SSLCommerz webhook validation job; orderId={}, tran_id={}",
+                order.getId(),
+                txnId,
+                publishEx);
+          }
+          log.warn(
+              "Queued SSLCommerz validation job after webhook validation failure; orderId={}, tran_id={}, reason={}",
+              order.getId(),
+              txnId,
+              ex.getReason());
+          PaymentEvent saved =
+              paymentEventRepository.save(
+                  PaymentEvent.builder()
+                      .order(order)
+                      .provider(OrderProvider.SSLCOMMERZ)
+                      .eventType(PaymentEventType.SSLCOMMERZ_WEBHOOK)
+                      .providerEventId(providerEventId)
+                      .rawPayloadJson(
+                          Map.of("headers", new HashMap<>(headers), "payload", new HashMap<>(params)))
+                      .status(PaymentEventStatus.RECEIVED)
+                      .processedAt(Instant.now())
+                      .build());
+          return acknowledged("Webhook received and queued for validation", saved.getId().toString());
+        }
       }
 
       if (SUCCESS.contains(resolvedStatus)) {

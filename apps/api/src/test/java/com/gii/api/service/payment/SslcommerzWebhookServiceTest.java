@@ -57,7 +57,7 @@ class SslcommerzWebhookServiceTest {
         .thenReturn(Optional.empty());
     when(orderRepository.findByProviderAndProviderTxnId(OrderProvider.SSLCOMMERZ, "txn-ssl-risk"))
         .thenReturn(Optional.of(order));
-    when(sslcommerzCallbackValidationService.validateIpnNotification(eq(order), any()))
+    when(sslcommerzCallbackValidationService.validateIpnNotification(eq(order), any(), eq(true)))
         .thenReturn(new SslcommerzCallbackValidationService.ValidationOutcome("VALID", 1));
     when(paymentEventRepository.save(any(PaymentEvent.class)))
         .thenAnswer(
@@ -85,7 +85,7 @@ class SslcommerzWebhookServiceTest {
         .thenReturn(Optional.empty());
     when(orderRepository.findByProviderAndProviderTxnId(OrderProvider.SSLCOMMERZ, "txn-ssl-failed"))
         .thenReturn(Optional.of(order));
-    when(sslcommerzCallbackValidationService.validateIpnNotification(eq(order), any()))
+    when(sslcommerzCallbackValidationService.validateIpnNotification(eq(order), any(), eq(true)))
         .thenReturn(new SslcommerzCallbackValidationService.ValidationOutcome("FAILED", 0));
     when(paymentEventRepository.save(any(PaymentEvent.class)))
         .thenAnswer(

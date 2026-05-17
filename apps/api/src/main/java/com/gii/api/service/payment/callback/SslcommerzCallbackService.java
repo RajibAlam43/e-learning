@@ -33,7 +33,7 @@ public class SslcommerzCallbackService {
       sslcommerzCallbackValidationService.validateSuccessCallback(order, queryParams);
     } catch (ResponseStatusException ex) {
       log.warn(
-          "SSLCommerz success callback validation skipped after failure; orderId={}, tran_id={}, reason={}",
+          "SSLCommerz success callback validation skipped; orderId={}, tran_id={}, reason={}",
           orderId,
           providerEventId,
           ex.getReason());
