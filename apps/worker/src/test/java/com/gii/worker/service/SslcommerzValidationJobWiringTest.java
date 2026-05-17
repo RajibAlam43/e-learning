@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gii.worker.config.RedisConfig;
 import com.gii.worker.config.SqsConfig;
 import com.gii.common.repository.collection.CollectionCourseRepository;
 import com.gii.common.repository.collection.CollectionEnrollmentRepository;
@@ -29,7 +30,7 @@ class SslcommerzValidationJobWiringTest {
               "payments.sslcommerz.store-password=test-pass",
               "payments.sslcommerz.validation-timeout-ms=10000",
               "payments.sslcommerz.validation.jobs.queue=gii-test-sslcommerz-validation-queue")
-          .withUserConfiguration(SqsConfig.class, TestWiringConfig.class);
+          .withUserConfiguration(SqsConfig.class, TestWiringConfig.class, RedisConfig.class);
 
   @Test
   void contextShouldWireSslcommerzValidationJobServiceWithJacksonObjectMapper() {
