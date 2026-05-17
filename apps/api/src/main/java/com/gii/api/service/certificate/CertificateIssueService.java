@@ -4,13 +4,20 @@ import com.gii.api.model.response.certificate.CertificateIssueResponse;
 import com.gii.api.service.enrollment.CurrentUserService;
 import com.gii.api.service.storage.R2PresignedUrlService;
 import com.gii.common.entity.certificate.Certificate;
+import com.gii.common.entity.collection.Collection;
+import com.gii.common.entity.collection.CollectionCourse;
+import com.gii.common.entity.collection.CollectionEnrollment;
 import com.gii.common.entity.course.CourseInstructor;
 import com.gii.common.entity.enrollment.Enrollment;
 import com.gii.common.entity.user.User;
+import com.gii.common.enums.CertificateTargetType;
 import com.gii.common.enums.EnrollmentStatus;
 import com.gii.common.enums.InstructorRole;
 import com.gii.common.enums.PublishStatus;
 import com.gii.common.repository.certificate.CertificateRepository;
+import com.gii.common.repository.collection.CollectionCourseRepository;
+import com.gii.common.repository.collection.CollectionEnrollmentRepository;
+import com.gii.common.repository.collection.CollectionRepository;
 import com.gii.common.repository.course.CourseInstructorRepository;
 import com.gii.common.repository.course.CourseRepository;
 import com.gii.common.repository.course.LessonRepository;
@@ -21,6 +28,7 @@ import java.time.Instant;
 import java.util.Locale;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -40,6 +48,9 @@ public class CertificateIssueService {
 
   private final CurrentUserService currentUserService;
   private final CourseRepository courseRepository;
+  private final CollectionRepository collectionRepository;
+  private final CollectionEnrollmentRepository collectionEnrollmentRepository;
+  private final CollectionCourseRepository collectionCourseRepository;
   private final EnrollmentRepository enrollmentRepository;
   private final LessonRepository lessonRepository;
   private final LessonProgressRepository lessonProgressRepository;
@@ -47,7 +58,7 @@ public class CertificateIssueService {
   private final CourseInstructorRepository courseInstructorRepository;
   private final R2PresignedUrlService r2PresignedUrlService;
 
-  public CertificateIssueResponse execute(UUID courseId, Authentication authentication) {
+  public CertificateIssueResponse executeCourse(UUID courseId, Authentication authentication) {
     User user = currentUserService.getCurrentUser(authentication);
     courseRepository
         .findById(courseId)
@@ -95,31 +106,119 @@ public class CertificateIssueService {
         Certificate.builder()
             .certificateCode(normalizeCode(generateUniqueCode()))
             .user(user)
+            .targetType(CertificateTargetType.COURSE)
             .course(enrollment.getCourse())
+            .collection(null)
             .issuedBy(user)
             .recipientName(user.getFullName())
-            .courseTitle(enrollment.getCourse().getTitle())
+            .targetTitle(enrollment.getCourse().getTitle())
+            .targetSlug(enrollment.getCourse().getSlug())
             .build();
     Certificate saved = certificateRepository.save(certificate);
 
     return toResponse(saved, true, "COURSE_COMPLETED");
   }
 
+  public CertificateIssueResponse executeCollection(UUID collectionId, Authentication authentication) {
+    User user = currentUserService.getCurrentUser(authentication);
+    Collection collection =
+        collectionRepository
+            .findById(collectionId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Collection not found"));
+
+    Certificate existing =
+        certificateRepository.findByUserIdAndCollectionId(user.getId(), collectionId).orElse(null);
+    if (existing != null) {
+      return toResponse(existing, true, "CERTIFICATE_ALREADY_EXISTS");
+    }
+
+    CollectionEnrollment enrollment =
+        collectionEnrollmentRepository
+            .findByUserIdAndCollectionIdForUpdate(user.getId(), collectionId)
+            .orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.FORBIDDEN, "Not enrolled in this collection"));
+
+    existing = certificateRepository.findByUserIdAndCollectionId(user.getId(), collectionId).orElse(null);
+    if (existing != null) {
+      return toResponse(existing, true, "CERTIFICATE_ALREADY_EXISTS");
+    }
+
+    if (enrollment.getStatus() != EnrollmentStatus.ACTIVE) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Enrollment is not active");
+    }
+    if (enrollment.getExpiresAt() != null && enrollment.getExpiresAt().isBefore(Instant.now())) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Enrollment has expired");
+    }
+
+    var collectionCourses =
+        collectionCourseRepository.findByCollection_IdOrderByPositionAscWithCourseStatus(
+            collectionId, PublishStatus.PUBLISHED);
+    var courseIds = collectionCourses.stream().map(cc -> cc.getCourse().getId()).distinct().toList();
+    if (courseIds.isEmpty()) {
+      throw new ResponseStatusException(
+          HttpStatus.FORBIDDEN, "Collection completion criteria not met");
+    }
+
+    long totalLessons = 0;
+    for (Object[] row : lessonRepository.countByCourseIdsAndStatus(courseIds, PublishStatus.PUBLISHED)) {
+      totalLessons += (Long) row[1];
+    }
+    long completedLessons = 0;
+    for (Object[] row : lessonProgressRepository.countCompletedByUserIdAndCourseIds(user.getId(), courseIds)) {
+      completedLessons += (Long) row[1];
+    }
+
+    boolean eligible = totalLessons > 0 && completedLessons >= totalLessons;
+    if (!eligible) {
+      throw new ResponseStatusException(
+          HttpStatus.FORBIDDEN, "Collection completion criteria not met");
+    }
+
+    Certificate certificate =
+        Certificate.builder()
+            .certificateCode(normalizeCode(generateUniqueCode()))
+            .user(user)
+            .targetType(CertificateTargetType.COLLECTION)
+            .course(null)
+            .collection(collection)
+            .issuedBy(user)
+            .recipientName(user.getFullName())
+            .targetTitle(collection.getTitle())
+            .targetSlug(collection.getSlug())
+            .build();
+    Certificate saved = saveCollectionCertificateIdempotent(certificate, user.getId(), collectionId);
+    return toResponse(saved, true, "COLLECTION_COMPLETED");
+  }
+
+  private Certificate saveCollectionCertificateIdempotent(
+      Certificate certificate, UUID userId, UUID collectionId) {
+    try {
+      return certificateRepository.save(certificate);
+    } catch (DataIntegrityViolationException ex) {
+      return certificateRepository
+          .findByUserIdAndCollectionId(userId, collectionId)
+          .orElseThrow(() -> ex);
+    }
+  }
+
   private CertificateIssueResponse toResponse(
       Certificate certificate, boolean eligible, String eligibilityReason) {
-    String instructorName =
-        courseInstructorRepository.findByCourseId(certificate.getCourse().getId()).stream()
-            .filter(ci -> ci.getRole() == InstructorRole.PRIMARY)
-            .findFirst()
-            .or(
-                () ->
-                    courseInstructorRepository
-                        .findByCourseId(certificate.getCourse().getId())
-                        .stream()
-                        .findFirst())
-            .map(CourseInstructor::getInstructor)
-            .map(User::getFullName)
-            .orElse("Instructor");
+    String instructorName = null;
+    if (certificate.getTargetType() == CertificateTargetType.COURSE && certificate.getCourse() != null) {
+      instructorName =
+          courseInstructorRepository.findByCourseId(certificate.getCourse().getId()).stream()
+              .filter(ci -> ci.getRole() == InstructorRole.PRIMARY)
+              .findFirst()
+              .or(
+                  () ->
+                      courseInstructorRepository
+                          .findByCourseId(certificate.getCourse().getId())
+                          .stream()
+                          .findFirst())
+              .map(CourseInstructor::getInstructor)
+              .map(User::getFullName)
+              .orElse("Instructor");
+    }
 
     String downloadUrl = null;
     Instant expiresAt = null;
@@ -127,7 +226,7 @@ public class CertificateIssueService {
       var signed =
           r2PresignedUrlService.generateDownloadUrl(
               certificate.getPdfUrl(),
-              "Certificate-" + certificate.getCourse().getSlug() + ".pdf",
+              "Certificate-" + certificate.getTargetSlug() + ".pdf",
               "application/pdf");
       downloadUrl = signed.downloadUrl();
       expiresAt = signed.expiresAt();
@@ -137,8 +236,9 @@ public class CertificateIssueService {
         .certificateId(certificate.getId())
         .certificateCode(certificate.getCertificateCode())
         .recipientName(certificate.getRecipientName())
-        .courseName(certificate.getCourseTitle())
-        .courseSlug(certificate.getCourse().getSlug())
+        .targetType(certificate.getTargetType())
+        .targetName(certificate.getTargetTitle())
+        .targetSlug(certificate.getTargetSlug())
         .instructorName(instructorName)
         .issuedAt(certificate.getIssuedAt())
         .isRevoked(certificate.getRevokedAt() != null)

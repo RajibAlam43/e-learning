@@ -6,6 +6,10 @@ import lombok.Builder;
 
 @Builder
 public record ReceiptItemResponse(
+    UUID itemId,
+    String itemName,
+    String itemSlug,
+
     UUID courseId,
     String courseName,
     String courseSlug,

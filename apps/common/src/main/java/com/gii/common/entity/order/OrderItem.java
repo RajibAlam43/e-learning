@@ -2,6 +2,8 @@ package com.gii.common.entity.order;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.gii.common.entity.course.Course;
+import com.gii.common.entity.collection.Collection;
+import com.gii.common.enums.OrderItemType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -10,6 +12,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import java.math.BigDecimal;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -38,14 +42,26 @@ public class OrderItem {
   private Order order;
 
   @JsonIgnore
-  @ManyToOne(fetch = FetchType.LAZY, optional = false)
-  @JoinColumn(name = "course_id", nullable = false)
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "course_id")
   private Course course;
 
-  @Column(name = "price_bdt", nullable = false)
+  @JsonIgnore
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "collection_id")
+  private Collection collection;
+
+  @Enumerated(EnumType.STRING)
+  @Column(name = "item_type", nullable = false, length = 20)
+  private OrderItemType itemType;
+
+  @Column(name = "title_snapshot", nullable = false)
+  private String titleSnapshot;
+
+  @Column(name = "price_bdt", nullable = false, updatable = false)
   private BigDecimal priceBdt;
 
-  @Column(name = "discount_bdt", nullable = false)
+  @Column(name = "discount_bdt", nullable = false, updatable = false)
   @Builder.Default
   private BigDecimal discountBdt = BigDecimal.ZERO;
 }

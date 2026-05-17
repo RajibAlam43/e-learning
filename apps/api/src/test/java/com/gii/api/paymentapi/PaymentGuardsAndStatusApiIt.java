@@ -131,8 +131,21 @@ class PaymentGuardsAndStatusApiIt extends AbstractPaymentApiIntegrationTest {
 
     mockMvc
         .perform(
-            post("/checkout/courses/{courseId}", draftCourse.getId())
-                .with(authentication(studentAuth(student.getId()))))
+            post("/checkout/orders")
+                .with(authentication(studentAuth(student.getId())))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(singleCourseCheckoutPayload(draftCourse.getId())))
         .andExpect(status().isNotFound());
+  }
+
+  private String singleCourseCheckoutPayload(java.util.UUID courseId) {
+    return """
+        {
+          "items": [
+            {"itemType":"COURSE","courseId":"%s"}
+          ]
+        }
+        """
+        .formatted(courseId);
   }
 }

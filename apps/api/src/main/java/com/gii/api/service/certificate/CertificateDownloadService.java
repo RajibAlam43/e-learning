@@ -42,13 +42,13 @@ public class CertificateDownloadService {
     var signed =
         r2PresignedUrlService.generateDownloadUrl(
             certificate.getPdfUrl(),
-            "Certificate-" + certificate.getCourse().getSlug() + ".pdf",
+            "Certificate-" + certificate.getTargetSlug() + ".pdf",
             "application/pdf");
 
     return CertificateDownloadUrlResponse.builder()
         .downloadUrl(signed.downloadUrl())
         .expiresAt(signed.expiresAt())
-        .fileName("Certificate-" + certificate.getCourse().getSlug() + ".pdf")
+        .fileName("Certificate-" + certificate.getTargetSlug() + ".pdf")
         .contentType("application/pdf")
         .fileSizeBytes(null)
         .checksum(null)

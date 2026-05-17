@@ -31,6 +31,41 @@ class PaymentCheckoutAndLifecycleApiIt extends AbstractPaymentApiIntegrationTest
     cleanupPaymentData();
   }
 
+  private String singleCourseCheckoutPayload(java.util.UUID courseId) {
+    return """
+        {
+          "items": [
+            {"itemType":"COURSE","courseId":"%s"}
+          ]
+        }
+        """
+        .formatted(courseId);
+  }
+
+  private String singleCollectionCheckoutPayload(java.util.UUID collectionId) {
+    return """
+        {
+          "items": [
+            {"itemType":"COLLECTION","collectionId":"%s"}
+          ]
+        }
+        """
+        .formatted(collectionId);
+  }
+
+  private String mixedCheckoutPayload(
+      java.util.UUID courseId, java.util.UUID collectionId) {
+    return """
+        {
+          "items": [
+            {"itemType":"COURSE","courseId":"%s"},
+            {"itemType":"COLLECTION","collectionId":"%s"}
+          ]
+        }
+        """
+        .formatted(courseId, collectionId);
+  }
+
   @Test
   void createPendingOrderShouldCreateAndReuseUnexpiredPendingOrder() throws Exception {
     var student = user("Student One", "student-payment-a@example.com");
@@ -45,16 +80,20 @@ class PaymentCheckoutAndLifecycleApiIt extends AbstractPaymentApiIntegrationTest
 
     mockMvc
         .perform(
-            post("/checkout/courses/{courseId}", course.getId())
-                .with(authentication(studentAuth(student.getId()))))
+            post("/checkout/orders")
+                .with(authentication(studentAuth(student.getId())))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(singleCourseCheckoutPayload(course.getId())))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("PENDING"))
         .andExpect(jsonPath("$.totalAmount").value(1200));
 
     mockMvc
         .perform(
-            post("/checkout/courses/{courseId}", course.getId())
-                .with(authentication(studentAuth(student.getId()))))
+            post("/checkout/orders")
+                .with(authentication(studentAuth(student.getId())))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(singleCourseCheckoutPayload(course.getId())))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("PENDING"));
 
@@ -77,8 +116,82 @@ class PaymentCheckoutAndLifecycleApiIt extends AbstractPaymentApiIntegrationTest
 
     mockMvc
         .perform(
-            post("/checkout/courses/{courseId}", course.getId())
-                .with(authentication(studentAuth(student.getId()))))
+            post("/checkout/orders")
+                .with(authentication(studentAuth(student.getId())))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(singleCourseCheckoutPayload(course.getId())))
+        .andExpect(status().isConflict());
+  }
+
+  @Test
+  void createPendingOrderShouldApplyOwnedIncludedCourseDiscountForCollection() throws Exception {
+    var student = user("Student Discount", "student-payment-discount@example.com");
+    var creator = user("Creator Discount", "creator-payment-discount@example.com");
+    var ownedCourse =
+        course(
+            "Owned Course",
+            "owned-course-discount-payment",
+            creator,
+            PublishStatus.PUBLISHED,
+            BigDecimal.valueOf(900));
+    var otherCourse =
+        course(
+            "Other Course",
+            "other-course-discount-payment",
+            creator,
+            PublishStatus.PUBLISHED,
+            BigDecimal.valueOf(700));
+    enrollment(student, ownedCourse, EnrollmentStatus.ACTIVE);
+
+    var collection =
+        collection(
+            "Discount Collection",
+            "discount-collection-payment",
+            creator,
+            PublishStatus.PUBLISHED,
+            BigDecimal.valueOf(2000));
+    collectionCourse(collection, ownedCourse, 1, true);
+    collectionCourse(collection, otherCourse, 2, true);
+
+    mockMvc
+        .perform(
+            post("/checkout/orders")
+                .with(authentication(studentAuth(student.getId())))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(singleCollectionCheckoutPayload(collection.getId())))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.subtotal").value(2000))
+        .andExpect(jsonPath("$.totalDiscount").value(900))
+        .andExpect(jsonPath("$.totalAmount").value(1100))
+        .andExpect(jsonPath("$.items[0].discountReason").value("ALREADY_OWNED_INCLUDED_COURSES"));
+  }
+
+  @Test
+  void createPendingOrderShouldBlockCourseWhenIncludedInSelectedCollection() throws Exception {
+    var student = user("Student Overlap", "student-payment-overlap@example.com");
+    var creator = user("Creator Overlap", "creator-payment-overlap@example.com");
+    var courseInCollection =
+        course(
+            "Overlap Course",
+            "overlap-course-payment",
+            creator,
+            PublishStatus.PUBLISHED,
+            BigDecimal.valueOf(1000));
+    var collection =
+        collection(
+            "Overlap Collection",
+            "overlap-collection-payment",
+            creator,
+            PublishStatus.PUBLISHED,
+            BigDecimal.valueOf(1800));
+    collectionCourse(collection, courseInCollection, 1, true);
+
+    mockMvc
+        .perform(
+            post("/checkout/orders")
+                .with(authentication(studentAuth(student.getId())))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(mixedCheckoutPayload(courseInCollection.getId(), collection.getId())))
         .andExpect(status().isConflict());
   }
 
@@ -97,8 +210,10 @@ class PaymentCheckoutAndLifecycleApiIt extends AbstractPaymentApiIntegrationTest
 
     mockMvc
         .perform(
-            post("/checkout/courses/{courseId}", course.getId())
-                .with(authentication(studentAuth(student.getId()))))
+            post("/checkout/orders")
+                .with(authentication(studentAuth(student.getId())))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(singleCourseCheckoutPayload(course.getId())))
         .andExpect(status().isOk());
 
     var order =
@@ -152,6 +267,107 @@ class PaymentCheckoutAndLifecycleApiIt extends AbstractPaymentApiIntegrationTest
             enrollmentRepository.existsByUserIdAndCourseIdAndStatus(
                 student.getId(), course.getId(), EnrollmentStatus.ACTIVE))
         .isTrue();
+  }
+
+  @Test
+  void paidMixedCartShouldGrantCourseAndCollectionEnrollmentsAndShowBothInReceipt()
+      throws Exception {
+    var student = user("Student Mixed", "student-payment-mixed@example.com");
+    var creator = user("Creator Mixed", "creator-payment-mixed@example.com");
+    var standaloneCourse =
+        course(
+            "Standalone Course",
+            "standalone-course-payment",
+            creator,
+            PublishStatus.PUBLISHED,
+            BigDecimal.valueOf(1200));
+    var collectionCourseOne =
+        course(
+            "Collection Course 1",
+            "collection-course-1-payment",
+            creator,
+            PublishStatus.PUBLISHED,
+            BigDecimal.valueOf(800));
+    var collectionCourseTwo =
+        course(
+            "Collection Course 2",
+            "collection-course-2-payment",
+            creator,
+            PublishStatus.PUBLISHED,
+            BigDecimal.valueOf(900));
+    var collection =
+        collection(
+            "Mixed Collection",
+            "mixed-collection-payment",
+            creator,
+            PublishStatus.PUBLISHED,
+            BigDecimal.valueOf(2200));
+    collectionCourse(collection, collectionCourseOne, 1, true);
+    collectionCourse(collection, collectionCourseTwo, 2, true);
+
+    mockMvc
+        .perform(
+            post("/checkout/orders")
+                .with(authentication(studentAuth(student.getId())))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(mixedCheckoutPayload(standaloneCourse.getId(), collection.getId())))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalAmount").value(3400));
+
+    var order =
+        orderRepository.findByUserIdAndStatus(student.getId(), OrderStatus.PENDING).getFirst();
+    order.setProvider(OrderProvider.BKASH);
+    order.setProviderTxnId("bkash-mixed-cart-txn");
+    orderRepository.save(order);
+
+    String payload =
+        """
+        {
+          "Type":"Notification",
+          "MessageId":"evt-mixed-cart-success",
+          "TopicArn":"arn:aws:sns:ap-southeast-1:123456789012:test",
+          "Message":"{\\"trxID\\":\\"%s\\",\\"transactionStatus\\":\\"Completed\\"}",
+          "Timestamp":"2018-04-19T12:22:46.236Z",
+          "SignatureVersion":"1",
+          "Signature":"test-signature",
+          "SigningCertURL":"https://sns.ap-southeast-1.amazonaws.com/test.pem"
+        }
+        """
+            .formatted(order.getProviderTxnId());
+    mockMvc
+        .perform(
+            post("/public/webhooks/payments/bkash")
+                .contentType(MediaType.TEXT_PLAIN)
+                .header("x-event-id", "evt-mixed-cart-success")
+                .header("x-amz-sns-message-type", "Notification")
+                .content(payload))
+        .andExpect(status().isOk());
+
+    assertThat(
+            enrollmentRepository.existsByUserIdAndCourseIdAndStatus(
+                student.getId(), standaloneCourse.getId(), EnrollmentStatus.ACTIVE))
+        .isTrue();
+    assertThat(
+            enrollmentRepository.existsByUserIdAndCourseIdAndStatus(
+                student.getId(), collectionCourseOne.getId(), EnrollmentStatus.ACTIVE))
+        .isTrue();
+    assertThat(
+            enrollmentRepository.existsByUserIdAndCourseIdAndStatus(
+                student.getId(), collectionCourseTwo.getId(), EnrollmentStatus.ACTIVE))
+        .isTrue();
+    assertThat(
+            collectionEnrollmentRepository.existsByUserIdAndCollectionIdAndStatus(
+                student.getId(), collection.getId(), EnrollmentStatus.ACTIVE))
+        .isTrue();
+
+    mockMvc
+        .perform(
+            get("/student/orders/{orderId}/receipt", order.getId())
+                .with(authentication(studentAuth(student.getId()))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(2))
+        .andExpect(jsonPath("$.items[?(@.itemSlug=='standalone-course-payment')]").isNotEmpty())
+        .andExpect(jsonPath("$.items[?(@.itemSlug=='mixed-collection-payment')]").isNotEmpty());
   }
 
   @Test

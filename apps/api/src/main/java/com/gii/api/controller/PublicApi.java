@@ -1,6 +1,8 @@
 package com.gii.api.controller;
 
 import com.gii.api.model.request.CreateSupportTicketRequest;
+import com.gii.api.model.response.CollectionDetailsResponse;
+import com.gii.api.model.response.CollectionSummaryResponse;
 import com.gii.api.model.response.CourseDetailsResponse;
 import com.gii.api.model.response.CourseSummaryResponse;
 import com.gii.api.model.response.InstructorDetailsResponse;
@@ -8,6 +10,7 @@ import com.gii.api.model.response.InstructorSummaryResponse;
 import com.gii.api.model.response.PageResponse;
 import com.gii.common.enums.CourseLanguage;
 import com.gii.common.enums.CourseLevel;
+import com.gii.common.enums.CollectionType;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -66,6 +69,36 @@ public interface PublicApi {
         @ApiResponse(responseCode = "404", description = "Course not found")
       })
   ResponseEntity<CourseDetailsResponse> getCourseDetails(@PathVariable String slug);
+
+  @GetMapping("/collections")
+  @Operation(
+      summary = "List published collections",
+      description = "Get all published collections with optional type filter and pagination.")
+  @ApiResponses(
+      value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Collections retrieved",
+            content = @Content(schema = @Schema(implementation = PageResponse.class))),
+        @ApiResponse(responseCode = "400", description = "Invalid filter parameters")
+      })
+  ResponseEntity<PageResponse<CollectionSummaryResponse>> getAllCollections(
+      @RequestParam(name = "type", required = false) CollectionType type,
+      @PageableDefault(size = 20, sort = "publishedAt") Pageable pageable);
+
+  @GetMapping("/collections/{slug}")
+  @Operation(
+      summary = "Get collection details",
+      description = "Get detailed public collection information including included courses.")
+  @ApiResponses(
+      value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Collection details retrieved",
+            content = @Content(schema = @Schema(implementation = CollectionDetailsResponse.class))),
+        @ApiResponse(responseCode = "404", description = "Collection not found")
+      })
+  ResponseEntity<CollectionDetailsResponse> getCollectionDetails(@PathVariable String slug);
 
   @GetMapping("/instructors")
   @Operation(

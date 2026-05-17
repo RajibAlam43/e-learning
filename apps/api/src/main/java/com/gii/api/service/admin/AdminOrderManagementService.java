@@ -106,8 +106,10 @@ public class AdminOrderManagementService {
 
   private AdminOrderItemResponse toItemResponse(OrderItem item) {
     return AdminOrderItemResponse.builder()
-        .courseId(item.getCourse().getId())
-        .courseName(item.getCourse().getTitle())
+        .itemType(item.getItemType())
+        .courseId(item.getCourse() != null ? item.getCourse().getId() : null)
+        .collectionId(item.getCollection() != null ? item.getCollection().getId() : null)
+        .courseName(item.getTitleSnapshot())
         .priceBdt(item.getPriceBdt())
         .discountBdt(item.getDiscountBdt())
         .finalAmount(item.getPriceBdt().subtract(item.getDiscountBdt()))

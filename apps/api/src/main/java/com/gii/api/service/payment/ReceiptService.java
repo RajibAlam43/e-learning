@@ -47,9 +47,24 @@ public class ReceiptService {
             .map(
                 item ->
                     ReceiptItemResponse.builder()
-                        .courseId(item.getCourse().getId())
-                        .courseName(item.getCourse().getTitle())
-                        .courseSlug(item.getCourse().getSlug())
+                        .itemId(
+                            item.getCourse() != null
+                                ? item.getCourse().getId()
+                                : item.getCollection() != null ? item.getCollection().getId() : null)
+                        .itemName(item.getTitleSnapshot())
+                        .itemSlug(
+                            item.getCourse() != null
+                                ? item.getCourse().getSlug()
+                                : item.getCollection() != null ? item.getCollection().getSlug() : null)
+                        .courseId(
+                            item.getCourse() != null
+                                ? item.getCourse().getId()
+                                : item.getCollection() != null ? item.getCollection().getId() : null)
+                        .courseName(item.getTitleSnapshot())
+                        .courseSlug(
+                            item.getCourse() != null
+                                ? item.getCourse().getSlug()
+                                : item.getCollection() != null ? item.getCollection().getSlug() : null)
                         .unitPrice(item.getPriceBdt())
                         .discountAmount(item.getDiscountBdt())
                         .lineTotal(item.getPriceBdt().subtract(item.getDiscountBdt()))
@@ -62,7 +77,9 @@ public class ReceiptService {
     BigDecimal subtotal =
         items.stream().map(OrderItem::getPriceBdt).reduce(BigDecimal.ZERO, BigDecimal::add);
     BigDecimal discount =
-        items.stream().map(OrderItem::getDiscountBdt).reduce(BigDecimal.ZERO, BigDecimal::add);
+        items.stream()
+            .map(OrderItem::getDiscountBdt)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
     BigDecimal finalAmount = subtotal.subtract(discount);
 
     return ReceiptResponse.builder()

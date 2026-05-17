@@ -1,5 +1,9 @@
 package com.gii.api.paymentapi;
 
+import com.gii.common.entity.collection.Collection;
+import com.gii.common.entity.collection.CollectionCourse;
+import com.gii.common.entity.collection.CollectionCourseId;
+import com.gii.common.entity.collection.CollectionEnrollment;
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.enrollment.Enrollment;
 import com.gii.common.entity.order.Order;
@@ -8,8 +12,10 @@ import com.gii.common.entity.order.PaymentEvent;
 import com.gii.common.entity.user.User;
 import com.gii.common.enums.CourseLanguage;
 import com.gii.common.enums.CourseLevel;
+import com.gii.common.enums.CollectionType;
 import com.gii.common.enums.EnrollmentStatus;
 import com.gii.common.enums.OrderProvider;
+import com.gii.common.enums.OrderItemType;
 import com.gii.common.enums.OrderStatus;
 import com.gii.common.enums.PaymentEventStatus;
 import com.gii.common.enums.PaymentEventType;
@@ -17,6 +23,9 @@ import com.gii.common.enums.PublishStatus;
 import com.gii.common.enums.StudyMode;
 import com.gii.common.enums.UserStatus;
 import com.gii.common.repository.course.CourseRepository;
+import com.gii.common.repository.collection.CollectionCourseRepository;
+import com.gii.common.repository.collection.CollectionEnrollmentRepository;
+import com.gii.common.repository.collection.CollectionRepository;
 import com.gii.common.repository.enrollment.EnrollmentRepository;
 import com.gii.common.repository.order.OrderItemRepository;
 import com.gii.common.repository.order.OrderRepository;
@@ -34,6 +43,9 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 abstract class PaymentApiTestSupport {
 
   @Autowired protected UserRepository userRepository;
+  @Autowired protected CollectionRepository collectionRepository;
+  @Autowired protected CollectionCourseRepository collectionCourseRepository;
+  @Autowired protected CollectionEnrollmentRepository collectionEnrollmentRepository;
   @Autowired protected CourseRepository courseRepository;
   @Autowired protected EnrollmentRepository enrollmentRepository;
   @Autowired protected OrderRepository orderRepository;
@@ -42,9 +54,12 @@ abstract class PaymentApiTestSupport {
 
   protected void cleanupPaymentData() {
     paymentEventRepository.deleteAll();
+    collectionEnrollmentRepository.deleteAll();
     enrollmentRepository.deleteAll();
     orderItemRepository.deleteAll();
     orderRepository.deleteAll();
+    collectionCourseRepository.deleteAll();
+    collectionRepository.deleteAll();
     courseRepository.deleteAll();
     userRepository.deleteAll();
   }
@@ -107,7 +122,9 @@ abstract class PaymentApiTestSupport {
     return orderItemRepository.save(
         OrderItem.builder()
             .order(order)
+            .itemType(OrderItemType.COURSE)
             .course(course)
+            .titleSnapshot(course.getTitle())
             .priceBdt(price)
             .discountBdt(discount)
             .build());
@@ -118,6 +135,47 @@ abstract class PaymentApiTestSupport {
         Enrollment.builder()
             .user(user)
             .course(course)
+            .status(status)
+            .enrolledAt(Instant.now())
+            .build());
+  }
+
+  protected Collection collection(
+      String title, String slug, User creator, PublishStatus status, BigDecimal price) {
+    return collectionRepository.save(
+        Collection.builder()
+            .title(title)
+            .slug(slug)
+            .type(CollectionType.PACK)
+            .priceBdt(price)
+            .status(status)
+            .publishedAt(status == PublishStatus.PUBLISHED ? Instant.now() : null)
+            .createdBy(creator)
+            .build());
+  }
+
+  protected CollectionCourse collectionCourse(
+      Collection collection, Course course, int position, boolean isMandatory) {
+    return collectionCourseRepository.save(
+        CollectionCourse.builder()
+            .id(
+                CollectionCourseId.builder()
+                    .collectionId(collection.getId())
+                    .courseId(course.getId())
+                    .build())
+            .collection(collection)
+            .course(course)
+            .position(position)
+            .isMandatory(isMandatory)
+            .build());
+  }
+
+  protected CollectionEnrollment collectionEnrollment(
+      User user, Collection collection, EnrollmentStatus status) {
+    return collectionEnrollmentRepository.save(
+        CollectionEnrollment.builder()
+            .user(user)
+            .collection(collection)
             .status(status)
             .enrolledAt(Instant.now())
             .build());

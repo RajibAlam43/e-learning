@@ -1,5 +1,6 @@
 package com.gii.api.controller;
 
+import com.gii.api.model.request.payment.CreateCheckoutOrderRequest;
 import com.gii.api.model.request.payment.InitiatePaymentRequest;
 import com.gii.api.model.response.payment.CheckoutOrderResponse;
 import com.gii.api.model.response.payment.PaymentInitiationResponse;
@@ -8,9 +9,9 @@ import com.gii.api.model.response.payment.ReceiptResponse;
 import com.gii.api.model.response.payment.WebhookAckResponse;
 import com.gii.api.service.payment.InitiatePaymentService;
 import com.gii.api.service.payment.OrderStatusService;
+import com.gii.api.service.payment.PendingCartOrderService;
 import com.gii.api.service.payment.callback.PaymentCallbackService;
 import com.gii.api.service.payment.webhook.PaymentWebhookService;
-import com.gii.api.service.payment.PendingOrderService;
 import com.gii.api.service.payment.ReceiptService;
 import java.util.Map;
 import java.util.UUID;
@@ -23,7 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class PaymentApiController implements PaymentApi {
 
-  private final PendingOrderService pendingOrderService;
+  private final PendingCartOrderService pendingCartOrderService;
   private final InitiatePaymentService initiatePaymentService;
   private final PaymentCallbackService paymentCallbackService;
   private final PaymentWebhookService paymentWebhookService;
@@ -31,9 +32,9 @@ public class PaymentApiController implements PaymentApi {
   private final ReceiptService receiptService;
 
   @Override
-  public ResponseEntity<CheckoutOrderResponse> createPendingOrder(
-      UUID courseId, Authentication authentication) {
-    return ResponseEntity.ok(pendingOrderService.execute(courseId, authentication));
+  public ResponseEntity<CheckoutOrderResponse> createPendingCartOrder(
+      CreateCheckoutOrderRequest request, Authentication authentication) {
+    return ResponseEntity.ok(pendingCartOrderService.execute(request, authentication));
   }
 
   @Override

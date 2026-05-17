@@ -37,7 +37,7 @@ jobs:
           cache: gradle
 
       - name: Build
-        run: ./gradlew clean test bootJar
+        run: ./gradlew clean test :api:integrationTest bootJar
 
       - name: Upload test reports
         if: always()
@@ -46,6 +46,7 @@ jobs:
           name: test-reports
           path: |
             apps/api/build/reports/tests/test/
+            apps/api/build/reports/tests/integrationTest/
             apps/api/build/reports/jacoco/
           retention-days: 3
 
@@ -56,6 +57,7 @@ jobs:
           name: logs
           path: |
             apps/api/build/test-results/test/
+            apps/api/build/test-results/integrationTest/
           retention-days: 3
 
       - name: JaCoCo and SonarQube analysis non-blocking

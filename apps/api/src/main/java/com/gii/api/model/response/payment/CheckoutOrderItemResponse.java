@@ -1,12 +1,15 @@
 package com.gii.api.model.response.payment;
 
+import com.gii.common.enums.OrderItemType;
 import java.math.BigDecimal;
 import java.util.UUID;
 import lombok.Builder;
 
 @Builder
 public record CheckoutOrderItemResponse(
+    OrderItemType itemType,
     UUID courseId,
+    UUID collectionId,
     String courseName,
     String courseSlug,
     String courseThumbnailUrl,

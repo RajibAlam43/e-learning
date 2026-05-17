@@ -1,5 +1,7 @@
 package com.gii.api.controller;
 
+import com.gii.api.model.response.student.StudentCollectionDetailsResponse;
+import com.gii.api.model.response.student.StudentCollectionSummaryResponse;
 import com.gii.api.model.response.student.StudentCertificateSummaryResponse;
 import com.gii.api.model.response.student.StudentCourseHomeResponse;
 import com.gii.api.model.response.student.StudentCourseSummaryResponse;
@@ -56,6 +58,35 @@ public interface StudentApi {
         @ApiResponse(responseCode = "401", description = "Unauthorized")
       })
   ResponseEntity<List<StudentCourseSummaryResponse>> getMyCourses(Authentication authentication);
+
+  @GetMapping("/collections")
+  @Operation(
+      summary = "List my collections",
+      description = "Get all enrolled collections with overall progress and status.")
+  @ApiResponses(
+      value = {
+        @ApiResponse(responseCode = "200", description = "Collections retrieved"),
+        @ApiResponse(responseCode = "401", description = "Unauthorized")
+      })
+  ResponseEntity<List<StudentCollectionSummaryResponse>> getMyCollections(
+      Authentication authentication);
+
+  @GetMapping("/collections/{collectionId}")
+  @Operation(
+      summary = "Get collection details",
+      description = "Get enrolled collection details with overall progress and per-course progress.")
+  @ApiResponses(
+      value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Collection details retrieved",
+            content =
+                @Content(schema = @Schema(implementation = StudentCollectionDetailsResponse.class))),
+        @ApiResponse(responseCode = "401", description = "Unauthorized"),
+        @ApiResponse(responseCode = "404", description = "Collection not found or not enrolled")
+      })
+  ResponseEntity<StudentCollectionDetailsResponse> getMyCollectionDetails(
+      @PathVariable UUID collectionId, Authentication authentication);
 
   @GetMapping("/courses/{courseId}")
   @Operation(

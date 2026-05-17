@@ -2,14 +2,18 @@ package com.gii.api.service.payment;
 
 import com.gii.api.model.response.payment.PaymentStatusResponse;
 import com.gii.common.entity.enrollment.Enrollment;
+import com.gii.common.entity.collection.CollectionEnrollment;
 import com.gii.common.entity.order.Order;
 import com.gii.common.entity.order.OrderItem;
 import com.gii.common.entity.order.PaymentEvent;
 import com.gii.common.enums.EnrollmentStatus;
+import com.gii.common.enums.OrderItemType;
 import com.gii.common.enums.OrderStatus;
 import com.gii.common.enums.PaymentEventStatus;
 import com.gii.common.enums.PaymentEventType;
 import com.gii.common.repository.enrollment.EnrollmentRepository;
+import com.gii.common.repository.collection.CollectionCourseRepository;
+import com.gii.common.repository.collection.CollectionEnrollmentRepository;
 import com.gii.common.repository.order.OrderItemRepository;
 import com.gii.common.repository.order.OrderRepository;
 import com.gii.common.repository.order.PaymentEventRepository;
@@ -18,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +36,8 @@ public class PaymentFlowSupportService {
   private final OrderRepository orderRepository;
   private final OrderItemRepository orderItemRepository;
   private final EnrollmentRepository enrollmentRepository;
+  private final CollectionEnrollmentRepository collectionEnrollmentRepository;
+  private final CollectionCourseRepository collectionCourseRepository;
   private final PaymentEventRepository paymentEventRepository;
 
   public Order requireOrder(UUID orderId) {
@@ -90,18 +97,93 @@ public class PaymentFlowSupportService {
     }
     Instant now = Instant.now();
     for (OrderItem item : orderItemRepository.findByOrderId(order.getId())) {
-      if (enrollmentRepository.existsByUserIdAndCourseIdAndStatus(
-          order.getUser().getId(), item.getCourse().getId(), EnrollmentStatus.ACTIVE)) {
+      if (item.getItemType() == OrderItemType.COURSE) {
+        activateOrCreateCourseEnrollment(order, item, item.getCourse(), now, item.getCollection());
         continue;
       }
-      Enrollment enrollment =
-          Enrollment.builder()
-              .user(order.getUser())
-              .course(item.getCourse())
-              .status(EnrollmentStatus.ACTIVE)
-              .enrolledAt(now)
-              .build();
+
+      if (item.getItemType() == OrderItemType.COLLECTION) {
+        activateOrCreateCollectionEnrollment(order, item, now);
+
+        collectionCourseRepository.findByCollection_IdOrderByPositionAsc(item.getCollection().getId()).forEach(
+            collectionCourse -> {
+              activateOrCreateCourseEnrollment(
+                  order, item, collectionCourse.getCourse(), now, item.getCollection());
+            });
+      }
+    }
+  }
+
+  private void activateOrCreateCourseEnrollment(
+      Order order,
+      OrderItem sourceOrderItem,
+      com.gii.common.entity.course.Course course,
+      Instant now,
+      com.gii.common.entity.collection.Collection sourceCollection) {
+    var existingOpt = enrollmentRepository.findByUserIdAndCourseId(order.getUser().getId(), course.getId());
+    if (existingOpt.isPresent()) {
+      Enrollment existing = existingOpt.get();
+      existing.setStatus(EnrollmentStatus.ACTIVE);
+      existing.setEnrolledAt(now);
+      existing.setRevokedAt(null);
+      existing.setExpiresAt(null);
+      existing.setSourceOrderItem(sourceOrderItem);
+      existing.setSourceCollection(sourceCollection);
+      enrollmentRepository.save(existing);
+      return;
+    }
+
+    Enrollment enrollment =
+        Enrollment.builder()
+            .user(order.getUser())
+            .course(course)
+            .sourceOrderItem(sourceOrderItem)
+            .sourceCollection(sourceCollection)
+            .status(EnrollmentStatus.ACTIVE)
+            .enrolledAt(now)
+            .build();
+    saveEnrollmentIdempotent(enrollment);
+  }
+
+  private void activateOrCreateCollectionEnrollment(Order order, OrderItem sourceOrderItem, Instant now) {
+    var existingOpt =
+        collectionEnrollmentRepository.findByUserIdAndCollectionId(
+            order.getUser().getId(), sourceOrderItem.getCollection().getId());
+    if (existingOpt.isPresent()) {
+      CollectionEnrollment existing = existingOpt.get();
+      existing.setStatus(EnrollmentStatus.ACTIVE);
+      existing.setEnrolledAt(now);
+      existing.setRevokedAt(null);
+      existing.setExpiresAt(null);
+      existing.setSourceOrderItem(sourceOrderItem);
+      collectionEnrollmentRepository.save(existing);
+      return;
+    }
+
+    CollectionEnrollment collectionEnrollment =
+        CollectionEnrollment.builder()
+            .user(order.getUser())
+            .collection(sourceOrderItem.getCollection())
+            .sourceOrderItem(sourceOrderItem)
+            .status(EnrollmentStatus.ACTIVE)
+            .enrolledAt(now)
+            .build();
+    saveCollectionEnrollmentIdempotent(collectionEnrollment);
+  }
+
+  private void saveEnrollmentIdempotent(Enrollment enrollment) {
+    try {
       enrollmentRepository.save(enrollment);
+    } catch (DataIntegrityViolationException ignored) {
+      // Unique constraint on (user_id, course_id) keeps this idempotent under concurrent callbacks.
+    }
+  }
+
+  private void saveCollectionEnrollmentIdempotent(CollectionEnrollment enrollment) {
+    try {
+      collectionEnrollmentRepository.save(enrollment);
+    } catch (DataIntegrityViolationException ignored) {
+      // Unique constraint on (user_id, collection_id) keeps this idempotent under concurrent callbacks.
     }
   }
 
@@ -128,11 +210,21 @@ public class PaymentFlowSupportService {
         (int)
             items.stream()
                 .filter(
-                    item ->
-                        enrollmentRepository.existsByUserIdAndCourseIdAndStatus(
+                    item -> {
+                      if (item.getItemType() == OrderItemType.COURSE) {
+                        return enrollmentRepository.existsByUserIdAndCourseIdAndStatus(
                             order.getUser().getId(),
                             item.getCourse().getId(),
-                            EnrollmentStatus.ACTIVE))
+                            EnrollmentStatus.ACTIVE);
+                      }
+                      if (item.getItemType() == OrderItemType.COLLECTION) {
+                        return collectionEnrollmentRepository.existsByUserIdAndCollectionIdAndStatus(
+                            order.getUser().getId(),
+                            item.getCollection().getId(),
+                            EnrollmentStatus.ACTIVE);
+                      }
+                      return false;
+                    })
                 .count();
     return PaymentStatusResponse.builder()
         .orderId(order.getId())

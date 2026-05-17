@@ -2,7 +2,9 @@ package com.gii.common.entity.enrollment;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.gii.common.entity.common.CreatedOnlyUuidEntity;
+import com.gii.common.entity.collection.Collection;
 import com.gii.common.entity.course.Course;
+import com.gii.common.entity.order.OrderItem;
 import com.gii.common.entity.user.User;
 import com.gii.common.enums.EnrollmentStatus;
 import jakarta.persistence.Column;
@@ -62,4 +64,14 @@ public class Enrollment extends CreatedOnlyUuidEntity {
 
   @Column(name = "expires_at")
   private Instant expiresAt;
+
+  @JsonIgnore
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "source_order_item_id")
+  private OrderItem sourceOrderItem;
+
+  @JsonIgnore
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "source_collection_id")
+  private Collection sourceCollection;
 }

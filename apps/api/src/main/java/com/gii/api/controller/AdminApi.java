@@ -1,13 +1,16 @@
 package com.gii.api.controller;
 
 import com.gii.api.model.request.admin.AssignInstructorToCourseRequest;
+import com.gii.api.model.request.admin.CreateCollectionRequest;
 import com.gii.api.model.request.admin.CreateCourseRequest;
 import com.gii.api.model.request.admin.CreateInstructorRequest;
 import com.gii.api.model.request.admin.CreateMediaAssetRequest;
 import com.gii.api.model.request.admin.CreateQuizRequest;
 import com.gii.api.model.request.admin.CreateSectionRequest;
 import com.gii.api.model.request.admin.ReorderCourseStructureRequest;
+import com.gii.api.model.request.admin.SetCollectionCoursesRequest;
 import com.gii.api.model.request.admin.UpdateCourseRequest;
+import com.gii.api.model.request.admin.UpdateCollectionRequest;
 import com.gii.api.model.request.admin.UpdateInstructorRequest;
 import com.gii.api.model.request.admin.UpdateMediaAssetRequest;
 import com.gii.api.model.request.admin.UpdateOrderRequest;
@@ -15,6 +18,8 @@ import com.gii.api.model.request.admin.UpdateQuizRequest;
 import com.gii.api.model.request.admin.UpdateSectionRequest;
 import com.gii.api.model.request.lesson.CreateLessonRequest;
 import com.gii.api.model.request.lesson.UpdateLessonRequest;
+import com.gii.api.model.response.admin.AdminCollectionDetailResponse;
+import com.gii.api.model.response.admin.AdminCollectionSummaryResponse;
 import com.gii.api.model.response.admin.AdminCourseDetailResponse;
 import com.gii.api.model.response.admin.AdminCourseSectionResponse;
 import com.gii.api.model.response.admin.AdminCourseSummaryResponse;
@@ -51,6 +56,38 @@ import org.springframework.web.bind.annotation.RequestMapping;
 @RequestMapping("/admin")
 @PreAuthorize("hasRole('ADMIN')") // Ensure only users with ADMIN role can access these endpoints
 public interface AdminApi {
+
+  // ===== COLLECTION MANAGEMENT =====
+  @GetMapping("/collections")
+  @Operation(summary = "List all collections")
+  ResponseEntity<List<AdminCollectionSummaryResponse>> listCollections();
+
+  @PostMapping("/collections")
+  @Operation(summary = "Create collection")
+  ResponseEntity<AdminCollectionDetailResponse> createCollection(
+      @RequestBody @Valid CreateCollectionRequest request, Authentication authentication);
+
+  @GetMapping("/collections/{collectionId}")
+  @Operation(summary = "Get collection details")
+  ResponseEntity<AdminCollectionDetailResponse> getCollection(@PathVariable UUID collectionId);
+
+  @PatchMapping("/collections/{collectionId}")
+  @Operation(summary = "Update collection")
+  ResponseEntity<AdminCollectionDetailResponse> updateCollection(
+      @PathVariable UUID collectionId, @Valid @RequestBody UpdateCollectionRequest request);
+
+  @PostMapping("/collections/{collectionId}/publish")
+  @Operation(summary = "Publish collection")
+  ResponseEntity<Void> publishCollection(@PathVariable UUID collectionId);
+
+  @PostMapping("/collections/{collectionId}/unpublish")
+  @Operation(summary = "Unpublish collection")
+  ResponseEntity<Void> unpublishCollection(@PathVariable UUID collectionId);
+
+  @PostMapping("/collections/{collectionId}/courses")
+  @Operation(summary = "Replace collection courses and ordering")
+  ResponseEntity<AdminCollectionDetailResponse> setCollectionCourses(
+      @PathVariable UUID collectionId, @Valid @RequestBody SetCollectionCoursesRequest request);
 
   // ===== COURSE MANAGEMENT =====
   @GetMapping("/courses")

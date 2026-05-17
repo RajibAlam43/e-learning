@@ -3,6 +3,7 @@ package com.gii.api.service.certificate;
 import com.gii.api.model.response.certificate.PublicCertificateVerificationResponse;
 import com.gii.common.entity.certificate.Certificate;
 import com.gii.common.entity.course.CourseInstructor;
+import com.gii.common.enums.CertificateTargetType;
 import com.gii.common.enums.InstructorRole;
 import com.gii.common.enums.PublishStatus;
 import com.gii.common.repository.certificate.CertificateRepository;
@@ -34,30 +35,38 @@ public class CertificateVerificationService {
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Certificate not found"));
 
-    String instructorName =
-        courseInstructorRepository.findByCourseId(certificate.getCourse().getId()).stream()
-            .filter(ci -> ci.getRole() == InstructorRole.PRIMARY)
-            .findFirst()
-            .or(
-                () ->
-                    courseInstructorRepository
-                        .findByCourseId(certificate.getCourse().getId())
-                        .stream()
-                        .findFirst())
-            .map(CourseInstructor::getInstructor)
-            .map(instructor -> instructor.getFullName())
-            .orElse("Instructor");
+    String instructorName = null;
+    Double completionPct = null;
+    String completionCriteria;
 
-    long totalLessons =
-        lessonRepository.countByCourseIdAndStatus(
-            certificate.getCourse().getId(), PublishStatus.PUBLISHED);
-    long completedLessons =
-        lessonProgressRepository.countByUserIdAndLessonCourseIdAndCompletedAtIsNotNull(
-            certificate.getUser().getId(), certificate.getCourse().getId());
-    Double completionPct =
-        totalLessons == 0
-            ? null
-            : Math.round(((completedLessons * 10000.0) / totalLessons)) / 100.0;
+    if (certificate.getTargetType() == CertificateTargetType.COURSE && certificate.getCourse() != null) {
+      instructorName =
+          courseInstructorRepository.findByCourseId(certificate.getCourse().getId()).stream()
+              .filter(ci -> ci.getRole() == InstructorRole.PRIMARY)
+              .findFirst()
+              .or(
+                  () ->
+                      courseInstructorRepository
+                          .findByCourseId(certificate.getCourse().getId())
+                          .stream()
+                          .findFirst())
+              .map(CourseInstructor::getInstructor)
+              .map(instructor -> instructor.getFullName())
+              .orElse("Instructor");
+      long totalLessons =
+          lessonRepository.countByCourseIdAndStatus(
+              certificate.getCourse().getId(), PublishStatus.PUBLISHED);
+      long completedLessons =
+          lessonProgressRepository.countByUserIdAndLessonCourseIdAndCompletedAtIsNotNull(
+              certificate.getUser().getId(), certificate.getCourse().getId());
+      completionPct =
+          totalLessons == 0
+              ? null
+              : Math.round(((completedLessons * 10000.0) / totalLessons)) / 100.0;
+      completionCriteria = "Completed all published lessons";
+    } else {
+      completionCriteria = "Completed all published lessons in collection";
+    }
 
     String status = certificate.getRevokedAt() == null ? "VALID" : "REVOKED";
     String message =
@@ -70,8 +79,9 @@ public class CertificateVerificationService {
         .certificateId(certificate.getId())
         .certificateCode(certificate.getCertificateCode())
         .recipientName(certificate.getRecipientName())
-        .courseName(certificate.getCourseTitle())
-        .courseSlug(certificate.getCourse().getSlug())
+        .targetType(certificate.getTargetType())
+        .targetName(certificate.getTargetTitle())
+        .targetSlug(certificate.getTargetSlug())
         .instructorName(instructorName)
         .issuedAt(certificate.getIssuedAt())
         .isRevoked(certificate.getRevokedAt() != null)
@@ -81,7 +91,7 @@ public class CertificateVerificationService {
         .certificateImageUrl(null)
         .issuerName("Global Islamic Institute")
         .issuerLogoUrl(null)
-        .completionCriteria("Completed all published lessons")
+        .completionCriteria(completionCriteria)
         .completionPercentage(completionPct)
         .build();
   }
