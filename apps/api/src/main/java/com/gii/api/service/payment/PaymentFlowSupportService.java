@@ -53,10 +53,17 @@ public class PaymentFlowSupportService {
     if (order.getProviderTxnId() == null || order.getProviderTxnId().isBlank()) {
       return;
     }
-    if (!order.getProviderTxnId().equals(callbackTxnId)) {
+    String expected = normalizeTxn(order.getProviderTxnId());
+    String actual = normalizeTxn(callbackTxnId);
+    boolean matches = expected.equals(actual);
+    if (!matches) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "Callback transaction identifier does not match order");
     }
+  }
+
+  private String normalizeTxn(String value) {
+    return value == null ? "" : value.replace("-", "").trim().toLowerCase();
   }
 
   public void recordCallbackEvent(

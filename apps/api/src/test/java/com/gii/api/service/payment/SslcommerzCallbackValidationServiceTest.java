@@ -115,6 +115,19 @@ class SslcommerzCallbackValidationServiceTest {
                     .isEqualTo(HttpStatus.BAD_REQUEST));
   }
 
+  @Test
+  void webhookSignatureShouldAllowMissingFieldReferencedByVerifyKeyAsEmpty() {
+    SslcommerzCallbackValidationService service = buildService();
+    Map<String, String> params = new HashMap<>();
+    params.put("status", "VALID");
+    params.put("tran_id", "txn-1");
+    params.put("val_id", "val-1");
+    params.put("verify_key", "status,tran_id,val_id,value_a");
+    params.put("verify_sign", sign(params, "store-pass"));
+
+    service.validateWebhookSignature(params);
+  }
+
   private SslcommerzCallbackValidationService buildService() {
     SslcommerzCallbackValidationService service =
         new SslcommerzCallbackValidationService(new ObjectMapper(), WebClient.builder());
@@ -158,7 +171,8 @@ class SslcommerzCallbackValidationServiceTest {
     List<String> fragments = new ArrayList<>();
     for (String key : verifyKey.split(",")) {
       String trimmed = key.trim();
-      fragments.add(trimmed + "=" + params.get(trimmed));
+      String value = params.get(trimmed);
+      fragments.add(trimmed + "=" + (value == null ? "" : value));
     }
     fragments.sort(Comparator.naturalOrder());
     String source =

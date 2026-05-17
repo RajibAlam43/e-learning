@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -22,6 +23,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class SslcommerzCallbackValidationService {
 
   private static final Set<String> VALID_STATUSES = Set.of("VALID", "VALIDATED");
@@ -53,6 +55,11 @@ public class SslcommerzCallbackValidationService {
   public ValidationOutcome validateIpnNotification(Order order, Map<String, String> callbackParams) {
     String valId = callbackParams.get("val_id");
     if (isBlank(valId)) {
+      log.warn(
+          "SSLCommerz validation failed: missing val_id; orderId={}, providerTxnId={}, callbackTranId={}",
+          order.getId(),
+          order.getProviderTxnId(),
+          callbackParams.get("tran_id"));
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid callback");
     }
     Map<String, Object> validated = validateByValId(valId);
@@ -65,6 +72,12 @@ public class SslcommerzCallbackValidationService {
     String verifyKey = callbackParams.get("verify_key");
     String verifySign = callbackParams.get("verify_sign");
     if (isBlank(verifyKey) || isBlank(verifySign)) {
+      log.warn(
+          "SSLCommerz signature validation failed: missing verify fields; verify_key_present={}, verify_sign_present={}, tran_id={}, val_id={}",
+          !isBlank(verifyKey),
+          !isBlank(verifySign),
+          callbackParams.get("tran_id"),
+          callbackParams.get("val_id"));
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid callback");
     }
 
@@ -76,24 +89,44 @@ public class SslcommerzCallbackValidationService {
       }
       String value = callbackParams.get(trimmed);
       if (value == null) {
-        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid callback");
+        value = "";
       }
       fragments.add(trimmed + "=" + value);
     }
     if (fragments.isEmpty()) {
+      log.warn(
+          "SSLCommerz signature validation failed: verify fragments empty; tran_id={}, val_id={}",
+          callbackParams.get("tran_id"),
+          callbackParams.get("val_id"));
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid callback");
     }
 
     fragments.sort(Comparator.naturalOrder());
-    String source = String.join("&", fragments) + "&store_passwd=" + md5Hex(storePassword == null ? "" : storePassword);
-    String computed = md5Hex(source).toUpperCase();
+
+    String source =
+            String.join("&", fragments)
+                    + "&store_passwd="
+                    + md5Hex(storePassword == null ? "" : storePassword);
+
+    String computed = md5Hex(source);
+
     boolean valid =
-        MessageDigest.isEqual(
-            computed.getBytes(StandardCharsets.UTF_8), verifySign.trim().toUpperCase().getBytes(StandardCharsets.UTF_8));
+            MessageDigest.isEqual(
+                    computed.toLowerCase().getBytes(StandardCharsets.UTF_8),
+                    verifySign.trim().toLowerCase().getBytes(StandardCharsets.UTF_8));
+
     if (!valid) {
+      log.warn(
+          "SSLCommerz signature mismatch: computed={}, provided={}, tran_id={}, val_id={}",
+          computed,
+          verifySign,
+          callbackParams.get("tran_id"),
+          callbackParams.get("val_id"));
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid callback");
     }
   }
+
+
 
   private Map<String, Object> validateByValId(String valId) {
     if (isBlank(validationApiUrl) || isBlank(storeId) || isBlank(storePassword)) {
@@ -144,17 +177,30 @@ public class SslcommerzCallbackValidationService {
       amountRaw = asString(validated.get("currency_amount"));
     }
     if (isBlank(amountRaw)) {
+      log.warn(
+          "SSLCommerz validation failed: missing amount in validation API response; orderId={}, providerTxnId={}, validatedTranId={}",
+          order.getId(),
+          order.getProviderTxnId(),
+          tranId);
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid callback");
     }
     BigDecimal amount = new BigDecimal(amountRaw);
 
     boolean valid =
-        tranId != null
-            && tranId.equals(order.getProviderTxnId())
+        transactionIdMatchesOrder(order, tranId)
             && currency != null
             && currency.equalsIgnoreCase(order.getCurrency())
             && order.getAmountBdt().subtract(amount).abs().compareTo(MAX_DIFF) < 0;
     if (!valid) {
+      log.warn(
+          "SSLCommerz validation mismatch: orderId={}, providerTxnId={}, validatedTranId={}, callbackOrderAmount={}, validatedAmount={}, callbackCurrency={}, validatedCurrency={}",
+          order.getId(),
+          order.getProviderTxnId(),
+          tranId,
+          order.getAmountBdt(),
+          amount,
+          order.getCurrency(),
+          currency);
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid callback");
     }
   }
@@ -181,6 +227,26 @@ public class SslcommerzCallbackValidationService {
 
   private boolean isBlank(String value) {
     return value == null || value.isBlank();
+  }
+
+  private boolean transactionIdMatchesOrder(Order order, String validatedTranId) {
+    if (isBlank(validatedTranId)) {
+      return false;
+    }
+    String callback = normalizeTxn(validatedTranId);
+    String providerTxn = normalizeTxn(order.getProviderTxnId());
+    if (!isBlank(providerTxn) && callback.equals(providerTxn)) {
+      return true;
+    }
+    String orderDerivedTxn = normalizeTxn(order.getId().toString()).substring(0, 30);
+    return callback.equals(orderDerivedTxn);
+  }
+
+  private String normalizeTxn(String value) {
+    if (value == null) {
+      return "";
+    }
+    return value.replace("-", "").trim().toLowerCase();
   }
 
   @SuppressWarnings("java:S4790") // SSLCommerz verify_sign contract requires MD5 hashing.
