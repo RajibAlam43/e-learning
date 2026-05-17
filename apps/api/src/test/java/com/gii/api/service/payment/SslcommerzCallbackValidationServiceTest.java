@@ -181,8 +181,9 @@ class SslcommerzCallbackValidationServiceTest {
     for (String key : keys) {
       fragments.add(key + "=" + valuesByKey.getOrDefault(key, ""));
     }
-    String source =
-        String.join("&", fragments) + "&store_passwd=" + md5Hex(storePassword);
+    fragments.add("store_passwd=" + md5Hex(storePassword));
+    fragments.sort(Comparator.naturalOrder());
+    String source = String.join("&", fragments);
     return md5Hex(source).toUpperCase();
   }
 

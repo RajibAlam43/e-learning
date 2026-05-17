@@ -106,28 +106,37 @@ public class SslcommerzCallbackValidationService {
     keys.sort(Comparator.naturalOrder());
     List<String> fragments = new ArrayList<>(keys.size());
     for (String key : keys) {
-      fragments.add(key + "=" + valuesByKey.getOrDefault(key, ""));
+      String value = valuesByKey.getOrDefault(key, "");
+      fragments.add(key + "=" + value);
     }
 
-    String source =
-            String.join("&", fragments)
-                    + "&store_passwd="
-                    + md5Hex(storePassword == null ? "" : storePassword);
+    List<String> encodedFragments = new ArrayList<>(keys.size());
+    for (String key : keys) {
+      String value = valuesByKey.getOrDefault(key, "");
+      encodedFragments.add(key + "=" + URLEncoder.encode(value, StandardCharsets.UTF_8));
+    }
 
-    String computed = md5Hex(source);
-    String rawPasswordSource =
-        String.join("&", fragments) + "&store_passwd=" + (storePassword == null ? "" : storePassword);
-    String computedWithRawPassword = md5Hex(rawPasswordSource);
+    String safeStorePassword = storePassword == null ? "" : storePassword;
+    String md5Password = md5Hex(safeStorePassword);
+
+    String computedDecodedWithMd5Password = computeSignature(fragments, md5Password);
+    String computedEncodedWithMd5Password = computeSignature(encodedFragments, md5Password);
+    String computedDecodedWithRawPassword = computeSignature(fragments, safeStorePassword);
+    String computedEncodedWithRawPassword = computeSignature(encodedFragments, safeStorePassword);
 
     boolean valid =
-            MessageDigest.isEqual(
-                    computed.toLowerCase().getBytes(StandardCharsets.UTF_8),
-                    verifySign.trim().toLowerCase().getBytes(StandardCharsets.UTF_8));
+        equalsSignature(computedDecodedWithMd5Password, verifySign);
     if (!valid) {
-      valid =
-          MessageDigest.isEqual(
-              computedWithRawPassword.toLowerCase().getBytes(StandardCharsets.UTF_8),
-              verifySign.trim().toLowerCase().getBytes(StandardCharsets.UTF_8));
+      valid = equalsSignature(computedEncodedWithMd5Password, verifySign);
+      if (valid) {
+        log.info(
+            "SSLCommerz signature matched using encoded-values + md5-password variant; tran_id={}, val_id={}",
+            callbackParams.get("tran_id"),
+            callbackParams.get("val_id"));
+      }
+    }
+    if (!valid) {
+      valid = equalsSignature(computedDecodedWithRawPassword, verifySign);
       if (valid) {
         log.info(
             "SSLCommerz signature matched with raw store password fallback; tran_id={}, val_id={}",
@@ -135,12 +144,23 @@ public class SslcommerzCallbackValidationService {
             callbackParams.get("val_id"));
       }
     }
+    if (!valid) {
+      valid = equalsSignature(computedEncodedWithRawPassword, verifySign);
+      if (valid) {
+        log.info(
+            "SSLCommerz signature matched using encoded-values + raw-password variant; tran_id={}, val_id={}",
+            callbackParams.get("tran_id"),
+            callbackParams.get("val_id"));
+      }
+    }
 
     if (!valid) {
       log.warn(
-          "SSLCommerz signature mismatch: computedWithMd5Password={}, computedWithRawPassword={}, provided={}, tran_id={}, val_id={}",
-          computed,
-          computedWithRawPassword,
+          "SSLCommerz signature mismatch: computedDecodedWithMd5Password={}, computedEncodedWithMd5Password={}, computedDecodedWithRawPassword={}, computedEncodedWithRawPassword={}, provided={}, tran_id={}, val_id={}",
+          computedDecodedWithMd5Password,
+          computedEncodedWithMd5Password,
+          computedDecodedWithRawPassword,
+          computedEncodedWithRawPassword,
           verifySign,
           callbackParams.get("tran_id"),
           callbackParams.get("val_id"));
@@ -249,6 +269,19 @@ public class SslcommerzCallbackValidationService {
 
   private boolean isBlank(String value) {
     return value == null || value.isBlank();
+  }
+
+  private String computeSignature(List<String> fragments, String storePasswdValue) {
+    List<String> sourceFragments = new ArrayList<>(fragments);
+    sourceFragments.add("store_passwd=" + storePasswdValue);
+    sourceFragments.sort(Comparator.naturalOrder());
+    return md5Hex(String.join("&", sourceFragments));
+  }
+
+  private boolean equalsSignature(String computed, String provided) {
+    return MessageDigest.isEqual(
+        computed.toLowerCase().getBytes(StandardCharsets.UTF_8),
+        provided.trim().toLowerCase().getBytes(StandardCharsets.UTF_8));
   }
 
   private boolean transactionIdMatchesOrder(Order order, String validatedTranId) {

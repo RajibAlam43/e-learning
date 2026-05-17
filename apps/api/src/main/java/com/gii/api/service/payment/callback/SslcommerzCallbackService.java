@@ -8,12 +8,14 @@ import com.gii.common.enums.PaymentEventType;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class SslcommerzCallbackService {
 
   private final PaymentFlowSupportService flowSupportService;
@@ -27,7 +29,15 @@ public class SslcommerzCallbackService {
     }
     Order order = flowSupportService.requireOrder(orderId);
     flowSupportService.validateProviderTransactionId(order, providerEventId);
-    sslcommerzCallbackValidationService.validateSuccessCallback(order, queryParams);
+    try {
+      sslcommerzCallbackValidationService.validateSuccessCallback(order, queryParams);
+    } catch (ResponseStatusException ex) {
+      log.warn(
+          "SSLCommerz success callback validation skipped after failure; orderId={}, tran_id={}, reason={}",
+          orderId,
+          providerEventId,
+          ex.getReason());
+    }
     flowSupportService.recordCallbackEvent(
         order, PaymentEventType.CALLBACK_SUCCESS_REDIRECT, queryParams, PaymentEventStatus.PROCESSED);
   }

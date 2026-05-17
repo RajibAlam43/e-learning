@@ -409,7 +409,7 @@ class PaymentWebhooksApiIt extends AbstractPaymentApiIntegrationTest {
   private String signedSslPayload(String basePayload) {
     String verifyKey = "status,tran_id,val_id";
     String signSource = signSource(basePayload, verifyKey);
-    String verifySign = md5Hex(signSource + "&store_passwd=" + md5Hex("test-password")).toUpperCase();
+    String verifySign = md5Hex(signSource).toUpperCase();
     return basePayload + "&verify_key=" + verifyKey + "&verify_sign=" + verifySign;
   }
 
@@ -428,6 +428,7 @@ class PaymentWebhooksApiIt extends AbstractPaymentApiIntegrationTest {
         fragments.add(match);
       }
     }
+    fragments.add("store_passwd=" + md5Hex("test-password"));
     fragments.sort(Comparator.naturalOrder());
     return String.join("&", fragments);
   }
