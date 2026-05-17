@@ -57,13 +57,16 @@ public class SecurityConfig {
             session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .authorizeHttpRequests(
             auth ->
-                auth.requestMatchers(
-                        "/actuator/health",
-                        "/public/**",
-                        "/webhooks/**",
-                        "/v3/api-docs/**",
-                        "/swagger-ui/**",
-                        "/swagger-ui.html")
+                    auth.requestMatchers(
+                            "/actuator/health",
+                                    "/public/**",
+                                    "/webhooks/**",
+                                    "/payments/*/success",
+                                    "/payments/*/failed",
+                                    "/payments/*/cancelled",
+                                    "/v3/api-docs/**",
+                                    "/swagger-ui/**",
+                                    "/swagger-ui.html")
                     .permitAll()
                     .anyRequest()
                     .authenticated())

@@ -13,12 +13,15 @@ import com.gii.api.service.payment.PendingCartOrderService;
 import com.gii.api.service.payment.callback.PaymentCallbackService;
 import com.gii.api.service.payment.webhook.PaymentWebhookService;
 import com.gii.api.service.payment.ReceiptService;
+import java.net.URI;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.util.UriComponentsBuilder;
 
 @RestController
 @RequiredArgsConstructor
@@ -30,6 +33,9 @@ public class PaymentApiController implements PaymentApi {
   private final PaymentWebhookService paymentWebhookService;
   private final OrderStatusService orderStatusService;
   private final ReceiptService receiptService;
+
+  @Value("${payments.frontend-base-url}")
+  private String paymentsFrontendBaseUrl;
 
   @Override
   public ResponseEntity<CheckoutOrderResponse> createPendingCartOrder(
@@ -50,21 +56,30 @@ public class PaymentApiController implements PaymentApi {
   }
 
   @Override
-  public ResponseEntity<PaymentStatusResponse> paymentSuccess(
+  public ResponseEntity<Void> paymentSuccess(
       UUID orderId, Map<String, String> queryParams) {
-    return ResponseEntity.ok(paymentCallbackService.success(orderId, queryParams));
+    paymentCallbackService.success(orderId, queryParams);
+    return ResponseEntity.status(303)
+        .location(buildRedirectUri(orderId, "success"))
+        .build();
   }
 
   @Override
-  public ResponseEntity<PaymentStatusResponse> paymentFailed(
+  public ResponseEntity<Void> paymentFailed(
       UUID orderId, Map<String, String> queryParams) {
-    return ResponseEntity.ok(paymentCallbackService.failed(orderId, queryParams));
+    paymentCallbackService.failed(orderId, queryParams);
+    return ResponseEntity.status(303)
+        .location(buildRedirectUri(orderId, "failed"))
+        .build();
   }
 
   @Override
-  public ResponseEntity<PaymentStatusResponse> paymentCancelled(
+  public ResponseEntity<Void> paymentCancelled(
       UUID orderId, Map<String, String> queryParams) {
-    return ResponseEntity.ok(paymentCallbackService.cancelled(orderId, queryParams));
+    paymentCallbackService.cancelled(orderId, queryParams);
+    return ResponseEntity.status(303)
+        .location(buildRedirectUri(orderId, "cancelled"))
+        .build();
   }
 
   @Override
@@ -82,5 +97,13 @@ public class PaymentApiController implements PaymentApi {
   @Override
   public ResponseEntity<ReceiptResponse> getReceipt(UUID orderId, Authentication authentication) {
     return ResponseEntity.ok(receiptService.execute(orderId, authentication));
+  }
+
+  private URI buildRedirectUri(UUID orderId, String status) {
+    return UriComponentsBuilder.fromUriString(paymentsFrontendBaseUrl)
+        .queryParam("orderId", orderId)
+        .queryParam("status", status)
+        .build()
+        .toUri();
   }
 }
