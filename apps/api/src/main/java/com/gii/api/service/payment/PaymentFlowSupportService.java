@@ -90,6 +90,20 @@ public class PaymentFlowSupportService {
     return toStatus(orderRepository.save(order));
   }
 
+  public void markPaid(Order order) {
+    if (order.getStatus() == OrderStatus.PAID) {
+      return;
+    }
+    if (order.getStatus() == OrderStatus.REFUNDED) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Order is not payable");
+    }
+    order.setStatus(OrderStatus.PAID);
+    if (order.getPaidAt() == null) {
+      order.setPaidAt(Instant.now());
+    }
+    orderRepository.save(order);
+  }
+
   public void grantEnrollmentsForPaidOrder(UUID orderId) {
     Order order = requireOrder(orderId);
     if (order.getStatus() != OrderStatus.PAID) {
@@ -195,12 +209,26 @@ public class PaymentFlowSupportService {
     return toStatus(order);
   }
 
+  public void transitionFailed(Order order) {
+    if (order.getStatus() == OrderStatus.PENDING) {
+      order.setStatus(OrderStatus.FAILED);
+      orderRepository.save(order);
+    }
+  }
+
   public PaymentStatusResponse transitionCancelledAndBuild(Order order) {
     if (order.getStatus() == OrderStatus.PENDING) {
       order.setStatus(OrderStatus.CANCELLED);
       order = orderRepository.save(order);
     }
     return toStatus(order);
+  }
+
+  public void transitionCancelled(Order order) {
+    if (order.getStatus() == OrderStatus.PENDING) {
+      order.setStatus(OrderStatus.CANCELLED);
+      orderRepository.save(order);
+    }
   }
 
   public PaymentStatusResponse toStatus(Order order) {

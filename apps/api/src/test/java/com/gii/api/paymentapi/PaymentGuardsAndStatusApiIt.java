@@ -3,7 +3,7 @@ package com.gii.api.paymentapi;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.gii.common.enums.OrderProvider;
@@ -104,17 +104,15 @@ class PaymentGuardsAndStatusApiIt extends AbstractPaymentApiIntegrationTest {
         .perform(
             get("/payments/{orderId}/failed", failedOrder.getId())
                 .param("tran_id", "txn-failed-callback"))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.status").value("PENDING"))
-        .andExpect(jsonPath("$.nextAction").value("INITIATE_PAYMENT"));
+        .andExpect(status().isSeeOther())
+        .andExpect(header().exists("Location"));
 
     mockMvc
         .perform(
             get("/payments/{orderId}/cancelled", cancelledOrder.getId())
                 .param("payment_id", "txn-cancelled-callback"))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.status").value("CANCELLED"))
-        .andExpect(jsonPath("$.nextAction").value("INITIATE_PAYMENT"));
+        .andExpect(status().isSeeOther())
+        .andExpect(header().exists("Location"));
   }
 
   @Test

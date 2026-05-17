@@ -21,8 +21,8 @@ public class PaymentCallbackService {
   private final PaymentSuccessWebhookService paymentSuccessWebhookService;
   private final PaymentFlowSupportService paymentFlowSupportService;
 
-  public PaymentStatusResponse success(UUID orderId, Map<String, String> queryParams) {
-    return paymentSuccessCallbackService.execute(orderId, queryParams);
+  public void success(UUID orderId, Map<String, String> queryParams) {
+    paymentSuccessCallbackService.execute(orderId, queryParams);
   }
 
   public PaymentStatusResponse successFromVerifiedWebhook(UUID orderId, Map<String, String> params) {
@@ -33,11 +33,11 @@ public class PaymentCallbackService {
     paymentFlowSupportService.grantEnrollmentsForPaidOrder(orderId);
   }
 
-  public PaymentStatusResponse failed(UUID orderId, Map<String, String> queryParams) {
-    return paymentFailedCallbackService.execute(orderId, queryParams);
+  public void failed(UUID orderId, Map<String, String> queryParams) {
+    paymentFailedCallbackService.execute(orderId, queryParams);
   }
 
-  public PaymentStatusResponse cancelled(UUID orderId, Map<String, String> queryParams) {
-    return paymentCancelledCallbackService.execute(orderId, queryParams);
+  public void cancelled(UUID orderId, Map<String, String> queryParams) {
+    paymentCancelledCallbackService.execute(orderId, queryParams);
   }
 }

@@ -3,7 +3,7 @@ package com.gii.api.paymentapi;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.gii.common.enums.EnrollmentStatus;
@@ -54,8 +54,8 @@ class PaymentOrderingAndConsistencyApiIt extends AbstractPaymentApiIntegrationTe
     mockMvc
         .perform(
             get("/payments/{orderId}/failed", order.getId()).param("tran_id", "txn-ordering-1"))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.status").value("PENDING"));
+        .andExpect(status().isSeeOther())
+        .andExpect(header().exists("Location"));
 
     String payload = signedSslPayload("tran_id=txn-ordering-1&status=VALID&val_id=val-ordering-1");
     mockMvc
@@ -98,8 +98,8 @@ class PaymentOrderingAndConsistencyApiIt extends AbstractPaymentApiIntegrationTe
         .perform(
             get("/payments/{orderId}/cancelled", order.getId())
                 .param("payment_id", "txn-ordering-2"))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.status").value("CANCELLED"));
+        .andExpect(status().isSeeOther())
+        .andExpect(header().exists("Location"));
 
     String payload =
         """

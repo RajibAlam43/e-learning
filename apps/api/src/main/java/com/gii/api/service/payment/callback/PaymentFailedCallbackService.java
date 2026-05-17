@@ -1,6 +1,5 @@
 package com.gii.api.service.payment.callback;
 
-import com.gii.api.model.response.payment.PaymentStatusResponse;
 import com.gii.api.service.payment.PaymentFlowSupportService;
 import com.gii.common.entity.order.Order;
 import com.gii.common.enums.OrderProvider;
@@ -19,7 +18,7 @@ public class PaymentFailedCallbackService {
 
   private final PaymentFlowSupportService paymentFlowSupportService;
 
-  public PaymentStatusResponse execute(UUID orderId, Map<String, String> queryParams) {
+  public void execute(UUID orderId, Map<String, String> queryParams) {
     String providerEventId =
         paymentFlowSupportService.firstNonBlank(
             queryParams.get("tran_id"),
@@ -35,10 +34,10 @@ public class PaymentFailedCallbackService {
         && !"true".equalsIgnoreCase(queryParams.get("_verified_webhook"))) {
       paymentFlowSupportService.recordCallbackEvent(
           order, PaymentEventType.CALLBACK_FAILED, queryParams, PaymentEventStatus.RECEIVED);
-      return paymentFlowSupportService.toStatus(order);
+      return;
     }
     paymentFlowSupportService.recordCallbackEvent(
         order, PaymentEventType.CALLBACK_FAILED, queryParams, PaymentEventStatus.PROCESSED);
-    return paymentFlowSupportService.transitionFailedAndBuild(order);
+    paymentFlowSupportService.transitionFailed(order);
   }
 }

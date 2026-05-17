@@ -1,6 +1,5 @@
 package com.gii.api.service.payment.callback;
 
-import com.gii.api.model.response.payment.PaymentStatusResponse;
 import com.gii.api.service.payment.PaymentFlowSupportService;
 import com.gii.api.service.payment.bkash.BkashCheckoutService;
 import com.gii.api.service.payment.sslcommerz.SslcommerzCallbackValidationService;
@@ -23,7 +22,7 @@ public class PaymentSuccessCallbackService {
   private final BkashCheckoutService bkashCheckoutService;
   private final SslcommerzCallbackValidationService sslcommerzCallbackValidationService;
 
-  public PaymentStatusResponse execute(UUID orderId, Map<String, String> queryParams) {
+  public void execute(UUID orderId, Map<String, String> queryParams) {
     String providerEventId =
         flowSupportService.firstNonBlank(
             queryParams.get("tran_id"),
@@ -45,11 +44,10 @@ public class PaymentSuccessCallbackService {
     if (order.getProvider() == OrderProvider.BKASH) {
       bkashCheckoutService.validateSuccessCallback(order, queryParams);
       flowSupportService.recordCallbackEvent(
-              order, PaymentEventType.CALLBACK_SUCCESS, queryParams, PaymentEventStatus.PROCESSED);
+          order, PaymentEventType.CALLBACK_SUCCESS, queryParams, PaymentEventStatus.PROCESSED);
     }
 
-    PaymentStatusResponse response = flowSupportService.markPaidAndBuildResponse(order);
+    flowSupportService.markPaid(order);
     flowSupportService.grantEnrollmentsForPaidOrder(order.getId());
-    return response;
   }
 }

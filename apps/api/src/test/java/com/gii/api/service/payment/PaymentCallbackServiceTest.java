@@ -35,7 +35,6 @@ class PaymentCallbackServiceTest {
   void successShouldDelegateToSuccessCallbackService() {
     UUID orderId = UUID.randomUUID();
     Map<String, String> params = Map.of("tran_id", "txn-1");
-    when(paymentSuccessCallbackService.execute(orderId, params)).thenReturn(dummyStatus(orderId));
 
     paymentCallbackService.success(orderId, params);
 
@@ -57,7 +56,6 @@ class PaymentCallbackServiceTest {
   void failedShouldDelegateToFailedCallbackService() {
     UUID orderId = UUID.randomUUID();
     Map<String, String> params = Map.of("tran_id", "txn-2");
-    when(paymentFailedCallbackService.execute(orderId, params)).thenReturn(dummyStatus(orderId));
 
     paymentCallbackService.failed(orderId, params);
 
@@ -68,7 +66,6 @@ class PaymentCallbackServiceTest {
   void cancelledShouldDelegateToCancelledCallbackService() {
     UUID orderId = UUID.randomUUID();
     Map<String, String> params = Map.of("tran_id", "txn-3");
-    when(paymentCancelledCallbackService.execute(orderId, params)).thenReturn(dummyStatus(orderId));
 
     paymentCallbackService.cancelled(orderId, params);
 
