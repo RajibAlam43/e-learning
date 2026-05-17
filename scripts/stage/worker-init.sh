@@ -55,7 +55,7 @@ install -d -o deploy -g deploy -m 0755 /opt/e-learning/releases
 
 # Allow deploy user to restart/check only Worker service via sudo.
 cat > /etc/sudoers.d/e-learning-worker <<'EOF'
-deploy ALL=(root) NOPASSWD: /usr/bin/systemctl restart e-learning-worker, /usr/bin/systemctl is-active --quiet e-learning-worker
+deploy ALL=(root) NOPASSWD: /usr/bin/systemctl restart e-learning-worker, /usr/bin/systemctl is-active --quiet e-learning-worker, /usr/bin/systemctl status e-learning-worker --no-pager, /usr/bin/journalctl -u e-learning-worker -n 150 --no-pager
 EOF
 chmod 440 /etc/sudoers.d/e-learning-worker
 

@@ -23,7 +23,7 @@ public class SqsConfig {
   private boolean autoStartup;
 
   @Bean
-  public ObjectMapper objectMapper() {
+  public ObjectMapper objectMapperSqs() {
     return new ObjectMapper();
   }
 
