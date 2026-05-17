@@ -21,8 +21,6 @@ import com.gii.common.repository.order.OrderItemRepository;
 import com.gii.common.repository.order.OrderRepository;
 import com.gii.common.repository.order.PaymentEventRepository;
 import java.math.BigDecimal;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -172,21 +170,20 @@ public class SslcommerzValidationJobService {
     if (valId == null || valId.isBlank()) {
       throw new IllegalStateException("Missing val_id");
     }
-    String url =
-        validationApiUrl
-            + "?val_id="
-            + URLEncoder.encode(valId, StandardCharsets.UTF_8)
-            + "&store_id="
-            + URLEncoder.encode(storeId, StandardCharsets.UTF_8)
-            + "&store_passwd="
-            + URLEncoder.encode(storePassword, StandardCharsets.UTF_8)
-            + "&v=1&format=json";
-
     RawHttpResponse response =
         webClientBuilder
             .build()
             .get()
-            .uri(url)
+            .uri(
+                validationApiUrl,
+                uriBuilder ->
+                    uriBuilder
+                        .queryParam("val_id", valId)
+                        .queryParam("store_id", storeId)
+                        .queryParam("store_passwd", storePassword)
+                        .queryParam("v", "1")
+                        .queryParam("format", "json")
+                        .build())
             .exchangeToMono(
                 clientResponse ->
                     clientResponse
