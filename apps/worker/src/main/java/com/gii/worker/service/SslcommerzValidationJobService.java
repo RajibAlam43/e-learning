@@ -32,6 +32,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -50,6 +51,7 @@ public class SslcommerzValidationJobService {
   private static final TypeReference<List<Map<String, Object>>> LIST_TYPE = new TypeReference<>() {};
   private static final BigDecimal MAX_DIFF = new BigDecimal("0.1");
 
+  @Qualifier("jacksonObjectMapper")
   private final ObjectMapper objectMapper;
   private final WebClient.Builder webClientBuilder;
   private final SqsAsyncClient sqsClient;
