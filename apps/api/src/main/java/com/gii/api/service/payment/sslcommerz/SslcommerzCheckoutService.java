@@ -69,7 +69,7 @@ public class SslcommerzCheckoutService {
     form.add("fail_url", callbackBaseUrl + "/payments/" + order.getId() + "/failed");
     form.add("cancel_url", callbackBaseUrl + "/payments/" + order.getId() + "/cancelled");
     form.add("ipn_url", callbackBaseUrl + "/public/webhooks/payments/sslcommerz");
-    form.add("cus_name", customerName == null || customerName.isBlank() ? "Student" : customerName);
+    form.add("cus_name", customerName);
     form.add("cus_email", customerEmail);
     form.add("cus_phone", customerPhone);
     form.add("product_name", productName);
@@ -119,7 +119,7 @@ public class SslcommerzCheckoutService {
   private String resolveProductName(java.util.UUID orderId) {
     List<OrderItem> items = orderItemRepository.findByOrderId(orderId);
     if (items.isEmpty()) {
-      return "Collection";
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Order has no items");
     }
     if (items.size() == 1) {
       return items.getFirst().getTitleSnapshot();
