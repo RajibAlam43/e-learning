@@ -10,13 +10,15 @@ import com.gii.api.model.response.payment.WebhookAckResponse;
 import com.gii.api.service.payment.InitiatePaymentService;
 import com.gii.api.service.payment.OrderStatusService;
 import com.gii.api.service.payment.PendingCartOrderService;
-import com.gii.api.service.payment.callback.PaymentCallbackService;
+import com.gii.api.service.payment.callback.BkashCallbackService;
+import com.gii.api.service.payment.callback.SslcommerzCallbackService;
 import com.gii.api.service.payment.webhook.PaymentWebhookService;
 import com.gii.api.service.payment.ReceiptService;
 import java.net.URI;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -25,11 +27,13 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 @RestController
 @RequiredArgsConstructor
+@Slf4j
 public class PaymentApiController implements PaymentApi {
 
   private final PendingCartOrderService pendingCartOrderService;
   private final InitiatePaymentService initiatePaymentService;
-  private final PaymentCallbackService paymentCallbackService;
+  private final SslcommerzCallbackService sslcommerzCallbackService;
+  private final BkashCallbackService bkashCallbackService;
   private final PaymentWebhookService paymentWebhookService;
   private final OrderStatusService orderStatusService;
   private final ReceiptService receiptService;
@@ -56,27 +60,63 @@ public class PaymentApiController implements PaymentApi {
   }
 
   @Override
-  public ResponseEntity<Void> paymentSuccess(
+  public ResponseEntity<Void> sslcommerzPaymentSuccess(
       UUID orderId, Map<String, String> queryParams) {
-    paymentCallbackService.success(orderId, queryParams);
+    log.info(
+        "SSLCommerz callback received: type=success, orderId={}, params={}",
+        orderId,
+        queryParams);
+    sslcommerzCallbackService.successRedirect(orderId, queryParams);
     return ResponseEntity.status(303)
         .location(buildRedirectUri(orderId, "success"))
         .build();
   }
 
   @Override
-  public ResponseEntity<Void> paymentFailed(
+  public ResponseEntity<Void> sslcommerzPaymentFailed(
       UUID orderId, Map<String, String> queryParams) {
-    paymentCallbackService.failed(orderId, queryParams);
+    log.info(
+        "SSLCommerz callback received: type=failed, orderId={}, params={}",
+        orderId,
+        queryParams);
+    sslcommerzCallbackService.failedRedirect(orderId, queryParams);
     return ResponseEntity.status(303)
         .location(buildRedirectUri(orderId, "failed"))
         .build();
   }
 
   @Override
-  public ResponseEntity<Void> paymentCancelled(
+  public ResponseEntity<Void> sslcommerzPaymentCancelled(
       UUID orderId, Map<String, String> queryParams) {
-    paymentCallbackService.cancelled(orderId, queryParams);
+    log.info(
+        "SSLCommerz callback received: type=cancelled, orderId={}, params={}",
+        orderId,
+        queryParams);
+    sslcommerzCallbackService.cancelledRedirect(orderId, queryParams);
+    return ResponseEntity.status(303)
+        .location(buildRedirectUri(orderId, "cancelled"))
+        .build();
+  }
+
+  @Override
+  public ResponseEntity<Void> bkashPaymentSuccess(UUID orderId, Map<String, String> queryParams) {
+    bkashCallbackService.successRedirect(orderId, queryParams);
+    return ResponseEntity.status(303)
+        .location(buildRedirectUri(orderId, "success"))
+        .build();
+  }
+
+  @Override
+  public ResponseEntity<Void> bkashPaymentFailed(UUID orderId, Map<String, String> queryParams) {
+    bkashCallbackService.failedRedirect(orderId, queryParams);
+    return ResponseEntity.status(303)
+        .location(buildRedirectUri(orderId, "failed"))
+        .build();
+  }
+
+  @Override
+  public ResponseEntity<Void> bkashPaymentCancelled(UUID orderId, Map<String, String> queryParams) {
+    bkashCallbackService.cancelledRedirect(orderId, queryParams);
     return ResponseEntity.status(303)
         .location(buildRedirectUri(orderId, "cancelled"))
         .build();
@@ -84,8 +124,12 @@ public class PaymentApiController implements PaymentApi {
 
   @Override
   public ResponseEntity<WebhookAckResponse> sslcommerzWebhook(
-      Map<String, String> headers, String payload) {
-    return ResponseEntity.ok(paymentWebhookService.sslcommerz(headers, payload));
+      Map<String, String> headers, Map<String, String> params) {
+    log.info(
+        "SSLCommerz webhook received: headers={}, params={}",
+        headers,
+        params);
+    return ResponseEntity.ok(paymentWebhookService.sslcommerz(headers, params));
   }
 
   @Override

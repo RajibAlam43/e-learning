@@ -17,8 +17,8 @@ public class PaymentWebhookService {
   private final SslcommerzWebhookService sslcommerzWebhookService;
   private final BkashSnsWebhookService bkashSnsWebhookService;
 
-  public WebhookAckResponse sslcommerz(Map<String, String> headers, String payload) {
-    return sslcommerzWebhookService.handle(headers, payload);
+  public WebhookAckResponse sslcommerz(Map<String, String> headers, Map<String, String> params) {
+    return sslcommerzWebhookService.handle(headers, params);
   }
 
   public WebhookAckResponse bkash(Map<String, String> headers, String payload) {

@@ -83,6 +83,8 @@ public class InitiatePaymentService {
 
     order.setProvider(request.provider());
     order.setProviderTxnId(sessionId);
+    String callbackProviderPath =
+        request.provider() == OrderProvider.BKASH ? "bkash" : "sslcommerz";
     orderRepository.save(order);
     return PaymentInitiationResponse.builder()
         .orderId(order.getId())
@@ -94,8 +96,8 @@ public class InitiatePaymentService {
         .timeoutSeconds(PAYMENT_TIMEOUT_SECONDS)
         .providerTransactionId(sessionId)
         .providerReference("ORDER-" + order.getId())
-        .successCallbackUrl("/payments/" + order.getId() + "/success")
-        .failureCallbackUrl("/payments/" + order.getId() + "/failed")
+        .successCallbackUrl("/payments/" + callbackProviderPath + "/" + order.getId() + "/success")
+        .failureCallbackUrl("/payments/" + callbackProviderPath + "/" + order.getId() + "/failed")
         .build();
   }
 

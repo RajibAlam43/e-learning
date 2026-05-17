@@ -20,6 +20,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
@@ -58,9 +60,9 @@ class PaymentWebhooksApiIt extends AbstractPaymentApiIntegrationTest {
         .perform(
             post("/public/webhooks/payments/sslcommerz")
                 .with(authentication(adminAuth(student.getId())))
-                .contentType(MediaType.TEXT_PLAIN)
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                 .header("x-event-id", "evt-ssl-hook")
-                .content(payload))
+                .params(toFormParams(payload)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.acknowledged").value(true));
 
@@ -96,9 +98,9 @@ class PaymentWebhooksApiIt extends AbstractPaymentApiIntegrationTest {
     mockMvc
         .perform(
             post("/public/webhooks/payments/sslcommerz")
-                .contentType(MediaType.TEXT_PLAIN)
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                 .header("X-Event-Id", "evt-mixed-1")
-                .content(payload))
+                .params(toFormParams(payload)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.acknowledged").value(true));
 
@@ -135,10 +137,10 @@ class PaymentWebhooksApiIt extends AbstractPaymentApiIntegrationTest {
     mockMvc
         .perform(
             post("/public/webhooks/payments/sslcommerz")
-                .contentType(MediaType.TEXT_PLAIN)
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                 .header("x-transaction-id", "txn-unknown-hook")
                 .header("x-event-id", "evt-unknown-1")
-                .content(payload))
+                .params(toFormParams(payload)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.acknowledged").value(true));
 
@@ -181,9 +183,9 @@ class PaymentWebhooksApiIt extends AbstractPaymentApiIntegrationTest {
     mockMvc
         .perform(
             post("/public/webhooks/payments/sslcommerz")
-                .contentType(MediaType.TEXT_PLAIN)
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                 .header("x-event-id", "evt-incomplete-1")
-                .content(payload))
+                .params(toFormParams(payload)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.acknowledged").value(true));
 
@@ -372,9 +374,9 @@ class PaymentWebhooksApiIt extends AbstractPaymentApiIntegrationTest {
         mockMvc
             .perform(
                 post("/public/webhooks/payments/sslcommerz")
-                    .contentType(MediaType.TEXT_PLAIN)
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                     .header("x-event-id", "evt-replay-1")
-                    .content(payload))
+                    .params(toFormParams(payload)))
             .andExpect(status().isOk())
             .andReturn();
 
@@ -384,9 +386,9 @@ class PaymentWebhooksApiIt extends AbstractPaymentApiIntegrationTest {
         mockMvc
             .perform(
                 post("/public/webhooks/payments/sslcommerz")
-                    .contentType(MediaType.TEXT_PLAIN)
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                     .header("x-event-id", "evt-replay-1")
-                    .content(payload))
+                    .params(toFormParams(payload)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.acknowledged").value(true))
             .andReturn();
@@ -458,6 +460,22 @@ class PaymentWebhooksApiIt extends AbstractPaymentApiIntegrationTest {
         }
         """
         .formatted(messageId, trxId, transactionStatus);
+  }
+
+  private MultiValueMap<String, String> toFormParams(String payload) {
+    MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+    for (String pair : payload.split("&")) {
+      if (pair == null || pair.isBlank()) {
+        continue;
+      }
+      int idx = pair.indexOf('=');
+      if (idx < 0) {
+        params.add(pair, "");
+      } else {
+        params.add(pair.substring(0, idx), pair.substring(idx + 1));
+      }
+    }
+    return params;
   }
 
 }

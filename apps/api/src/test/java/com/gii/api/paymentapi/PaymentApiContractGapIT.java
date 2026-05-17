@@ -14,6 +14,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.test.web.servlet.MockMvc;
 
 class PaymentApiContractGapIt extends AbstractPaymentApiIntegrationTest {
@@ -29,7 +31,7 @@ class PaymentApiContractGapIt extends AbstractPaymentApiIntegrationTest {
   void paymentProviderCallbacksShouldBePublicWithoutRoleAuthentication() throws Exception {
     mockMvc
         .perform(
-            get("/payments/{orderId}/success", UUID.randomUUID())
+            get("/payments/sslcommerz/{orderId}/success", UUID.randomUUID())
                 .param("tran_id", "public-callback"))
         .andExpect(status().isNotFound());
   }
@@ -39,8 +41,8 @@ class PaymentApiContractGapIt extends AbstractPaymentApiIntegrationTest {
     mockMvc
         .perform(
             post("/public/webhooks/payments/sslcommerz")
-                .contentType(MediaType.TEXT_PLAIN)
-                .content(signedSslPayload("tran_id=public-callback&status=UNATTEMPTED&val_id=val-public")))
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .params(toFormParams(signedSslPayload("tran_id=public-callback&status=UNATTEMPTED&val_id=val-public"))))
         .andExpect(status().isOk());
   }
 
@@ -78,5 +80,21 @@ class PaymentApiContractGapIt extends AbstractPaymentApiIntegrationTest {
     } catch (Exception ex) {
       throw new RuntimeException(ex);
     }
+  }
+
+  private MultiValueMap<String, String> toFormParams(String payload) {
+    MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+    for (String pair : payload.split("&")) {
+      if (pair == null || pair.isBlank()) {
+        continue;
+      }
+      int idx = pair.indexOf('=');
+      if (idx < 0) {
+        params.add(pair, "");
+      } else {
+        params.add(pair.substring(0, idx), pair.substring(idx + 1));
+      }
+    }
+    return params;
   }
 }

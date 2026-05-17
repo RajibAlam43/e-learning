@@ -102,14 +102,14 @@ class PaymentGuardsAndStatusApiIt extends AbstractPaymentApiIntegrationTest {
 
     mockMvc
         .perform(
-            get("/payments/{orderId}/failed", failedOrder.getId())
+            get("/payments/sslcommerz/{orderId}/failed", failedOrder.getId())
                 .param("tran_id", "txn-failed-callback"))
         .andExpect(status().isSeeOther())
         .andExpect(header().exists("Location"));
 
     mockMvc
         .perform(
-            get("/payments/{orderId}/cancelled", cancelledOrder.getId())
+            get("/payments/bkash/{orderId}/cancelled", cancelledOrder.getId())
                 .param("payment_id", "txn-cancelled-callback"))
         .andExpect(status().isSeeOther())
         .andExpect(header().exists("Location"));
