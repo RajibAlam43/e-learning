@@ -199,7 +199,21 @@ public class SslcommerzCallbackValidationService {
       if (response == null || response.statusCode() < 200 || response.statusCode() >= 300) {
         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid callback");
       }
-      return objectMapper.readValue(response.body(), MAP_TYPE);
+      log.info(
+          "SSLCommerz validation API response: val_id={}, statusCode={}, body={}",
+          valId,
+          response.statusCode(),
+          response.body());
+      Map<String, Object> validated = parseValidationResponseBody(response.body());
+      if (validated == null || validated.isEmpty()) {
+        log.warn(
+            "SSLCommerz validation API returned empty/unusable payload; val_id={}, statusCode={}, body={}",
+            valId,
+            response.statusCode(),
+            response.body());
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid callback");
+      }
+      return validated;
     } catch (Exception ex) {
       if (ex instanceof ResponseStatusException rse) {
         throw rse;
@@ -269,6 +283,22 @@ public class SslcommerzCallbackValidationService {
 
   private boolean isBlank(String value) {
     return value == null || value.isBlank();
+  }
+
+  @SuppressWarnings("unchecked")
+  private Map<String, Object> parseValidationResponseBody(String body) throws Exception {
+    if (body == null || body.isBlank()) {
+      return Map.of();
+    }
+    String trimmed = body.trim();
+    if (trimmed.startsWith("[")) {
+      List<Map<String, Object>> list = objectMapper.readValue(trimmed, new TypeReference<List<Map<String, Object>>>() {});
+      if (list == null || list.isEmpty() || list.getFirst() == null) {
+        return Map.of();
+      }
+      return list.getFirst();
+    }
+    return objectMapper.readValue(trimmed, MAP_TYPE);
   }
 
   private String computeSignature(List<String> fragments, String storePasswdValue) {
