@@ -168,13 +168,19 @@ class SslcommerzCallbackValidationServiceTest {
 
   private String sign(Map<String, String> params, String storePassword) {
     String verifyKey = params.get("verify_key");
-    List<String> fragments = new ArrayList<>();
+    List<String> keys = new ArrayList<>();
+    Map<String, String> valuesByKey = new HashMap<>();
     for (String key : verifyKey.split(",")) {
       String trimmed = key.trim();
       String value = params.get(trimmed);
-      fragments.add(trimmed + "=" + (value == null ? "" : value));
+      keys.add(trimmed);
+      valuesByKey.put(trimmed, value == null ? "" : value);
     }
-    fragments.sort(Comparator.naturalOrder());
+    keys.sort(Comparator.naturalOrder());
+    List<String> fragments = new ArrayList<>(keys.size());
+    for (String key : keys) {
+      fragments.add(key + "=" + valuesByKey.getOrDefault(key, ""));
+    }
     String source =
         String.join("&", fragments) + "&store_passwd=" + md5Hex(storePassword);
     return md5Hex(source).toUpperCase();

@@ -81,7 +81,8 @@ public class SslcommerzCallbackValidationService {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid callback");
     }
 
-    List<String> fragments = new ArrayList<>();
+    List<String> keys = new ArrayList<>();
+    Map<String, String> valuesByKey = new java.util.HashMap<>();
     for (String key : verifyKey.split(",")) {
       String trimmed = key == null ? "" : key.trim();
       if (trimmed.isBlank()) {
@@ -91,9 +92,10 @@ public class SslcommerzCallbackValidationService {
       if (value == null) {
         value = "";
       }
-      fragments.add(trimmed + "=" + value);
+      keys.add(trimmed);
+      valuesByKey.put(trimmed, value);
     }
-    if (fragments.isEmpty()) {
+    if (keys.isEmpty()) {
       log.warn(
           "SSLCommerz signature validation failed: verify fragments empty; tran_id={}, val_id={}",
           callbackParams.get("tran_id"),
@@ -101,7 +103,11 @@ public class SslcommerzCallbackValidationService {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid callback");
     }
 
-    fragments.sort(Comparator.naturalOrder());
+    keys.sort(Comparator.naturalOrder());
+    List<String> fragments = new ArrayList<>(keys.size());
+    for (String key : keys) {
+      fragments.add(key + "=" + valuesByKey.getOrDefault(key, ""));
+    }
 
     String source =
             String.join("&", fragments)
