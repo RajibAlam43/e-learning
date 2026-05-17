@@ -91,6 +91,16 @@ public class SslcommerzValidationJobService {
     if (order.getStatus() == OrderStatus.PAID) {
       return;
     }
+    if (order.getStatus() == OrderStatus.CANCELLED
+        || order.getStatus() == OrderStatus.REFUNDED) {
+      log.info(
+          "SSLCommerz validation job skipped for terminal order state; orderId={}, status={}, valId={}, attempt={}",
+          order.getId(),
+          order.getStatus(),
+          job.valId(),
+          job.attempt());
+      return;
+    }
 
     try {
       Map<String, Object> validated = validateByValId(job.valId());

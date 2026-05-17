@@ -7,6 +7,7 @@ import com.gii.common.dto.SslcommerzValidationJobMessage;
 import com.gii.common.entity.order.Order;
 import com.gii.common.entity.order.PaymentEvent;
 import com.gii.common.enums.OrderProvider;
+import com.gii.common.enums.OrderStatus;
 import com.gii.common.enums.PaymentEventStatus;
 import com.gii.common.enums.PaymentEventType;
 import com.gii.common.repository.order.OrderRepository;
@@ -65,11 +66,26 @@ public class SslcommerzWebhookService {
       callbackParams.put("tran_id", txnId);
       callbackParams.put("_verified_webhook", "true");
       String resolvedStatus = normalizeUpper(firstNonBlank(params.get("status"), h.get("x-status")));
+      if (order.getStatus() == OrderStatus.PAID && SUCCESS.contains(resolvedStatus)) {
+        PaymentEvent saved =
+            paymentEventRepository.save(
+                PaymentEvent.builder()
+                    .order(order)
+                    .provider(OrderProvider.SSLCOMMERZ)
+                    .eventType(PaymentEventType.SSLCOMMERZ_WEBHOOK)
+                    .providerEventId(providerEventId)
+                    .rawPayloadJson(
+                        Map.of("headers", new HashMap<>(headers), "payload", new HashMap<>(params)))
+                    .status(PaymentEventStatus.PROCESSED)
+                    .processedAt(Instant.now())
+                    .build());
+        return acknowledged("Webhook received for already-paid order", saved.getId().toString());
+      }
       int riskLevel = 0;
       if (validateOnWebhook && SUCCESS.contains(resolvedStatus)) {
         try {
           SslcommerzCallbackValidationService.ValidationOutcome outcome =
-              sslcommerzCallbackValidationService.validateIpnNotification(order, callbackParams, true);
+              sslcommerzCallbackValidationService.validateIpnNotification(order, callbackParams);
           resolvedStatus = normalizeUpper(outcome.status());
           riskLevel = outcome.riskLevel();
         } catch (ResponseStatusException ex) {
@@ -81,7 +97,7 @@ public class SslcommerzWebhookService {
                     .valId(callbackParams.get("val_id"))
                     .source("WEBHOOK")
                     .attempt(1)
-                    .maxAttempts(5)
+                    .maxAttempts(6)
                     .createdAt(Instant.now())
                     .build());
           } catch (Exception publishEx) {

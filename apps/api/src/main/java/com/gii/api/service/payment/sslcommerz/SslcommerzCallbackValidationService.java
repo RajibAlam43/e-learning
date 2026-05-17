@@ -53,11 +53,6 @@ public class SslcommerzCallbackValidationService {
   }
 
   public ValidationOutcome validateIpnNotification(Order order, Map<String, String> callbackParams) {
-    return validateIpnNotification(order, callbackParams, false);
-  }
-
-  public ValidationOutcome validateIpnNotification(
-      Order order, Map<String, String> callbackParams, boolean webhookSource) {
     String valId = callbackParams.get("val_id");
     if (isBlank(valId)) {
       log.warn(
@@ -67,7 +62,7 @@ public class SslcommerzCallbackValidationService {
           callbackParams.get("tran_id"));
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid callback");
     }
-    Map<String, Object> validated = validateByValIdWithRetry(valId, webhookSource);
+    Map<String, Object> validated = validateByValId(valId);
     validateAgainstOrder(order, validated);
     return new ValidationOutcome(
         normalize(asString(validated.get("status"))), parseRiskLevel(asString(validated.get("risk_level"))));
@@ -227,31 +222,6 @@ public class SslcommerzCallbackValidationService {
     }
   }
 
-  private Map<String, Object> validateByValIdWithRetry(String valId, boolean webhookSource) {
-    if (!webhookSource) {
-      return validateByValId(valId);
-    }
-    ResponseStatusException last = null;
-    int maxAttempts = 2;
-    for (int attempt = 1; attempt <= maxAttempts; attempt++) {
-      try {
-        return validateByValId(valId);
-      } catch (ResponseStatusException ex) {
-        last = ex;
-        if (attempt == maxAttempts) {
-          break;
-        }
-        log.warn(
-            "SSLCommerz validation attempt failed; val_id={}, attempt={}/{}, retryInSeconds=5",
-            valId,
-            attempt,
-            maxAttempts);
-        sleepQuietly(Duration.ofSeconds(5));
-      }
-    }
-    throw last == null ? new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid callback") : last;
-  }
-
   private void validateAgainstOrder(Order order, Map<String, Object> validated) {
     String tranId = asString(validated.get("tran_id"));
     String currency = asString(validated.get("currency_type"));
@@ -342,15 +312,6 @@ public class SslcommerzCallbackValidationService {
     return MessageDigest.isEqual(
         computed.toLowerCase().getBytes(StandardCharsets.UTF_8),
         provided.trim().toLowerCase().getBytes(StandardCharsets.UTF_8));
-  }
-
-  private void sleepQuietly(Duration duration) {
-    try {
-      Thread.sleep(duration.toMillis());
-    } catch (InterruptedException ex) {
-      Thread.currentThread().interrupt();
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid callback");
-    }
   }
 
   private boolean transactionIdMatchesOrder(Order order, String validatedTranId) {
