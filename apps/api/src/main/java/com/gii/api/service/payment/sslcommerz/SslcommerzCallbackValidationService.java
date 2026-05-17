@@ -115,16 +115,32 @@ public class SslcommerzCallbackValidationService {
                     + md5Hex(storePassword == null ? "" : storePassword);
 
     String computed = md5Hex(source);
+    String rawPasswordSource =
+        String.join("&", fragments) + "&store_passwd=" + (storePassword == null ? "" : storePassword);
+    String computedWithRawPassword = md5Hex(rawPasswordSource);
 
     boolean valid =
             MessageDigest.isEqual(
                     computed.toLowerCase().getBytes(StandardCharsets.UTF_8),
                     verifySign.trim().toLowerCase().getBytes(StandardCharsets.UTF_8));
+    if (!valid) {
+      valid =
+          MessageDigest.isEqual(
+              computedWithRawPassword.toLowerCase().getBytes(StandardCharsets.UTF_8),
+              verifySign.trim().toLowerCase().getBytes(StandardCharsets.UTF_8));
+      if (valid) {
+        log.info(
+            "SSLCommerz signature matched with raw store password fallback; tran_id={}, val_id={}",
+            callbackParams.get("tran_id"),
+            callbackParams.get("val_id"));
+      }
+    }
 
     if (!valid) {
       log.warn(
-          "SSLCommerz signature mismatch: computed={}, provided={}, tran_id={}, val_id={}",
+          "SSLCommerz signature mismatch: computedWithMd5Password={}, computedWithRawPassword={}, provided={}, tran_id={}, val_id={}",
           computed,
+          computedWithRawPassword,
           verifySign,
           callbackParams.get("tran_id"),
           callbackParams.get("val_id"));
