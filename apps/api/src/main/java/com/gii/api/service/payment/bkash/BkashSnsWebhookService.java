@@ -3,7 +3,7 @@ package com.gii.api.service.payment.bkash;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gii.api.model.response.payment.WebhookAckResponse;
-import com.gii.api.service.payment.callback.PaymentCallbackService;
+import com.gii.api.service.payment.callback.BkashCallbackService;
 import com.gii.common.entity.order.Order;
 import com.gii.common.entity.order.PaymentEvent;
 import com.gii.common.enums.OrderProvider;
@@ -35,7 +35,7 @@ public class BkashSnsWebhookService {
 
   private final PaymentEventRepository paymentEventRepository;
   private final OrderRepository orderRepository;
-  private final PaymentCallbackService paymentCallbackService;
+  private final BkashCallbackService bkashCallbackService;
   private final ObjectMapper objectMapper;
   private final BkashSnsSignatureVerifier bkashSnsSignatureVerifier;
 
@@ -83,13 +83,13 @@ public class BkashSnsWebhookService {
                   asString(parsedNotification.get("transactionStatus")),
                   asString(parsedNotification.get("status"))));
       if (SUCCESS.contains(status)) {
-        paymentCallbackService.successFromVerifiedWebhook(orderOpt.get().getId(), callbackParams(txnId));
+        bkashCallbackService.successFromWebhook(orderOpt.get().getId(), callbackParams(txnId));
         eventStatus = PaymentEventStatus.PROCESSED;
       } else if (FAILED.contains(status)) {
-        paymentCallbackService.failed(orderOpt.get().getId(), callbackParams(txnId));
+        bkashCallbackService.failedFromWebhook(orderOpt.get().getId(), callbackParams(txnId));
         eventStatus = PaymentEventStatus.PROCESSED;
       } else if (CANCELLED.contains(status)) {
-        paymentCallbackService.cancelled(orderOpt.get().getId(), callbackParams(txnId));
+        bkashCallbackService.cancelledFromWebhook(orderOpt.get().getId(), callbackParams(txnId));
         eventStatus = PaymentEventStatus.PROCESSED;
       }
     }

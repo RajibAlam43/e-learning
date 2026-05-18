@@ -25,6 +25,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 
 @Tag(name = "Payments", description = "Cart checkout, payment initiation, and webhook handling")
@@ -89,56 +91,107 @@ public interface PaymentApi {
       @RequestBody @Valid InitiatePaymentRequest request,
       Authentication authentication);
 
-  @GetMapping("/payments/{orderId}/success")
+  @RequestMapping(
+          value = "/payments/sslcommerz/{orderId}/success",
+          method = {RequestMethod.GET, RequestMethod.POST}
+  )
   @Operation(
       summary = "Payment success callback",
       description = "Handle payment provider success redirect.",
       security = {})
   @ApiResponses(
       value = {
-        @ApiResponse(
-            responseCode = "200",
-            description = "Payment processed",
-            content = @Content(schema = @Schema(implementation = PaymentStatusResponse.class))),
+        @ApiResponse(responseCode = "303", description = "Redirect to frontend result page"),
         @ApiResponse(responseCode = "400", description = "Invalid callback data"),
         @ApiResponse(responseCode = "404", description = "Order not found")
       })
-  ResponseEntity<PaymentStatusResponse> paymentSuccess(
+  ResponseEntity<Void> sslcommerzPaymentSuccess(
       @PathVariable UUID orderId, @RequestParam Map<String, String> queryParams);
 
-  @GetMapping("/payments/{orderId}/failed")
+  @RequestMapping(
+          value = "/payments/sslcommerz/{orderId}/failed",
+          method = {RequestMethod.GET, RequestMethod.POST}
+  )
   @Operation(
       summary = "Payment failed callback",
       description = "Handle payment provider failed redirect.",
       security = {})
   @ApiResponses(
       value = {
-        @ApiResponse(
-            responseCode = "200",
-            description = "Failure recorded",
-            content = @Content(schema = @Schema(implementation = PaymentStatusResponse.class))),
+        @ApiResponse(responseCode = "303", description = "Redirect to frontend result page"),
         @ApiResponse(responseCode = "404", description = "Order not found")
       })
-  ResponseEntity<PaymentStatusResponse> paymentFailed(
+  ResponseEntity<Void> sslcommerzPaymentFailed(
       @PathVariable UUID orderId, @RequestParam Map<String, String> queryParams);
 
-  @GetMapping("/payments/{orderId}/cancelled")
+  @RequestMapping(
+          value = "/payments/sslcommerz/{orderId}/cancelled",
+          method = {RequestMethod.GET, RequestMethod.POST}
+  )
   @Operation(
       summary = "Payment cancelled callback",
       description = "Handle payment provider cancelled redirect.",
       security = {})
   @ApiResponses(
       value = {
-        @ApiResponse(
-            responseCode = "200",
-            description = "Cancellation recorded",
-            content = @Content(schema = @Schema(implementation = PaymentStatusResponse.class))),
+        @ApiResponse(responseCode = "303", description = "Redirect to frontend result page"),
         @ApiResponse(responseCode = "404", description = "Order not found")
       })
-  ResponseEntity<PaymentStatusResponse> paymentCancelled(
+  ResponseEntity<Void> sslcommerzPaymentCancelled(
       @PathVariable UUID orderId, @RequestParam Map<String, String> queryParams);
 
-  @PostMapping("/public/webhooks/payments/sslcommerz")
+  @RequestMapping(
+          value = "/payments/bkash/{orderId}/success",
+          method = {RequestMethod.GET, RequestMethod.POST}
+  )
+  @Operation(
+      summary = "bKash payment success callback",
+      description = "Handle bKash success redirect.",
+      security = {})
+  @ApiResponses(
+      value = {
+        @ApiResponse(responseCode = "303", description = "Redirect to frontend result page"),
+        @ApiResponse(responseCode = "400", description = "Invalid callback data"),
+        @ApiResponse(responseCode = "404", description = "Order not found")
+      })
+  ResponseEntity<Void> bkashPaymentSuccess(
+      @PathVariable UUID orderId, @RequestParam Map<String, String> queryParams);
+
+  @RequestMapping(
+          value = "/payments/bkash/{orderId}/failed",
+          method = {RequestMethod.GET, RequestMethod.POST}
+  )
+  @Operation(
+      summary = "bKash payment failed callback",
+      description = "Handle bKash failed redirect.",
+      security = {})
+  @ApiResponses(
+      value = {
+        @ApiResponse(responseCode = "303", description = "Redirect to frontend result page"),
+        @ApiResponse(responseCode = "404", description = "Order not found")
+      })
+  ResponseEntity<Void> bkashPaymentFailed(
+      @PathVariable UUID orderId, @RequestParam Map<String, String> queryParams);
+
+  @RequestMapping(
+          value = "/payments/bkash/{orderId}/cancelled",
+          method = {RequestMethod.GET, RequestMethod.POST}
+  )
+  @Operation(
+      summary = "bKash payment cancelled callback",
+      description = "Handle bKash cancelled redirect.",
+      security = {})
+  @ApiResponses(
+      value = {
+        @ApiResponse(responseCode = "303", description = "Redirect to frontend result page"),
+        @ApiResponse(responseCode = "404", description = "Order not found")
+      })
+  ResponseEntity<Void> bkashPaymentCancelled(
+      @PathVariable UUID orderId, @RequestParam Map<String, String> queryParams);
+
+  @PostMapping(
+      value = "/public/webhooks/payments/sslcommerz",
+      consumes = "application/x-www-form-urlencoded")
   @Operation(
       summary = "SSLCommerz webhook",
       description = "Receive and process SSLCommerz webhook notifications.",
@@ -152,7 +205,7 @@ public interface PaymentApi {
         @ApiResponse(responseCode = "400", description = "Invalid webhook signature")
       })
   ResponseEntity<WebhookAckResponse> sslcommerzWebhook(
-      @RequestHeader Map<String, String> headers, @RequestBody String payload);
+      @RequestHeader Map<String, String> headers, @RequestParam Map<String, String> params);
 
   @PostMapping("/public/webhooks/payments/bkash")
   @Operation(

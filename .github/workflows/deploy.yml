@@ -200,6 +200,8 @@ jobs:
           AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
           SMS_PROVIDER_BULKSMSBD_API_KEY=${{ secrets.SMS_PROVIDER_BULKSMSBD_API_KEY }}
           SMS_PROVIDER_BULKSMSBD_SENDER_ID=${{ secrets.SMS_PROVIDER_BULKSMSBD_SENDER_ID }}
+          PAYMENTS_SSLCOMMERZ_STORE_ID=${{ secrets.PAYMENTS_SSLCOMMERZ_STORE_ID }}
+          PAYMENTS_SSLCOMMERZ_STORE_PASSWORD=${{ secrets.PAYMENTS_SSLCOMMERZ_STORE_PASSWORD }}
           EOF
 
           ssh deploy@${{ vars.WORKER_HOST }} 'bash -s' << EOF
@@ -208,15 +210,20 @@ jobs:
           PREVIOUS_RELEASE="\$(readlink -f /opt/e-learning/current || true)"
 
           ln -sfn /opt/e-learning/releases/${RELEASE_ID} /opt/e-learning/current
-          sudo /usr/bin/systemctl restart e-learning-worker
-          sleep 10
 
-          if sudo /usr/bin/systemctl is-active --quiet e-learning-worker; then
-            echo 'Worker is active.'
-            exit 0
-          fi
+          sudo /usr/bin/systemctl stop e-learning-worker || true
+          sleep 5
+          sudo /usr/bin/systemctl start e-learning-worker
 
-          echo 'Worker failed to become active. Rolling back...'
+          for i in {1..90}; do
+            if curl -fsS http://127.0.0.1:8080/actuator/health | grep -q '"status":"UP"'; then
+              echo "Worker is healthy."
+              exit 0
+            fi
+            sleep 5
+          done
+
+          echo "Worker failed to become healthy. Rolling back..."
           sudo /usr/bin/systemctl status e-learning-worker --no-pager || true
           sudo /usr/bin/journalctl -u e-learning-worker -n 150 --no-pager || true
 
@@ -224,8 +231,6 @@ jobs:
             ln -sfn "\$PREVIOUS_RELEASE" /opt/e-learning/current
             sudo /usr/bin/systemctl restart e-learning-worker
             echo "Rolled back to \$PREVIOUS_RELEASE"
-          else
-            echo "No previous release found; cannot rollback."
           fi
 
           exit 1

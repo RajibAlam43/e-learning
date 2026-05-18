@@ -437,7 +437,7 @@ class PaymentCheckoutAndLifecycleApiIt extends AbstractPaymentApiIntegrationTest
             BigDecimal.valueOf(700));
 
     mockMvc
-        .perform(get("/payments/{orderId}/success", order.getId()))
+        .perform(get("/payments/sslcommerz/{orderId}/success", order.getId()))
         .andExpect(status().isBadRequest());
   }
 
@@ -453,7 +453,7 @@ class PaymentCheckoutAndLifecycleApiIt extends AbstractPaymentApiIntegrationTest
             BigDecimal.valueOf(700));
 
     mockMvc
-        .perform(get("/payments/{orderId}/failed", order.getId()))
+        .perform(get("/payments/sslcommerz/{orderId}/failed", order.getId()))
         .andExpect(status().isBadRequest());
   }
 
@@ -469,7 +469,7 @@ class PaymentCheckoutAndLifecycleApiIt extends AbstractPaymentApiIntegrationTest
             BigDecimal.valueOf(700));
 
     mockMvc
-        .perform(get("/payments/{orderId}/cancelled", order.getId()))
+        .perform(get("/payments/sslcommerz/{orderId}/cancelled", order.getId()))
         .andExpect(status().isBadRequest());
   }
 
@@ -486,7 +486,7 @@ class PaymentCheckoutAndLifecycleApiIt extends AbstractPaymentApiIntegrationTest
 
     mockMvc
         .perform(
-            get("/payments/{orderId}/success", order.getId())
+            get("/payments/bkash/{orderId}/success", order.getId())
                 .param("paymentID", "bkash-payment-xyz")
                 .with(authentication(studentAuth(student.getId()))))
         .andExpect(status().isBadRequest());

@@ -8,7 +8,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.gii.api.model.response.payment.WebhookAckResponse;
-import com.gii.api.service.payment.callback.PaymentCallbackService;
+import com.gii.api.service.payment.callback.SslcommerzCallbackService;
 import com.gii.api.service.payment.sslcommerz.SslcommerzCallbackValidationService;
 import com.gii.api.service.payment.sslcommerz.SslcommerzWebhookService;
 import com.gii.common.entity.order.Order;
@@ -20,10 +20,10 @@ import com.gii.common.repository.order.OrderRepository;
 import com.gii.common.repository.order.PaymentEventRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -36,21 +36,14 @@ class SslcommerzWebhookServiceTest {
 
   @Mock private PaymentEventRepository paymentEventRepository;
   @Mock private OrderRepository orderRepository;
-  @Mock private PaymentCallbackService paymentCallbackService;
+  @Mock private SslcommerzCallbackService sslcommerzCallbackService;
   @Mock private SslcommerzCallbackValidationService sslcommerzCallbackValidationService;
-  @Mock private com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
   @InjectMocks private SslcommerzWebhookService service;
 
-  @BeforeEach
+  @org.junit.jupiter.api.BeforeEach
   void setUp() {
     ReflectionTestUtils.setField(service, "validateOnWebhook", true);
-    try {
-      when(objectMapper.readValue(any(String.class), any(com.fasterxml.jackson.core.type.TypeReference.class)))
-          .thenThrow(new RuntimeException("force form fallback"));
-    } catch (Exception ignored) {
-      // Mocked ObjectMapper only for forcing fallback parser path in this unit test.
-    }
   }
 
   @Test
@@ -75,9 +68,9 @@ class SslcommerzWebhookServiceTest {
             });
 
     WebhookAckResponse response =
-        service.handle(Map.of("x-event-id", "evt-risk-1"), payload);
+        service.handle(Map.of("x-event-id", "evt-risk-1"), toParams(payload));
 
-    verify(paymentCallbackService, never()).successFromVerifiedWebhook(any(), any());
+    verify(sslcommerzCallbackService, never()).successFromWebhook(any(), any());
     assertThat(response.message()).contains("held");
   }
 
@@ -103,10 +96,10 @@ class SslcommerzWebhookServiceTest {
             });
 
     WebhookAckResponse response =
-        service.handle(Map.of("x-event-id", "evt-failed-1"), payload);
+        service.handle(Map.of("x-event-id", "evt-failed-1"), toParams(payload));
 
-    verify(paymentCallbackService).failed(eq(orderId), any());
-    verify(paymentCallbackService, never()).successFromVerifiedWebhook(any(), any());
+    verify(sslcommerzCallbackService).failedFromWebhook(eq(orderId), any());
+    verify(sslcommerzCallbackService, never()).successFromWebhook(any(), any());
     assertThat(response.acknowledged()).isTrue();
   }
 
@@ -125,5 +118,21 @@ class SslcommerzWebhookServiceTest {
             .build();
     order.setId(orderId);
     return order;
+  }
+
+  private Map<String, String> toParams(String payload) {
+    Map<String, String> out = new HashMap<>();
+    for (String pair : payload.split("&")) {
+      if (pair == null || pair.isBlank()) {
+        continue;
+      }
+      int idx = pair.indexOf('=');
+      if (idx < 0) {
+        out.put(pair, "");
+      } else {
+        out.put(pair.substring(0, idx), pair.substring(idx + 1));
+      }
+    }
+    return out;
   }
 }

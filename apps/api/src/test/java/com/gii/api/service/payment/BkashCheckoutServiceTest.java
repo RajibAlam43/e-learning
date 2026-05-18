@@ -79,11 +79,11 @@ class BkashCheckoutServiceTest {
     Map<?, ?> payload = new ObjectMapper().readValue(createRequestBody.get(), Map.class);
     assertThat(payload.get("mode")).isEqualTo("0011");
     assertThat(payload.get("successCallbackURL"))
-        .isEqualTo("https://stage-api.globalislamicinstitute.com/payments/" + sampleOrderId() + "/success");
+        .isEqualTo("https://stage-api.globalislamicinstitute.com/payments/bkash/" + sampleOrderId() + "/success");
     assertThat(payload.get("failureCallbackURL"))
-        .isEqualTo("https://stage-api.globalislamicinstitute.com/payments/" + sampleOrderId() + "/failed");
+        .isEqualTo("https://stage-api.globalislamicinstitute.com/payments/bkash/" + sampleOrderId() + "/failed");
     assertThat(payload.get("cancelledCallbackURL"))
-        .isEqualTo("https://stage-api.globalislamicinstitute.com/payments/" + sampleOrderId() + "/cancelled");
+        .isEqualTo("https://stage-api.globalislamicinstitute.com/payments/bkash/" + sampleOrderId() + "/cancelled");
   }
 
   @Test

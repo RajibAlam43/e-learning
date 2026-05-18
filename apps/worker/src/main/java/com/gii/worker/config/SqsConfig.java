@@ -1,5 +1,7 @@
 package com.gii.worker.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.awspring.cloud.sqs.config.SqsMessageListenerContainerFactory;
 import io.awspring.cloud.sqs.listener.QueueNotFoundStrategy;
 import java.net.URI;
@@ -20,6 +22,14 @@ public class SqsConfig {
 
   @Value("${spring.cloud.aws.sqs.listener.auto-startup}")
   private boolean autoStartup;
+
+  @Bean
+  public ObjectMapper jacksonObjectMapper() {
+    ObjectMapper mapper = new ObjectMapper();
+    mapper.registerModule(new JavaTimeModule());
+    return mapper;
+  }
+
 
   @Bean
   @Profile("local")

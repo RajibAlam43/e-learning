@@ -18,18 +18,13 @@ import tools.jackson.databind.ObjectMapper;
 public class RedisConfig {
 
   @Bean
-  ObjectMapper objectMapper() {
-    return new ObjectMapper();
-  }
-
-  @Bean
   public RedisCacheConfiguration cacheConfiguration() {
     return RedisCacheConfiguration.defaultCacheConfig()
-        .entryTtl(Duration.ofMinutes(60))
-        .disableCachingNullValues()
-        .serializeValuesWith(
-            RedisSerializationContext.SerializationPair.fromSerializer(
-                new GenericJacksonJsonRedisSerializer(objectMapper())));
+            .entryTtl(Duration.ofMinutes(60))
+            .disableCachingNullValues()
+            .serializeValuesWith(
+                    RedisSerializationContext.SerializationPair.fromSerializer(
+                            new GenericJacksonJsonRedisSerializer(new ObjectMapper())));
   }
 
   @Bean

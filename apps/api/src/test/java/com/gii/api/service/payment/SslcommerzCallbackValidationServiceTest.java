@@ -115,6 +115,19 @@ class SslcommerzCallbackValidationServiceTest {
                     .isEqualTo(HttpStatus.BAD_REQUEST));
   }
 
+  @Test
+  void webhookSignatureShouldAllowMissingFieldReferencedByVerifyKeyAsEmpty() {
+    SslcommerzCallbackValidationService service = buildService();
+    Map<String, String> params = new HashMap<>();
+    params.put("status", "VALID");
+    params.put("tran_id", "txn-1");
+    params.put("val_id", "val-1");
+    params.put("verify_key", "status,tran_id,val_id,value_a");
+    params.put("verify_sign", sign(params, "store-pass"));
+
+    service.validateWebhookSignature(params);
+  }
+
   private SslcommerzCallbackValidationService buildService() {
     SslcommerzCallbackValidationService service =
         new SslcommerzCallbackValidationService(new ObjectMapper(), WebClient.builder());
@@ -155,14 +168,22 @@ class SslcommerzCallbackValidationServiceTest {
 
   private String sign(Map<String, String> params, String storePassword) {
     String verifyKey = params.get("verify_key");
-    List<String> fragments = new ArrayList<>();
+    List<String> keys = new ArrayList<>();
+    Map<String, String> valuesByKey = new HashMap<>();
     for (String key : verifyKey.split(",")) {
       String trimmed = key.trim();
-      fragments.add(trimmed + "=" + params.get(trimmed));
+      String value = params.get(trimmed);
+      keys.add(trimmed);
+      valuesByKey.put(trimmed, value == null ? "" : value);
     }
+    keys.sort(Comparator.naturalOrder());
+    List<String> fragments = new ArrayList<>(keys.size());
+    for (String key : keys) {
+      fragments.add(key + "=" + valuesByKey.getOrDefault(key, ""));
+    }
+    fragments.add("store_passwd=" + md5Hex(storePassword));
     fragments.sort(Comparator.naturalOrder());
-    String source =
-        String.join("&", fragments) + "&store_passwd=" + md5Hex(storePassword);
+    String source = String.join("&", fragments);
     return md5Hex(source).toUpperCase();
   }
 

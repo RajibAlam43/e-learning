@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -22,6 +23,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class SslcommerzCallbackValidationService {
 
   private static final Set<String> VALID_STATUSES = Set.of("VALID", "VALIDATED");
@@ -53,6 +55,11 @@ public class SslcommerzCallbackValidationService {
   public ValidationOutcome validateIpnNotification(Order order, Map<String, String> callbackParams) {
     String valId = callbackParams.get("val_id");
     if (isBlank(valId)) {
+      log.warn(
+          "SSLCommerz validation failed: missing val_id; orderId={}, providerTxnId={}, callbackTranId={}",
+          order.getId(),
+          order.getProviderTxnId(),
+          callbackParams.get("tran_id"));
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid callback");
     }
     Map<String, Object> validated = validateByValId(valId);
@@ -65,10 +72,17 @@ public class SslcommerzCallbackValidationService {
     String verifyKey = callbackParams.get("verify_key");
     String verifySign = callbackParams.get("verify_sign");
     if (isBlank(verifyKey) || isBlank(verifySign)) {
+      log.warn(
+          "SSLCommerz signature validation failed: missing verify fields; verify_key_present={}, verify_sign_present={}, tran_id={}, val_id={}",
+          !isBlank(verifyKey),
+          !isBlank(verifySign),
+          callbackParams.get("tran_id"),
+          callbackParams.get("val_id"));
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid callback");
     }
 
-    List<String> fragments = new ArrayList<>();
+    List<String> keys = new ArrayList<>();
+    Map<String, String> valuesByKey = new java.util.HashMap<>();
     for (String key : verifyKey.split(",")) {
       String trimmed = key == null ? "" : key.trim();
       if (trimmed.isBlank()) {
@@ -76,24 +90,65 @@ public class SslcommerzCallbackValidationService {
       }
       String value = callbackParams.get(trimmed);
       if (value == null) {
-        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid callback");
+        value = "";
       }
-      fragments.add(trimmed + "=" + value);
+      keys.add(trimmed);
+      valuesByKey.put(trimmed, value);
     }
-    if (fragments.isEmpty()) {
+    if (keys.isEmpty()) {
+      log.warn(
+          "SSLCommerz signature validation failed: verify fragments empty; tran_id={}, val_id={}",
+          callbackParams.get("tran_id"),
+          callbackParams.get("val_id"));
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid callback");
     }
 
-    fragments.sort(Comparator.naturalOrder());
-    String source = String.join("&", fragments) + "&store_passwd=" + md5Hex(storePassword == null ? "" : storePassword);
-    String computed = md5Hex(source).toUpperCase();
+    keys.sort(Comparator.naturalOrder());
+    List<String> fragments = new ArrayList<>(keys.size());
+    for (String key : keys) {
+      String value = valuesByKey.getOrDefault(key, "");
+      fragments.add(key + "=" + value);
+    }
+
+    List<String> encodedFragments = new ArrayList<>(keys.size());
+    for (String key : keys) {
+      String value = valuesByKey.getOrDefault(key, "");
+      encodedFragments.add(key + "=" + URLEncoder.encode(value, StandardCharsets.UTF_8));
+    }
+
+    String safeStorePassword = storePassword == null ? "" : storePassword;
+    String md5Password = md5Hex(safeStorePassword);
+
+    String computedDecodedWithMd5Password = computeSignature(fragments, md5Password);
+    String computedEncodedWithMd5Password = computeSignature(encodedFragments, md5Password);
+    String computedDecodedWithRawPassword = computeSignature(fragments, safeStorePassword);
+    String computedEncodedWithRawPassword = computeSignature(encodedFragments, safeStorePassword);
+
     boolean valid =
-        MessageDigest.isEqual(
-            computed.getBytes(StandardCharsets.UTF_8), verifySign.trim().toUpperCase().getBytes(StandardCharsets.UTF_8));
+        equalsSignature(computedDecodedWithMd5Password, verifySign);
     if (!valid) {
+      log.info("Option 1 of password did not work");
+      valid = equalsSignature(computedEncodedWithMd5Password, verifySign);
+    }
+    if (!valid) {
+      log.info("Option 2 of password did not work");
+      valid = equalsSignature(computedDecodedWithRawPassword, verifySign);
+    }
+    if (!valid) {
+      log.info("Option 3 of password did not work");
+      valid = equalsSignature(computedEncodedWithRawPassword, verifySign);
+    }
+
+    if (!valid) {
+      log.warn(
+          "SSLCommerz signature mismatch; tran_id={}, val_id={}",
+          callbackParams.get("tran_id"),
+          callbackParams.get("val_id"));
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid callback");
     }
   }
+
+
 
   private Map<String, Object> validateByValId(String valId) {
     if (isBlank(validationApiUrl) || isBlank(storeId) || isBlank(storePassword)) {
@@ -101,19 +156,21 @@ public class SslcommerzCallbackValidationService {
     }
     try {
       String url =
-          validationApiUrl
-              + "?val_id="
-              + encode(valId)
-              + "&store_id="
-              + encode(storeId)
-              + "&store_passwd="
-              + encode(storePassword)
-              + "&v=1&format=json";
+          validationApiUrl;
       RawHttpResponse response =
           webClientBuilder
               .build()
               .get()
-              .uri(url)
+              .uri(
+                  url,
+                  uriBuilder ->
+                      uriBuilder
+                          .queryParam("val_id", valId)
+                          .queryParam("store_id", storeId)
+                          .queryParam("store_passwd", storePassword)
+                          .queryParam("v", "1")
+                          .queryParam("format", "json")
+                          .build())
               .exchangeToMono(
                   clientResponse ->
                       clientResponse
@@ -124,7 +181,15 @@ public class SslcommerzCallbackValidationService {
       if (response == null || response.statusCode() < 200 || response.statusCode() >= 300) {
         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid callback");
       }
-      return objectMapper.readValue(response.body(), MAP_TYPE);
+      Map<String, Object> validated = parseValidationResponseBody(response.body());
+      if (validated == null || validated.isEmpty()) {
+        log.warn(
+            "SSLCommerz validation API returned empty/unusable payload; val_id={}, statusCode={}",
+            valId,
+            response.statusCode());
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid callback");
+      }
+      return validated;
     } catch (Exception ex) {
       if (ex instanceof ResponseStatusException rse) {
         throw rse;
@@ -144,17 +209,30 @@ public class SslcommerzCallbackValidationService {
       amountRaw = asString(validated.get("currency_amount"));
     }
     if (isBlank(amountRaw)) {
+      log.warn(
+          "SSLCommerz validation failed: missing amount in validation API response; orderId={}, providerTxnId={}, validatedTranId={}",
+          order.getId(),
+          order.getProviderTxnId(),
+          tranId);
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid callback");
     }
     BigDecimal amount = new BigDecimal(amountRaw);
 
     boolean valid =
-        tranId != null
-            && tranId.equals(order.getProviderTxnId())
+        transactionIdMatchesOrder(order, tranId)
             && currency != null
             && currency.equalsIgnoreCase(order.getCurrency())
             && order.getAmountBdt().subtract(amount).abs().compareTo(MAX_DIFF) < 0;
     if (!valid) {
+      log.warn(
+          "SSLCommerz validation mismatch: orderId={}, providerTxnId={}, validatedTranId={}, callbackOrderAmount={}, validatedAmount={}, callbackCurrency={}, validatedCurrency={}",
+          order.getId(),
+          order.getProviderTxnId(),
+          tranId,
+          order.getAmountBdt(),
+          amount,
+          order.getCurrency(),
+          currency);
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid callback");
     }
   }
@@ -181,6 +259,55 @@ public class SslcommerzCallbackValidationService {
 
   private boolean isBlank(String value) {
     return value == null || value.isBlank();
+  }
+
+  @SuppressWarnings("unchecked")
+  private Map<String, Object> parseValidationResponseBody(String body) throws Exception {
+    if (body == null || body.isBlank()) {
+      return Map.of();
+    }
+    String trimmed = body.trim();
+    if (trimmed.startsWith("[")) {
+      List<Map<String, Object>> list = objectMapper.readValue(trimmed, new TypeReference<List<Map<String, Object>>>() {});
+      if (list == null || list.isEmpty() || list.getFirst() == null) {
+        return Map.of();
+      }
+      return list.getFirst();
+    }
+    return objectMapper.readValue(trimmed, MAP_TYPE);
+  }
+
+  private String computeSignature(List<String> fragments, String storePasswdValue) {
+    List<String> sourceFragments = new ArrayList<>(fragments);
+    sourceFragments.add("store_passwd=" + storePasswdValue);
+    sourceFragments.sort(Comparator.naturalOrder());
+    return md5Hex(String.join("&", sourceFragments));
+  }
+
+  private boolean equalsSignature(String computed, String provided) {
+    return MessageDigest.isEqual(
+        computed.toLowerCase().getBytes(StandardCharsets.UTF_8),
+        provided.trim().toLowerCase().getBytes(StandardCharsets.UTF_8));
+  }
+
+  private boolean transactionIdMatchesOrder(Order order, String validatedTranId) {
+    if (isBlank(validatedTranId)) {
+      return false;
+    }
+    String callback = normalizeTxn(validatedTranId);
+    String providerTxn = normalizeTxn(order.getProviderTxnId());
+    if (!isBlank(providerTxn) && callback.equals(providerTxn)) {
+      return true;
+    }
+    String orderDerivedTxn = normalizeTxn(order.getId().toString()).substring(0, 30);
+    return callback.equals(orderDerivedTxn);
+  }
+
+  private String normalizeTxn(String value) {
+    if (value == null) {
+      return "";
+    }
+    return value.replace("-", "").trim().toLowerCase();
   }
 
   @SuppressWarnings("java:S4790") // SSLCommerz verify_sign contract requires MD5 hashing.

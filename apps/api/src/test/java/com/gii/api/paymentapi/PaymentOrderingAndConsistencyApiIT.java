@@ -3,7 +3,7 @@ package com.gii.api.paymentapi;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.gii.common.enums.EnrollmentStatus;
@@ -20,6 +20,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.test.web.servlet.MockMvc;
 
 class PaymentOrderingAndConsistencyApiIt extends AbstractPaymentApiIntegrationTest {
@@ -53,17 +55,17 @@ class PaymentOrderingAndConsistencyApiIt extends AbstractPaymentApiIntegrationTe
 
     mockMvc
         .perform(
-            get("/payments/{orderId}/failed", order.getId()).param("tran_id", "txn-ordering-1"))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.status").value("PENDING"));
+            get("/payments/sslcommerz/{orderId}/failed", order.getId()).param("tran_id", "txn-ordering-1"))
+        .andExpect(status().isSeeOther())
+        .andExpect(header().exists("Location"));
 
     String payload = signedSslPayload("tran_id=txn-ordering-1&status=VALID&val_id=val-ordering-1");
     mockMvc
         .perform(
             post("/public/webhooks/payments/sslcommerz")
-                .contentType(MediaType.TEXT_PLAIN)
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                 .header("x-event-id", "evt-ordering-1")
-                .content(payload))
+                .params(toFormParams(payload)))
         .andExpect(status().isOk());
 
     assertThat(orderRepository.findById(order.getId()).orElseThrow().getStatus())
@@ -96,10 +98,10 @@ class PaymentOrderingAndConsistencyApiIt extends AbstractPaymentApiIntegrationTe
 
     mockMvc
         .perform(
-            get("/payments/{orderId}/cancelled", order.getId())
+            get("/payments/bkash/{orderId}/cancelled", order.getId())
                 .param("payment_id", "txn-ordering-2"))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.status").value("CANCELLED"));
+        .andExpect(status().isSeeOther())
+        .andExpect(header().exists("Location"));
 
     String payload =
         """
@@ -143,7 +145,7 @@ class PaymentOrderingAndConsistencyApiIt extends AbstractPaymentApiIntegrationTe
             BigDecimal.valueOf(500));
 
     mockMvc
-        .perform(get("/payments/{orderId}/success", order.getId()).param("tran_id", "txn-other"))
+        .perform(get("/payments/sslcommerz/{orderId}/success", order.getId()).param("tran_id", "txn-other"))
         .andExpect(status().isBadRequest());
   }
 
@@ -171,9 +173,9 @@ class PaymentOrderingAndConsistencyApiIt extends AbstractPaymentApiIntegrationTe
     mockMvc
         .perform(
             post("/public/webhooks/payments/sslcommerz")
-                .contentType(MediaType.TEXT_PLAIN)
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                 .header("x-event-id", "evt-ordering-4")
-                .content(payload))
+                .params(toFormParams(payload)))
         .andExpect(status().isOk());
     assertThat(orderRepository.findById(order.getId()).orElseThrow().getStatus())
         .isEqualTo(OrderStatus.PAID);
@@ -182,7 +184,7 @@ class PaymentOrderingAndConsistencyApiIt extends AbstractPaymentApiIntegrationTe
   private String signedSslPayload(String basePayload) {
     String verifyKey = "status,tran_id,val_id";
     String signSource = signSource(basePayload, verifyKey);
-    String verifySign = md5Hex(signSource + "&store_passwd=" + md5Hex("test-password")).toUpperCase();
+    String verifySign = md5Hex(signSource).toUpperCase();
     return basePayload + "&verify_key=" + verifyKey + "&verify_sign=" + verifySign;
   }
 
@@ -197,6 +199,7 @@ class PaymentOrderingAndConsistencyApiIt extends AbstractPaymentApiIntegrationTe
         }
       }
     }
+    fragments.add("store_passwd=" + md5Hex("test-password"));
     fragments.sort(Comparator.naturalOrder());
     return String.join("&", fragments);
   }
@@ -213,5 +216,21 @@ class PaymentOrderingAndConsistencyApiIt extends AbstractPaymentApiIntegrationTe
     } catch (Exception ex) {
       throw new RuntimeException(ex);
     }
+  }
+
+  private MultiValueMap<String, String> toFormParams(String payload) {
+    MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+    for (String pair : payload.split("&")) {
+      if (pair == null || pair.isBlank()) {
+        continue;
+      }
+      int idx = pair.indexOf('=');
+      if (idx < 0) {
+        params.add(pair, "");
+      } else {
+        params.add(pair.substring(0, idx), pair.substring(idx + 1));
+      }
+    }
+    return params;
   }
 }

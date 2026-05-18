@@ -62,9 +62,9 @@ public class BkashCheckoutService {
                 "currency", order.getCurrency(),
                 "intent", "sale",
                 "mode", "0011",
-                "successCallbackURL", String.format("https://%s.globalislamicinstitute.com/payments/%s/success", redirectSubdomain, orderId),
-                "failureCallbackURL", String.format("https://%s.globalislamicinstitute.com/payments/%s/failed", redirectSubdomain, orderId),
-                "cancelledCallbackURL", String.format("https://%s.globalislamicinstitute.com/payments/%s/cancelled", redirectSubdomain,  orderId),
+                "successCallbackURL", String.format("https://%s.globalislamicinstitute.com/payments/bkash/%s/success", redirectSubdomain, orderId),
+                "failureCallbackURL", String.format("https://%s.globalislamicinstitute.com/payments/bkash/%s/failed", redirectSubdomain, orderId),
+                "cancelledCallbackURL", String.format("https://%s.globalislamicinstitute.com/payments/bkash/%s/cancelled", redirectSubdomain,  orderId),
                 "merchantInvoiceNumber", order.getId().toString()));
     String paymentId = asString(response.get("paymentID"));
     require(!isBlank(paymentId), HttpStatus.BAD_REQUEST, "Invalid payment response");

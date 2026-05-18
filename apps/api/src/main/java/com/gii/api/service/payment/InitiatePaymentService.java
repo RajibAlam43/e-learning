@@ -13,6 +13,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -32,6 +33,12 @@ public class InitiatePaymentService {
   private final OrderRepository orderRepository;
   private final BkashCheckoutService bkashCheckoutService;
   private final SslcommerzCheckoutService sslcommerzCheckoutService;
+
+  @Value("${payments.sslcommerz.fallback-email}")
+  private String sslcommerzFallbackEmail;
+
+  @Value("${payments.sslcommerz.fallback-phone}")
+  private String sslcommerzFallbackPhone;
 
   public PaymentInitiationResponse execute(
       UUID orderId, InitiatePaymentRequest request, Authentication authentication) {
@@ -59,13 +66,16 @@ public class InitiatePaymentService {
       }
     } else if (request.provider() == OrderProvider.SSLCOMMERZ) {
       if (sslcommerzCheckoutService.isConfigured()) {
-        String customerEmail =
-            firstNonBlank(request.customerEmail(), order.getUser().getEmail());
+        String customerEmail = firstNonBlank(order.getUser().getEmail(), sslcommerzFallbackEmail);
         String customerPhone =
-            firstNonBlank(request.customerPhone(), order.getUser().getPhone());
+            normalizePhoneForSslcommerz(
+                firstNonBlank(order.getUser().getPhone(), sslcommerzFallbackPhone));
         SslcommerzCheckoutService.InitiationResult result =
             sslcommerzCheckoutService.createSession(
-                order, order.getUser().getFullName(), customerEmail, customerPhone);
+                order,
+                order.getUser().getFullName(),
+                customerEmail,
+                customerPhone);
         sessionId = result.tranId();
         redirectUrl = result.gatewayPageUrl();
       }
@@ -73,6 +83,8 @@ public class InitiatePaymentService {
 
     order.setProvider(request.provider());
     order.setProviderTxnId(sessionId);
+    String callbackProviderPath =
+        request.provider() == OrderProvider.BKASH ? "bkash" : "sslcommerz";
     orderRepository.save(order);
     return PaymentInitiationResponse.builder()
         .orderId(order.getId())
@@ -84,8 +96,8 @@ public class InitiatePaymentService {
         .timeoutSeconds(PAYMENT_TIMEOUT_SECONDS)
         .providerTransactionId(sessionId)
         .providerReference("ORDER-" + order.getId())
-        .successCallbackUrl("/payments/" + order.getId() + "/success")
-        .failureCallbackUrl("/payments/" + order.getId() + "/failed")
+        .successCallbackUrl("/payments/" + callbackProviderPath + "/" + order.getId() + "/success")
+        .failureCallbackUrl("/payments/" + callbackProviderPath + "/" + order.getId() + "/failed")
         .build();
   }
 
@@ -98,4 +110,19 @@ public class InitiatePaymentService {
     }
     return null;
   }
+
+  private String normalizePhoneForSslcommerz(String phone) {
+    if (phone == null || phone.isBlank()) {
+      return phone;
+    }
+    String normalized = phone.trim().replace(" ", "").replace("-", "");
+    if (normalized.startsWith("+88")) {
+      return normalized.substring(3);
+    }
+    if (normalized.startsWith("88")) {
+      return normalized.substring(2);
+    }
+    return normalized;
+  }
+
 }
