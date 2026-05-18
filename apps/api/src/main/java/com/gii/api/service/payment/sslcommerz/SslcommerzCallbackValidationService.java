@@ -127,12 +127,15 @@ public class SslcommerzCallbackValidationService {
     boolean valid =
         equalsSignature(computedDecodedWithMd5Password, verifySign);
     if (!valid) {
+      log.info("Option 1 of password did not work");
       valid = equalsSignature(computedEncodedWithMd5Password, verifySign);
     }
     if (!valid) {
+      log.info("Option 2 of password did not work");
       valid = equalsSignature(computedDecodedWithRawPassword, verifySign);
     }
     if (!valid) {
+      log.info("Option 3 of password did not work");
       valid = equalsSignature(computedEncodedWithRawPassword, verifySign);
     }
 
