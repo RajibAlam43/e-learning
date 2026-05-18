@@ -176,19 +176,21 @@ public class SslcommerzCallbackValidationService {
     }
     try {
       String url =
-          validationApiUrl
-              + "?val_id="
-              + encode(valId)
-              + "&store_id="
-              + encode(storeId)
-              + "&store_passwd="
-              + encode(storePassword)
-              + "&v=1&format=json";
+          validationApiUrl;
       RawHttpResponse response =
           webClientBuilder
               .build()
               .get()
-              .uri(url)
+              .uri(
+                  url,
+                  uriBuilder ->
+                      uriBuilder
+                          .queryParam("val_id", valId)
+                          .queryParam("store_id", storeId)
+                          .queryParam("store_passwd", storePassword)
+                          .queryParam("v", "1")
+                          .queryParam("format", "json")
+                          .build())
               .exchangeToMono(
                   clientResponse ->
                       clientResponse
