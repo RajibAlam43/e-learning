@@ -128,40 +128,17 @@ public class SslcommerzCallbackValidationService {
         equalsSignature(computedDecodedWithMd5Password, verifySign);
     if (!valid) {
       valid = equalsSignature(computedEncodedWithMd5Password, verifySign);
-      if (valid) {
-        log.info(
-            "SSLCommerz signature matched using encoded-values + md5-password variant; tran_id={}, val_id={}",
-            callbackParams.get("tran_id"),
-            callbackParams.get("val_id"));
-      }
     }
     if (!valid) {
       valid = equalsSignature(computedDecodedWithRawPassword, verifySign);
-      if (valid) {
-        log.info(
-            "SSLCommerz signature matched with raw store password fallback; tran_id={}, val_id={}",
-            callbackParams.get("tran_id"),
-            callbackParams.get("val_id"));
-      }
     }
     if (!valid) {
       valid = equalsSignature(computedEncodedWithRawPassword, verifySign);
-      if (valid) {
-        log.info(
-            "SSLCommerz signature matched using encoded-values + raw-password variant; tran_id={}, val_id={}",
-            callbackParams.get("tran_id"),
-            callbackParams.get("val_id"));
-      }
     }
 
     if (!valid) {
       log.warn(
-          "SSLCommerz signature mismatch: computedDecodedWithMd5Password={}, computedEncodedWithMd5Password={}, computedDecodedWithRawPassword={}, computedEncodedWithRawPassword={}, provided={}, tran_id={}, val_id={}",
-          computedDecodedWithMd5Password,
-          computedEncodedWithMd5Password,
-          computedDecodedWithRawPassword,
-          computedEncodedWithRawPassword,
-          verifySign,
+          "SSLCommerz signature mismatch; tran_id={}, val_id={}",
           callbackParams.get("tran_id"),
           callbackParams.get("val_id"));
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid callback");
@@ -201,18 +178,12 @@ public class SslcommerzCallbackValidationService {
       if (response == null || response.statusCode() < 200 || response.statusCode() >= 300) {
         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid callback");
       }
-      log.info(
-          "SSLCommerz validation API response: val_id={}, statusCode={}, body={}",
-          valId,
-          response.statusCode(),
-          response.body());
       Map<String, Object> validated = parseValidationResponseBody(response.body());
       if (validated == null || validated.isEmpty()) {
         log.warn(
-            "SSLCommerz validation API returned empty/unusable payload; val_id={}, statusCode={}, body={}",
+            "SSLCommerz validation API returned empty/unusable payload; val_id={}, statusCode={}",
             valId,
-            response.statusCode(),
-            response.body());
+            response.statusCode());
         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid callback");
       }
       return validated;

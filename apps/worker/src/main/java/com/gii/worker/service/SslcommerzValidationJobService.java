@@ -194,11 +194,6 @@ public class SslcommerzValidationJobService {
     if (response == null || response.statusCode() < 200 || response.statusCode() >= 300) {
       throw new IllegalStateException("Validation API call failed");
     }
-    log.info(
-        "SSLCommerz worker validation API response: val_id={}, statusCode={}, body={}",
-        valId,
-        response.statusCode(),
-        response.body());
     Map<String, Object> parsed = parseValidationResponseBody(response.body());
     if (parsed.isEmpty()) {
       throw new IllegalStateException("Validation API returned empty payload");
