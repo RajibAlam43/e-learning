@@ -24,7 +24,7 @@ dependencies {
     // SQS
     implementation 'io.awspring.cloud:spring-cloud-aws-starter-sqs:4.0.2'
     implementation 'io.awspring.cloud:spring-cloud-aws-starter:4.0.2'
-    implementation 'software.amazon.awssdk:s3:2.44.0'
+    implementation 'software.amazon.awssdk:s3:2.44.8'
 
     // POSTGRESQL
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
