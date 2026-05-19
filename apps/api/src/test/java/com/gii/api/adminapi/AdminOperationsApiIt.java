@@ -70,24 +70,6 @@ class AdminOperationsApiIt extends AbstractAdminApiIntegrationTest {
 
     mockMvc
         .perform(
-            post("/admin/lessons/{lessonId}/publish", lesson.getId())
-                .with(authentication(adminAuth(admin.getId()))))
-        .andExpect(status().isOk());
-    org.assertj.core.api.Assertions.assertThat(
-            lessonRepository.findById(lesson.getId()).orElseThrow().getStatus())
-        .isEqualTo(PublishStatus.PUBLISHED);
-
-    mockMvc
-        .perform(
-            post("/admin/lessons/{lessonId}/unpublish", lesson.getId())
-                .with(authentication(adminAuth(admin.getId()))))
-        .andExpect(status().isOk());
-    org.assertj.core.api.Assertions.assertThat(
-            lessonRepository.findById(lesson.getId()).orElseThrow().getStatus())
-        .isEqualTo(PublishStatus.DRAFT);
-
-    mockMvc
-        .perform(
             post("/admin/media-assets")
                 .with(authentication(adminAuth(admin.getId())))
                 .contentType(MediaType.APPLICATION_JSON)
@@ -115,6 +97,24 @@ class AdminOperationsApiIt extends AbstractAdminApiIntegrationTest {
                 .content("{\"title\":\"Updated Intro\"}"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.title").value("Updated Intro"));
+
+    mockMvc
+        .perform(
+            post("/admin/lessons/{lessonId}/publish", lesson.getId())
+                .with(authentication(adminAuth(admin.getId()))))
+        .andExpect(status().isOk());
+    org.assertj.core.api.Assertions.assertThat(
+            lessonRepository.findById(lesson.getId()).orElseThrow().getStatus())
+        .isEqualTo(PublishStatus.PUBLISHED);
+
+    mockMvc
+        .perform(
+            post("/admin/lessons/{lessonId}/unpublish", lesson.getId())
+                .with(authentication(adminAuth(admin.getId()))))
+        .andExpect(status().isOk());
+    org.assertj.core.api.Assertions.assertThat(
+            lessonRepository.findById(lesson.getId()).orElseThrow().getStatus())
+        .isEqualTo(PublishStatus.DRAFT);
 
     mockMvc
         .perform(

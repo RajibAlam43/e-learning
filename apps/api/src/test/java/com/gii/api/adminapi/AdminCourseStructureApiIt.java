@@ -91,6 +91,38 @@ class AdminCourseStructureApiIt extends AbstractAdminApiIntegrationTest {
                     """))
         .andExpect(status().isOk());
 
+    var lesson = lessonRepository.findByCourseIdOrderByPositionAsc(course.getId()).getFirst();
+    mockMvc
+        .perform(
+            post("/admin/media-assets")
+                .with(authentication(adminAuth(admin.getId())))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "lessonId":"%s",
+                      "provider":"MUX",
+                      "assetType":"VIDEO",
+                      "providerAssetId":"asset-publish-1",
+                      "playbackId":"play-publish-1",
+                      "title":"Lesson Publish Video"
+                    }
+                    """
+                        .formatted(lesson.getId())))
+        .andExpect(status().isOk());
+
+    mockMvc
+        .perform(
+            post("/admin/lessons/{lessonId}/publish", lesson.getId())
+                .with(authentication(adminAuth(admin.getId()))))
+        .andExpect(status().isOk());
+
+    mockMvc
+        .perform(
+            post("/admin/sections/{sectionId}/publish", section.getId())
+                .with(authentication(adminAuth(admin.getId()))))
+        .andExpect(status().isOk());
+
     mockMvc
         .perform(
             post("/admin/courses/{courseId}/publish", course.getId())
