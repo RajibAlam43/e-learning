@@ -18,6 +18,7 @@ import com.gii.common.repository.course.CourseRepository;
 import com.gii.common.repository.course.CourseSectionRepository;
 import com.gii.common.repository.course.LessonRepository;
 import com.gii.common.repository.course.SectionItemRepository;
+import com.gii.common.repository.live.LiveClassRepository;
 import com.gii.common.repository.quiz.QuizRepository;
 import java.time.Instant;
 import java.util.List;
@@ -41,6 +42,7 @@ public class AdminSectionManagementService {
   private final LessonRepository lessonRepository;
   private final QuizRepository quizRepository;
   private final SectionItemRepository sectionItemRepository;
+  private final LiveClassRepository liveClassRepository;
 
   public AdminCourseSectionResponse create(UUID courseId, CreateSectionRequest request) {
     Course course =
@@ -116,6 +118,14 @@ public class AdminSectionManagementService {
             .findById(sectionId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Section not found"));
+    boolean hasLessonOrQuiz =
+        !sectionItemRepository.findBySectionIdOrderByPositionAsc(sectionId).isEmpty();
+    boolean hasLiveClass = liveClassRepository.existsBySectionId(sectionId);
+    if (!hasLessonOrQuiz && !hasLiveClass) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST,
+          "Section must have at least one lesson, quiz, or live class before publishing");
+    }
     section.setStatus(PublishStatus.PUBLISHED);
     if (section.getPublishedAt() == null) {
       section.setPublishedAt(Instant.now());

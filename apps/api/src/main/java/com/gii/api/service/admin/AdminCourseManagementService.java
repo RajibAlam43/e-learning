@@ -198,9 +198,23 @@ public class AdminCourseManagementService {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "Course must have at least one section before publishing");
     }
-    if (lessonRepository.findByCourseIdOrderByPositionAsc(courseId).isEmpty()) {
+    if (sectionRepository.findByCourseIdAndStatusOrderByPositionAsc(courseId, PublishStatus.PUBLISHED)
+        .isEmpty()) {
       throw new ResponseStatusException(
-          HttpStatus.BAD_REQUEST, "Course must have at least one lesson before publishing");
+          HttpStatus.BAD_REQUEST,
+          "Course must have at least one published section before publishing");
+    }
+    boolean hasPublishedLesson =
+        !lessonRepository
+            .findByCourseIdAndStatusWithMediaOrderByPositionAsc(courseId, PublishStatus.PUBLISHED)
+            .isEmpty();
+    boolean hasPublishedQuiz =
+        !quizRepository.findByCourseIdAndStatusOrderByPositionAsc(courseId, PublishStatus.PUBLISHED)
+            .isEmpty();
+    if (!hasPublishedLesson && !hasPublishedQuiz) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST,
+          "Course must have at least one published lesson or quiz before publishing");
     }
     course.setStatus(PublishStatus.PUBLISHED);
     course.setPublishedAt(Instant.now());

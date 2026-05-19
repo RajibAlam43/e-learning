@@ -4,6 +4,7 @@ import com.gii.api.model.request.admin.AssignInstructorToCourseRequest;
 import com.gii.api.model.request.admin.CreateCollectionRequest;
 import com.gii.api.model.request.admin.CreateCourseRequest;
 import com.gii.api.model.request.admin.CreateInstructorRequest;
+import com.gii.api.model.request.admin.CreateLessonResourceRequest;
 import com.gii.api.model.request.admin.CreateMediaAssetRequest;
 import com.gii.api.model.request.admin.CreateQuizRequest;
 import com.gii.api.model.request.admin.CreateSectionRequest;
@@ -12,6 +13,7 @@ import com.gii.api.model.request.admin.SetCollectionCoursesRequest;
 import com.gii.api.model.request.admin.UpdateCourseRequest;
 import com.gii.api.model.request.admin.UpdateCollectionRequest;
 import com.gii.api.model.request.admin.UpdateInstructorRequest;
+import com.gii.api.model.request.admin.UpdateLessonResourceRequest;
 import com.gii.api.model.request.admin.UpdateMediaAssetRequest;
 import com.gii.api.model.request.admin.UpdateOrderRequest;
 import com.gii.api.model.request.admin.UpdateQuizRequest;
@@ -26,6 +28,7 @@ import com.gii.api.model.response.admin.AdminCourseSummaryResponse;
 import com.gii.api.model.response.admin.AdminInstructorDetailResponse;
 import com.gii.api.model.response.admin.AdminInstructorSummaryResponse;
 import com.gii.api.model.response.admin.AdminLessonDetailResponse;
+import com.gii.api.model.response.admin.AdminLessonResourceResponse;
 import com.gii.api.model.response.admin.AdminMediaAssetResponse;
 import com.gii.api.model.response.admin.AdminOrderDetailResponse;
 import com.gii.api.model.response.admin.AdminOrderSummaryResponse;
@@ -236,6 +239,20 @@ public interface AdminApi {
         @ApiResponse(responseCode = "404", description = "Lesson not found")
       })
   ResponseEntity<Void> deleteLesson(@PathVariable UUID lessonId);
+
+  @PostMapping("/lesson-resources")
+  @Operation(summary = "Create lesson resource")
+  ResponseEntity<AdminLessonResourceResponse> createLessonResource(
+      @Valid @RequestBody CreateLessonResourceRequest request);
+
+  @PatchMapping("/lesson-resources/{resourceId}")
+  @Operation(summary = "Update lesson resource")
+  ResponseEntity<AdminLessonResourceResponse> updateLessonResource(
+      @PathVariable UUID resourceId, @Valid @RequestBody UpdateLessonResourceRequest request);
+
+  @DeleteMapping("/lesson-resources/{resourceId}")
+  @Operation(summary = "Delete lesson resource")
+  ResponseEntity<Void> deleteLessonResource(@PathVariable UUID resourceId);
 
   @PostMapping("/courses/{courseId}/structure/reorder")
   @Operation(summary = "Reorder course structure")

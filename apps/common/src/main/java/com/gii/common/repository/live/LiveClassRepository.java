@@ -17,6 +17,8 @@ public interface LiveClassRepository extends JpaRepository<LiveClass, UUID> {
 
   Optional<LiveClass> findByIdAndInstructorId(UUID id, UUID instructorId);
 
+  boolean existsBySectionId(UUID sectionId);
+
   @Query(
       """
         SELECT lc FROM LiveClass lc

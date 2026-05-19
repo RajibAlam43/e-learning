@@ -2,11 +2,14 @@ package com.gii.api.service.admin;
 
 import com.gii.api.model.request.lesson.CreateLessonRequest;
 import com.gii.api.model.request.lesson.UpdateLessonRequest;
+import com.gii.api.model.request.admin.CreateLessonResourceRequest;
+import com.gii.api.model.request.admin.UpdateLessonResourceRequest;
 import com.gii.api.model.response.admin.AdminLessonDetailResponse;
 import com.gii.api.model.response.admin.AdminLessonResourceResponse;
 import com.gii.api.model.response.admin.AdminMediaAssetResponse;
 import com.gii.common.entity.course.CourseSection;
 import com.gii.common.entity.course.Lesson;
+import com.gii.common.entity.course.LessonResource;
 import com.gii.common.entity.course.MediaAsset;
 import com.gii.common.entity.course.SectionItem;
 import com.gii.common.enums.LessonType;
@@ -150,6 +153,13 @@ public class AdminLessonManagementService {
             .findById(lessonId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lesson not found"));
+    boolean hasMediaAsset = mediaAssetRepository.existsByLessonId(lessonId);
+    boolean hasResources = !resourceRepository.findByLessonIdOrderByPositionAsc(lessonId).isEmpty();
+    if (!hasMediaAsset && !hasResources) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST,
+          "Lesson must have at least one video or resource before publishing");
+    }
     lesson.setStatus(PublishStatus.PUBLISHED);
     lessonRepository.save(lesson);
   }
@@ -162,6 +172,70 @@ public class AdminLessonManagementService {
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lesson not found"));
     lesson.setStatus(PublishStatus.DRAFT);
     lessonRepository.save(lesson);
+  }
+
+  public AdminLessonResourceResponse createResource(CreateLessonResourceRequest request) {
+    if (request.position() == null || request.position() <= 0) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "position must be positive");
+    }
+    Lesson lesson =
+        lessonRepository
+            .findById(request.lessonId())
+            .orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lesson not found"));
+    ensureResourcePositionAvailable(lesson.getId(), request.position(), null);
+    LessonResource resource =
+        LessonResource.builder()
+            .lesson(lesson)
+            .resourceType(request.resourceType())
+            .title(request.title() == null ? null : request.title().trim())
+            .mimeType(request.mimeType() == null ? null : request.mimeType().trim())
+            .fileUrl(request.fileUrl().trim())
+            .position(request.position())
+            .build();
+    return toResourceResponse(resourceRepository.save(resource));
+  }
+
+  public AdminLessonResourceResponse updateResource(
+      UUID resourceId, UpdateLessonResourceRequest request) {
+    LessonResource resource =
+        resourceRepository
+            .findById(resourceId)
+            .orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lesson resource not found"));
+    if (request.resourceType() != null) {
+      resource.setResourceType(request.resourceType());
+    }
+    if (request.title() != null) {
+      resource.setTitle(request.title().trim());
+    }
+    if (request.mimeType() != null) {
+      resource.setMimeType(request.mimeType().trim());
+    }
+    if (request.fileUrl() != null) {
+      String fileUrl = request.fileUrl().trim();
+      if (fileUrl.isEmpty()) {
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "fileUrl must not be blank");
+      }
+      resource.setFileUrl(fileUrl);
+    }
+    if (request.position() != null) {
+      if (request.position() <= 0) {
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "position must be positive");
+      }
+      ensureResourcePositionAvailable(resource.getLesson().getId(), request.position(), resource.getId());
+      resource.setPosition(request.position());
+    }
+    return toResourceResponse(resourceRepository.save(resource));
+  }
+
+  public void deleteResource(UUID resourceId) {
+    LessonResource resource =
+        resourceRepository
+            .findById(resourceId)
+            .orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lesson resource not found"));
+    resourceRepository.delete(resource);
   }
 
   private void ensurePositionAvailable(
@@ -180,6 +254,22 @@ public class AdminLessonManagementService {
               if (!sameLesson) {
                 throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST, "Position is already used in this section");
+              }
+            });
+  }
+
+  private void ensureResourcePositionAvailable(
+      UUID lessonId, Integer requestedPosition, UUID currentResourceId) {
+    resourceRepository.findByLessonIdOrderByPositionAsc(lessonId).stream()
+        .filter(r -> requestedPosition.equals(r.getPosition()))
+        .findFirst()
+        .ifPresent(
+            existing -> {
+              boolean sameResource =
+                  currentResourceId != null && currentResourceId.equals(existing.getId());
+              if (!sameResource) {
+                throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Resource position is already used in this lesson");
               }
             });
   }
@@ -262,5 +352,19 @@ public class AdminLessonManagementService {
     } catch (Exception e) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid lessonType");
     }
+  }
+
+  private AdminLessonResourceResponse toResourceResponse(LessonResource resource) {
+    return AdminLessonResourceResponse.builder()
+        .resourceId(resource.getId())
+        .lessonId(resource.getLesson().getId())
+        .title(resource.getTitle())
+        .resourceType(resource.getResourceType())
+        .mimeType(resource.getMimeType())
+        .fileUrl(resource.getFileUrl())
+        .position(resource.getPosition())
+        .createdAt(resource.getCreatedAt())
+        .updatedAt(resource.getUpdatedAt())
+        .build();
   }
 }

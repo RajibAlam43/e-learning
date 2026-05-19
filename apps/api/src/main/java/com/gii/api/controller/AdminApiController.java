@@ -4,6 +4,7 @@ import com.gii.api.model.request.admin.AssignInstructorToCourseRequest;
 import com.gii.api.model.request.admin.CreateCollectionRequest;
 import com.gii.api.model.request.admin.CreateCourseRequest;
 import com.gii.api.model.request.admin.CreateInstructorRequest;
+import com.gii.api.model.request.admin.CreateLessonResourceRequest;
 import com.gii.api.model.request.admin.CreateMediaAssetRequest;
 import com.gii.api.model.request.admin.CreateQuizRequest;
 import com.gii.api.model.request.admin.CreateSectionRequest;
@@ -12,6 +13,7 @@ import com.gii.api.model.request.admin.SetCollectionCoursesRequest;
 import com.gii.api.model.request.admin.UpdateCourseRequest;
 import com.gii.api.model.request.admin.UpdateCollectionRequest;
 import com.gii.api.model.request.admin.UpdateInstructorRequest;
+import com.gii.api.model.request.admin.UpdateLessonResourceRequest;
 import com.gii.api.model.request.admin.UpdateMediaAssetRequest;
 import com.gii.api.model.request.admin.UpdateOrderRequest;
 import com.gii.api.model.request.admin.UpdateQuizRequest;
@@ -26,6 +28,7 @@ import com.gii.api.model.response.admin.AdminCourseSummaryResponse;
 import com.gii.api.model.response.admin.AdminInstructorDetailResponse;
 import com.gii.api.model.response.admin.AdminInstructorSummaryResponse;
 import com.gii.api.model.response.admin.AdminLessonDetailResponse;
+import com.gii.api.model.response.admin.AdminLessonResourceResponse;
 import com.gii.api.model.response.admin.AdminMediaAssetResponse;
 import com.gii.api.model.response.admin.AdminOrderDetailResponse;
 import com.gii.api.model.response.admin.AdminOrderSummaryResponse;
@@ -189,6 +192,24 @@ public class AdminApiController implements AdminApi {
   @Override
   public ResponseEntity<Void> deleteLesson(UUID lessonId) {
     lessonManagementService.delete(lessonId);
+    return ResponseEntity.ok().build();
+  }
+
+  @Override
+  public ResponseEntity<AdminLessonResourceResponse> createLessonResource(
+      CreateLessonResourceRequest request) {
+    return ResponseEntity.ok(lessonManagementService.createResource(request));
+  }
+
+  @Override
+  public ResponseEntity<AdminLessonResourceResponse> updateLessonResource(
+      UUID resourceId, UpdateLessonResourceRequest request) {
+    return ResponseEntity.ok(lessonManagementService.updateResource(resourceId, request));
+  }
+
+  @Override
+  public ResponseEntity<Void> deleteLessonResource(UUID resourceId) {
+    lessonManagementService.deleteResource(resourceId);
     return ResponseEntity.ok().build();
   }
 
