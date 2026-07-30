@@ -26,6 +26,7 @@ import com.gii.api.model.response.admin.AdminCourseSummaryResponse;
 import com.gii.api.model.response.admin.AdminInstructorDetailResponse;
 import com.gii.api.model.response.admin.AdminInstructorSummaryResponse;
 import com.gii.api.model.response.admin.AdminLessonDetailResponse;
+import com.gii.api.model.response.admin.AdminLiveClassSummaryResponse;
 import com.gii.api.model.response.admin.AdminMediaAssetResponse;
 import com.gii.api.model.response.admin.AdminOrderDetailResponse;
 import com.gii.api.model.response.admin.AdminOrderSummaryResponse;
@@ -291,6 +292,17 @@ public interface AdminApi {
   @Operation(summary = "Assign instructor to course")
   ResponseEntity<Void> assignInstructorToCourse(
       @PathVariable UUID courseId, @Valid @RequestBody AssignInstructorToCourseRequest request);
+
+  // ===== LIVE CLASS MANAGEMENT =====
+  @GetMapping("/live-classes")
+  @Operation(summary = "List all live classes")
+  @ApiResponses(
+      value = {
+        @ApiResponse(responseCode = "200", description = "Live classes retrieved"),
+        @ApiResponse(responseCode = "401", description = "Unauthorized"),
+        @ApiResponse(responseCode = "403", description = "Insufficient permissions")
+      })
+  ResponseEntity<List<AdminLiveClassSummaryResponse>> listLiveClasses();
 
   // ===== QUIZ MANAGEMENT =====
   @PostMapping("/sections/{sectionId}/quizzes")
