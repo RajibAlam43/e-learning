@@ -26,4 +26,4 @@ public record StudentOrderSummaryResponse(
     Instant createdAt,
     Instant paidAt, // Null if not paid
     Instant refundedAt // Null if not refunded
-    ) {}
+) {}

@@ -23,4 +23,4 @@ public record StudentOngoingCourseSnapshot(
 
     // Quick action
     String nextLessonId // For "Continue Learning" button
-    ) {}
+) {}

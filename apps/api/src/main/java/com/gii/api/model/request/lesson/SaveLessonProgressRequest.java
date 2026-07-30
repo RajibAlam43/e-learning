@@ -7,4 +7,4 @@ import lombok.Builder;
 public record SaveLessonProgressRequest(
     Boolean completed, // Optional: mark lesson as completed
     @Min(0) Integer lastPositionSec // Optional: current video playback position in seconds
-    ) {}
+) {}

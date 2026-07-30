@@ -36,4 +36,4 @@ public record CertificateIssueResponse(
 
     // Message
     String message // e.g., "Certificate issued successfully!"
-    ) {}
+) {}

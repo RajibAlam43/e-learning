@@ -6,4 +6,4 @@ import lombok.Builder;
 public record UpdateOrderRequest(
     String status, // PENDING, PAID, FAILED, REFUNDED, CANCELLED
     String adminNote // Internal note for order
-    ) {}
+) {}

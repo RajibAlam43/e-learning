@@ -1,20 +1,21 @@
 package com.gii.api.adminapi;
 
+import com.gii.api.testsupport.SharedPostgresContainer;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 import com.gii.api.service.live.LiveMeetingCreateResult;
 import com.gii.api.service.live.LiveMeetingProvisioningService;
-import com.gii.api.testsupport.SharedPostgresContainer;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @Tag("integration")
 @SpringBootTest

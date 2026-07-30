@@ -14,4 +14,4 @@ public record OrderItemSummaryResponse(
     BigDecimal priceBdt,
     BigDecimal discountBdt, // Discount applied
     BigDecimal finalAmount // Price - discount
-    ) {}
+) {}

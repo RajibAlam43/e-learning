@@ -36,4 +36,4 @@ public record QuizAttemptResultResponse(
     // Feedback
     String feedbackMessage, // e.g., "Congratulations! You passed the quiz."
     String nextAction // e.g., "COMPLETE_LESSON", "RETRY_QUIZ", "CONTINUE"
-    ) {}
+) {}

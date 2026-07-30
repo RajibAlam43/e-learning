@@ -50,4 +50,4 @@ public record ReceiptResponse(
 
     // Message
     String footerMessage // Company message, return policy, etc.
-    ) {}
+) {}

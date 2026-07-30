@@ -12,4 +12,4 @@ public record VerifyRequest(
     @NotBlank String identifier, // Email or phone
     @NotBlank String code, // OTP/code
     @NotNull VerificationPurpose purpose // e.g., "VERIFY_PHONE", "VERIFY_EMAIL"
-    ) {}
+) {}

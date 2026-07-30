@@ -14,6 +14,7 @@ import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.util.UUID;
 import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -51,3 +52,4 @@ public class SectionItem extends BaseUuidEntity {
   @Column(name = "position", nullable = false)
   private Integer position;
 }
+

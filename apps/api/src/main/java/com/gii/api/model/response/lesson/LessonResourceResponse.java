@@ -12,4 +12,4 @@ public record LessonResourceResponse(
     String mimeType, // e.g., "application/pdf", "image/png"
     Integer position, // Order position
     String downloadUrl // Direct download link (or temporary signed URL)
-    ) {}
+) {}
