@@ -26,6 +26,7 @@ import com.gii.api.model.response.admin.AdminCourseSummaryResponse;
 import com.gii.api.model.response.admin.AdminInstructorDetailResponse;
 import com.gii.api.model.response.admin.AdminInstructorSummaryResponse;
 import com.gii.api.model.response.admin.AdminLessonDetailResponse;
+import com.gii.api.model.response.admin.AdminLiveClassSummaryResponse;
 import com.gii.api.model.response.admin.AdminMediaAssetResponse;
 import com.gii.api.model.response.admin.AdminOrderDetailResponse;
 import com.gii.api.model.response.admin.AdminOrderSummaryResponse;
@@ -34,6 +35,7 @@ import com.gii.api.service.admin.AdminCourseManagementService;
 import com.gii.api.service.admin.AdminCollectionManagementService;
 import com.gii.api.service.admin.AdminInstructorManagementService;
 import com.gii.api.service.admin.AdminLessonManagementService;
+import com.gii.api.service.admin.AdminLiveClassManagementService;
 import com.gii.api.service.admin.AdminMediaAssetManagementService;
 import com.gii.api.service.admin.AdminOrderManagementService;
 import com.gii.api.service.admin.AdminQuizManagementService;
@@ -56,6 +58,7 @@ public class AdminApiController implements AdminApi {
   private final AdminMediaAssetManagementService mediaAssetManagementService;
   private final AdminQuizManagementService quizManagementService;
   private final AdminInstructorManagementService instructorManagementService;
+  private final AdminLiveClassManagementService liveClassManagementService;
   private final AdminOrderManagementService orderManagementService;
 
   @Override
@@ -232,6 +235,11 @@ public class AdminApiController implements AdminApi {
       UUID courseId, AssignInstructorToCourseRequest request) {
     instructorManagementService.assign(courseId, request);
     return ResponseEntity.ok().build();
+  }
+
+  @Override
+  public ResponseEntity<List<AdminLiveClassSummaryResponse>> listLiveClasses() {
+    return ResponseEntity.ok(liveClassManagementService.list());
   }
 
   @Override
