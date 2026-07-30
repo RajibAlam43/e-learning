@@ -13,7 +13,7 @@ public record CollectionDetailsResponse(
     String title,
     String slug,
     CollectionType collectionType,
-    String thumbnailObjectKey,
+    String thumbnailUrl,
     String shortDescription,
     String description,
     BigDecimal priceBdt,

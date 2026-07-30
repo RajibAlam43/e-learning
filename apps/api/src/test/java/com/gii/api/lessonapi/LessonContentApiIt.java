@@ -33,6 +33,10 @@ class LessonContentApiIt extends AbstractLessonApiIntegrationTest {
     var sec = section(course, 1, PublishStatus.PUBLISHED);
     var lesson =
         lesson(course, sec, 1, PublishStatus.PUBLISHED, false, ReleaseType.IMMEDIATE, null, null);
+    String thumbnailKey =
+        "lessons/" + lesson.getId() + "/thumbnails/lesson-content.webp";
+    lesson.setThumbnailObjectKey(thumbnailKey);
+    lessonRepository.saveAndFlush(lesson);
     enrollment(student, course, EnrollmentStatus.ACTIVE, Instant.now().plusSeconds(3600));
     mediaAsset(lesson, MediaProvider.BUNNY, MediaStatus.READY);
     resource(lesson, 2, "Slides");
@@ -49,7 +53,11 @@ class LessonContentApiIt extends AbstractLessonApiIntegrationTest {
         .andExpect(jsonPath("$.userProgress.lastPositionSec").value(84))
         .andExpect(jsonPath("$.resources[0].title").value("Worksheet"))
         .andExpect(jsonPath("$.resources[1].title").value("Slides"))
-        .andExpect(jsonPath("$.mediaPlayback.provider").value("BUNNY"));
+        .andExpect(jsonPath("$.mediaPlayback.provider").value("BUNNY"))
+        .andExpect(jsonPath("$.thumbnailUrl").value("https://assets.test/" + thumbnailKey))
+        .andExpect(
+            jsonPath("$.mediaPlayback.thumbnailUrl")
+                .value("https://assets.test/" + thumbnailKey));
   }
 
   @Test

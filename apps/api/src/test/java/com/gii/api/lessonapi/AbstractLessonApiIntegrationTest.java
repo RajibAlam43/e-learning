@@ -25,6 +25,7 @@ abstract class AbstractLessonApiIntegrationTest extends LessonApiTestSupport {
     registry.add("app.jwt.secret", () -> "dGVzdF9zZWNyZXRfdGVzdF9zZWNyZXRfdGVzdF9zZWNyZXRfMTIz");
     registry.add("app.jwt.access-token-expiration-ms", () -> "900000");
     registry.add("bunny.token-security-key", () -> "test-bunny-key");
+    registry.add("assets.base-url", () -> "https://assets.test");
     registry.add(
         "mux.private-key-pem",
         () ->

@@ -13,6 +13,7 @@ public record AdminCollectionSummaryResponse(
     String title,
     String slug,
     CollectionType collectionType,
+    String thumbnailUrl,
     PublishStatus status,
     BigDecimal priceBdt,
     Integer courseCount,

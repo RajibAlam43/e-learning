@@ -2,7 +2,7 @@ package com.gii.api.service.pub;
 
 import com.gii.api.model.response.CollectionCourseSummaryResponse;
 import com.gii.api.model.response.CollectionDetailsResponse;
-import com.gii.api.service.course.CourseThumbnailUrlService;
+import com.gii.api.service.storage.AssetUrlService;
 import com.gii.common.entity.collection.Collection;
 import com.gii.common.entity.collection.CollectionCourse;
 import com.gii.common.entity.course.CourseInstructor;
@@ -27,7 +27,7 @@ public class CollectionDetailsService {
   private final CollectionRepository collectionRepository;
   private final CollectionCourseRepository collectionCourseRepository;
   private final CourseInstructorRepository courseInstructorRepository;
-  private final CourseThumbnailUrlService courseThumbnailUrlService;
+  private final AssetUrlService assetUrlService;
 
   public CollectionDetailsResponse execute(String slug) {
     Collection collection =
@@ -58,7 +58,8 @@ public class CollectionDetailsService {
                         .title(collectionCourse.getCourse().getTitle())
                         .slug(collectionCourse.getCourse().getSlug())
                         .thumbnailUrl(
-                            courseThumbnailUrlService.buildCourseThumbnailUrl(collectionCourse.getCourse()))
+                            assetUrlService.publicUrl(
+                                collectionCourse.getCourse().getThumbnailObjectKey()))
                         .position(collectionCourse.getPosition())
                         .isMandatory(collectionCourse.getIsMandatory())
                         .build())
@@ -69,7 +70,7 @@ public class CollectionDetailsService {
         .title(collection.getTitle())
         .slug(collection.getSlug())
         .collectionType(collection.getType())
-        .thumbnailObjectKey(collection.getThumbnailObjectKey())
+        .thumbnailUrl(assetUrlService.publicUrl(collection.getThumbnailObjectKey()))
         .shortDescription(collection.getShortDescription())
         .description(collection.getDescription())
         .priceBdt(collection.getPriceBdt())

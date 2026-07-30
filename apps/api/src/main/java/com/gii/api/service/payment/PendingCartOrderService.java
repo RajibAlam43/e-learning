@@ -4,7 +4,7 @@ import com.gii.api.model.request.payment.CreateCheckoutOrderItemRequest;
 import com.gii.api.model.request.payment.CreateCheckoutOrderRequest;
 import com.gii.api.model.response.payment.CheckoutOrderItemResponse;
 import com.gii.api.model.response.payment.CheckoutOrderResponse;
-import com.gii.api.service.course.CourseThumbnailUrlService;
+import com.gii.api.service.storage.AssetUrlService;
 import com.gii.api.service.enrollment.CurrentUserService;
 import com.gii.common.entity.collection.Collection;
 import com.gii.common.entity.collection.CollectionCourse;
@@ -59,7 +59,7 @@ public class PendingCartOrderService {
   private final EnrollmentRepository enrollmentRepository;
   private final OrderRepository orderRepository;
   private final OrderItemRepository orderItemRepository;
-  private final CourseThumbnailUrlService courseThumbnailUrlService;
+  private final AssetUrlService assetUrlService;
 
   public CheckoutOrderResponse execute(CreateCheckoutOrderRequest request, Authentication authentication) {
     User user = currentUserService.getCurrentUser(authentication);
@@ -176,7 +176,7 @@ public class PendingCartOrderService {
                 .collectionId(null)
                 .courseName(course.getTitle())
                 .courseSlug(course.getSlug())
-                .courseThumbnailUrl(courseThumbnailUrlService.buildCourseThumbnailUrl(course))
+                .courseThumbnailUrl(assetUrlService.publicUrl(course.getThumbnailObjectKey()))
                 .originalPrice(price)
                 .discountAmount(discount)
                 .finalPrice(price.subtract(discount))
@@ -366,7 +366,8 @@ public class PendingCartOrderService {
                                 : item.getCollection().getSlug())
                         .courseThumbnailUrl(
                             item.getCourse() != null
-                                ? courseThumbnailUrlService.buildCourseThumbnailUrl(item.getCourse())
+                                ? assetUrlService.publicUrl(
+                                    item.getCourse().getThumbnailObjectKey())
                                 : null)
                         .originalPrice(item.getPriceBdt())
                         .discountAmount(item.getDiscountBdt())

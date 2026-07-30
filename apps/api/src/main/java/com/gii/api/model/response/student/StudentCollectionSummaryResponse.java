@@ -12,7 +12,7 @@ public record StudentCollectionSummaryResponse(
     String collectionName,
     String collectionSlug,
     CollectionType collectionType,
-    String thumbnailObjectKey,
+    String thumbnailUrl,
     Double progressPercentage,
     Integer completedLessons,
     Integer totalLessons,

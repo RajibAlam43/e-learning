@@ -5,6 +5,7 @@ import com.gii.api.model.request.lesson.UpdateLessonRequest;
 import com.gii.api.model.response.admin.AdminLessonDetailResponse;
 import com.gii.api.model.response.admin.AdminLessonResourceResponse;
 import com.gii.api.model.response.admin.AdminMediaAssetResponse;
+import com.gii.api.service.storage.AssetUrlService;
 import com.gii.common.entity.course.CourseSection;
 import com.gii.common.entity.course.Lesson;
 import com.gii.common.entity.course.MediaAsset;
@@ -36,6 +37,7 @@ public class AdminLessonManagementService {
   private final MediaAssetRepository mediaAssetRepository;
   private final LessonResourceRepository resourceRepository;
   private final SectionItemRepository sectionItemRepository;
+  private final AssetUrlService assetUrlService;
 
   public AdminLessonDetailResponse create(UUID sectionId, CreateLessonRequest request) {
     CourseSection section =
@@ -57,7 +59,9 @@ public class AdminLessonManagementService {
             .isMandatory(Boolean.TRUE.equals(request.isMandatory()))
             .isFree(Boolean.TRUE.equals(request.isFree()))
             .durationSeconds(request.durationSeconds())
-            .thumbnailUrl(request.thumbnailUrl())
+            .thumbnailObjectKey(
+                assetUrlService.normalizeCreateThumbnailKey(
+                    request.thumbnailObjectKey(), "lessons"))
             .transcriptUrl(request.transcriptUrl())
             .releaseType(
                 request.releaseType() == null
@@ -106,8 +110,10 @@ public class AdminLessonManagementService {
     if (request.durationSeconds() != null) {
       lesson.setDurationSeconds(request.durationSeconds());
     }
-    if (request.thumbnailUrl() != null) {
-      lesson.setThumbnailUrl(request.thumbnailUrl());
+    if (request.thumbnailObjectKey() != null) {
+      lesson.setThumbnailObjectKey(
+          assetUrlService.normalizeThumbnailKey(
+              request.thumbnailObjectKey(), "lessons", lesson.getId()));
     }
     if (request.transcriptUrl() != null) {
       lesson.setTranscriptUrl(request.transcriptUrl());
@@ -243,7 +249,8 @@ public class AdminLessonManagementService {
         .isMandatory(lesson.getIsMandatory())
         .isFree(lesson.getIsFree())
         .durationSeconds(lesson.getDurationSeconds())
-        .thumbnailUrl(lesson.getThumbnailUrl())
+        .thumbnailObjectKey(lesson.getThumbnailObjectKey())
+        .thumbnailUrl(assetUrlService.publicUrl(lesson.getThumbnailObjectKey()))
         .transcriptUrl(lesson.getTranscriptUrl())
         .releaseType(lesson.getReleaseType() != null ? lesson.getReleaseType().name() : null)
         .releaseAt(lesson.getReleaseAt())

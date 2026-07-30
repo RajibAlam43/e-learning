@@ -76,8 +76,8 @@ public class Lesson extends BaseUuidEntity {
   @Column(name = "duration_seconds")
   private Integer durationSeconds;
 
-  @Column(name = "thumbnail_url")
-  private String thumbnailUrl;
+  @Column(name = "thumbnail_object_key")
+  private String thumbnailObjectKey;
 
   @Column(name = "transcript_url")
   private String transcriptUrl;

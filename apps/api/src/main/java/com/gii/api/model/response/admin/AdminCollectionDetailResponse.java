@@ -15,6 +15,7 @@ public record AdminCollectionDetailResponse(
     String slug,
     CollectionType collectionType,
     String thumbnailObjectKey,
+    String thumbnailUrl,
     String shortDescription,
     String description,
     BigDecimal priceBdt,

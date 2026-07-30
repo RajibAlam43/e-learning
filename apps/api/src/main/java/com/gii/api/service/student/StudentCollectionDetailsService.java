@@ -2,8 +2,8 @@ package com.gii.api.service.student;
 
 import com.gii.api.model.response.student.StudentCollectionCourseProgressResponse;
 import com.gii.api.model.response.student.StudentCollectionDetailsResponse;
-import com.gii.api.service.course.CourseThumbnailUrlService;
 import com.gii.api.service.enrollment.CurrentUserService;
+import com.gii.api.service.storage.AssetUrlService;
 import com.gii.common.entity.collection.Collection;
 import com.gii.common.entity.collection.CollectionCourse;
 import com.gii.common.entity.collection.CollectionEnrollment;
@@ -34,7 +34,7 @@ public class StudentCollectionDetailsService {
   private final CollectionCourseRepository collectionCourseRepository;
   private final LessonRepository lessonRepository;
   private final LessonProgressRepository lessonProgressRepository;
-  private final CourseThumbnailUrlService courseThumbnailUrlService;
+  private final AssetUrlService assetUrlService;
 
   public StudentCollectionDetailsResponse execute(UUID collectionId, Authentication authentication) {
     UUID userId = currentUserService.getCurrentUserId(authentication);
@@ -69,7 +69,8 @@ public class StudentCollectionDetailsService {
                       .courseId(courseId)
                       .courseName(cc.getCourse().getTitle())
                       .courseSlug(cc.getCourse().getSlug())
-                      .courseThumbnailUrl(courseThumbnailUrlService.buildCourseThumbnailUrl(cc.getCourse()))
+                      .courseThumbnailUrl(
+                          assetUrlService.publicUrl(cc.getCourse().getThumbnailObjectKey()))
                       .completionPercentage(round2(progress))
                       .completedLessons(completed)
                       .totalLessons(total)
@@ -88,7 +89,7 @@ public class StudentCollectionDetailsService {
         .collectionName(collection.getTitle())
         .collectionSlug(collection.getSlug())
         .collectionType(collection.getType())
-        .thumbnailObjectKey(collection.getThumbnailObjectKey())
+        .thumbnailUrl(assetUrlService.publicUrl(collection.getThumbnailObjectKey()))
         .shortDescription(collection.getShortDescription())
         .description(collection.getDescription())
         .progressPercentage(round2(progress))
