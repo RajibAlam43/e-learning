@@ -3,6 +3,7 @@ package com.gii.api.adminapi;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -12,6 +13,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -41,22 +43,29 @@ class AdminLiveClassesApiIt extends AbstractAdminApiIntegrationTest {
     liveClassRepository.saveAndFlush(liveClass);
     registrant(liveClass, firstStudent, LiveClassRegistrantStatus.APPROVED);
     registrant(liveClass, secondStudent, LiveClassRegistrantStatus.PENDING);
+    var completedClass = liveClass(course, section, lesson(course, section, 2));
+    completedClass.setStatus(com.gii.common.enums.LiveClassStatus.COMPLETED);
+    liveClassRepository.saveAndFlush(completedClass);
     liveClassRegistrantRepository.flush();
 
     mockMvc
-        .perform(get("/admin/live-classes").with(authentication(adminAuth(admin.getId()))))
+        .perform(
+            get("/admin/live-classes")
+                .param("status", "SCHEDULED")
+                .with(authentication(adminAuth(admin.getId()))))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.length()").value(1))
-        .andExpect(jsonPath("$[0].liveClassId").value(liveClass.getId().toString()))
-        .andExpect(jsonPath("$[0].title").value("Live Session"))
-        .andExpect(jsonPath("$[0].titleEn").value("Live Session English"))
-        .andExpect(jsonPath("$[0].courseName").value("Database Live Course"))
-        .andExpect(jsonPath("$[0].courseNameEn").value("Database Live Course English"))
-        .andExpect(jsonPath("$[0].instructorName").value("Live Class Instructor"))
-        .andExpect(jsonPath("$[0].status").value("SCHEDULED"))
-        .andExpect(jsonPath("$[0].registeredStudents").value(2))
-        .andExpect(jsonPath("$[0].startsAt").isNotEmpty())
-        .andExpect(jsonPath("$[0].createdAt").isNotEmpty())
+        .andExpect(jsonPath("$.content.length()").value(1))
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.content[0].liveClassId").value(liveClass.getId().toString()))
+        .andExpect(jsonPath("$.content[0].title").value("Live Session"))
+        .andExpect(jsonPath("$.content[0].titleEn").value("Live Session English"))
+        .andExpect(jsonPath("$.content[0].courseName").value("Database Live Course"))
+        .andExpect(jsonPath("$.content[0].courseNameEn").value("Database Live Course English"))
+        .andExpect(jsonPath("$.content[0].instructorName").value("Live Class Instructor"))
+        .andExpect(jsonPath("$.content[0].status").value("SCHEDULED"))
+        .andExpect(jsonPath("$.content[0].registeredStudents").value(1))
+        .andExpect(jsonPath("$.content[0].startsAt").isNotEmpty())
+        .andExpect(jsonPath("$.content[0].createdAt").isNotEmpty())
         .andExpect(
             result ->
                 assertThat(result.getResponse().getContentAsString())
@@ -73,5 +82,24 @@ class AdminLiveClassesApiIt extends AbstractAdminApiIntegrationTest {
     mockMvc
         .perform(get("/admin/live-classes").with(authentication(studentAuthentication)))
         .andExpect(status().isForbidden());
+  }
+
+  @Test
+  void completedLiveClassShouldRejectEnglishMetadataMutationByAdmin() throws Exception {
+    var admin = user("Mutation Admin", "mutation-admin@example.com");
+    var creator = user("Mutation Creator", "mutation-creator@example.com");
+    var course = course("Mutation Course", "mutation-course", creator);
+    var section = section(course, 1);
+    var liveClass = liveClass(course, section, lesson(course, section, 1));
+    liveClass.setStatus(com.gii.common.enums.LiveClassStatus.COMPLETED);
+    liveClassRepository.saveAndFlush(liveClass);
+
+    mockMvc
+        .perform(
+            patch("/live-classes/{liveClassId}", liveClass.getId())
+                .with(authentication(adminAuth(admin.getId())))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"descriptionEn\":\"Rewritten completed description\"}"))
+        .andExpect(status().isBadRequest());
   }
 }

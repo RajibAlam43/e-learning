@@ -16,7 +16,6 @@ public record CreateLessonRequest(
     Boolean isMandatory,
     Boolean isFree,
     Integer durationSeconds,
-    String thumbnailObjectKey,
     String transcriptUrl,
     String releaseType,
     Instant releaseAt,

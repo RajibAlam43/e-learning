@@ -1,6 +1,5 @@
 package com.gii.api.service.storage;
 
-import java.util.UUID;
 import java.util.regex.Pattern;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -26,7 +25,7 @@ public class AssetUrlService {
     return assetsBaseUrl + "/" + objectKey.trim();
   }
 
-  public String normalizeThumbnailKey(String objectKey, String ownerType, UUID ownerId) {
+  public String normalizeThumbnailKey(String objectKey, String expectedOwnerPath) {
     if (objectKey == null) {
       return null;
     }
@@ -40,34 +39,12 @@ public class AssetUrlService {
         || normalized.contains("://")) {
       throw invalidThumbnailKey();
     }
-    String requiredPrefix = ownerType + "/" + ownerId + "/thumbnails/";
-    String fileName =
-        normalized.startsWith(requiredPrefix)
-            ? normalized.substring(requiredPrefix.length())
-            : "";
-    if (!THUMBNAIL_FILE_NAME.matcher(fileName).matches()) {
-      throw invalidThumbnailKey();
-    }
-    return normalized;
-  }
-
-  public String normalizeCreateThumbnailKey(String objectKey, String ownerType) {
-    if (objectKey == null) {
-      return null;
-    }
-    String normalized = objectKey.trim();
-    if (normalized.isEmpty()) {
-      return null;
-    }
-    if (normalized.startsWith("/")
-        || normalized.contains("..")
-        || normalized.contains("\\")
-        || normalized.contains("://")
-        || !Pattern.matches(
-            Pattern.quote(ownerType)
-                + "/[0-9a-fA-F-]{36}/thumbnails/"
-                + THUMBNAIL_FILE_NAME.pattern(),
-            normalized)) {
+    String[] segments = normalized.split("/", -1);
+    if (segments.length != 3
+        || !"thumbnails".equals(segments[0])
+        || !expectedOwnerPath.equals(segments[1])
+        || !THUMBNAIL_FILE_NAME.matcher(segments[2]).matches()
+        || !hasUniqueSuffix(segments[2])) {
       throw invalidThumbnailKey();
     }
     return normalized;
@@ -80,5 +57,11 @@ public class AssetUrlService {
 
   private static String stripTrailingSlashes(String value) {
     return value == null ? "" : value.trim().replaceAll("/+$", "");
+  }
+
+  private static boolean hasUniqueSuffix(String filename) {
+    int extensionStart = filename.lastIndexOf('.');
+    return extensionStart > 9
+        && filename.substring(extensionStart - 9, extensionStart).matches("-[0-9a-fA-F]{8}");
   }
 }

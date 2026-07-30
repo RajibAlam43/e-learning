@@ -79,7 +79,7 @@ public class AdminCollectionManagementService {
             .slug(request.slug().trim())
             .type(request.collectionType())
             .thumbnailObjectKey(
-                assetUrlService.normalizeCreateThumbnailKey(
+                assetUrlService.normalizeThumbnailKey(
                     request.thumbnailObjectKey(), "collections"))
             .shortDescription(request.shortDescription())
             .shortDescriptionEn(request.shortDescriptionEn())
@@ -123,7 +123,7 @@ public class AdminCollectionManagementService {
     if (request.thumbnailObjectKey() != null) {
       collection.setThumbnailObjectKey(
           assetUrlService.normalizeThumbnailKey(
-              request.thumbnailObjectKey(), "collections", collection.getId()));
+              request.thumbnailObjectKey(), "collections"));
     }
     if (request.shortDescription() != null) {
       collection.setShortDescription(request.shortDescription());

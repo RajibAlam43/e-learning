@@ -364,7 +364,9 @@ public class PendingCartOrderService {
                         .courseId(item.getCourse() != null ? item.getCourse().getId() : null)
                         .collectionId(
                             item.getCollection() != null ? item.getCollection().getId() : null)
-                        .courseName(item.getTitleSnapshot())
+                        .courseName(
+                            localizedContentService.text(
+                                item.getTitleSnapshot(), item.getTitleSnapshotEn()))
                         .courseSlug(
                             item.getCourse() != null
                                 ? item.getCourse().getSlug()

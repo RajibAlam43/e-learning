@@ -77,6 +77,8 @@ class PaymentCheckoutAndLifecycleApiIt extends AbstractPaymentApiIntegrationTest
             creator,
             PublishStatus.PUBLISHED,
             BigDecimal.valueOf(1200));
+    course.setTitleEn("Spring Course English");
+    courseRepository.saveAndFlush(course);
 
     mockMvc
         .perform(
@@ -91,11 +93,13 @@ class PaymentCheckoutAndLifecycleApiIt extends AbstractPaymentApiIntegrationTest
     mockMvc
         .perform(
             post("/checkout/orders")
+                .param("lang", "en")
                 .with(authentication(studentAuth(student.getId())))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(singleCourseCheckoutPayload(course.getId())))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.status").value("PENDING"));
+        .andExpect(jsonPath("$.status").value("PENDING"))
+        .andExpect(jsonPath("$.items[0].courseName").value("Spring Course English"));
 
     assertThat(orderRepository.findByUserIdAndStatus(student.getId(), OrderStatus.PENDING))
         .hasSize(1);

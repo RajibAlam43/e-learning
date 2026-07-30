@@ -7,6 +7,7 @@ import com.gii.api.model.request.admin.CreateInstructorRequest;
 import com.gii.api.model.request.admin.CreateMediaAssetRequest;
 import com.gii.api.model.request.admin.CreateQuizRequest;
 import com.gii.api.model.request.admin.CreateSectionRequest;
+import com.gii.api.model.request.admin.CreateThumbnailUploadRequest;
 import com.gii.api.model.request.admin.ReorderCourseStructureRequest;
 import com.gii.api.model.request.admin.SetCollectionCoursesRequest;
 import com.gii.api.model.request.admin.UpdateCourseRequest;
@@ -31,6 +32,7 @@ import com.gii.api.model.response.admin.AdminMediaAssetResponse;
 import com.gii.api.model.response.admin.AdminOrderDetailResponse;
 import com.gii.api.model.response.admin.AdminOrderSummaryResponse;
 import com.gii.api.model.response.admin.AdminQuizDetailResponse;
+import com.gii.api.model.response.admin.ThumbnailUploadResponse;
 import com.gii.api.service.admin.AdminCourseManagementService;
 import com.gii.api.service.admin.AdminCollectionManagementService;
 import com.gii.api.service.admin.AdminInstructorManagementService;
@@ -40,10 +42,13 @@ import com.gii.api.service.admin.AdminMediaAssetManagementService;
 import com.gii.api.service.admin.AdminOrderManagementService;
 import com.gii.api.service.admin.AdminQuizManagementService;
 import com.gii.api.service.admin.AdminSectionManagementService;
+import com.gii.api.service.admin.AdminThumbnailUploadService;
 import java.util.List;
 import java.util.UUID;
+import com.gii.common.enums.LiveClassStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.data.domain.Page;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -60,6 +65,13 @@ public class AdminApiController implements AdminApi {
   private final AdminInstructorManagementService instructorManagementService;
   private final AdminLiveClassManagementService liveClassManagementService;
   private final AdminOrderManagementService orderManagementService;
+  private final AdminThumbnailUploadService thumbnailUploadService;
+
+  @Override
+  public ResponseEntity<ThumbnailUploadResponse> createThumbnailUpload(
+      CreateThumbnailUploadRequest request) {
+    return ResponseEntity.ok(thumbnailUploadService.execute(request));
+  }
 
   @Override
   public ResponseEntity<List<AdminCollectionSummaryResponse>> listCollections() {
@@ -238,8 +250,9 @@ public class AdminApiController implements AdminApi {
   }
 
   @Override
-  public ResponseEntity<List<AdminLiveClassSummaryResponse>> listLiveClasses() {
-    return ResponseEntity.ok(liveClassManagementService.list());
+  public ResponseEntity<Page<AdminLiveClassSummaryResponse>> listLiveClasses(
+      int page, int size, List<LiveClassStatus> status) {
+    return ResponseEntity.ok(liveClassManagementService.list(page, size, status));
   }
 
   @Override

@@ -100,7 +100,7 @@ public class AdminCourseManagementService {
             .titleEn(request.titleEn())
             .slug(request.slug().trim())
             .thumbnailObjectKey(
-                assetUrlService.normalizeCreateThumbnailKey(
+                assetUrlService.normalizeThumbnailKey(
                     request.thumbnailObjectKey(), "courses"))
             .shortDescription(request.shortDescription())
             .shortDescriptionEn(request.shortDescriptionEn())
@@ -158,8 +158,7 @@ public class AdminCourseManagementService {
     }
     if (request.thumbnailObjectKey() != null) {
       course.setThumbnailObjectKey(
-          assetUrlService.normalizeThumbnailKey(
-              request.thumbnailObjectKey(), "courses", course.getId()));
+          assetUrlService.normalizeThumbnailKey(request.thumbnailObjectKey(), "courses"));
     }
     if (request.shortDescription() != null) {
       course.setShortDescription(request.shortDescription());

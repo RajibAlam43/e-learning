@@ -17,8 +17,6 @@ public record AdminLessonDetailResponse(
     Boolean isMandatory,
     Boolean isFree,
     Integer durationSeconds,
-    String thumbnailObjectKey,
-    String thumbnailUrl,
     String transcriptUrl,
     String releaseType,
     Instant releaseAt,

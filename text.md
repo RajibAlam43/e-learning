@@ -233,20 +233,24 @@ So cut:
 
 ### Thumbnail storage convention
 
-Course, collection, and lesson thumbnails use the same Cloudflare R2 convention:
+Course, collection, and media asset thumbnails use the same Cloudflare R2 convention:
 
 ```text
-courses/{courseId}/thumbnails/course-cover.webp
-collections/{collectionId}/thumbnails/collection-cover.webp
-lessons/{lessonId}/thumbnails/lesson-cover.webp
+thumbnails/courses/{name}-{shortId}.{extension}
+thumbnails/collections/{name}-{shortId}.{extension}
+thumbnails/media-assets/{name}-{shortId}.{extension}
 ```
 
-The database and admin APIs use the full R2 `thumbnailObjectKey`. Public and student
-responses expose the resolved `thumbnailUrl`. For manual R2 uploads, create the entity,
-upload under its returned UUID, then set or replace the key with the entity's existing
-`PATCH` endpoint. Thumbnail filenames may be descriptive and should use lowercase letters,
-numbers, hyphens, or underscores instead of spaces. Send an empty `thumbnailObjectKey` to
-clear it.
+Call `POST /api/admin/thumbnails/upload-url` with the owner type (`COURSE`, `COLLECTION`, or
+`MEDIA_ASSET`), filename, image content type, and file size. The API returns a readable,
+collision-safe `thumbnailObjectKey` and a temporary PUT URL. The browser uploads the file
+directly to Cloudflare R2 using that URL, then sends the returned key in the matching entity's
+create or update request. Uploads are limited to 20 MiB. Filenames may use letters, numbers,
+dots, hyphens, or underscores, and must use AVIF, JPEG, PNG, or WebP. Send an empty
+`thumbnailObjectKey` on update to clear it.
+
+Lessons and sections do not own artwork. Lesson playback uses its media asset thumbnail and
+falls back to the course thumbnail when the media asset has none.
 
 | API                                            |     MVP? | Main function              |
 | ---------------------------------------------- | -------: | -------------------------- |

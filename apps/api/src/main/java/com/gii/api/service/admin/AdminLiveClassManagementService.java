@@ -24,9 +24,14 @@ import com.gii.common.repository.live.LiveClassRepository;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -45,8 +50,32 @@ public class AdminLiveClassManagementService {
   private final LiveMeetingProvisioningService liveMeetingProvisioningService;
 
   @Transactional(readOnly = true)
-  public List<AdminLiveClassSummaryResponse> list() {
-    return liveClassRepository.findAll().stream().map(this::toSummary).toList();
+  public Page<AdminLiveClassSummaryResponse> list(
+      int page, int size, List<LiveClassStatus> statuses) {
+    if (page < 0 || size < 1 || size > 100) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Page must be non-negative and size must be between 1 and 100");
+    }
+    PageRequest pageable =
+        PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "startsAt"));
+    Page<LiveClass> liveClasses =
+        statuses == null || statuses.isEmpty()
+            ? liveClassRepository.findAdminPage(pageable)
+            : liveClassRepository.findAdminPageByStatuses(statuses, pageable);
+    List<UUID> liveClassIds = liveClasses.stream().map(LiveClass::getId).toList();
+    Map<UUID, Integer> registrantCounts =
+        liveClassIds.isEmpty()
+            ? Map.of()
+            : registrantRepository
+                .countByLiveClassIdsAndStatus(
+                    liveClassIds,
+                    com.gii.common.enums.LiveClassRegistrantStatus.APPROVED)
+                .stream()
+                .collect(
+                    Collectors.toMap(
+                        row -> (UUID) row[0], row -> ((Number) row[1]).intValue()));
+    return liveClasses.map(
+        liveClass -> toSummary(liveClass, registrantCounts.getOrDefault(liveClass.getId(), 0)));
   }
 
   public AdminLiveClassDetailResponse create(UUID courseId, CreateLiveClassRequest request) {
@@ -106,7 +135,9 @@ public class AdminLiveClassManagementService {
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Live class not found"));
     boolean mutatingMetadata =
         request.title() != null
+            || request.titleEn() != null
             || request.description() != null
+            || request.descriptionEn() != null
             || request.startsAt() != null
             || request.endsAt() != null;
     if (mutatingMetadata && liveClass.getStatus() != LiveClassStatus.SCHEDULED) {
@@ -232,11 +263,9 @@ public class AdminLiveClassManagementService {
             .build());
   }
 
-  private AdminLiveClassSummaryResponse toSummary(LiveClass liveClass) {
+  private AdminLiveClassSummaryResponse toSummary(LiveClass liveClass, int registered) {
     String instructorName =
         liveClass.getInstructor() != null ? liveClass.getInstructor().getFullName() : null;
-    int registered =
-        registrantRepository.findByLiveClassIdOrderByCreatedAtAsc(liveClass.getId()).size();
     return AdminLiveClassSummaryResponse.builder()
         .liveClassId(liveClass.getId())
         .title(liveClass.getTitle())

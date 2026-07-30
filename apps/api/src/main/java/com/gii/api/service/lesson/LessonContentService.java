@@ -56,10 +56,11 @@ public class LessonContentService {
                     .build())
             .orElse(null);
 
-    String thumbnailUrl = assetUrlService.publicUrl(lesson.getThumbnailObjectKey());
+    String courseThumbnailUrl =
+        assetUrlService.publicUrl(lesson.getCourse().getThumbnailObjectKey());
     MediaPlaybackResponse media =
         toLessonPlayback(
-            mediaAssetRepository.findByLessonId(lessonId).orElse(null), thumbnailUrl);
+            mediaAssetRepository.findByLessonId(lessonId).orElse(null), courseThumbnailUrl);
     List<LessonResourceResponse> resources =
         lessonResourceRepository.findByLessonIdOrderByPositionAsc(lessonId).stream()
             .map(
@@ -84,7 +85,6 @@ public class LessonContentService {
         .lessonType(lesson.getLessonType())
         .description(null)
         .durationSeconds(lesson.getDurationSeconds())
-        .thumbnailUrl(thumbnailUrl)
         .transcriptUrl(lesson.getTranscriptUrl())
         .isFree(lesson.getIsFree())
         .isMandatory(lesson.getIsMandatory())
@@ -120,7 +120,8 @@ public class LessonContentService {
         .build();
   }
 
-  private MediaPlaybackResponse toLessonPlayback(MediaAsset mediaAsset, String thumbnailUrl) {
+  private MediaPlaybackResponse toLessonPlayback(
+      MediaAsset mediaAsset, String courseThumbnailUrl) {
     if (mediaAsset == null || mediaAsset.getStatus() != MediaStatus.READY) {
       return null;
     }
@@ -149,7 +150,10 @@ public class LessonContentService {
         .preferredPlaybackMode(mediaAsset.getPreferredPlaybackMode())
         .requiresSignedUrl(mediaAsset.getProvider() != com.gii.common.enums.MediaProvider.YOUTUBE)
         .subtitlesUrl(null)
-        .thumbnailUrl(thumbnailUrl)
+        .thumbnailUrl(
+            assetUrlService.publicUrl(mediaAsset.getThumbnailObjectKey()) != null
+                ? assetUrlService.publicUrl(mediaAsset.getThumbnailObjectKey())
+                : courseThumbnailUrl)
         .build();
   }
 }

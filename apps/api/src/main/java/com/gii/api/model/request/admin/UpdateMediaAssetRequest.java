@@ -10,6 +10,7 @@ import lombok.Builder;
 public record UpdateMediaAssetRequest(
     String title, // Optional: update title
     String titleEn,
+    String thumbnailObjectKey,
     String providerAssetId, // Optional: update provider asset ID
     String providerLibraryId, // Optional: update provider library ID
     String playbackId, // Optional: update Mux playback ID

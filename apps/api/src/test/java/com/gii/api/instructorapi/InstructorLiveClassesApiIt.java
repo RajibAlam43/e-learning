@@ -141,6 +141,14 @@ class InstructorLiveClassesApiIt extends AbstractInstructorApiIntegrationTest {
 
     mockMvc
         .perform(
+            patch("/live-classes/{liveClassId}", completed.getId())
+                .with(authentication(instructorAuth(instructor.getId())))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"titleEn\":\"Rewritten completed title\"}"))
+        .andExpect(status().isBadRequest());
+
+    mockMvc
+        .perform(
             delete("/live-classes/{liveClassId}", completed.getId())
                 .with(authentication(instructorAuth(instructor.getId()))))
         .andExpect(status().isBadRequest());
