@@ -5,4 +5,5 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 
 @Builder
-public record CreateQuizChoiceRequest(@NotBlank String choiceText, @NotNull Boolean isCorrect) {}
+public record CreateQuizChoiceRequest(
+    @NotBlank String choiceText, String choiceTextEn, @NotNull Boolean isCorrect) {}

@@ -3,6 +3,7 @@ package com.gii.api.service.quiz;
 import com.gii.api.model.response.quiz.QuizAttemptQuestionResultResponse;
 import com.gii.api.model.response.quiz.QuizAttemptResultResponse;
 import com.gii.api.model.response.quiz.QuizResultChoiceResponse;
+import com.gii.api.service.localization.LocalizedContentService;
 import com.gii.common.entity.quiz.Quiz;
 import com.gii.common.entity.quiz.QuizAttempt;
 import com.gii.common.entity.quiz.QuizAttemptAnswer;
@@ -37,6 +38,7 @@ public class QuizAttemptResultService {
   private final QuizQuestionRepository questionRepository;
   private final QuizChoiceRepository choiceRepository;
   private final QuizAttemptAnswerRepository answerRepository;
+  private final LocalizedContentService localizedContentService;
 
   public QuizAttemptResultResponse execute(UUID attemptId, Authentication authentication) {
     UUID userId = quizAccessService.requireCurrentUserId(authentication);
@@ -83,7 +85,9 @@ public class QuizAttemptResultService {
                   choice ->
                       QuizResultChoiceResponse.builder()
                           .choiceId(choice.getId())
-                          .choiceText(choice.getChoiceText())
+                          .choiceText(
+                              localizedContentService.text(
+                                  choice.getChoiceText(), choice.getChoiceTextEn()))
                           .isCorrect(choice.getIsCorrect())
                           .wasUserChoice(
                               userChoice != null && userChoice.getId().equals(choice.getId()))
@@ -94,15 +98,27 @@ public class QuizAttemptResultService {
           QuizAttemptQuestionResultResponse.builder()
               .questionId(question.getId())
               .position(question.getPosition())
-              .questionText(question.getQuestionText())
+              .questionText(
+                  localizedContentService.text(
+                      question.getQuestionText(), question.getQuestionTextEn()))
               .points(question.getPoints())
               .userChoiceId(userChoice != null ? userChoice.getId() : null)
-              .userChoiceText(userChoice != null ? userChoice.getChoiceText() : null)
+              .userChoiceText(
+                  userChoice != null
+                      ? localizedContentService.text(
+                          userChoice.getChoiceText(), userChoice.getChoiceTextEn())
+                      : null)
               .userAnswerCorrect(correctAnswer)
               .correctChoiceId(correct != null ? correct.getId() : null)
-              .correctChoiceText(correct != null ? correct.getChoiceText() : null)
+              .correctChoiceText(
+                  correct != null
+                      ? localizedContentService.text(
+                          correct.getChoiceText(), correct.getChoiceTextEn())
+                      : null)
               .allChoices(allChoices)
-              .explanation(question.getExplanationText())
+              .explanation(
+                  localizedContentService.text(
+                      question.getExplanationText(), question.getExplanationTextEn()))
               .earnedPoints(earned)
               .feedbackMessage(correctAnswer ? "Correct!" : "Incorrect.")
               .build());

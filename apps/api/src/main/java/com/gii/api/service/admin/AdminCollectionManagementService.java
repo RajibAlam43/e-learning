@@ -75,13 +75,16 @@ public class AdminCollectionManagementService {
     Collection collection =
         Collection.builder()
             .title(request.title().trim())
+            .titleEn(request.titleEn())
             .slug(request.slug().trim())
             .type(request.collectionType())
             .thumbnailObjectKey(
                 assetUrlService.normalizeCreateThumbnailKey(
                     request.thumbnailObjectKey(), "collections"))
             .shortDescription(request.shortDescription())
+            .shortDescriptionEn(request.shortDescriptionEn())
             .description(request.description())
+            .descriptionEn(request.descriptionEn())
             .priceBdt(request.priceBdt())
             .status(PublishStatus.DRAFT)
             .createdBy(user)
@@ -108,6 +111,9 @@ public class AdminCollectionManagementService {
     if (request.title() != null) {
       collection.setTitle(request.title().trim());
     }
+    if (request.titleEn() != null) {
+      collection.setTitleEn(request.titleEn().trim());
+    }
     if (request.slug() != null) {
       collection.setSlug(request.slug().trim());
     }
@@ -122,8 +128,14 @@ public class AdminCollectionManagementService {
     if (request.shortDescription() != null) {
       collection.setShortDescription(request.shortDescription());
     }
+    if (request.shortDescriptionEn() != null) {
+      collection.setShortDescriptionEn(request.shortDescriptionEn());
+    }
     if (request.description() != null) {
       collection.setDescription(request.description());
+    }
+    if (request.descriptionEn() != null) {
+      collection.setDescriptionEn(request.descriptionEn());
     }
     if (request.priceBdt() != null) {
       collection.setPriceBdt(request.priceBdt());
@@ -224,12 +236,15 @@ public class AdminCollectionManagementService {
     return AdminCollectionDetailResponse.builder()
         .collectionId(collection.getId())
         .title(collection.getTitle())
+        .titleEn(collection.getTitleEn())
         .slug(collection.getSlug())
         .collectionType(collection.getType())
         .thumbnailObjectKey(collection.getThumbnailObjectKey())
         .thumbnailUrl(assetUrlService.publicUrl(collection.getThumbnailObjectKey()))
         .shortDescription(collection.getShortDescription())
+        .shortDescriptionEn(collection.getShortDescriptionEn())
         .description(collection.getDescription())
+        .descriptionEn(collection.getDescriptionEn())
         .priceBdt(collection.getPriceBdt())
         .status(collection.getStatus())
         .publishedAt(collection.getPublishedAt())

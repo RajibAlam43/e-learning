@@ -2,6 +2,7 @@ package com.gii.api.service.student;
 
 import com.gii.api.model.response.student.StudentLiveClassSummaryResponse;
 import com.gii.api.service.enrollment.CurrentUserService;
+import com.gii.api.service.localization.LocalizedContentService;
 import com.gii.common.entity.enrollment.Enrollment;
 import com.gii.common.entity.live.LiveClass;
 import com.gii.common.entity.live.LiveClassRegistrant;
@@ -31,6 +32,7 @@ public class StudentUpcomingLiveClasses {
   private final EnrollmentRepository enrollmentRepository;
   private final LiveClassRepository liveClassRepository;
   private final LiveClassRegistrantRepository registrantRepository;
+  private final LocalizedContentService localizedContentService;
 
   public List<StudentLiveClassSummaryResponse> execute(Authentication authentication) {
     UUID userId = currentUserService.getCurrentUserId(authentication);
@@ -73,8 +75,10 @@ public class StudentUpcomingLiveClasses {
 
     return StudentLiveClassSummaryResponse.builder()
         .liveClassId(liveClass.getId())
-        .title(liveClass.getTitle())
-        .description(liveClass.getDescription())
+        .title(localizedContentService.text(liveClass.getTitle(), liveClass.getTitleEn()))
+        .description(
+            localizedContentService.text(
+                liveClass.getDescription(), liveClass.getDescriptionEn()))
         .instructorName(
             liveClass.getInstructor() != null ? liveClass.getInstructor().getFullName() : null)
         .instructorImageUrl(null)
@@ -84,7 +88,9 @@ public class StudentUpcomingLiveClasses {
             Duration.between(liveClass.getStartsAt(), liveClass.getEndsAt()).toMinutes())
         .timeZoneLabel(null)
         .courseId(liveClass.getCourse().getId())
-        .courseName(liveClass.getCourse().getTitle())
+        .courseName(
+            localizedContentService.text(
+                liveClass.getCourse().getTitle(), liveClass.getCourse().getTitleEn()))
         .status(liveClass.getStatus())
         .statusLabel(statusLabel(liveClass, isLive))
         .isLive(isLive)

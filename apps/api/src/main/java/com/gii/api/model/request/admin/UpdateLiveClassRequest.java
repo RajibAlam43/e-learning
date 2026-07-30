@@ -6,7 +6,9 @@ import lombok.Builder;
 @Builder
 public record UpdateLiveClassRequest(
     String title,
+    String titleEn,
     String description,
+    String descriptionEn,
     Instant startsAt,
     Instant endsAt,
     String status // SCHEDULED, LIVE, COMPLETED, CANCELLED, FAILED

@@ -13,7 +13,9 @@ import lombok.Builder;
 public record CreateLiveClassRequest(
     @NotNull UUID sectionId,
     @NotBlank String title,
+    String titleEn,
     String description,
+    String descriptionEn,
     @NotNull @Future Instant startsAt,
     @NotNull @Future Instant endsAt,
     @NotNull LiveClassProvider provider,

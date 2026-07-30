@@ -12,18 +12,26 @@ import lombok.Builder;
 @Builder
 public record CreateCourseRequest(
     @NotBlank String title,
+    String titleEn,
     @NotBlank String slug,
     String thumbnailObjectKey,
     String shortDescription,
+    String shortDescriptionEn,
     String description,
+    String descriptionEn,
     List<String> highlights,
+    List<String> highlightsEn,
     @NotNull BigDecimal priceBdt,
     List<String> courseOutcomes,
+    List<String> courseOutcomesEn,
     List<String> requirements,
+    List<String> requirementsEn,
     @NotNull CourseLevel level,
     @NotNull CourseLanguage language,
     @NotNull StudyMode studyMode,
     Boolean isFree,
     Integer estimatedDurationMinutes,
     String targetAudience,
-    String prerequisites) {}
+    String targetAudienceEn,
+    String prerequisites,
+    String prerequisitesEn) {}

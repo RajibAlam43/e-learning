@@ -125,4 +125,53 @@ class PublicCollectionsApiIt extends AbstractPublicApiIntegrationTest {
         .andExpect(jsonPath("$.courses.length()").value(1))
         .andExpect(jsonPath("$.courses[0].title").value("Published In Collection"));
   }
+
+  @Test
+  void collectionDetailsShouldDefaultToBanglaAndSwitchToEnglish() throws Exception {
+    var creator = user("Creator", "creator-localized-collection@example.com", UserStatus.ACTIVE);
+    var collection =
+        collection(
+            "বাংলা সংগ্রহ",
+            uniqueSlug("localized-collection"),
+            CollectionType.PACK,
+            PublishStatus.PUBLISHED,
+            creator,
+            Instant.now());
+    collection.setTitleEn("English Collection");
+    collection.setShortDescription("বাংলা সংক্ষিপ্ত বিবরণ");
+    collection.setShortDescriptionEn("English short description");
+    collectionRepository.saveAndFlush(collection);
+
+    mockMvc
+        .perform(get("/public/collections/{slug}", collection.getSlug()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.title").value("বাংলা সংগ্রহ"))
+        .andExpect(jsonPath("$.shortDescription").value("বাংলা সংক্ষিপ্ত বিবরণ"));
+
+    mockMvc
+        .perform(
+            get("/public/collections/{slug}", collection.getSlug())
+                .param("lang", "en")
+                .header("Accept-Language", "bn-BD"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.title").value("English Collection"))
+        .andExpect(jsonPath("$.shortDescription").value("English short description"));
+
+    mockMvc
+        .perform(
+            get("/public/collections/{slug}", collection.getSlug())
+                .param("lang", "bn")
+                .header("Accept-Language", "en"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.title").value("বাংলা সংগ্রহ"));
+
+    collection.setTitleEn(null);
+    collectionRepository.saveAndFlush(collection);
+    mockMvc
+        .perform(
+            get("/public/collections/{slug}", collection.getSlug())
+                .header("Accept-Language", "en"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.title").value("বাংলা সংগ্রহ"));
+  }
 }

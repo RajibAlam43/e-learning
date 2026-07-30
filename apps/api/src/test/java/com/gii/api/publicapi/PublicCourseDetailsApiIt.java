@@ -102,4 +102,59 @@ class PublicCourseDetailsApiIt extends AbstractPublicApiIntegrationTest {
         .andExpect(jsonPath("$.instructors.length()").value(1))
         .andExpect(jsonPath("$.instructors[0].fullName").value("Instructor X"));
   }
+
+  @Test
+  void returnsEnglishCourseAndNestedContentWhenRequested() throws Exception {
+    User creator = user("Creator", "creator-localized-course@example.com", UserStatus.ACTIVE);
+    Course course =
+        course(
+            "বাংলা কোর্স",
+            uniqueSlug("localized-course"),
+            PublishStatus.PUBLISHED,
+            creator,
+            CourseLevel.BEGINNER,
+            CourseLanguage.BN,
+            Instant.now());
+    course.setTitleEn("English Course");
+    course.setShortDescription("বাংলা সংক্ষিপ্ত বিবরণ");
+    course.setShortDescriptionEn("English short description");
+    course.setDescription("বাংলা বিবরণ");
+    course.setDescriptionEn("English description");
+    course.setHighlights(java.util.List.of("বাংলা হাইলাইট"));
+    course.setHighlightsEn(java.util.List.of("English highlight"));
+    courseRepository.saveAndFlush(course);
+
+    var category = category("বাংলা বিভাগ", uniqueSlug("localized-category"));
+    category.setNameEn("English Category");
+    categoryRepository.saveAndFlush(category);
+    attachCategory(course, category);
+
+    CourseSection section =
+        section(course, uniqueSlug("localized-section"), 1, PublishStatus.PUBLISHED);
+    section.setTitle("বাংলা অধ্যায়");
+    section.setTitleEn("English Section");
+    courseSectionRepository.saveAndFlush(section);
+    Lesson lesson =
+        lesson(
+            course,
+            section,
+            uniqueSlug("localized-lesson"),
+            1,
+            PublishStatus.PUBLISHED,
+            true);
+    lesson.setTitle("বাংলা পাঠ");
+    lesson.setTitleEn("English Lesson");
+    lessonRepository.saveAndFlush(lesson);
+
+    mockMvc
+        .perform(get("/public/courses/{slug}", course.getSlug()).param("lang", "en"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.title").value("English Course"))
+        .andExpect(jsonPath("$.shortDescription").value("English short description"))
+        .andExpect(jsonPath("$.description").value("English description"))
+        .andExpect(jsonPath("$.highlights[0]").value("English highlight"))
+        .andExpect(jsonPath("$.categories[0].name").value("English Category"))
+        .andExpect(jsonPath("$.sections[0].title").value("English Section"))
+        .andExpect(jsonPath("$.sections[0].lessons[0].title").value("English Lesson"));
+  }
 }

@@ -33,6 +33,9 @@ public class Collection extends BaseUuidEntity {
   @Column(name = "title", nullable = false)
   private String title;
 
+  @Column(name = "title_en")
+  private String titleEn;
+
   @Column(name = "slug", nullable = false, unique = true)
   private String slug;
 
@@ -47,8 +50,14 @@ public class Collection extends BaseUuidEntity {
   @Column(name = "short_description")
   private String shortDescription;
 
+  @Column(name = "short_description_en")
+  private String shortDescriptionEn;
+
   @Column(name = "description")
   private String description;
+
+  @Column(name = "description_en")
+  private String descriptionEn;
 
   @Column(name = "price_bdt", nullable = false)
   @Builder.Default

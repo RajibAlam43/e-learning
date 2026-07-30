@@ -2,6 +2,7 @@ package com.gii.api.service.student;
 
 import com.gii.api.model.response.student.StudentCourseSummaryResponse;
 import com.gii.api.service.storage.AssetUrlService;
+import com.gii.api.service.localization.LocalizedContentService;
 import com.gii.api.service.enrollment.CurrentUserService;
 import com.gii.common.entity.certificate.Certificate;
 import com.gii.common.entity.course.Course;
@@ -36,6 +37,7 @@ public class EnrolledCoursesService {
   private final CertificateRepository certificateRepository;
   private final CourseInstructorRepository courseInstructorRepository;
   private final AssetUrlService assetUrlService;
+  private final LocalizedContentService localizedContentService;
 
   public List<StudentCourseSummaryResponse> execute(Authentication authentication) {
     UUID userId = currentUserService.getCurrentUserId(authentication);
@@ -80,7 +82,7 @@ public class EnrolledCoursesService {
 
     return StudentCourseSummaryResponse.builder()
         .courseId(course.getId())
-        .courseName(course.getTitle())
+        .courseName(localizedContentService.text(course.getTitle(), course.getTitleEn()))
         .courseSlug(course.getSlug())
         .instructorName(instructorNameByCourseId.get(course.getId()))
         .courseThumbnailUrl(assetUrlService.publicUrl(course.getThumbnailObjectKey()))

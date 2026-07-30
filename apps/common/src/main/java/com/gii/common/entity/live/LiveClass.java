@@ -51,8 +51,14 @@ public class LiveClass extends BaseUuidEntity {
   @Column(name = "title", nullable = false)
   private String title;
 
+  @Column(name = "title_en")
+  private String titleEn;
+
   @Column(name = "description")
   private String description;
+
+  @Column(name = "description_en")
+  private String descriptionEn;
 
   @Enumerated(EnumType.STRING)
   @Column(name = "provider", nullable = false, length = 30)

@@ -3,6 +3,7 @@ package com.gii.api.service.quiz;
 import com.gii.api.model.response.quiz.QuizChoiceResponse;
 import com.gii.api.model.response.quiz.QuizQuestionResponse;
 import com.gii.api.model.response.quiz.QuizQuestionsResponse;
+import com.gii.api.service.localization.LocalizedContentService;
 import com.gii.common.entity.quiz.Quiz;
 import com.gii.common.entity.quiz.QuizAttempt;
 import com.gii.common.entity.quiz.QuizChoice;
@@ -29,6 +30,7 @@ public class QuizQuestionsService {
   private final QuizQuestionRepository questionRepository;
   private final QuizChoiceRepository choiceRepository;
   private final QuizAttemptRepository attemptRepository;
+  private final LocalizedContentService localizedContentService;
 
   public QuizQuestionsResponse execute(UUID quizId, Authentication authentication) {
     UUID userId = quizAccessService.requireCurrentUserId(authentication);
@@ -60,7 +62,9 @@ public class QuizQuestionsService {
                     QuizQuestionResponse.builder()
                         .questionId(question.getId())
                         .position(question.getPosition())
-                        .questionText(question.getQuestionText())
+                        .questionText(
+                            localizedContentService.text(
+                                question.getQuestionText(), question.getQuestionTextEn()))
                         .questionType(question.getQuestionType())
                         .points(question.getPoints())
                         .choices(
@@ -71,7 +75,10 @@ public class QuizQuestionsService {
                                     choice ->
                                         QuizChoiceResponse.builder()
                                             .choiceId(choice.getId())
-                                            .choiceText(choice.getChoiceText())
+                                            .choiceText(
+                                                localizedContentService.text(
+                                                    choice.getChoiceText(),
+                                                    choice.getChoiceTextEn()))
                                             .isCorrect(null)
                                             .build())
                                 .toList())
@@ -81,7 +88,7 @@ public class QuizQuestionsService {
 
     return QuizQuestionsResponse.builder()
         .quizId(quiz.getId())
-        .quizTitle(quiz.getTitle())
+        .quizTitle(localizedContentService.text(quiz.getTitle(), quiz.getTitleEn()))
         .passingScorePct(quiz.getPassingScorePct())
         .maxAttempts(quiz.getMaxAttempts())
         .timeLimitSec(quiz.getTimeLimitSec())

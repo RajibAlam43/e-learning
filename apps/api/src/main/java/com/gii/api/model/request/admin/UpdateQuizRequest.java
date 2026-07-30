@@ -9,6 +9,7 @@ public record UpdateQuizRequest(
     UUID sectionId,
     Integer position,
     String title,
+    String titleEn,
     Integer passingScorePct,
     Integer maxAttempts,
     Integer timeLimitSec,

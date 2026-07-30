@@ -7,6 +7,7 @@ import com.gii.api.model.response.InstructorSummaryResponse;
 import com.gii.api.model.response.LessonSummaryResponse;
 import com.gii.api.model.response.LessonVideoResponse;
 import com.gii.api.service.storage.AssetUrlService;
+import com.gii.api.service.localization.LocalizedContentService;
 import com.gii.common.entity.course.Category;
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.course.CourseSection;
@@ -41,6 +42,7 @@ public class CourseDetailsService {
   private final CourseCategoryRepository courseCategoryRepository;
   private final CourseInstructorRepository courseInstructorRepository;
   private final AssetUrlService assetUrlService;
+  private final LocalizedContentService localizedContentService;
 
   public CourseDetailsResponse execute(String slug) {
     Course course =
@@ -84,18 +86,26 @@ public class CourseDetailsService {
 
     return CourseDetailsResponse.builder()
         .id(course.getId())
-        .title(course.getTitle())
+        .title(localizedContentService.text(course.getTitle(), course.getTitleEn()))
         .slug(course.getSlug())
-        .shortDescription(course.getShortDescription())
-        .description(course.getDescription())
+        .shortDescription(
+            localizedContentService.text(
+                course.getShortDescription(), course.getShortDescriptionEn()))
+        .description(
+            localizedContentService.text(course.getDescription(), course.getDescriptionEn()))
         .language(course.getLanguage())
         .level(course.getLevel())
         .thumbnailUrl(assetUrlService.publicUrl(course.getThumbnailObjectKey()))
         .priceBdt(course.getPriceBdt())
-        .highlights(course.getHighlights())
-        .courseOutcomes(course.getCourseOutcomes())
-        .requirements(course.getRequirements())
-        .prerequisites(course.getPrerequisites())
+        .highlights(localizedContentService.list(course.getHighlights(), course.getHighlightsEn()))
+        .courseOutcomes(
+            localizedContentService.list(
+                course.getCourseOutcomes(), course.getCourseOutcomesEn()))
+        .requirements(
+            localizedContentService.list(course.getRequirements(), course.getRequirementsEn()))
+        .prerequisites(
+            localizedContentService.list(
+                course.getPrerequisites(), course.getPrerequisitesEn()))
         .studyMode(course.getStudyMode())
         .categories(categoryResponses)
         .publishedAt(course.getPublishedAt())
@@ -115,7 +125,7 @@ public class CourseDetailsService {
 
     return CourseSectionResponse.builder()
         .id(section.getId())
-        .title(section.getTitle())
+        .title(localizedContentService.text(section.getTitle(), section.getTitleEn()))
         .position(section.getPosition())
         .lessons(lessons)
         .build();
@@ -136,7 +146,7 @@ public class CourseDetailsService {
 
     return LessonSummaryResponse.builder()
         .id(lesson.getId())
-        .title(lesson.getTitle())
+        .title(localizedContentService.text(lesson.getTitle(), lesson.getTitleEn()))
         .slug(lesson.getSlug())
         .position(lesson.getPosition())
         .lessonType(lesson.getLessonType())
@@ -152,7 +162,7 @@ public class CourseDetailsService {
 
     return CategoryResponse.builder()
         .id(category.getId())
-        .name(category.getName())
+        .name(localizedContentService.text(category.getName(), category.getNameEn()))
         .slug(category.getSlug())
         .build();
   }

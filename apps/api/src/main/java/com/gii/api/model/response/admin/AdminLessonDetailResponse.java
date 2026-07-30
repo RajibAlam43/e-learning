@@ -9,6 +9,7 @@ import lombok.Builder;
 public record AdminLessonDetailResponse(
     UUID lessonId,
     String title,
+    String titleEn,
     String slug,
     Integer position,
     String lessonType,

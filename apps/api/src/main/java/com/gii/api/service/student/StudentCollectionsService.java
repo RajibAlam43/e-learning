@@ -3,6 +3,7 @@ package com.gii.api.service.student;
 import com.gii.api.model.response.student.StudentCollectionSummaryResponse;
 import com.gii.api.service.enrollment.CurrentUserService;
 import com.gii.api.service.storage.AssetUrlService;
+import com.gii.api.service.localization.LocalizedContentService;
 import com.gii.common.entity.collection.Collection;
 import com.gii.common.entity.collection.CollectionCourse;
 import com.gii.common.entity.collection.CollectionEnrollment;
@@ -32,6 +33,7 @@ public class StudentCollectionsService {
   private final LessonRepository lessonRepository;
   private final LessonProgressRepository lessonProgressRepository;
   private final AssetUrlService assetUrlService;
+  private final LocalizedContentService localizedContentService;
 
   public List<StudentCollectionSummaryResponse> execute(Authentication authentication) {
     UUID userId = currentUserService.getCurrentUserId(authentication);
@@ -70,7 +72,9 @@ public class StudentCollectionsService {
               double progress = totalLessons == 0 ? 0.0 : (completedLessons * 100.0) / totalLessons;
               return StudentCollectionSummaryResponse.builder()
                   .collectionId(collection.getId())
-                  .collectionName(collection.getTitle())
+                  .collectionName(
+                      localizedContentService.text(
+                          collection.getTitle(), collection.getTitleEn()))
                   .collectionSlug(collection.getSlug())
                   .collectionType(collection.getType())
                   .thumbnailUrl(assetUrlService.publicUrl(collection.getThumbnailObjectKey()))

@@ -22,8 +22,14 @@ public class Faq extends BaseUuidEntity {
   @Column(name = "question", nullable = false)
   private String question;
 
+  @Column(name = "question_en")
+  private String questionEn;
+
   @Column(name = "answer", nullable = false)
   private String answer;
+
+  @Column(name = "answer_en")
+  private String answerEn;
 
   @Column(name = "position", nullable = false)
   @Builder.Default

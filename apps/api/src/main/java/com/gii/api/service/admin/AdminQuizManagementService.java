@@ -55,6 +55,7 @@ public class AdminQuizManagementService {
             .section(section)
             .position(request.position())
             .title(request.title().trim())
+            .titleEn(request.titleEn())
             .passingScorePct(request.passingScorePct())
             .maxAttempts(request.maxAttempts())
             .timeLimitSec(request.timeLimitSec())
@@ -95,6 +96,9 @@ public class AdminQuizManagementService {
     }
     if (request.title() != null && !request.title().isBlank()) {
       quiz.setTitle(request.title().trim());
+    }
+    if (request.titleEn() != null) {
+      quiz.setTitleEn(request.titleEn().trim());
     }
     if (request.passingScorePct() != null) {
       quiz.setPassingScorePct(request.passingScorePct());
@@ -163,9 +167,11 @@ public class AdminQuizManagementService {
               .quiz(quiz)
               .position(request.position())
               .questionText(request.questionText())
+              .questionTextEn(request.questionTextEn())
               .questionType(parseQuestionType(request.questionType()))
               .points(request.points())
               .explanationText(request.explanationText())
+              .explanationTextEn(request.explanationTextEn())
               .build();
       QuizQuestion savedQuestion = questionRepository.save(question);
       createChoices(savedQuestion, request.choices());
@@ -178,6 +184,7 @@ public class AdminQuizManagementService {
           QuizChoice.builder()
               .question(question)
               .choiceText(request.choiceText())
+              .choiceTextEn(request.choiceTextEn())
               .isCorrect(request.isCorrect())
               .build();
       choiceRepository.save(choice);
@@ -198,9 +205,11 @@ public class AdminQuizManagementService {
               .quiz(quiz)
               .position(request.position() == null ? 0 : request.position())
               .questionText(request.questionText())
+              .questionTextEn(request.questionTextEn())
               .questionType(parseQuestionType(request.questionType()))
               .points(request.points() == null ? 1 : request.points())
               .explanationText(request.explanationText())
+              .explanationTextEn(request.explanationTextEn())
               .build();
       QuizQuestion savedQuestion = questionRepository.save(question);
       if (request.choices() != null) {
@@ -209,6 +218,7 @@ public class AdminQuizManagementService {
               QuizChoice.builder()
                   .question(savedQuestion)
                   .choiceText(choiceRequest.choiceText())
+                  .choiceTextEn(choiceRequest.choiceTextEn())
                   .isCorrect(choiceRequest.isCorrect() != null && choiceRequest.isCorrect())
                   .build();
           choiceRepository.save(choice);
@@ -231,6 +241,7 @@ public class AdminQuizManagementService {
         .sectionId(quiz.getSection().getId())
         .position(quiz.getPosition())
         .title(quiz.getTitle())
+        .titleEn(quiz.getTitleEn())
         .passingScorePct(quiz.getPassingScorePct())
         .maxAttempts(quiz.getMaxAttempts())
         .timeLimitSec(quiz.getTimeLimitSec())
@@ -269,6 +280,7 @@ public class AdminQuizManagementService {
                     AdminQuizChoiceResponse.builder()
                         .choiceId(choice.getId())
                         .choiceText(choice.getChoiceText())
+                        .choiceTextEn(choice.getChoiceTextEn())
                         .isCorrect(choice.getIsCorrect())
                         .build())
             .toList();
@@ -276,9 +288,11 @@ public class AdminQuizManagementService {
         .questionId(question.getId())
         .position(question.getPosition())
         .questionText(question.getQuestionText())
+        .questionTextEn(question.getQuestionTextEn())
         .questionType(question.getQuestionType().name())
         .points(question.getPoints())
         .explanationText(question.getExplanationText())
+        .explanationTextEn(question.getExplanationTextEn())
         .choices(choices)
         .build();
   }

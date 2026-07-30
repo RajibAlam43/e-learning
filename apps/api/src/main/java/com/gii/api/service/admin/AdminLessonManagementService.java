@@ -53,6 +53,7 @@ public class AdminLessonManagementService {
             .course(section.getCourse())
             .section(section)
             .title(request.title().trim())
+            .titleEn(request.titleEn())
             .slug(request.slug().trim())
             .position(request.position())
             .lessonType(parseLessonType(request.lessonType()))
@@ -90,6 +91,9 @@ public class AdminLessonManagementService {
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lesson not found"));
     if (request.title() != null) {
       lesson.setTitle(request.title().trim());
+    }
+    if (request.titleEn() != null) {
+      lesson.setTitleEn(request.titleEn().trim());
     }
     if (request.slug() != null) {
       lesson.setSlug(request.slug().trim());
@@ -209,6 +213,7 @@ public class AdminLessonManagementService {
                         : null)
                 .fileUrl(mediaAsset.getFileUrl())
                 .title(mediaAsset.getTitle())
+                .titleEn(mediaAsset.getTitleEn())
                 .maxResolution(mediaAsset.getMaxResolution())
                 .durationSec(mediaAsset.getDurationSec())
                 .status(mediaAsset.getStatus().name())
@@ -230,6 +235,7 @@ public class AdminLessonManagementService {
                         .resourceId(r.getId())
                         .lessonId(lesson.getId())
                         .title(r.getTitle())
+                        .titleEn(r.getTitleEn())
                         .resourceType(r.getResourceType())
                         .mimeType(r.getMimeType())
                         .fileUrl(r.getFileUrl())
@@ -242,6 +248,7 @@ public class AdminLessonManagementService {
     return AdminLessonDetailResponse.builder()
         .lessonId(lesson.getId())
         .title(lesson.getTitle())
+        .titleEn(lesson.getTitleEn())
         .slug(lesson.getSlug())
         .position(lesson.getPosition())
         .lessonType(lesson.getLessonType().name())

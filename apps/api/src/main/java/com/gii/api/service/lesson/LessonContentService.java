@@ -5,6 +5,7 @@ import com.gii.api.model.response.lesson.LessonProgressResponse;
 import com.gii.api.model.response.lesson.LessonResourceResponse;
 import com.gii.api.model.response.lesson.MediaPlaybackResponse;
 import com.gii.api.service.storage.AssetUrlService;
+import com.gii.api.service.localization.LocalizedContentService;
 import com.gii.common.entity.course.Lesson;
 import com.gii.common.entity.course.MediaAsset;
 import com.gii.common.entity.enrollment.Enrollment;
@@ -33,6 +34,7 @@ public class LessonContentService {
   private final MediaAssetRepository mediaAssetRepository;
   private final LessonResourceRepository lessonResourceRepository;
   private final AssetUrlService assetUrlService;
+  private final LocalizedContentService localizedContentService;
 
   public LessonContentResponse execute(UUID lessonId, Authentication authentication) {
     UUID userId = lessonAccessService.requireCurrentUserId(authentication);
@@ -64,7 +66,9 @@ public class LessonContentService {
                 resource ->
                     LessonResourceResponse.builder()
                         .resourceId(resource.getId())
-                        .title(resource.getTitle())
+                        .title(
+                            localizedContentService.text(
+                                resource.getTitle(), resource.getTitleEn()))
                         .resourceType(resource.getResourceType())
                         .mimeType(resource.getMimeType())
                         .position(resource.getPosition())
@@ -74,7 +78,7 @@ public class LessonContentService {
 
     return LessonContentResponse.builder()
         .lessonId(lesson.getId())
-        .title(lesson.getTitle())
+        .title(localizedContentService.text(lesson.getTitle(), lesson.getTitleEn()))
         .slug(lesson.getSlug())
         .position(lesson.getPosition())
         .lessonType(lesson.getLessonType())
@@ -93,7 +97,9 @@ public class LessonContentService {
         .resources(resources)
         .courseId(lesson.getCourse().getId())
         .sectionId(lesson.getSection().getId())
-        .courseName(lesson.getCourse().getTitle())
+        .courseName(
+            localizedContentService.text(
+                lesson.getCourse().getTitle(), lesson.getCourse().getTitleEn()))
         .build();
   }
 
@@ -123,7 +129,8 @@ public class LessonContentService {
         .mediaAssetId(mediaAsset.getId())
         .assetType(mediaAsset.getAssetType())
         .provider(mediaAsset.getProvider())
-        .title(mediaAsset.getTitle())
+        .title(
+            localizedContentService.text(mediaAsset.getTitle(), mediaAsset.getTitleEn()))
         .durationSec(mediaAsset.getDurationSec())
         .maxResolution(mediaAsset.getMaxResolution())
         .youtubeVideoId(

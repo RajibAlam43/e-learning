@@ -1,6 +1,7 @@
 package com.gii.api.service.lesson;
 
 import com.gii.api.model.response.lesson.ResourceDownloadUrlResponse;
+import com.gii.api.service.localization.LocalizedContentService;
 import com.gii.api.service.storage.R2PresignedUrlService;
 import com.gii.common.entity.course.Lesson;
 import com.gii.common.entity.course.LessonResource;
@@ -23,6 +24,7 @@ public class ResourceDownloadService {
   private final LessonAccessService lessonAccessService;
   private final LessonResourceRepository lessonResourceRepository;
   private final R2PresignedUrlService r2PresignedUrlService;
+  private final LocalizedContentService localizedContentService;
 
   public ResourceDownloadUrlResponse execute(UUID resourceId, Authentication authentication) {
     UUID userId = lessonAccessService.requireCurrentUserId(authentication);
@@ -40,12 +42,14 @@ public class ResourceDownloadService {
 
     R2PresignedUrlService.PresignedDownload signed =
         r2PresignedUrlService.generateDownloadUrl(
-            resource.getFileUrl(), resource.getTitle(), resource.getMimeType());
+            resource.getFileUrl(),
+            localizedContentService.text(resource.getTitle(), resource.getTitleEn()),
+            resource.getMimeType());
 
     return ResourceDownloadUrlResponse.builder()
         .downloadUrl(signed.downloadUrl())
         .expiresAt(signed.expiresAt())
-        .fileName(resource.getTitle())
+        .fileName(localizedContentService.text(resource.getTitle(), resource.getTitleEn()))
         .build();
   }
 }
