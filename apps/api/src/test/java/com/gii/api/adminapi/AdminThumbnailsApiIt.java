@@ -51,8 +51,11 @@ class AdminThumbnailsApiIt extends AbstractAdminApiIntegrationTest {
                     }
                     """))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.objectKey").value(org.hamcrest.Matchers.matchesPattern(
-            "thumbnails/courses/course-cover-[0-9a-f]{8}\\.webp")))
+        .andExpect(
+            jsonPath("$.objectKey")
+                .value(
+                    org.hamcrest.Matchers.matchesPattern(
+                        "thumbnails/courses/course-cover-[0-9a-f]{8}\\.webp")))
         .andExpect(jsonPath("$.uploadUrl").isNotEmpty())
         .andExpect(jsonPath("$.method").value("PUT"))
         .andExpect(jsonPath("$.contentType").value("image/webp"))
@@ -82,12 +85,34 @@ class AdminThumbnailsApiIt extends AbstractAdminApiIntegrationTest {
   }
 
   @Test
+  void thumbnailUploadShouldRejectFilenameLongerThanTwoHundredCharacters() throws Exception {
+    var admin = user("Long Filename Admin", "long-filename-thumbnail-admin@example.com");
+    String filename = "a".repeat(197) + ".webp";
+
+    mockMvc
+        .perform(
+            post("/admin/thumbnails/upload-url")
+                .with(authentication(adminAuth(admin.getId())))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "ownerType":"COURSE",
+                      "filename":"%s",
+                      "contentType":"image/webp",
+                      "sizeBytes":1024
+                    }
+                    """
+                        .formatted(filename)))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
   void existingAdminEndpointsShouldPersistAndResolveStandardThumbnailKeys() throws Exception {
     var admin = user("Thumbnail Admin", "thumbnail-admin@example.com");
     var creator = user("Thumbnail Creator", "thumbnail-creator@example.com");
     var course = course("Thumbnail Course", "thumbnail-course", creator);
-    var collection =
-        collection("Thumbnail Pack", "thumbnail-pack", creator, PublishStatus.DRAFT);
+    var collection = collection("Thumbnail Pack", "thumbnail-pack", creator, PublishStatus.DRAFT);
     var section = section(course, 1);
     var lesson = lesson(course, section, 1);
     var mediaAsset = mediaAsset(lesson, "thumbnail-playback");
@@ -101,14 +126,12 @@ class AdminThumbnailsApiIt extends AbstractAdminApiIntegrationTest {
         .andExpect(jsonPath("$.thumbnailObjectKey").value(courseKey))
         .andExpect(jsonPath("$.thumbnailUrl").value("https://assets.test/" + courseKey));
 
-    patchThumbnail(
-            "/admin/collections/{id}", collection.getId(), collectionKey, admin.getId())
+    patchThumbnail("/admin/collections/{id}", collection.getId(), collectionKey, admin.getId())
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.thumbnailObjectKey").value(collectionKey))
         .andExpect(jsonPath("$.thumbnailUrl").value("https://assets.test/" + collectionKey));
 
-    patchThumbnail(
-            "/admin/media-assets/{id}", mediaAsset.getId(), mediaAssetKey, admin.getId())
+    patchThumbnail("/admin/media-assets/{id}", mediaAsset.getId(), mediaAssetKey, admin.getId())
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.thumbnailObjectKey").value(mediaAssetKey))
         .andExpect(jsonPath("$.thumbnailUrl").value("https://assets.test/" + mediaAssetKey));
@@ -116,16 +139,10 @@ class AdminThumbnailsApiIt extends AbstractAdminApiIntegrationTest {
     assertThat(courseRepository.findById(course.getId()).orElseThrow().getThumbnailObjectKey())
         .isEqualTo(courseKey);
     assertThat(
-            collectionRepository
-                .findById(collection.getId())
-                .orElseThrow()
-                .getThumbnailObjectKey())
+            collectionRepository.findById(collection.getId()).orElseThrow().getThumbnailObjectKey())
         .isEqualTo(collectionKey);
     assertThat(
-            mediaAssetRepository
-                .findById(mediaAsset.getId())
-                .orElseThrow()
-                .getThumbnailObjectKey())
+            mediaAssetRepository.findById(mediaAsset.getId()).orElseThrow().getThumbnailObjectKey())
         .isEqualTo(mediaAssetKey);
   }
 
@@ -134,8 +151,7 @@ class AdminThumbnailsApiIt extends AbstractAdminApiIntegrationTest {
     var admin = user("Clear Admin", "clear-thumbnail-admin@example.com");
     var creator = user("Clear Creator", "clear-thumbnail-creator@example.com");
     var course = course("Clear Thumbnail Course", "clear-thumbnail-course", creator);
-    course.setThumbnailObjectKey(
-        "thumbnails/courses/original-a1b2c3d4.webp");
+    course.setThumbnailObjectKey("thumbnails/courses/original-a1b2c3d4.webp");
     courseRepository.saveAndFlush(course);
 
     patchThumbnail("/admin/courses/{id}", course.getId(), "", admin.getId())
@@ -147,8 +163,7 @@ class AdminThumbnailsApiIt extends AbstractAdminApiIntegrationTest {
         .isNull();
 
     String wrongOwnerKey = "courses/" + java.util.UUID.randomUUID() + "/thumbnails/image.webp";
-    patchThumbnail(
-            "/admin/courses/{id}", course.getId(), wrongOwnerKey, admin.getId())
+    patchThumbnail("/admin/courses/{id}", course.getId(), wrongOwnerKey, admin.getId())
         .andExpect(status().isBadRequest());
   }
 

@@ -1,11 +1,11 @@
 package com.gii.api.adminapi;
 
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.gii.common.enums.LiveClassRegistrantStatus;
 import com.gii.common.enums.OrderStatus;
 import com.gii.common.enums.PublishStatus;
 import java.math.BigDecimal;
@@ -205,16 +206,27 @@ class AdminOperationsApiIt extends AbstractAdminApiIntegrationTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.title").value("Live Session 2"));
 
-    live = liveClassRepository.findAll().stream()
-        .filter(x -> "Live Session 2".equals(x.getTitle()))
-        .findFirst()
-        .orElseThrow();
+    live =
+        liveClassRepository.findAll().stream()
+            .filter(x -> "Live Session 2".equals(x.getTitle()))
+            .findFirst()
+            .orElseThrow();
+    registrant(
+        live,
+        user("Approved Student", "approved-live-student@example.com"),
+        LiveClassRegistrantStatus.APPROVED);
+    registrant(
+        live,
+        user("Pending Student", "pending-live-student@example.com"),
+        LiveClassRegistrantStatus.PENDING);
     mockMvc
         .perform(
             post("/live-classes/{liveClassId}/start", live.getId())
                 .with(authentication(adminAuth(admin.getId()))))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.status").value("LIVE"));
+        .andExpect(jsonPath("$.status").value("LIVE"))
+        .andExpect(jsonPath("$.approvedRegistrants").value(1))
+        .andExpect(jsonPath("$.registeredStudents").doesNotExist());
 
     mockMvc
         .perform(
@@ -254,7 +266,8 @@ class AdminOperationsApiIt extends AbstractAdminApiIntegrationTest {
             post("/admin/quizzes/{quizId}/publish", quiz.getId())
                 .with(authentication(adminAuth(admin.getId()))))
         .andExpect(status().isOk());
-    org.assertj.core.api.Assertions.assertThat(quizRepository.findById(quiz.getId()).orElseThrow().getStatus())
+    org.assertj.core.api.Assertions.assertThat(
+            quizRepository.findById(quiz.getId()).orElseThrow().getStatus())
         .isEqualTo(PublishStatus.PUBLISHED);
 
     mockMvc
@@ -262,7 +275,8 @@ class AdminOperationsApiIt extends AbstractAdminApiIntegrationTest {
             post("/admin/quizzes/{quizId}/unpublish", quiz.getId())
                 .with(authentication(adminAuth(admin.getId()))))
         .andExpect(status().isOk());
-    org.assertj.core.api.Assertions.assertThat(quizRepository.findById(quiz.getId()).orElseThrow().getStatus())
+    org.assertj.core.api.Assertions.assertThat(
+            quizRepository.findById(quiz.getId()).orElseThrow().getStatus())
         .isEqualTo(PublishStatus.DRAFT);
 
     var buyer = user("Buyer One", "buyer-one@example.com");
@@ -426,9 +440,7 @@ class AdminOperationsApiIt extends AbstractAdminApiIntegrationTest {
         }
         """
             .formatted(
-                sec.getId(),
-                Instant.now().plusSeconds(3600),
-                Instant.now().plusSeconds(5400));
+                sec.getId(), Instant.now().plusSeconds(3600), Instant.now().plusSeconds(5400));
 
     mockMvc
         .perform(

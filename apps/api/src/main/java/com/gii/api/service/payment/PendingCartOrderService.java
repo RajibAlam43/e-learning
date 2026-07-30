@@ -4,9 +4,9 @@ import com.gii.api.model.request.payment.CreateCheckoutOrderItemRequest;
 import com.gii.api.model.request.payment.CreateCheckoutOrderRequest;
 import com.gii.api.model.response.payment.CheckoutOrderItemResponse;
 import com.gii.api.model.response.payment.CheckoutOrderResponse;
-import com.gii.api.service.storage.AssetUrlService;
-import com.gii.api.service.localization.LocalizedContentService;
 import com.gii.api.service.enrollment.CurrentUserService;
+import com.gii.api.service.localization.LocalizedContentService;
+import com.gii.api.service.storage.AssetUrlService;
 import com.gii.common.entity.collection.Collection;
 import com.gii.common.entity.collection.CollectionCourse;
 import com.gii.common.entity.collection.CollectionEnrollment;
@@ -63,7 +63,8 @@ public class PendingCartOrderService {
   private final AssetUrlService assetUrlService;
   private final LocalizedContentService localizedContentService;
 
-  public CheckoutOrderResponse execute(CreateCheckoutOrderRequest request, Authentication authentication) {
+  public CheckoutOrderResponse execute(
+      CreateCheckoutOrderRequest request, Authentication authentication) {
     User user = currentUserService.getCurrentUser(authentication);
     List<CreateCheckoutOrderItemRequest> requestedItems = request.items();
     validateNoDuplicateLines(requestedItems);
@@ -93,7 +94,8 @@ public class PendingCartOrderService {
         requestedCollectionIds.isEmpty()
             ? List.of()
             : collectionCourseRepository.findByCollection_IdInWithCourse(requestedCollectionIds);
-    Map<UUID, List<CollectionCourse>> collectionCoursesByCollectionId = groupByCollection(collectionCoursesForCart);
+    Map<UUID, List<CollectionCourse>> collectionCoursesByCollectionId =
+        groupByCollection(collectionCoursesForCart);
 
     Set<UUID> collectionCourseIdsInCart = new HashSet<>();
     for (CollectionCourse cc : collectionCoursesForCart) {
@@ -106,21 +108,28 @@ public class PendingCartOrderService {
         String courseTitle = coursesById.get(courseId).getTitle();
         throw new ResponseStatusException(
             HttpStatus.CONFLICT,
-            "Course \"" + courseTitle + "\" is already included in a selected collection. Remove individual course.");
+            "Course \""
+                + courseTitle
+                + "\" is already included in a selected collection. Remove individual course.");
       }
     }
 
     // Case 2: if user owns collection containing the course, block standalone course purchase.
     Set<UUID> ownedCollectionIds =
-        collectionEnrollmentRepository.findByUserIdAndStatus(user.getId(), EnrollmentStatus.ACTIVE).stream()
+        collectionEnrollmentRepository
+            .findByUserIdAndStatus(user.getId(), EnrollmentStatus.ACTIVE)
+            .stream()
             .map(CollectionEnrollment::getCollection)
             .map(Collection::getId)
             .collect(java.util.stream.Collectors.toSet());
     if (!ownedCollectionIds.isEmpty() && !requestedCourseIds.isEmpty()) {
       List<CollectionCourse> ownedCollectionCourses =
-          collectionCourseRepository.findByCollection_IdInWithCourse(new ArrayList<>(ownedCollectionIds));
+          collectionCourseRepository.findByCollection_IdInWithCourse(
+              new ArrayList<>(ownedCollectionIds));
       Set<UUID> blockedCourseIds =
-          ownedCollectionCourses.stream().map(cc -> cc.getCourse().getId()).collect(java.util.stream.Collectors.toSet());
+          ownedCollectionCourses.stream()
+              .map(cc -> cc.getCourse().getId())
+              .collect(java.util.stream.Collectors.toSet());
       for (UUID courseId : requestedCourseIds) {
         if (blockedCourseIds.contains(courseId)) {
           throw new ResponseStatusException(
@@ -160,7 +169,10 @@ public class PendingCartOrderService {
     for (CreateCheckoutOrderItemRequest requestedItem : requestedItems) {
       if (requestedItem.itemType() == OrderItemType.COURSE) {
         Course course = coursesById.get(requestedItem.courseId());
-        BigDecimal price = course.getIsFree() != null && course.getIsFree() ? BigDecimal.ZERO : course.getPriceBdt();
+        BigDecimal price =
+            course.getIsFree() != null && course.getIsFree()
+                ? BigDecimal.ZERO
+                : course.getPriceBdt();
         BigDecimal discount = BigDecimal.ZERO;
         orderItems.add(
             OrderItem.builder()
@@ -222,7 +234,7 @@ public class PendingCartOrderService {
               .courseName(
                   localizedContentService.text(collection.getTitle(), collection.getTitleEn()))
               .courseSlug(collection.getSlug())
-              .courseThumbnailUrl(null)
+              .courseThumbnailUrl(assetUrlService.publicUrl(collection.getThumbnailObjectKey()))
               .originalPrice(price)
               .discountAmount(discount)
               .finalPrice(price.subtract(discount))
@@ -260,17 +272,21 @@ public class PendingCartOrderService {
     for (CreateCheckoutOrderItemRequest item : requestedItems) {
       if (item.itemType() == OrderItemType.COURSE) {
         if (item.courseId() == null || item.collectionId() != null) {
-          throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid COURSE checkout item payload");
+          throw new ResponseStatusException(
+              HttpStatus.BAD_REQUEST, "Invalid COURSE checkout item payload");
         }
         if (!seen.add("COURSE:" + item.courseId())) {
-          throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Duplicate course found in cart");
+          throw new ResponseStatusException(
+              HttpStatus.BAD_REQUEST, "Duplicate course found in cart");
         }
       } else if (item.itemType() == OrderItemType.COLLECTION) {
         if (item.collectionId() == null || item.courseId() != null) {
-          throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid COLLECTION checkout item payload");
+          throw new ResponseStatusException(
+              HttpStatus.BAD_REQUEST, "Invalid COLLECTION checkout item payload");
         }
         if (!seen.add("COLLECTION:" + item.collectionId())) {
-          throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Duplicate collection found in cart");
+          throw new ResponseStatusException(
+              HttpStatus.BAD_REQUEST, "Duplicate collection found in cart");
         }
       }
     }
@@ -298,8 +314,10 @@ public class PendingCartOrderService {
     if (ids.isEmpty()) {
       return Map.of();
     }
-    List<Collection> collections = collectionRepository.findByIdInAndStatus(ids, PublishStatus.PUBLISHED);
-    Map<UUID, Collection> map = collections.stream().collect(java.util.stream.Collectors.toMap(Collection::getId, c -> c));
+    List<Collection> collections =
+        collectionRepository.findByIdInAndStatus(ids, PublishStatus.PUBLISHED);
+    Map<UUID, Collection> map =
+        collections.stream().collect(java.util.stream.Collectors.toMap(Collection::getId, c -> c));
     if (map.size() != new HashSet<>(ids).size()) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, "One or more collections not found");
     }
@@ -314,9 +332,11 @@ public class PendingCartOrderService {
     return out;
   }
 
-  private Order findReusablePendingOrder(UUID userId, List<CreateCheckoutOrderItemRequest> requestedItems) {
+  private Order findReusablePendingOrder(
+      UUID userId, List<CreateCheckoutOrderItemRequest> requestedItems) {
     Instant now = Instant.now();
-    Set<String> requestedKeys = requestedItems.stream().map(this::itemKey).collect(Collectors.toSet());
+    Set<String> requestedKeys =
+        requestedItems.stream().map(this::itemKey).collect(Collectors.toSet());
     int requestedSize = requestedItems.size();
     for (Order order : orderRepository.findByUserIdAndStatus(userId, OrderStatus.PENDING)) {
       if (!order.getCreatedAt().plusSeconds(ORDER_EXPIRY_SECONDS).isAfter(now)) {
@@ -326,7 +346,8 @@ public class PendingCartOrderService {
       if (existingItems.size() != requestedSize) {
         continue;
       }
-      Set<String> existingKeys = existingItems.stream().map(this::itemKey).collect(Collectors.toSet());
+      Set<String> existingKeys =
+          existingItems.stream().map(this::itemKey).collect(Collectors.toSet());
       if (existingKeys.equals(requestedKeys)) {
         return order;
       }
@@ -351,9 +372,7 @@ public class PendingCartOrderService {
     BigDecimal subtotal =
         items.stream().map(OrderItem::getPriceBdt).reduce(BigDecimal.ZERO, BigDecimal::add);
     BigDecimal totalDiscount =
-        items.stream()
-            .map(OrderItem::getDiscountBdt)
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        items.stream().map(OrderItem::getDiscountBdt).reduce(BigDecimal.ZERO, BigDecimal::add);
     BigDecimal totalAmount = subtotal.subtract(totalDiscount);
     List<CheckoutOrderItemResponse> responseItems =
         items.stream()
@@ -372,10 +391,10 @@ public class PendingCartOrderService {
                                 ? item.getCourse().getSlug()
                                 : item.getCollection().getSlug())
                         .courseThumbnailUrl(
-                            item.getCourse() != null
-                                ? assetUrlService.publicUrl(
-                                    item.getCourse().getThumbnailObjectKey())
-                                : null)
+                            assetUrlService.publicUrl(
+                                item.getCourse() != null
+                                    ? item.getCourse().getThumbnailObjectKey()
+                                    : item.getCollection().getThumbnailObjectKey()))
                         .originalPrice(item.getPriceBdt())
                         .discountAmount(item.getDiscountBdt())
                         .finalPrice(item.getPriceBdt().subtract(item.getDiscountBdt()))

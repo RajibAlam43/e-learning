@@ -15,5 +15,5 @@ public record AdminLiveClassStartResponse(
     Instant startsAt,
     Instant endsAt,
     String status,
-    Integer registeredStudents,
+    Integer approvedRegistrants,
     Boolean recordingEnabled) {}
