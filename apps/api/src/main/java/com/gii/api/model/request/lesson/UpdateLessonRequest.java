@@ -7,13 +7,13 @@ import lombok.Builder;
 @Builder
 public record UpdateLessonRequest(
     String title,
+    String titleEn,
     String slug,
     Integer position,
     String lessonType,
     Boolean isMandatory,
     Boolean isFree,
     Integer durationSeconds,
-    String thumbnailUrl,
     String transcriptUrl,
     String releaseType,
     Instant releaseAt,

@@ -3,6 +3,7 @@ package com.gii.api.service.admin;
 import com.gii.api.model.request.admin.CreateMediaAssetRequest;
 import com.gii.api.model.request.admin.UpdateMediaAssetRequest;
 import com.gii.api.model.response.admin.AdminMediaAssetResponse;
+import com.gii.api.service.storage.AssetUrlService;
 import com.gii.common.entity.course.Lesson;
 import com.gii.common.entity.course.MediaAsset;
 import com.gii.common.enums.MediaAssetType;
@@ -22,6 +23,7 @@ public class AdminMediaAssetManagementService {
 
   private final MediaAssetRepository mediaAssetRepository;
   private final LessonRepository lessonRepository;
+  private final AssetUrlService assetUrlService;
 
   public AdminMediaAssetResponse create(CreateMediaAssetRequest request) {
     Lesson lesson =
@@ -43,6 +45,10 @@ public class AdminMediaAssetManagementService {
             .playbackPolicy(request.playbackPolicy())
             .fileUrl(request.fileUrl())
             .title(request.title())
+            .titleEn(request.titleEn())
+            .thumbnailObjectKey(
+                assetUrlService.normalizeThumbnailKey(
+                    request.thumbnailObjectKey(), "media-assets"))
             .maxResolution(request.maxResolution())
             .durationSec(request.durationSec())
             .status(MediaStatus.READY)
@@ -59,6 +65,14 @@ public class AdminMediaAssetManagementService {
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Media asset not found"));
     if (request.title() != null) {
       asset.setTitle(request.title());
+    }
+    if (request.titleEn() != null) {
+      asset.setTitleEn(request.titleEn());
+    }
+    if (request.thumbnailObjectKey() != null) {
+      asset.setThumbnailObjectKey(
+          assetUrlService.normalizeThumbnailKey(
+              request.thumbnailObjectKey(), "media-assets"));
     }
     if (request.provider() != null) {
       asset.setProvider(request.provider());
@@ -109,6 +123,9 @@ public class AdminMediaAssetManagementService {
         .playbackPolicy(asset.getPlaybackPolicy() != null ? asset.getPlaybackPolicy().name() : null)
         .fileUrl(asset.getFileUrl())
         .title(asset.getTitle())
+        .titleEn(asset.getTitleEn())
+        .thumbnailObjectKey(asset.getThumbnailObjectKey())
+        .thumbnailUrl(assetUrlService.publicUrl(asset.getThumbnailObjectKey()))
         .maxResolution(asset.getMaxResolution())
         .durationSec(asset.getDurationSec())
         .status(asset.getStatus().name())

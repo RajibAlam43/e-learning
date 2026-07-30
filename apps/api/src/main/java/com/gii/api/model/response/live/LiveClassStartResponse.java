@@ -16,5 +16,5 @@ public record LiveClassStartResponse(
     Instant startsAt,
     Instant endsAt,
     LiveClassStatus status,
-    Integer registeredStudents,
+    Integer approvedRegistrants,
     Boolean recordingEnabled) {}

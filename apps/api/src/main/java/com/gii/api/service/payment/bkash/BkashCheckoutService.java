@@ -62,9 +62,18 @@ public class BkashCheckoutService {
                 "currency", order.getCurrency(),
                 "intent", "sale",
                 "mode", "0011",
-                "successCallbackURL", String.format("https://%s.globalislamicinstitute.com/payments/bkash/%s/success", redirectSubdomain, orderId),
-                "failureCallbackURL", String.format("https://%s.globalislamicinstitute.com/payments/bkash/%s/failed", redirectSubdomain, orderId),
-                "cancelledCallbackURL", String.format("https://%s.globalislamicinstitute.com/payments/bkash/%s/cancelled", redirectSubdomain,  orderId),
+                "successCallbackURL",
+                    String.format(
+                        "https://%s.globalislamicinstitute.com/payments/bkash/%s/success",
+                        redirectSubdomain, orderId),
+                "failureCallbackURL",
+                    String.format(
+                        "https://%s.globalislamicinstitute.com/payments/bkash/%s/failed",
+                        redirectSubdomain, orderId),
+                "cancelledCallbackURL",
+                    String.format(
+                        "https://%s.globalislamicinstitute.com/payments/bkash/%s/cancelled",
+                        redirectSubdomain, orderId),
                 "merchantInvoiceNumber", order.getId().toString()));
     String paymentId = asString(response.get("paymentID"));
     require(!isBlank(paymentId), HttpStatus.BAD_REQUEST, "Invalid payment response");
@@ -102,15 +111,27 @@ public class BkashCheckoutService {
       verified = queryPayment(paymentId);
       transactionStatus = asString(verified.get("transactionStatus"));
     }
-    require("Completed".equalsIgnoreCase(transactionStatus), HttpStatus.BAD_REQUEST, "Invalid callback");
+    require(
+        "Completed".equalsIgnoreCase(transactionStatus),
+        HttpStatus.BAD_REQUEST,
+        "Invalid callback");
 
     String amount = asString(verified.get("amount"));
     String currency = asString(verified.get("currency"));
     String invoice = asString(verified.get("merchantInvoiceNumber"));
     require(!isBlank(amount), HttpStatus.BAD_REQUEST, "Invalid callback");
-    require(new BigDecimal(amount).compareTo(order.getAmountBdt()) == 0, HttpStatus.BAD_REQUEST, "Invalid callback");
-    require(!isBlank(currency) && currency.equalsIgnoreCase(order.getCurrency()), HttpStatus.BAD_REQUEST, "Invalid callback");
-    require(isBlank(invoice) || invoice.equals(order.getId().toString()), HttpStatus.BAD_REQUEST, "Invalid callback");
+    require(
+        new BigDecimal(amount).compareTo(order.getAmountBdt()) == 0,
+        HttpStatus.BAD_REQUEST,
+        "Invalid callback");
+    require(
+        !isBlank(currency) && currency.equalsIgnoreCase(order.getCurrency()),
+        HttpStatus.BAD_REQUEST,
+        "Invalid callback");
+    require(
+        isBlank(invoice) || invoice.equals(order.getId().toString()),
+        HttpStatus.BAD_REQUEST,
+        "Invalid callback");
   }
 
   private Map<String, Object> call(String path, HttpMethod method, Map<String, Object> payload) {
@@ -120,7 +141,10 @@ public class BkashCheckoutService {
       require(is2xx(response.statusCode()), HttpStatus.BAD_REQUEST, "bKash API call failed");
       Map<String, Object> parsed = objectMapper.readValue(response.body(), MAP_TYPE);
       String statusCode = asString(parsed.get("statusCode"));
-      require(isBlank(statusCode) || "0000".equals(statusCode), HttpStatus.BAD_REQUEST, "bKash API call failed");
+      require(
+          isBlank(statusCode) || "0000".equals(statusCode),
+          HttpStatus.BAD_REQUEST,
+          "bKash API call failed");
       return parsed;
     } catch (Exception ex) {
       if (ex instanceof ResponseStatusException rse) {
@@ -132,14 +156,20 @@ public class BkashCheckoutService {
 
   private void ensureCredentials() {
     require(
-        !isBlank(baseUrl) && !isBlank(username) && !isBlank(password) && !isBlank(appKey) && !isBlank(appSecret),
+        !isBlank(baseUrl)
+            && !isBlank(username)
+            && !isBlank(password)
+            && !isBlank(appKey)
+            && !isBlank(appSecret),
         HttpStatus.SERVICE_UNAVAILABLE,
         "bKash is not configured");
   }
 
   private synchronized Map<String, String> authenticatedHeaders() {
     Instant now = Instant.now();
-    if (!isBlank(idToken) && tokenExpiresAt != null && tokenExpiresAt.isAfter(now.plusSeconds(30))) {
+    if (!isBlank(idToken)
+        && tokenExpiresAt != null
+        && tokenExpiresAt.isAfter(now.plusSeconds(30))) {
       return Map.of("Authorization", idToken);
     }
 
@@ -156,7 +186,8 @@ public class BkashCheckoutService {
   }
 
   private void grantToken() {
-    cacheTokenResponse(tokenPost("/checkout/token/grant", Map.of("app_key", appKey, "app_secret", appSecret)));
+    cacheTokenResponse(
+        tokenPost("/checkout/token/grant", Map.of("app_key", appKey, "app_secret", appSecret)));
   }
 
   private void refreshToken() {
@@ -180,13 +211,18 @@ public class BkashCheckoutService {
                       clientResponse
                           .bodyToMono(String.class)
                           .defaultIfEmpty("")
-                          .map(body -> new RawHttpResponse(clientResponse.statusCode().value(), body)))
+                          .map(
+                              body ->
+                                  new RawHttpResponse(clientResponse.statusCode().value(), body)))
               .block(Duration.ofMillis(timeoutMs));
       require(response != null, HttpStatus.BAD_REQUEST, "bKash token fetch failed");
       require(is2xx(response.statusCode()), HttpStatus.BAD_REQUEST, "bKash token fetch failed");
       Map<String, Object> parsed = objectMapper.readValue(response.body(), MAP_TYPE);
       String statusCode = asString(parsed.get("statusCode"));
-      require(isBlank(statusCode) || "0000".equals(statusCode), HttpStatus.BAD_REQUEST, "bKash token fetch failed");
+      require(
+          isBlank(statusCode) || "0000".equals(statusCode),
+          HttpStatus.BAD_REQUEST,
+          "bKash token fetch failed");
       return parsed;
     } catch (Exception ex) {
       if (ex instanceof ResponseStatusException rse) {
@@ -205,7 +241,9 @@ public class BkashCheckoutService {
     if (!isBlank(refreshed)) {
       this.refreshToken = refreshed;
     }
-    this.tokenExpiresAt = Instant.now().plusSeconds(Math.max(30, parseExpiresIn(asString(response.get("expires_in")))));
+    this.tokenExpiresAt =
+        Instant.now()
+            .plusSeconds(Math.max(30, parseExpiresIn(asString(response.get("expires_in")))));
   }
 
   private long parseExpiresIn(String expiresInRaw) {
@@ -216,8 +254,8 @@ public class BkashCheckoutService {
     }
   }
 
-  private RawHttpResponse sendWithAuthRetry(String path, HttpMethod method, Map<String, Object> payload)
-      throws Exception {
+  private RawHttpResponse sendWithAuthRetry(
+      String path, HttpMethod method, Map<String, Object> payload) throws Exception {
     RawHttpResponse response = sendAuthenticated(path, method, payload);
     if (response.statusCode() == 401) {
       invalidateTokenCache();
@@ -226,17 +264,18 @@ public class BkashCheckoutService {
     return response;
   }
 
-  private RawHttpResponse sendAuthenticated(String path, HttpMethod method, Map<String, Object> payload)
-      throws Exception {
+  private RawHttpResponse sendAuthenticated(
+      String path, HttpMethod method, Map<String, Object> payload) throws Exception {
     WebClient.RequestBodySpec request =
         webClient(path, method)
             .accept(MediaType.APPLICATION_JSON)
             .header("Authorization", authenticatedHeaders().get("Authorization"))
             .header("X-APP-Key", appKey);
     WebClient.RequestHeadersSpec<?> spec =
-        payload == null ? request : request.contentType(MediaType.APPLICATION_JSON).bodyValue(payload);
-    return spec
-        .exchangeToMono(
+        payload == null
+            ? request
+            : request.contentType(MediaType.APPLICATION_JSON).bodyValue(payload);
+    return spec.exchangeToMono(
             clientResponse ->
                 clientResponse
                     .bodyToMono(String.class)

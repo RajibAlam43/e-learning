@@ -7,8 +7,8 @@ import com.gii.api.model.response.admin.AdminCourseDetailResponse;
 import com.gii.api.model.response.admin.AdminCourseSectionResponse;
 import com.gii.api.model.response.admin.AdminCourseSummaryResponse;
 import com.gii.api.model.response.admin.AdminInstructorSummaryResponse;
-import com.gii.api.service.course.CourseThumbnailUrlService;
 import com.gii.api.service.enrollment.CurrentUserService;
+import com.gii.api.service.storage.AssetUrlService;
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.course.CourseInstructor;
 import com.gii.common.entity.course.CourseSection;
@@ -58,7 +58,7 @@ public class AdminCourseManagementService {
   private final EnrollmentRepository enrollmentRepository;
   private final CurrentUserService currentUserService;
   private final AdminSectionManagementService sectionManagementService;
-  private final CourseThumbnailUrlService courseThumbnailUrlService;
+  private final AssetUrlService assetUrlService;
 
   @Transactional(readOnly = true)
   public List<AdminCourseSummaryResponse> list() {
@@ -78,6 +78,7 @@ public class AdminCourseManagementService {
                   .courseId(course.getId())
                   .title(course.getTitle())
                   .slug(course.getSlug())
+                  .thumbnailUrl(assetUrlService.publicUrl(course.getThumbnailObjectKey()))
                   .status(course.getStatus())
                   .priceBdt(course.getPriceBdt())
                   .isFree(course.getIsFree())
@@ -96,15 +97,24 @@ public class AdminCourseManagementService {
     Course course =
         Course.builder()
             .title(request.title().trim())
+            .titleEn(request.titleEn())
             .slug(request.slug().trim())
-            .thumbnailObjectKey(request.thumbnailObjectKey())
+            .thumbnailObjectKey(
+                assetUrlService.normalizeThumbnailKey(
+                    request.thumbnailObjectKey(), "courses"))
             .shortDescription(request.shortDescription())
+            .shortDescriptionEn(request.shortDescriptionEn())
             .description(request.description())
+            .descriptionEn(request.descriptionEn())
             .highlights(request.highlights())
+            .highlightsEn(request.highlightsEn())
             .priceBdt(request.priceBdt())
             .courseOutcomes(request.courseOutcomes())
+            .courseOutcomesEn(request.courseOutcomesEn())
             .requirements(request.requirements())
+            .requirementsEn(request.requirementsEn())
             .prerequisites(toList(request.prerequisites()))
+            .prerequisitesEn(toList(request.prerequisitesEn()))
             .level(request.level())
             .language(request.language())
             .studyMode(request.studyMode())
@@ -112,6 +122,7 @@ public class AdminCourseManagementService {
             .isFree(Boolean.TRUE.equals(request.isFree()))
             .estimatedDurationMinutes(request.estimatedDurationMinutes())
             .targetAudience(request.targetAudience())
+            .targetAudienceEn(request.targetAudienceEn())
             .liveSessionCount(0)
             .quizCount(0)
             .recordedHoursCount(0)
@@ -139,20 +150,33 @@ public class AdminCourseManagementService {
     if (request.title() != null) {
       course.setTitle(request.title().trim());
     }
+    if (request.titleEn() != null) {
+      course.setTitleEn(request.titleEn().trim());
+    }
     if (request.slug() != null) {
       course.setSlug(request.slug().trim());
     }
     if (request.thumbnailObjectKey() != null) {
-      course.setThumbnailObjectKey(request.thumbnailObjectKey());
+      course.setThumbnailObjectKey(
+          assetUrlService.normalizeThumbnailKey(request.thumbnailObjectKey(), "courses"));
     }
     if (request.shortDescription() != null) {
       course.setShortDescription(request.shortDescription());
     }
+    if (request.shortDescriptionEn() != null) {
+      course.setShortDescriptionEn(request.shortDescriptionEn());
+    }
     if (request.description() != null) {
       course.setDescription(request.description());
     }
+    if (request.descriptionEn() != null) {
+      course.setDescriptionEn(request.descriptionEn());
+    }
     if (request.highlights() != null) {
       course.setHighlights(request.highlights());
+    }
+    if (request.highlightsEn() != null) {
+      course.setHighlightsEn(request.highlightsEn());
     }
     if (request.priceBdt() != null) {
       course.setPriceBdt(request.priceBdt());
@@ -160,11 +184,20 @@ public class AdminCourseManagementService {
     if (request.courseOutcomes() != null) {
       course.setCourseOutcomes(request.courseOutcomes());
     }
+    if (request.courseOutcomesEn() != null) {
+      course.setCourseOutcomesEn(request.courseOutcomesEn());
+    }
     if (request.requirements() != null) {
       course.setRequirements(request.requirements());
     }
+    if (request.requirementsEn() != null) {
+      course.setRequirementsEn(request.requirementsEn());
+    }
     if (request.prerequisites() != null) {
       course.setPrerequisites(toList(request.prerequisites()));
+    }
+    if (request.prerequisitesEn() != null) {
+      course.setPrerequisitesEn(toList(request.prerequisitesEn()));
     }
     if (request.level() != null) {
       course.setLevel(CourseLevel.valueOf(request.level().toUpperCase()));
@@ -183,6 +216,9 @@ public class AdminCourseManagementService {
     }
     if (request.targetAudience() != null) {
       course.setTargetAudience(request.targetAudience());
+    }
+    if (request.targetAudienceEn() != null) {
+      course.setTargetAudienceEn(request.targetAudienceEn());
     }
     return getResponse(courseRepository.save(course));
   }
@@ -357,14 +393,21 @@ public class AdminCourseManagementService {
     return AdminCourseDetailResponse.builder()
         .courseId(course.getId())
         .title(course.getTitle())
+        .titleEn(course.getTitleEn())
         .slug(course.getSlug())
-        .thumbnailUrl(courseThumbnailUrlService.buildCourseThumbnailUrl(course))
+        .thumbnailObjectKey(course.getThumbnailObjectKey())
+        .thumbnailUrl(assetUrlService.publicUrl(course.getThumbnailObjectKey()))
         .shortDescription(course.getShortDescription())
+        .shortDescriptionEn(course.getShortDescriptionEn())
         .description(course.getDescription())
+        .descriptionEn(course.getDescriptionEn())
         .highlights(course.getHighlights())
+        .highlightsEn(course.getHighlightsEn())
         .priceBdt(course.getPriceBdt())
         .courseOutcomes(course.getCourseOutcomes())
+        .courseOutcomesEn(course.getCourseOutcomesEn())
         .requirements(course.getRequirements())
+        .requirementsEn(course.getRequirementsEn())
         .level(course.getLevel())
         .language(course.getLanguage())
         .studyMode(course.getStudyMode())
@@ -375,8 +418,13 @@ public class AdminCourseManagementService {
         .recordedHoursCount(course.getRecordedHoursCount())
         .estimatedDurationMinutes(course.getEstimatedDurationMinutes())
         .targetAudience(course.getTargetAudience())
+        .targetAudienceEn(course.getTargetAudienceEn())
         .prerequisites(
             course.getPrerequisites() != null ? String.join(", ", course.getPrerequisites()) : null)
+        .prerequisitesEn(
+            course.getPrerequisitesEn() != null
+                ? String.join(", ", course.getPrerequisitesEn())
+                : null)
         .createdBy(course.getCreatedBy() != null ? course.getCreatedBy().getId() : null)
         .publishedAt(course.getPublishedAt())
         .createdAt(course.getCreatedAt())

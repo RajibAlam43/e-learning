@@ -23,7 +23,11 @@ class PublicInstructorDetailsApiIt extends AbstractPublicApiIntegrationTest {
   void returnsPublishedCoursesForActivePublicInstructor() throws Exception {
     User creator = user("Creator", "creator7@example.com", UserStatus.ACTIVE);
     User instructor = user("Instructor D", "insD@example.com", UserStatus.ACTIVE);
-    instructorProfile(instructor, true, "D");
+    var profile = instructorProfile(instructor, true, "D");
+    profile.setHeadlineEn("English headline");
+    profile.setCredentialsTextEn("English credentials");
+    profile.setSpecialtiesEn(java.util.List.of("English specialty"));
+    instructorProfileRepository.saveAndFlush(profile);
 
     Course published =
         course(
@@ -43,6 +47,8 @@ class PublicInstructorDetailsApiIt extends AbstractPublicApiIntegrationTest {
             CourseLevel.BEGINNER,
             CourseLanguage.EN,
             null);
+    published.setTitleEn("Published Course English");
+    courseRepository.saveAndFlush(published);
     attachInstructor(published, instructor);
     attachInstructor(draft, instructor);
 
@@ -52,6 +58,14 @@ class PublicInstructorDetailsApiIt extends AbstractPublicApiIntegrationTest {
         .andExpect(jsonPath("$.fullName").value("Instructor D"))
         .andExpect(jsonPath("$.publishedCourses.length()").value(1))
         .andExpect(jsonPath("$.publishedCourses[0].title").value("Published for Instructor"));
+
+    mockMvc
+        .perform(get("/public/instructors/{slug}", instructor.getId()).param("lang", "en"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.headline").value("English headline"))
+        .andExpect(jsonPath("$.credentialsText").value("English credentials"))
+        .andExpect(jsonPath("$.specialties[0]").value("English specialty"))
+        .andExpect(jsonPath("$.publishedCourses[0].title").value("Published Course English"));
   }
 
   @Test
@@ -62,6 +76,21 @@ class PublicInstructorDetailsApiIt extends AbstractPublicApiIntegrationTest {
     mockMvc
         .perform(get("/public/instructors/{slug}", "44f96db0-e4ea-4a58-9d3d-0faf6515fa9f"))
         .andExpect(status().isNotFound());
+  }
+
+  @Test
+  void returnsEmptySpecialtiesWhenNoSpecialtiesExist() throws Exception {
+    User instructor = user("No Specialties", "no-specialties@example.com", UserStatus.ACTIVE);
+    var profile = instructorProfile(instructor, true, "No specialties");
+    profile.setSpecialties(null);
+    profile.setSpecialtiesEn(null);
+    instructorProfileRepository.saveAndFlush(profile);
+
+    mockMvc
+        .perform(get("/public/instructors/{slug}", instructor.getId()).param("lang", "en"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.specialties").isArray())
+        .andExpect(jsonPath("$.specialties.length()").value(0));
   }
 
   @Test

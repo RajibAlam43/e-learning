@@ -5,6 +5,7 @@ import com.gii.api.model.request.lesson.UpdateLessonRequest;
 import com.gii.api.model.response.admin.AdminLessonDetailResponse;
 import com.gii.api.model.response.admin.AdminLessonResourceResponse;
 import com.gii.api.model.response.admin.AdminMediaAssetResponse;
+import com.gii.api.service.storage.AssetUrlService;
 import com.gii.common.entity.course.CourseSection;
 import com.gii.common.entity.course.Lesson;
 import com.gii.common.entity.course.MediaAsset;
@@ -36,6 +37,7 @@ public class AdminLessonManagementService {
   private final MediaAssetRepository mediaAssetRepository;
   private final LessonResourceRepository resourceRepository;
   private final SectionItemRepository sectionItemRepository;
+  private final AssetUrlService assetUrlService;
 
   public AdminLessonDetailResponse create(UUID sectionId, CreateLessonRequest request) {
     CourseSection section =
@@ -51,13 +53,13 @@ public class AdminLessonManagementService {
             .course(section.getCourse())
             .section(section)
             .title(request.title().trim())
+            .titleEn(request.titleEn())
             .slug(request.slug().trim())
             .position(request.position())
             .lessonType(parseLessonType(request.lessonType()))
             .isMandatory(Boolean.TRUE.equals(request.isMandatory()))
             .isFree(Boolean.TRUE.equals(request.isFree()))
             .durationSeconds(request.durationSeconds())
-            .thumbnailUrl(request.thumbnailUrl())
             .transcriptUrl(request.transcriptUrl())
             .releaseType(
                 request.releaseType() == null
@@ -87,6 +89,9 @@ public class AdminLessonManagementService {
     if (request.title() != null) {
       lesson.setTitle(request.title().trim());
     }
+    if (request.titleEn() != null) {
+      lesson.setTitleEn(request.titleEn().trim());
+    }
     if (request.slug() != null) {
       lesson.setSlug(request.slug().trim());
     }
@@ -105,9 +110,6 @@ public class AdminLessonManagementService {
     }
     if (request.durationSeconds() != null) {
       lesson.setDurationSeconds(request.durationSeconds());
-    }
-    if (request.thumbnailUrl() != null) {
-      lesson.setThumbnailUrl(request.thumbnailUrl());
     }
     if (request.transcriptUrl() != null) {
       lesson.setTranscriptUrl(request.transcriptUrl());
@@ -203,6 +205,9 @@ public class AdminLessonManagementService {
                         : null)
                 .fileUrl(mediaAsset.getFileUrl())
                 .title(mediaAsset.getTitle())
+                .titleEn(mediaAsset.getTitleEn())
+                .thumbnailObjectKey(mediaAsset.getThumbnailObjectKey())
+                .thumbnailUrl(assetUrlService.publicUrl(mediaAsset.getThumbnailObjectKey()))
                 .maxResolution(mediaAsset.getMaxResolution())
                 .durationSec(mediaAsset.getDurationSec())
                 .status(mediaAsset.getStatus().name())
@@ -224,6 +229,7 @@ public class AdminLessonManagementService {
                         .resourceId(r.getId())
                         .lessonId(lesson.getId())
                         .title(r.getTitle())
+                        .titleEn(r.getTitleEn())
                         .resourceType(r.getResourceType())
                         .mimeType(r.getMimeType())
                         .fileUrl(r.getFileUrl())
@@ -236,6 +242,7 @@ public class AdminLessonManagementService {
     return AdminLessonDetailResponse.builder()
         .lessonId(lesson.getId())
         .title(lesson.getTitle())
+        .titleEn(lesson.getTitleEn())
         .slug(lesson.getSlug())
         .position(lesson.getPosition())
         .lessonType(lesson.getLessonType().name())
@@ -243,7 +250,6 @@ public class AdminLessonManagementService {
         .isMandatory(lesson.getIsMandatory())
         .isFree(lesson.getIsFree())
         .durationSeconds(lesson.getDurationSeconds())
-        .thumbnailUrl(lesson.getThumbnailUrl())
         .transcriptUrl(lesson.getTranscriptUrl())
         .releaseType(lesson.getReleaseType() != null ? lesson.getReleaseType().name() : null)
         .releaseAt(lesson.getReleaseAt())

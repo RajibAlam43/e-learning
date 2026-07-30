@@ -16,6 +16,9 @@ public record AdminMediaAssetResponse(
     String playbackPolicy,
     String fileUrl,
     String title,
+    String titleEn,
+    String thumbnailObjectKey,
+    String thumbnailUrl,
     String maxResolution,
     Integer durationSec,
     String status, // UPLOADING, PROCESSING, READY, FAILED, DELETED

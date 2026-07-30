@@ -10,7 +10,9 @@ import lombok.Builder;
 public record CreateQuizQuestionRequest(
     @NotNull Integer position,
     @NotBlank String questionText,
+    String questionTextEn,
     @NotBlank String questionType, // MCQ
     @NotNull Integer points,
     String explanationText,
+    String explanationTextEn,
     @NotEmpty List<CreateQuizChoiceRequest> choices) {}

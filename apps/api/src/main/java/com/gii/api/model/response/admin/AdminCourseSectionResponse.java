@@ -9,9 +9,11 @@ import lombok.Builder;
 public record AdminCourseSectionResponse(
     UUID sectionId,
     String title,
+    String titleEn,
     String slug,
     Integer position,
     String description,
+    String descriptionEn,
     Boolean isMandatory,
     Boolean isFree,
     String status, // DRAFT, PUBLISHED, ARCHIVED

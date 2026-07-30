@@ -1,6 +1,7 @@
 package com.gii.api.service.lesson;
 
 import com.gii.api.model.response.lesson.LessonResourceResponse;
+import com.gii.api.service.localization.LocalizedContentService;
 import com.gii.common.entity.course.Lesson;
 import com.gii.common.entity.course.LessonResource;
 import com.gii.common.entity.enrollment.Enrollment;
@@ -22,6 +23,7 @@ public class LessonResourcesService {
 
   private final LessonAccessService lessonAccessService;
   private final LessonResourceRepository lessonResourceRepository;
+  private final LocalizedContentService localizedContentService;
 
   public List<LessonResourceResponse> execute(UUID lessonId, Authentication authentication) {
     UUID userId = lessonAccessService.requireCurrentUserId(authentication);
@@ -38,7 +40,8 @@ public class LessonResourcesService {
             resource ->
                 LessonResourceResponse.builder()
                     .resourceId(resource.getId())
-                    .title(resource.getTitle())
+                    .title(
+                        localizedContentService.text(resource.getTitle(), resource.getTitleEn()))
                     .resourceType(resource.getResourceType())
                     .mimeType(resource.getMimeType())
                     .position(resource.getPosition())

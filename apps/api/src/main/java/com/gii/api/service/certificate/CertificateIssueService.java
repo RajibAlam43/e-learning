@@ -3,6 +3,7 @@ package com.gii.api.service.certificate;
 import com.gii.api.model.response.certificate.CertificateIssueResponse;
 import com.gii.api.service.enrollment.CurrentUserService;
 import com.gii.api.service.storage.R2PresignedUrlService;
+import com.gii.api.service.localization.LocalizedContentService;
 import com.gii.common.entity.certificate.Certificate;
 import com.gii.common.entity.collection.Collection;
 import com.gii.common.entity.collection.CollectionCourse;
@@ -57,6 +58,7 @@ public class CertificateIssueService {
   private final CertificateRepository certificateRepository;
   private final CourseInstructorRepository courseInstructorRepository;
   private final R2PresignedUrlService r2PresignedUrlService;
+  private final LocalizedContentService localizedContentService;
 
   public CertificateIssueResponse executeCourse(UUID courseId, Authentication authentication) {
     User user = currentUserService.getCurrentUser(authentication);
@@ -111,7 +113,9 @@ public class CertificateIssueService {
             .collection(null)
             .issuedBy(user)
             .recipientName(user.getFullName())
-            .targetTitle(enrollment.getCourse().getTitle())
+            .targetTitle(
+                localizedContentService.english(
+                    enrollment.getCourse().getTitle(), enrollment.getCourse().getTitleEn()))
             .targetSlug(enrollment.getCourse().getSlug())
             .build();
     Certificate saved = certificateRepository.save(certificate);
@@ -183,7 +187,9 @@ public class CertificateIssueService {
             .collection(collection)
             .issuedBy(user)
             .recipientName(user.getFullName())
-            .targetTitle(collection.getTitle())
+            .targetTitle(
+                localizedContentService.english(
+                    collection.getTitle(), collection.getTitleEn()))
             .targetSlug(collection.getSlug())
             .build();
     Certificate saved = saveCollectionCertificateIdempotent(certificate, user.getId(), collectionId);

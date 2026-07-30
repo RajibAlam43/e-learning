@@ -2,8 +2,9 @@ package com.gii.api.service.student;
 
 import com.gii.api.model.response.student.StudentCollectionCourseProgressResponse;
 import com.gii.api.model.response.student.StudentCollectionDetailsResponse;
-import com.gii.api.service.course.CourseThumbnailUrlService;
 import com.gii.api.service.enrollment.CurrentUserService;
+import com.gii.api.service.storage.AssetUrlService;
+import com.gii.api.service.localization.LocalizedContentService;
 import com.gii.common.entity.collection.Collection;
 import com.gii.common.entity.collection.CollectionCourse;
 import com.gii.common.entity.collection.CollectionEnrollment;
@@ -34,7 +35,8 @@ public class StudentCollectionDetailsService {
   private final CollectionCourseRepository collectionCourseRepository;
   private final LessonRepository lessonRepository;
   private final LessonProgressRepository lessonProgressRepository;
-  private final CourseThumbnailUrlService courseThumbnailUrlService;
+  private final AssetUrlService assetUrlService;
+  private final LocalizedContentService localizedContentService;
 
   public StudentCollectionDetailsResponse execute(UUID collectionId, Authentication authentication) {
     UUID userId = currentUserService.getCurrentUserId(authentication);
@@ -67,9 +69,12 @@ public class StudentCollectionDetailsService {
                   double progress = total == 0 ? 0.0 : (completed * 100.0) / total;
                   return StudentCollectionCourseProgressResponse.builder()
                       .courseId(courseId)
-                      .courseName(cc.getCourse().getTitle())
+                      .courseName(
+                          localizedContentService.text(
+                              cc.getCourse().getTitle(), cc.getCourse().getTitleEn()))
                       .courseSlug(cc.getCourse().getSlug())
-                      .courseThumbnailUrl(courseThumbnailUrlService.buildCourseThumbnailUrl(cc.getCourse()))
+                      .courseThumbnailUrl(
+                          assetUrlService.publicUrl(cc.getCourse().getThumbnailObjectKey()))
                       .completionPercentage(round2(progress))
                       .completedLessons(completed)
                       .totalLessons(total)
@@ -85,12 +90,17 @@ public class StudentCollectionDetailsService {
 
     return StudentCollectionDetailsResponse.builder()
         .collectionId(collection.getId())
-        .collectionName(collection.getTitle())
+        .collectionName(
+            localizedContentService.text(collection.getTitle(), collection.getTitleEn()))
         .collectionSlug(collection.getSlug())
         .collectionType(collection.getType())
-        .thumbnailObjectKey(collection.getThumbnailObjectKey())
-        .shortDescription(collection.getShortDescription())
-        .description(collection.getDescription())
+        .thumbnailUrl(assetUrlService.publicUrl(collection.getThumbnailObjectKey()))
+        .shortDescription(
+            localizedContentService.text(
+                collection.getShortDescription(), collection.getShortDescriptionEn()))
+        .description(
+            localizedContentService.text(
+                collection.getDescription(), collection.getDescriptionEn()))
         .progressPercentage(round2(progress))
         .completedLessons(completedLessons)
         .totalLessons(totalLessons)

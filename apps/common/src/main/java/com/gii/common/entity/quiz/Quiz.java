@@ -44,6 +44,9 @@ public class Quiz extends BaseUuidEntity {
   @Column(name = "title", nullable = false)
   private String title;
 
+  @Column(name = "title_en")
+  private String titleEn;
+
   @Column(name = "passing_score_pct", nullable = false)
   @Builder.Default
   private Integer passingScorePct = 60;

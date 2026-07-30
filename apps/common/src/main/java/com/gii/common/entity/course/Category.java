@@ -24,6 +24,9 @@ public class Category extends CreatedOnlyUuidEntity {
   @Column(name = "name", nullable = false, length = 150)
   private String name;
 
+  @Column(name = "name_en", length = 150)
+  private String nameEn;
+
   @Column(name = "slug", nullable = false, unique = true, length = 180)
   private String slug;
 

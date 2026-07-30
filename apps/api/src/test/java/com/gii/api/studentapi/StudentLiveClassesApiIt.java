@@ -48,6 +48,11 @@ class StudentLiveClassesApiIt extends AbstractStudentApiIntegrationTest {
             Instant.now().plusSeconds(1200),
             Instant.now().plusSeconds(3600),
             "https://meet.test/live");
+    course.setTitleEn("Course Live English");
+    courseRepository.saveAndFlush(course);
+    live.setTitleEn("Live Class English");
+    live.setDescriptionEn("Live description English");
+    liveClassRepository.saveAndFlush(live);
     registrant(student, live, LiveClassRegistrantStatus.APPROVED);
 
     mockMvc
@@ -55,6 +60,16 @@ class StudentLiveClassesApiIt extends AbstractStudentApiIntegrationTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.length()").value(1))
         .andExpect(jsonPath("$[0].courseName").value("Course Live"));
+
+    mockMvc
+        .perform(
+            get("/student/live-classes")
+                .param("lang", "en")
+                .with(authentication(studentAuth(student.getId()))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].courseName").value("Course Live English"))
+        .andExpect(jsonPath("$[0].title").value("Live Class English"))
+        .andExpect(jsonPath("$[0].description").value("Live description English"));
 
     mockMvc
         .perform(

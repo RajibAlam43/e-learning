@@ -231,6 +231,27 @@ So cut:
 
 ## Admin Media / Resources
 
+### Thumbnail storage convention
+
+Course, collection, and media asset thumbnails use the same Cloudflare R2 convention:
+
+```text
+thumbnails/courses/{name}-{shortId}.{extension}
+thumbnails/collections/{name}-{shortId}.{extension}
+thumbnails/media-assets/{name}-{shortId}.{extension}
+```
+
+Call `POST /api/admin/thumbnails/upload-url` with the owner type (`COURSE`, `COLLECTION`, or
+`MEDIA_ASSET`), filename, image content type, and file size. The API returns a readable,
+collision-safe `thumbnailObjectKey` and a temporary PUT URL. The browser uploads the file
+directly to Cloudflare R2 using that URL, then sends the returned key in the matching entity's
+create or update request. Uploads are limited to 20 MiB. Filenames may use letters, numbers,
+dots, hyphens, or underscores, and must use AVIF, JPEG, PNG, or WebP. Send an empty
+`thumbnailObjectKey` on update to clear it.
+
+Lessons and sections do not own artwork. Lesson playback uses its media asset thumbnail and
+falls back to the course thumbnail when the media asset has none.
+
 | API                                            |     MVP? | Main function              |
 | ---------------------------------------------- | -------: | -------------------------- |
 | `POST /api/admin/media/mux/upload-url`         | Required | Create Mux upload URL      |

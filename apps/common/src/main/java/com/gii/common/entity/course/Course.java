@@ -38,6 +38,9 @@ public class Course extends BaseUuidEntity {
   @Column(name = "title", nullable = false)
   private String title;
 
+  @Column(name = "title_en")
+  private String titleEn;
+
   @Column(name = "slug", nullable = false, unique = true)
   private String slug;
 
@@ -47,12 +50,22 @@ public class Course extends BaseUuidEntity {
   @Column(name = "short_description")
   private String shortDescription;
 
+  @Column(name = "short_description_en")
+  private String shortDescriptionEn;
+
   @Column(name = "description")
   private String description;
+
+  @Column(name = "description_en")
+  private String descriptionEn;
 
   @JdbcTypeCode(SqlTypes.JSON)
   @Column(name = "highlights", columnDefinition = "jsonb")
   private List<String> highlights;
+
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(name = "highlights_en", columnDefinition = "jsonb")
+  private List<String> highlightsEn;
 
   @Column(name = "price_bdt", nullable = false)
   @Builder.Default
@@ -63,12 +76,24 @@ public class Course extends BaseUuidEntity {
   private List<String> courseOutcomes;
 
   @JdbcTypeCode(SqlTypes.JSON)
+  @Column(name = "course_outcomes_en", columnDefinition = "jsonb")
+  private List<String> courseOutcomesEn;
+
+  @JdbcTypeCode(SqlTypes.JSON)
   @Column(name = "requirements", columnDefinition = "jsonb")
   private List<String> requirements;
 
   @JdbcTypeCode(SqlTypes.JSON)
+  @Column(name = "requirements_en", columnDefinition = "jsonb")
+  private List<String> requirementsEn;
+
+  @JdbcTypeCode(SqlTypes.JSON)
   @Column(name = "prerequisites", columnDefinition = "jsonb")
   private List<String> prerequisites;
+
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(name = "prerequisites_en", columnDefinition = "jsonb")
+  private List<String> prerequisitesEn;
 
   @Enumerated(EnumType.STRING)
   @Column(name = "level", nullable = false, length = 30)
@@ -122,4 +147,7 @@ public class Course extends BaseUuidEntity {
 
   @Column(name = "target_audience", columnDefinition = "text")
   private String targetAudience;
+
+  @Column(name = "target_audience_en", columnDefinition = "text")
+  private String targetAudienceEn;
 }

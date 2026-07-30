@@ -2,6 +2,7 @@ package com.gii.api.service.student;
 
 import com.gii.api.model.response.student.StudentLiveClassJoinResponse;
 import com.gii.api.service.enrollment.CurrentUserService;
+import com.gii.api.service.localization.LocalizedContentService;
 import com.gii.common.entity.enrollment.Enrollment;
 import com.gii.common.entity.live.LiveClass;
 import com.gii.common.entity.live.LiveClassRegistrant;
@@ -29,6 +30,7 @@ public class StudentJoinLiveClassesService {
   private final LiveClassRepository liveClassRepository;
   private final LiveClassRegistrantRepository registrantRepository;
   private final EnrollmentRepository enrollmentRepository;
+  private final LocalizedContentService localizedContentService;
 
   public StudentLiveClassJoinResponse execute(UUID liveClassId, Authentication authentication) {
     UUID userId = currentUserService.getCurrentUserId(authentication);
@@ -76,7 +78,7 @@ public class StudentJoinLiveClassesService {
 
     return StudentLiveClassJoinResponse.builder()
         .liveClassId(liveClass.getId())
-        .title(liveClass.getTitle())
+        .title(localizedContentService.text(liveClass.getTitle(), liveClass.getTitleEn()))
         .status(liveClass.getStatus())
         .provider(liveClass.getProvider())
         .startsAt(liveClass.getStartsAt())

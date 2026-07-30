@@ -53,6 +53,9 @@ public class Lesson extends BaseUuidEntity {
   @Column(name = "title", nullable = false)
   private String title;
 
+  @Column(name = "title_en")
+  private String titleEn;
+
   @Column(name = "slug", nullable = false)
   private String slug;
 
@@ -75,9 +78,6 @@ public class Lesson extends BaseUuidEntity {
 
   @Column(name = "duration_seconds")
   private Integer durationSeconds;
-
-  @Column(name = "thumbnail_url")
-  private String thumbnailUrl;
 
   @Column(name = "transcript_url")
   private String transcriptUrl;

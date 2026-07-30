@@ -7,6 +7,7 @@ import com.gii.api.model.response.admin.AdminCollectionCourseResponse;
 import com.gii.api.model.response.admin.AdminCollectionDetailResponse;
 import com.gii.api.model.response.admin.AdminCollectionSummaryResponse;
 import com.gii.api.service.enrollment.CurrentUserService;
+import com.gii.api.service.storage.AssetUrlService;
 import com.gii.common.entity.collection.Collection;
 import com.gii.common.entity.collection.CollectionCourse;
 import com.gii.common.entity.collection.CollectionCourseId;
@@ -38,6 +39,7 @@ public class AdminCollectionManagementService {
   private final CollectionCourseRepository collectionCourseRepository;
   private final CourseRepository courseRepository;
   private final CurrentUserService currentUserService;
+  private final AssetUrlService assetUrlService;
 
   @Transactional(readOnly = true)
   public List<AdminCollectionSummaryResponse> list() {
@@ -57,6 +59,7 @@ public class AdminCollectionManagementService {
                     .title(c.getTitle())
                     .slug(c.getSlug())
                     .collectionType(c.getType())
+                    .thumbnailUrl(assetUrlService.publicUrl(c.getThumbnailObjectKey()))
                     .status(c.getStatus())
                     .priceBdt(c.getPriceBdt())
                     .courseCount(courseCountByCollectionId.getOrDefault(c.getId(), 0))
@@ -72,11 +75,16 @@ public class AdminCollectionManagementService {
     Collection collection =
         Collection.builder()
             .title(request.title().trim())
+            .titleEn(request.titleEn())
             .slug(request.slug().trim())
             .type(request.collectionType())
-            .thumbnailObjectKey(request.thumbnailObjectKey())
+            .thumbnailObjectKey(
+                assetUrlService.normalizeThumbnailKey(
+                    request.thumbnailObjectKey(), "collections"))
             .shortDescription(request.shortDescription())
+            .shortDescriptionEn(request.shortDescriptionEn())
             .description(request.description())
+            .descriptionEn(request.descriptionEn())
             .priceBdt(request.priceBdt())
             .status(PublishStatus.DRAFT)
             .createdBy(user)
@@ -103,6 +111,9 @@ public class AdminCollectionManagementService {
     if (request.title() != null) {
       collection.setTitle(request.title().trim());
     }
+    if (request.titleEn() != null) {
+      collection.setTitleEn(request.titleEn().trim());
+    }
     if (request.slug() != null) {
       collection.setSlug(request.slug().trim());
     }
@@ -110,13 +121,21 @@ public class AdminCollectionManagementService {
       collection.setType(request.collectionType());
     }
     if (request.thumbnailObjectKey() != null) {
-      collection.setThumbnailObjectKey(request.thumbnailObjectKey());
+      collection.setThumbnailObjectKey(
+          assetUrlService.normalizeThumbnailKey(
+              request.thumbnailObjectKey(), "collections"));
     }
     if (request.shortDescription() != null) {
       collection.setShortDescription(request.shortDescription());
     }
+    if (request.shortDescriptionEn() != null) {
+      collection.setShortDescriptionEn(request.shortDescriptionEn());
+    }
     if (request.description() != null) {
       collection.setDescription(request.description());
+    }
+    if (request.descriptionEn() != null) {
+      collection.setDescriptionEn(request.descriptionEn());
     }
     if (request.priceBdt() != null) {
       collection.setPriceBdt(request.priceBdt());
@@ -217,11 +236,15 @@ public class AdminCollectionManagementService {
     return AdminCollectionDetailResponse.builder()
         .collectionId(collection.getId())
         .title(collection.getTitle())
+        .titleEn(collection.getTitleEn())
         .slug(collection.getSlug())
         .collectionType(collection.getType())
         .thumbnailObjectKey(collection.getThumbnailObjectKey())
+        .thumbnailUrl(assetUrlService.publicUrl(collection.getThumbnailObjectKey()))
         .shortDescription(collection.getShortDescription())
+        .shortDescriptionEn(collection.getShortDescriptionEn())
         .description(collection.getDescription())
+        .descriptionEn(collection.getDescriptionEn())
         .priceBdt(collection.getPriceBdt())
         .status(collection.getStatus())
         .publishedAt(collection.getPublishedAt())

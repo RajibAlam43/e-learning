@@ -38,6 +38,9 @@ public class QuizChoice {
   @Column(name = "choice_text", nullable = false)
   private String choiceText;
 
+  @Column(name = "choice_text_en")
+  private String choiceTextEn;
+
   @Column(name = "is_correct", nullable = false)
   @Builder.Default
   private Boolean isCorrect = false;

@@ -33,10 +33,23 @@ class LessonContentApiIt extends AbstractLessonApiIntegrationTest {
     var sec = section(course, 1, PublishStatus.PUBLISHED);
     var lesson =
         lesson(course, sec, 1, PublishStatus.PUBLISHED, false, ReleaseType.IMMEDIATE, null, null);
+    String thumbnailKey =
+        "courses/" + course.getId() + "/thumbnails/course-content.webp";
+    course.setThumbnailObjectKey(thumbnailKey);
     enrollment(student, course, EnrollmentStatus.ACTIVE, Instant.now().plusSeconds(3600));
-    mediaAsset(lesson, MediaProvider.BUNNY, MediaStatus.READY);
-    resource(lesson, 2, "Slides");
-    resource(lesson, 1, "Worksheet");
+    course.setTitleEn("Course One English");
+    courseRepository.saveAndFlush(course);
+    lesson.setTitleEn("Lesson English");
+    lessonRepository.saveAndFlush(lesson);
+    var media = mediaAsset(lesson, MediaProvider.BUNNY, MediaStatus.READY);
+    media.setTitleEn("Media English");
+    mediaAssetRepository.saveAndFlush(media);
+    var slides = resource(lesson, 2, "Slides");
+    slides.setTitleEn("Slides English");
+    lessonResourceRepository.saveAndFlush(slides);
+    var worksheet = resource(lesson, 1, "Worksheet");
+    worksheet.setTitleEn("Worksheet English");
+    lessonResourceRepository.saveAndFlush(worksheet);
     progress(student, lesson, false, 84);
 
     mockMvc
@@ -49,7 +62,23 @@ class LessonContentApiIt extends AbstractLessonApiIntegrationTest {
         .andExpect(jsonPath("$.userProgress.lastPositionSec").value(84))
         .andExpect(jsonPath("$.resources[0].title").value("Worksheet"))
         .andExpect(jsonPath("$.resources[1].title").value("Slides"))
-        .andExpect(jsonPath("$.mediaPlayback.provider").value("BUNNY"));
+        .andExpect(jsonPath("$.mediaPlayback.provider").value("BUNNY"))
+        .andExpect(jsonPath("$.thumbnailUrl").doesNotExist())
+        .andExpect(
+            jsonPath("$.mediaPlayback.thumbnailUrl")
+                .value("https://assets.test/" + thumbnailKey));
+
+    mockMvc
+        .perform(
+            get("/learn/lessons/{lessonId}", lesson.getId())
+                .param("lang", "en")
+                .with(authentication(studentAuth(student.getId()))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.title").value("Lesson English"))
+        .andExpect(jsonPath("$.courseName").value("Course One English"))
+        .andExpect(jsonPath("$.resources[0].title").value("Worksheet English"))
+        .andExpect(jsonPath("$.resources[1].title").value("Slides English"))
+        .andExpect(jsonPath("$.mediaPlayback.title").value("Media English"));
   }
 
   @Test

@@ -11,6 +11,7 @@ import com.gii.api.service.live.LiveMeetingCreateResult;
 import com.gii.api.service.live.LiveMeetingUpdateRequest;
 import com.gii.api.service.live.LiveMeetingCancelRequest;
 import com.gii.api.service.live.LiveMeetingProvisioningService;
+import com.gii.api.service.localization.LocalizedContentService;
 import com.gii.common.entity.course.CourseSection;
 import com.gii.common.entity.live.LiveClass;
 import com.gii.common.entity.live.LiveClassAttendance;
@@ -50,6 +51,7 @@ public class InstructorLiveClassService {
   private final LiveClassRegistrantRepository liveClassRegistrantRepository;
   private final LiveClassAttendanceRepository liveClassAttendanceRepository;
   private final LiveMeetingProvisioningService liveMeetingProvisioningService;
+  private final LocalizedContentService localizedContentService;
 
   public InstructorLiveClassResponse create(
       UUID courseId, CreateLiveClassRequest request, Authentication authentication) {
@@ -82,7 +84,9 @@ public class InstructorLiveClassService {
             .section(section)
             .instructor(instructor)
             .title(request.title().trim())
+            .titleEn(request.titleEn())
             .description(request.description())
+            .descriptionEn(request.descriptionEn())
             .provider(request.provider())
             .providerMeetingId(meeting.meetingId())
             .hostStartUrl(meeting.hostStartUrl())
@@ -127,7 +131,7 @@ public class InstructorLiveClassService {
 
     return InstructorLiveClassStartResponse.builder()
         .liveClassId(liveClass.getId())
-        .title(liveClass.getTitle())
+        .title(localizedContentService.text(liveClass.getTitle(), liveClass.getTitleEn()))
         .provider(liveClass.getProvider())
         .hostStartUrl(liveClass.effectiveHostStartUrl())
         .meetingId(liveClass.effectiveMeetingId())
@@ -153,7 +157,9 @@ public class InstructorLiveClassService {
 
     boolean mutatingMetadata =
         request.title() != null
+            || request.titleEn() != null
             || request.description() != null
+            || request.descriptionEn() != null
             || request.startsAt() != null
             || request.endsAt() != null;
     if (mutatingMetadata && liveClass.getStatus() != LiveClassStatus.SCHEDULED) {
@@ -164,8 +170,14 @@ public class InstructorLiveClassService {
     if (request.title() != null && !request.title().isBlank()) {
       liveClass.setTitle(request.title().trim());
     }
+    if (request.titleEn() != null) {
+      liveClass.setTitleEn(request.titleEn().trim());
+    }
     if (request.description() != null) {
       liveClass.setDescription(request.description());
+    }
+    if (request.descriptionEn() != null) {
+      liveClass.setDescriptionEn(request.descriptionEn());
     }
 
     if (request.startsAt() != null || request.endsAt() != null) {
@@ -353,12 +365,18 @@ public class InstructorLiveClassService {
 
     return InstructorLiveClassResponse.builder()
         .liveClassId(liveClass.getId())
-        .title(liveClass.getTitle())
-        .description(liveClass.getDescription())
+        .title(localizedContentService.text(liveClass.getTitle(), liveClass.getTitleEn()))
+        .description(
+            localizedContentService.text(
+                liveClass.getDescription(), liveClass.getDescriptionEn()))
         .courseId(liveClass.getCourse().getId())
-        .courseName(liveClass.getCourse().getTitle())
+        .courseName(
+            localizedContentService.text(
+                liveClass.getCourse().getTitle(), liveClass.getCourse().getTitleEn()))
         .sectionId(liveClass.getSection().getId())
-        .sectionTitle(liveClass.getSection().getTitle())
+        .sectionTitle(
+            localizedContentService.text(
+                liveClass.getSection().getTitle(), liveClass.getSection().getTitleEn()))
         .instructorName(
             liveClass.getInstructor() != null ? liveClass.getInstructor().getFullName() : null)
         .instructorEmail(

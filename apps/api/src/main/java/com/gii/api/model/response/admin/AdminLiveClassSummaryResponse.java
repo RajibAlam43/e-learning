@@ -8,9 +8,11 @@ import lombok.Builder;
 public record AdminLiveClassSummaryResponse(
     UUID liveClassId,
     String title,
+    String titleEn,
     String courseName,
+    String courseNameEn,
     String instructorName,
     String status, // SCHEDULED, LIVE, COMPLETED, CANCELLED, FAILED
     Instant startsAt,
-    Integer registeredStudents,
+    Integer approvedRegistrants,
     Instant createdAt) {}

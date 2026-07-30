@@ -46,6 +46,9 @@ public class CourseSection extends BaseUuidEntity {
   @Column(name = "title", nullable = false)
   private String title;
 
+  @Column(name = "title_en")
+  private String titleEn;
+
   @Column(name = "slug", nullable = false)
   private String slug;
 
@@ -54,6 +57,9 @@ public class CourseSection extends BaseUuidEntity {
 
   @Column(name = "description")
   private String description;
+
+  @Column(name = "description_en")
+  private String descriptionEn;
 
   @Enumerated(EnumType.STRING)
   @Column(name = "status", nullable = false, length = 30)

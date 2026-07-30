@@ -7,6 +7,7 @@ import com.gii.api.model.request.admin.CreateInstructorRequest;
 import com.gii.api.model.request.admin.CreateMediaAssetRequest;
 import com.gii.api.model.request.admin.CreateQuizRequest;
 import com.gii.api.model.request.admin.CreateSectionRequest;
+import com.gii.api.model.request.admin.CreateThumbnailUploadRequest;
 import com.gii.api.model.request.admin.ReorderCourseStructureRequest;
 import com.gii.api.model.request.admin.SetCollectionCoursesRequest;
 import com.gii.api.model.request.admin.UpdateCourseRequest;
@@ -26,10 +27,12 @@ import com.gii.api.model.response.admin.AdminCourseSummaryResponse;
 import com.gii.api.model.response.admin.AdminInstructorDetailResponse;
 import com.gii.api.model.response.admin.AdminInstructorSummaryResponse;
 import com.gii.api.model.response.admin.AdminLessonDetailResponse;
+import com.gii.api.model.response.admin.AdminLiveClassSummaryResponse;
 import com.gii.api.model.response.admin.AdminMediaAssetResponse;
 import com.gii.api.model.response.admin.AdminOrderDetailResponse;
 import com.gii.api.model.response.admin.AdminOrderSummaryResponse;
 import com.gii.api.model.response.admin.AdminQuizDetailResponse;
+import com.gii.api.model.response.admin.ThumbnailUploadResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -40,7 +43,9 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
+import com.gii.common.enums.LiveClassStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.data.domain.Page;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -50,12 +55,18 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
 @Tag(name = "Admin", description = "Admin course, instructor, quiz, and order management")
 @SecurityRequirement(name = "bearerAuth")
 @RequestMapping("/admin")
 @PreAuthorize("hasRole('ADMIN')") // Ensure only users with ADMIN role can access these endpoints
 public interface AdminApi {
+
+  @PostMapping("/thumbnails/upload-url")
+  @Operation(summary = "Create a direct R2 thumbnail upload URL")
+  ResponseEntity<ThumbnailUploadResponse> createThumbnailUpload(
+      @Valid @RequestBody CreateThumbnailUploadRequest request);
 
   // ===== COLLECTION MANAGEMENT =====
   @GetMapping("/collections")
@@ -291,6 +302,20 @@ public interface AdminApi {
   @Operation(summary = "Assign instructor to course")
   ResponseEntity<Void> assignInstructorToCourse(
       @PathVariable UUID courseId, @Valid @RequestBody AssignInstructorToCourseRequest request);
+
+  // ===== LIVE CLASS MANAGEMENT =====
+  @GetMapping("/live-classes")
+  @Operation(summary = "List all live classes")
+  @ApiResponses(
+      value = {
+        @ApiResponse(responseCode = "200", description = "Live classes retrieved"),
+        @ApiResponse(responseCode = "401", description = "Unauthorized"),
+        @ApiResponse(responseCode = "403", description = "Insufficient permissions")
+      })
+  ResponseEntity<Page<AdminLiveClassSummaryResponse>> listLiveClasses(
+      @RequestParam(defaultValue = "0") int page,
+      @RequestParam(defaultValue = "50") int size,
+      @RequestParam(required = false) List<LiveClassStatus> status);
 
   // ===== QUIZ MANAGEMENT =====
   @PostMapping("/sections/{sectionId}/quizzes")

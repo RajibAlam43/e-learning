@@ -82,13 +82,19 @@ public class AdminInstructorManagementService {
             .user(savedUser)
             .displayName(request.displayName().trim())
             .headline(trimToNull(request.headline()))
+            .headlineEn(trimToNull(request.headlineEn()))
             .institution(trimToNull(request.institution()))
+            .institutionEn(trimToNull(request.institutionEn()))
             .expertiseArea(trimToNull(request.expertiseArea()))
+            .expertiseAreaEn(trimToNull(request.expertiseAreaEn()))
             .about(trimToNull(request.about()))
+            .aboutEn(trimToNull(request.aboutEn()))
             .photoUrl(trimToNull(request.photoUrl()))
             .isPublic(request.isPublic() == null || request.isPublic())
             .credentialsText(trimToNull(request.credentialsText()))
+            .credentialsTextEn(trimToNull(request.credentialsTextEn()))
             .specialties(request.specialties())
+            .specialtiesEn(request.specialtiesEn())
             .yearsExperience(request.yearsExperience())
             .build();
     InstructorProfile savedProfile = instructorProfileRepository.save(profile);
@@ -128,14 +134,26 @@ public class AdminInstructorManagementService {
     if (request.headline() != null) {
       profile.setHeadline(trimToNull(request.headline()));
     }
+    if (request.headlineEn() != null) {
+      profile.setHeadlineEn(trimToNull(request.headlineEn()));
+    }
     if (request.institution() != null) {
       profile.setInstitution(trimToNull(request.institution()));
+    }
+    if (request.institutionEn() != null) {
+      profile.setInstitutionEn(trimToNull(request.institutionEn()));
     }
     if (request.expertiseArea() != null) {
       profile.setExpertiseArea(trimToNull(request.expertiseArea()));
     }
+    if (request.expertiseAreaEn() != null) {
+      profile.setExpertiseAreaEn(trimToNull(request.expertiseAreaEn()));
+    }
     if (request.about() != null) {
       profile.setAbout(trimToNull(request.about()));
+    }
+    if (request.aboutEn() != null) {
+      profile.setAboutEn(trimToNull(request.aboutEn()));
     }
     if (request.photoUrl() != null) {
       profile.setPhotoUrl(trimToNull(request.photoUrl()));
@@ -146,8 +164,14 @@ public class AdminInstructorManagementService {
     if (request.credentialsText() != null) {
       profile.setCredentialsText(trimToNull(request.credentialsText()));
     }
+    if (request.credentialsTextEn() != null) {
+      profile.setCredentialsTextEn(trimToNull(request.credentialsTextEn()));
+    }
     if (request.specialties() != null) {
       profile.setSpecialties(request.specialties());
+    }
+    if (request.specialtiesEn() != null) {
+      profile.setSpecialtiesEn(request.specialtiesEn());
     }
     if (request.yearsExperience() != null) {
       profile.setYearsExperience(request.yearsExperience());
@@ -228,13 +252,19 @@ public class AdminInstructorManagementService {
         .phone(user.getPhone())
         .displayName(profile.getDisplayName())
         .headline(profile.getHeadline())
+        .headlineEn(profile.getHeadlineEn())
         .institution(profile.getInstitution())
+        .institutionEn(profile.getInstitutionEn())
         .expertiseArea(profile.getExpertiseArea())
+        .expertiseAreaEn(profile.getExpertiseAreaEn())
         .about(profile.getAbout())
+        .aboutEn(profile.getAboutEn())
         .photoUrl(profile.getPhotoUrl())
         .isPublic(profile.getIsPublic())
         .credentialsText(profile.getCredentialsText())
+        .credentialsTextEn(profile.getCredentialsTextEn())
         .specialties(profile.getSpecialties())
+        .specialtiesEn(profile.getSpecialtiesEn())
         .yearsExperience(profile.getYearsExperience())
         .createdAt(profile.getCreatedAt())
         .updatedAt(profile.getUpdatedAt())

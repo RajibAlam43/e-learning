@@ -11,6 +11,7 @@ public record AdminCourseSummaryResponse(
     UUID courseId,
     String title,
     String slug,
+    String thumbnailUrl,
     PublishStatus status,
     BigDecimal priceBdt,
     Boolean isFree,

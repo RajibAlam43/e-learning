@@ -51,6 +51,9 @@ public class QuizQuestion {
   @Column(name = "question_text", nullable = false)
   private String questionText;
 
+  @Column(name = "question_text_en")
+  private String questionTextEn;
+
   @Enumerated(EnumType.STRING)
   @Column(name = "question_type", nullable = false, length = 30)
   @Builder.Default
@@ -62,4 +65,7 @@ public class QuizQuestion {
 
   @Column(name = "explanation_text")
   private String explanationText;
+
+  @Column(name = "explanation_text_en")
+  private String explanationTextEn;
 }

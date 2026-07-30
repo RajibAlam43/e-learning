@@ -6,9 +6,12 @@ import java.math.BigDecimal;
 
 public record UpdateCollectionRequest(
     String title,
+    String titleEn,
     String slug,
     CollectionType collectionType,
     String thumbnailObjectKey,
     String shortDescription,
+    String shortDescriptionEn,
     String description,
+    String descriptionEn,
     @DecimalMin("0.0") BigDecimal priceBdt) {}
