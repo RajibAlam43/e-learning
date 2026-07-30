@@ -354,9 +354,9 @@ public class SslcommerzValidationJobService {
         collectionCourseRepository
             .findByCollection_IdOrderByPositionAsc(item.getCollection().getId())
             .forEach(
-                collectionCourse ->
-                    activateOrCreateCourseEnrollment(
-                        order, item, collectionCourse.getCourse(), now, item.getCollection()));
+            collectionCourse ->
+                activateOrCreateCourseEnrollment(
+                    order, item, collectionCourse.getCourse(), now, item.getCollection()));
       }
     }
   }

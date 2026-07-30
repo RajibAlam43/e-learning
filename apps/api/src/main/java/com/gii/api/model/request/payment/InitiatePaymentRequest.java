@@ -5,5 +5,6 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 
 @Builder
-public record InitiatePaymentRequest(@NotNull OrderProvider provider // SSLCOMMERZ, BKASH, NAGAD
-    ) {}
+public record InitiatePaymentRequest(
+    @NotNull OrderProvider provider // SSLCOMMERZ, BKASH, NAGAD
+) {}

@@ -92,7 +92,7 @@ public interface PaymentApi {
       Authentication authentication);
 
   @RequestMapping(
-      value = "/payments/sslcommerz/{orderId}/success",
+          value = "/payments/sslcommerz/{orderId}/success",
       method = {RequestMethod.GET, RequestMethod.POST})
   @Operation(
       summary = "Payment success callback",
@@ -108,7 +108,7 @@ public interface PaymentApi {
       @PathVariable UUID orderId, @RequestParam Map<String, String> queryParams);
 
   @RequestMapping(
-      value = "/payments/sslcommerz/{orderId}/failed",
+          value = "/payments/sslcommerz/{orderId}/failed",
       method = {RequestMethod.GET, RequestMethod.POST})
   @Operation(
       summary = "Payment failed callback",
@@ -123,7 +123,7 @@ public interface PaymentApi {
       @PathVariable UUID orderId, @RequestParam Map<String, String> queryParams);
 
   @RequestMapping(
-      value = "/payments/sslcommerz/{orderId}/cancelled",
+          value = "/payments/sslcommerz/{orderId}/cancelled",
       method = {RequestMethod.GET, RequestMethod.POST})
   @Operation(
       summary = "Payment cancelled callback",
@@ -138,7 +138,7 @@ public interface PaymentApi {
       @PathVariable UUID orderId, @RequestParam Map<String, String> queryParams);
 
   @RequestMapping(
-      value = "/payments/bkash/{orderId}/success",
+          value = "/payments/bkash/{orderId}/success",
       method = {RequestMethod.GET, RequestMethod.POST})
   @Operation(
       summary = "bKash payment success callback",
@@ -154,7 +154,7 @@ public interface PaymentApi {
       @PathVariable UUID orderId, @RequestParam Map<String, String> queryParams);
 
   @RequestMapping(
-      value = "/payments/bkash/{orderId}/failed",
+          value = "/payments/bkash/{orderId}/failed",
       method = {RequestMethod.GET, RequestMethod.POST})
   @Operation(
       summary = "bKash payment failed callback",
@@ -169,7 +169,7 @@ public interface PaymentApi {
       @PathVariable UUID orderId, @RequestParam Map<String, String> queryParams);
 
   @RequestMapping(
-      value = "/payments/bkash/{orderId}/cancelled",
+          value = "/payments/bkash/{orderId}/cancelled",
       method = {RequestMethod.GET, RequestMethod.POST})
   @Operation(
       summary = "bKash payment cancelled callback",

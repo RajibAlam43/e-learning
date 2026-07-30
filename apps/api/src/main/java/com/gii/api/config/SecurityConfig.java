@@ -56,19 +56,19 @@ public class SecurityConfig {
             session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .authorizeHttpRequests(
             auth ->
-                auth.requestMatchers(
-                        "/actuator/health",
-                        "/public/**",
-                        "/webhooks/**",
-                        "/payments/sslcommerz/*/success",
-                        "/payments/sslcommerz/*/failed",
-                        "/payments/sslcommerz/*/cancelled",
-                        "/payments/bkash/*/success",
-                        "/payments/bkash/*/failed",
-                        "/payments/bkash/*/cancelled",
-                        "/v3/api-docs/**",
-                        "/swagger-ui/**",
-                        "/swagger-ui.html")
+                    auth.requestMatchers(
+                            "/actuator/health",
+                                    "/public/**",
+                                    "/webhooks/**",
+                                    "/payments/sslcommerz/*/success",
+                                    "/payments/sslcommerz/*/failed",
+                                    "/payments/sslcommerz/*/cancelled",
+                                    "/payments/bkash/*/success",
+                                    "/payments/bkash/*/failed",
+                                    "/payments/bkash/*/cancelled",
+                                    "/v3/api-docs/**",
+                                    "/swagger-ui/**",
+                                    "/swagger-ui.html")
                     .permitAll()
                     .anyRequest()
                     .authenticated())
@@ -92,15 +92,15 @@ public class SecurityConfig {
 
     if (hasValues(allowedOriginPatterns)) {
       config.setAllowedOriginPatterns(
-          allowedOriginPatterns.stream()
-              .filter(value -> value != null && !value.isBlank())
-              .toList());
+              allowedOriginPatterns.stream()
+                      .filter(value -> value != null && !value.isBlank())
+                      .toList());
     } else if (hasValues(allowedOrigins)) {
       config.setAllowedOrigins(
           allowedOrigins.stream().filter(value -> value != null && !value.isBlank()).toList());
     } else {
       throw new IllegalStateException(
-          "CORS is not configured. Set app.cors.allowed-origins or app.cors.allowed-origin-patterns.");
+              "CORS is not configured. Set app.cors.allowed-origins or app.cors.allowed-origin-patterns.");
     }
 
     config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));

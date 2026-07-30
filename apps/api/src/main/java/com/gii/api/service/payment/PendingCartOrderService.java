@@ -392,7 +392,7 @@ public class PendingCartOrderService {
                                 : item.getCollection().getSlug())
                         .courseThumbnailUrl(
                             assetUrlService.publicUrl(
-                                item.getCourse() != null
+                            item.getCourse() != null
                                     ? item.getCourse().getThumbnailObjectKey()
                                     : item.getCollection().getThumbnailObjectKey()))
                         .originalPrice(item.getPriceBdt())

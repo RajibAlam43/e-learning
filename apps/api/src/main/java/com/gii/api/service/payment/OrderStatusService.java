@@ -50,7 +50,7 @@ public class OrderStatusService {
                       if (item.getItemType() == OrderItemType.COLLECTION) {
                         return collectionEnrollmentRepository
                             .existsByUserIdAndCollectionIdAndStatus(
-                                userId, item.getCollection().getId(), EnrollmentStatus.ACTIVE);
+                            userId, item.getCollection().getId(), EnrollmentStatus.ACTIVE);
                       }
                       return false;
                     })

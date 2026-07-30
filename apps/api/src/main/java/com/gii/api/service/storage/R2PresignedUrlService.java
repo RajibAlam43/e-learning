@@ -89,9 +89,9 @@ public class R2PresignedUrlService {
 
     try (S3Presigner presigner = buildPresigner()) {
       PresignedGetObjectRequest signed = presigner.presignGetObject(presignRequest);
-      return new PresignedDownload(
-          signed.url().toString(), java.time.Instant.now().plus(signatureDuration));
-    }
+    return new PresignedDownload(
+        signed.url().toString(), java.time.Instant.now().plus(signatureDuration));
+  }
   }
 
   private S3Presigner buildPresigner() {

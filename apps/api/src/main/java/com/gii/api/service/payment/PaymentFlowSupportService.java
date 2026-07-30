@@ -132,10 +132,10 @@ public class PaymentFlowSupportService {
         collectionCourseRepository
             .findByCollection_IdOrderByPositionAsc(item.getCollection().getId())
             .forEach(
-                collectionCourse -> {
-                  activateOrCreateCourseEnrollment(
-                      order, item, collectionCourse.getCourse(), now, item.getCollection());
-                });
+            collectionCourse -> {
+              activateOrCreateCourseEnrollment(
+                  order, item, collectionCourse.getCourse(), now, item.getCollection());
+            });
       }
     }
   }
@@ -263,9 +263,9 @@ public class PaymentFlowSupportService {
                       if (item.getItemType() == OrderItemType.COLLECTION) {
                         return collectionEnrollmentRepository
                             .existsByUserIdAndCollectionIdAndStatus(
-                                order.getUser().getId(),
-                                item.getCollection().getId(),
-                                EnrollmentStatus.ACTIVE);
+                            order.getUser().getId(),
+                            item.getCollection().getId(),
+                            EnrollmentStatus.ACTIVE);
                       }
                       return false;
                     })

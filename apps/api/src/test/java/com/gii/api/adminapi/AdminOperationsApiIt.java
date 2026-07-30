@@ -208,9 +208,9 @@ class AdminOperationsApiIt extends AbstractAdminApiIntegrationTest {
 
     live =
         liveClassRepository.findAll().stream()
-            .filter(x -> "Live Session 2".equals(x.getTitle()))
-            .findFirst()
-            .orElseThrow();
+        .filter(x -> "Live Session 2".equals(x.getTitle()))
+        .findFirst()
+        .orElseThrow();
     registrant(
         live,
         user("Approved Student", "approved-live-student@example.com"),
