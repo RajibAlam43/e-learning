@@ -7,6 +7,7 @@ import lombok.Builder;
 @Builder
 public record UpdateLessonRequest(
     String title,
+    String titleEn,
     String slug,
     Integer position,
     String lessonType,

@@ -40,6 +40,7 @@ class AdminCollectionsApiIt extends AbstractAdminApiIntegrationTest {
                         """
                         {
                           "title":"Analytics Pack",
+                          "titleEn":"Analytics Pack English",
                           "slug":"analytics-pack-admin",
                           "collectionType":"PACK",
                           "priceBdt":4500
@@ -47,6 +48,7 @@ class AdminCollectionsApiIt extends AbstractAdminApiIntegrationTest {
                         """))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.title").value("Analytics Pack"))
+            .andExpect(jsonPath("$.titleEn").value("Analytics Pack English"))
             .andReturn()
             .getResponse()
             .getContentAsString();

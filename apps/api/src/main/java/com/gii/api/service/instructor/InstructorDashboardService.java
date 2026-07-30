@@ -4,6 +4,7 @@ import com.gii.api.model.response.instructor.InstructorCourseSnapshotResponse;
 import com.gii.api.model.response.instructor.InstructorDashboardResponse;
 import com.gii.api.model.response.instructor.InstructorUpcomingLiveClassResponse;
 import com.gii.api.service.enrollment.CurrentUserService;
+import com.gii.api.service.localization.LocalizedContentService;
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.course.CourseInstructor;
 import com.gii.common.entity.live.LiveClass;
@@ -51,6 +52,7 @@ public class InstructorDashboardService {
   private final LessonRepository lessonRepository;
   private final LiveClassRepository liveClassRepository;
   private final LiveClassRegistrantRepository liveClassRegistrantRepository;
+  private final LocalizedContentService localizedContentService;
 
   public InstructorDashboardResponse execute(Authentication authentication) {
     User instructor = currentUserService.getCurrentUser(authentication);
@@ -125,7 +127,10 @@ public class InstructorDashboardService {
     return InstructorDashboardResponse.builder()
         .instructorName(instructor.getFullName())
         .displayName(profile != null ? profile.getDisplayName() : instructor.getFullName())
-        .headline(profile != null ? profile.getHeadline() : null)
+        .headline(
+            profile != null
+                ? localizedContentService.text(profile.getHeadline(), profile.getHeadlineEn())
+                : null)
         .photoUrl(profile != null ? profile.getPhotoUrl() : null)
         .totalCoursesAssigned(courses.size())
         .activeCourses(activeCourses)
@@ -175,7 +180,7 @@ public class InstructorDashboardService {
 
     return InstructorCourseSnapshotResponse.builder()
         .courseId(course.getId())
-        .courseName(course.getTitle())
+        .courseName(localizedContentService.text(course.getTitle(), course.getTitleEn()))
         .courseSlug(course.getSlug())
         .status(course.getStatus())
         .totalEnrolledStudents(totalEnrolled)
@@ -196,14 +201,20 @@ public class InstructorDashboardService {
       LiveClass liveClass, Map<UUID, Integer> approvedRegistrantCountByLiveClassId) {
     return InstructorUpcomingLiveClassResponse.builder()
         .liveClassId(liveClass.getId())
-        .title(liveClass.getTitle())
-        .description(liveClass.getDescription())
+        .title(localizedContentService.text(liveClass.getTitle(), liveClass.getTitleEn()))
+        .description(
+            localizedContentService.text(
+                liveClass.getDescription(), liveClass.getDescriptionEn()))
         .startsAt(liveClass.getStartsAt())
         .endsAt(liveClass.getEndsAt())
         .timeLabel(TIME_LABEL_FORMATTER.format(liveClass.getStartsAt()))
         .courseId(liveClass.getCourse().getId())
-        .courseName(liveClass.getCourse().getTitle())
-        .sectionTitle(liveClass.getSection().getTitle())
+        .courseName(
+            localizedContentService.text(
+                liveClass.getCourse().getTitle(), liveClass.getCourse().getTitleEn()))
+        .sectionTitle(
+            localizedContentService.text(
+                liveClass.getSection().getTitle(), liveClass.getSection().getTitleEn()))
         .status(liveClass.getStatus())
         .registeredStudents(approvedRegistrantCountByLiveClassId.getOrDefault(liveClass.getId(), 0))
         .maxCapacity(null)

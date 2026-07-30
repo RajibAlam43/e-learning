@@ -11,6 +11,7 @@ import lombok.Builder;
 public record CreateQuizRequest(
     @NotNull Integer position,
     @NotBlank String title,
+    String titleEn,
     @NotNull Integer passingScorePct,
     @NotNull Integer maxAttempts,
     Integer timeLimitSec,

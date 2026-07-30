@@ -8,9 +8,11 @@ import lombok.Builder;
 @Builder
 public record CreateSectionRequest(
     @NotBlank String title,
+    String titleEn,
     @NotBlank String slug,
     @NotNull Integer position,
     String description,
+    String descriptionEn,
     Boolean isMandatory,
     Boolean isFree,
     String releaseType, // IMMEDIATE, FIXED_DATE, RELATIVE_DAYS

@@ -4,4 +4,5 @@ import java.util.UUID;
 import lombok.Builder;
 
 @Builder
-public record AdminQuizChoiceResponse(UUID choiceId, String choiceText, Boolean isCorrect) {}
+public record AdminQuizChoiceResponse(
+    UUID choiceId, String choiceText, String choiceTextEn, Boolean isCorrect) {}

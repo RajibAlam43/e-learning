@@ -3,6 +3,7 @@ package com.gii.api.service.lesson;
 import com.gii.api.model.response.lesson.CourseProgressResponse;
 import com.gii.api.model.response.lesson.LessonProgressSummaryResponse;
 import com.gii.api.model.response.lesson.SectionProgressResponse;
+import com.gii.api.service.localization.LocalizedContentService;
 import com.gii.common.entity.course.CourseSection;
 import com.gii.common.entity.course.Lesson;
 import com.gii.common.entity.enrollment.Enrollment;
@@ -34,6 +35,7 @@ public class CourseProgressService {
   private final LessonRepository lessonRepository;
   private final LessonProgressRepository lessonProgressRepository;
   private final CourseSectionRepository sectionRepository;
+  private final LocalizedContentService localizedContentService;
 
   public CourseProgressResponse execute(UUID courseId, Authentication authentication) {
     UUID userId = lessonAccessService.requireCurrentUserId(authentication);
@@ -89,7 +91,9 @@ public class CourseProgressService {
                                 LessonProgress progress = progressByLessonId.get(lesson.getId());
                                 return LessonProgressSummaryResponse.builder()
                                     .lessonId(lesson.getId())
-                                    .lessonTitle(lesson.getTitle())
+                                    .lessonTitle(
+                                        localizedContentService.text(
+                                            lesson.getTitle(), lesson.getTitleEn()))
                                     .position(lesson.getPosition())
                                     .lessonType(lesson.getLessonType())
                                     .completed(
@@ -105,7 +109,9 @@ public class CourseProgressService {
 
                   return SectionProgressResponse.builder()
                       .sectionId(section.getId())
-                      .sectionTitle(section.getTitle())
+                      .sectionTitle(
+                          localizedContentService.text(
+                              section.getTitle(), section.getTitleEn()))
                       .position(section.getPosition())
                       .totalLessons(sectionTotal)
                       .completedLessons(sectionCompleted)
@@ -122,7 +128,9 @@ public class CourseProgressService {
 
     return CourseProgressResponse.builder()
         .courseId(enrollment.getCourse().getId())
-        .courseName(enrollment.getCourse().getTitle())
+        .courseName(
+            localizedContentService.text(
+                enrollment.getCourse().getTitle(), enrollment.getCourse().getTitleEn()))
         .courseSlug(enrollment.getCourse().getSlug())
         .totalLessons(totalLessons)
         .completedLessons(completedLessons)

@@ -447,8 +447,8 @@ class InstructorLiveClassesApiIt extends AbstractInstructorApiIntegrationTest {
     assignment(course, instructor, InstructorRole.PRIMARY);
     var sec = section(course, 1, PublishStatus.PUBLISHED);
 
-    Instant startsAt = Instant.parse("2026-07-01T10:00:00Z");
-    Instant endsAt = Instant.parse("2026-07-01T11:00:00Z");
+    Instant startsAt = Instant.parse("2036-07-01T10:00:00Z");
+    Instant endsAt = Instant.parse("2036-07-01T11:00:00Z");
     String createBody =
         """
         {
@@ -477,8 +477,8 @@ class InstructorLiveClassesApiIt extends AbstractInstructorApiIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(createBody))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.startsAt").value("2026-07-01T10:00:00Z"))
-        .andExpect(jsonPath("$.endsAt").value("2026-07-01T11:00:00Z"));
+        .andExpect(jsonPath("$.startsAt").value("2036-07-01T10:00:00Z"))
+        .andExpect(jsonPath("$.endsAt").value("2036-07-01T11:00:00Z"));
   }
 
   private Authentication studentAuth(java.util.UUID userId) {

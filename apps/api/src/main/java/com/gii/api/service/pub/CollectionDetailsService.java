@@ -3,6 +3,7 @@ package com.gii.api.service.pub;
 import com.gii.api.model.response.CollectionCourseSummaryResponse;
 import com.gii.api.model.response.CollectionDetailsResponse;
 import com.gii.api.service.storage.AssetUrlService;
+import com.gii.api.service.localization.LocalizedContentService;
 import com.gii.common.entity.collection.Collection;
 import com.gii.common.entity.collection.CollectionCourse;
 import com.gii.common.entity.course.CourseInstructor;
@@ -28,6 +29,7 @@ public class CollectionDetailsService {
   private final CollectionCourseRepository collectionCourseRepository;
   private final CourseInstructorRepository courseInstructorRepository;
   private final AssetUrlService assetUrlService;
+  private final LocalizedContentService localizedContentService;
 
   public CollectionDetailsResponse execute(String slug) {
     Collection collection =
@@ -55,7 +57,10 @@ public class CollectionDetailsService {
                 collectionCourse ->
                     CollectionCourseSummaryResponse.builder()
                         .id(collectionCourse.getCourse().getId())
-                        .title(collectionCourse.getCourse().getTitle())
+                        .title(
+                            localizedContentService.text(
+                                collectionCourse.getCourse().getTitle(),
+                                collectionCourse.getCourse().getTitleEn()))
                         .slug(collectionCourse.getCourse().getSlug())
                         .thumbnailUrl(
                             assetUrlService.publicUrl(
@@ -67,12 +72,16 @@ public class CollectionDetailsService {
 
     return CollectionDetailsResponse.builder()
         .id(collection.getId())
-        .title(collection.getTitle())
+        .title(localizedContentService.text(collection.getTitle(), collection.getTitleEn()))
         .slug(collection.getSlug())
         .collectionType(collection.getType())
         .thumbnailUrl(assetUrlService.publicUrl(collection.getThumbnailObjectKey()))
-        .shortDescription(collection.getShortDescription())
-        .description(collection.getDescription())
+        .shortDescription(
+            localizedContentService.text(
+                collection.getShortDescription(), collection.getShortDescriptionEn()))
+        .description(
+            localizedContentService.text(
+                collection.getDescription(), collection.getDescriptionEn()))
         .priceBdt(collection.getPriceBdt())
         .publishedAt(collection.getPublishedAt())
         .courseCount(courses.size())

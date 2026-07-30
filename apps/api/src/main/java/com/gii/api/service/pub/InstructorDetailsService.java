@@ -3,6 +3,7 @@ package com.gii.api.service.pub;
 import com.gii.api.model.response.CourseSummaryResponse;
 import com.gii.api.model.response.InstructorDetailsResponse;
 import com.gii.api.service.storage.AssetUrlService;
+import com.gii.api.service.localization.LocalizedContentService;
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.course.CourseInstructor;
 import com.gii.common.entity.user.InstructorProfile;
@@ -27,6 +28,7 @@ public class InstructorDetailsService {
   private final InstructorProfileRepository instructorProfileRepository;
   private final CourseInstructorRepository courseInstructorRepository;
   private final AssetUrlService assetUrlService;
+  private final LocalizedContentService localizedContentService;
 
   public InstructorDetailsResponse execute(String slug) {
     UUID instructorId = parseInstructorId(slug);
@@ -54,12 +56,18 @@ public class InstructorDetailsService {
         .fullName(profile.getUser().getFullName())
         .displayName(profile.getDisplayName())
         .avatarUrl(profile.getPhotoUrl())
-        .headline(profile.getHeadline())
-        .institution(profile.getInstitution())
-        .expertiseArea(profile.getExpertiseArea())
-        .about(profile.getAbout())
-        .credentialsText(profile.getCredentialsText())
-        .specialties(profile.getSpecialties() == null ? List.of() : profile.getSpecialties())
+        .headline(localizedContentService.text(profile.getHeadline(), profile.getHeadlineEn()))
+        .institution(
+            localizedContentService.text(profile.getInstitution(), profile.getInstitutionEn()))
+        .expertiseArea(
+            localizedContentService.text(
+                profile.getExpertiseArea(), profile.getExpertiseAreaEn()))
+        .about(localizedContentService.text(profile.getAbout(), profile.getAboutEn()))
+        .credentialsText(
+            localizedContentService.text(
+                profile.getCredentialsText(), profile.getCredentialsTextEn()))
+        .specialties(
+            localizedContentService.list(profile.getSpecialties(), profile.getSpecialtiesEn()))
         .yearsExperience(profile.getYearsExperience())
         .publishedCourses(publishedCourses)
         .build();
@@ -76,9 +84,11 @@ public class InstructorDetailsService {
   private CourseSummaryResponse toCourseSummary(Course course) {
     return CourseSummaryResponse.builder()
         .id(course.getId())
-        .title(course.getTitle())
+        .title(localizedContentService.text(course.getTitle(), course.getTitleEn()))
         .slug(course.getSlug())
-        .shortDescription(course.getShortDescription())
+        .shortDescription(
+            localizedContentService.text(
+                course.getShortDescription(), course.getShortDescriptionEn()))
         .thumbnailUrl(assetUrlService.publicUrl(course.getThumbnailObjectKey()))
         .priceBdt(course.getPriceBdt())
         .level(course.getLevel())

@@ -3,6 +3,7 @@ package com.gii.api.service.pub;
 import com.gii.api.model.response.CourseSummaryResponse;
 import com.gii.api.model.response.PageResponse;
 import com.gii.api.service.storage.AssetUrlService;
+import com.gii.api.service.localization.LocalizedContentService;
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.course.CourseCategory;
 import com.gii.common.entity.course.CourseInstructor;
@@ -42,6 +43,7 @@ public class AllCoursesService {
   private final CourseCategoryRepository courseCategoryRepository;
   private final CourseInstructorRepository courseInstructorRepository;
   private final AssetUrlService assetUrlService;
+  private final LocalizedContentService localizedContentService;
 
   public PageResponse<CourseSummaryResponse> execute(
       UUID categoryId, CourseLevel level, CourseLanguage language, Pageable pageable) {
@@ -121,7 +123,10 @@ public class AllCoursesService {
       result
           .computeIfAbsent(
               courseCategory.getCourse().getId(), ignored -> new java.util.ArrayList<>())
-          .add(courseCategory.getCategory().getName());
+          .add(
+              localizedContentService.text(
+                  courseCategory.getCategory().getName(),
+                  courseCategory.getCategory().getNameEn()));
     }
     result.replaceAll((key, value) -> new java.util.ArrayList<>(new LinkedHashSet<>(value)));
     return result;
@@ -148,9 +153,11 @@ public class AllCoursesService {
       Course course, List<String> categoryNames, List<String> instructorNames) {
     return CourseSummaryResponse.builder()
         .id(course.getId())
-        .title(course.getTitle())
+        .title(localizedContentService.text(course.getTitle(), course.getTitleEn()))
         .slug(course.getSlug())
-        .shortDescription(course.getShortDescription())
+        .shortDescription(
+            localizedContentService.text(
+                course.getShortDescription(), course.getShortDescriptionEn()))
         .thumbnailUrl(assetUrlService.publicUrl(course.getThumbnailObjectKey()))
         .priceBdt(course.getPriceBdt())
         .level(course.getLevel())

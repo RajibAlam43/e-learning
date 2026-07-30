@@ -34,7 +34,13 @@ class QuizQuestionsAndStartApiIt extends AbstractQuizApiIntegrationTest {
     var quiz = quiz(course, lesson, "Quiz 1", PublishStatus.PUBLISHED, 60, 3, 600);
     var q1 = question(quiz, 1, "Q1", 5);
     var q2 = question(quiz, 2, "Q2", 5);
-    choice(q1, "A", true);
+    quiz.setTitleEn("Quiz English");
+    quizRepository.saveAndFlush(quiz);
+    q1.setQuestionTextEn("Question One English");
+    quizQuestionRepository.saveAndFlush(q1);
+    var choiceA = choice(q1, "A", true);
+    choiceA.setChoiceTextEn("Choice A English");
+    quizChoiceRepository.saveAndFlush(choiceA);
     choice(q1, "B", false);
     choice(q2, "C", false);
     choice(q2, "D", true);
@@ -58,6 +64,16 @@ class QuizQuestionsAndStartApiIt extends AbstractQuizApiIntegrationTest {
         .andExpect(jsonPath("$.remainingAttempts").value(2))
         .andExpect(jsonPath("$.bestScorePct").value(50))
         .andExpect(jsonPath("$.questions[0].choices[0].isCorrect").doesNotExist());
+
+    mockMvc
+        .perform(
+            get("/learn/quizzes/{quizId}", quiz.getId())
+                .param("lang", "en")
+                .with(authentication(studentAuth(student.getId()))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.quizTitle").value("Quiz English"))
+        .andExpect(jsonPath("$.questions[0].questionText").value("Question One English"))
+        .andExpect(jsonPath("$.questions[0].choices[0].choiceText").value("Choice A English"));
   }
 
   @Test

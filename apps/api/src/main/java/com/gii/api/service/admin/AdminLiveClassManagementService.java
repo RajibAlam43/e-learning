@@ -83,7 +83,9 @@ public class AdminLiveClassManagementService {
             .section(section)
             .instructor(null)
             .title(request.title().trim())
+            .titleEn(request.titleEn())
             .description(request.description())
+            .descriptionEn(request.descriptionEn())
             .provider(request.provider())
             .providerMeetingId(meeting.meetingId())
             .hostStartUrl(meeting.hostStartUrl())
@@ -115,8 +117,14 @@ public class AdminLiveClassManagementService {
     if (request.title() != null && !request.title().isBlank()) {
       liveClass.setTitle(request.title().trim());
     }
+    if (request.titleEn() != null) {
+      liveClass.setTitleEn(request.titleEn().trim());
+    }
     if (request.description() != null) {
       liveClass.setDescription(request.description());
+    }
+    if (request.descriptionEn() != null) {
+      liveClass.setDescriptionEn(request.descriptionEn());
     }
     if (request.startsAt() != null || request.endsAt() != null) {
       Instant startsAt = request.startsAt() != null ? request.startsAt() : liveClass.getStartsAt();
@@ -232,7 +240,9 @@ public class AdminLiveClassManagementService {
     return AdminLiveClassSummaryResponse.builder()
         .liveClassId(liveClass.getId())
         .title(liveClass.getTitle())
+        .titleEn(liveClass.getTitleEn())
         .courseName(liveClass.getCourse().getTitle())
+        .courseNameEn(liveClass.getCourse().getTitleEn())
         .instructorName(instructorName)
         .status(liveClass.getStatus().name())
         .startsAt(liveClass.getStartsAt())
@@ -249,11 +259,15 @@ public class AdminLiveClassManagementService {
     return AdminLiveClassDetailResponse.builder()
         .liveClassId(liveClass.getId())
         .title(liveClass.getTitle())
+        .titleEn(liveClass.getTitleEn())
         .description(liveClass.getDescription())
+        .descriptionEn(liveClass.getDescriptionEn())
         .courseId(liveClass.getCourse().getId())
         .courseName(liveClass.getCourse().getTitle())
+        .courseNameEn(liveClass.getCourse().getTitleEn())
         .sectionId(liveClass.getSection().getId())
         .sectionTitle(liveClass.getSection().getTitle())
+        .sectionTitleEn(liveClass.getSection().getTitleEn())
         .instructorId(liveClass.getInstructor() != null ? liveClass.getInstructor().getId() : null)
         .instructorName(
             liveClass.getInstructor() != null ? liveClass.getInstructor().getFullName() : null)

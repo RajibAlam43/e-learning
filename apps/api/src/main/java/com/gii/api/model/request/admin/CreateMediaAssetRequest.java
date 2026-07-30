@@ -19,6 +19,7 @@ public record CreateMediaAssetRequest(
     PlaybackPolicy playbackPolicy, // PUBLIC, SIGNED
     String fileUrl,
     @NotBlank String title,
+    String titleEn,
     String maxResolution,
     Integer durationSec,
     String preferredPlaybackMode // IFRAME, HLS

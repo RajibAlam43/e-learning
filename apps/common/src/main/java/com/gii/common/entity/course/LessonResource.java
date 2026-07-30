@@ -42,6 +42,9 @@ public class LessonResource extends BaseUuidEntity {
   @Column(name = "title")
   private String title;
 
+  @Column(name = "title_en")
+  private String titleEn;
+
   @Column(name = "file_url", nullable = false)
   private String fileUrl;
 

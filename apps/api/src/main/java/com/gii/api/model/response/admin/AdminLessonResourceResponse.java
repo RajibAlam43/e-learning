@@ -10,6 +10,7 @@ public record AdminLessonResourceResponse(
     UUID resourceId,
     UUID lessonId,
     String title,
+    String titleEn,
     LessonResourceType resourceType, // PDF, IMAGE
     String mimeType, // e.g., "application/pdf", "image/png"
     String fileUrl,

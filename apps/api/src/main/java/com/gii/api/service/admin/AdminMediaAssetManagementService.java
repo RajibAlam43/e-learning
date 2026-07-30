@@ -43,6 +43,7 @@ public class AdminMediaAssetManagementService {
             .playbackPolicy(request.playbackPolicy())
             .fileUrl(request.fileUrl())
             .title(request.title())
+            .titleEn(request.titleEn())
             .maxResolution(request.maxResolution())
             .durationSec(request.durationSec())
             .status(MediaStatus.READY)
@@ -59,6 +60,9 @@ public class AdminMediaAssetManagementService {
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Media asset not found"));
     if (request.title() != null) {
       asset.setTitle(request.title());
+    }
+    if (request.titleEn() != null) {
+      asset.setTitleEn(request.titleEn());
     }
     if (request.provider() != null) {
       asset.setProvider(request.provider());
@@ -109,6 +113,7 @@ public class AdminMediaAssetManagementService {
         .playbackPolicy(asset.getPlaybackPolicy() != null ? asset.getPlaybackPolicy().name() : null)
         .fileUrl(asset.getFileUrl())
         .title(asset.getTitle())
+        .titleEn(asset.getTitleEn())
         .maxResolution(asset.getMaxResolution())
         .durationSec(asset.getDurationSec())
         .status(asset.getStatus().name())

@@ -9,6 +9,7 @@ import lombok.Builder;
 @Builder
 public record CreateLessonRequest(
     @NotBlank String title,
+    String titleEn,
     @NotBlank String slug,
     @NotNull Integer position,
     @NotBlank String lessonType, // VIDEO, QUIZ, LIVE, ASSIGNMENT, PDF

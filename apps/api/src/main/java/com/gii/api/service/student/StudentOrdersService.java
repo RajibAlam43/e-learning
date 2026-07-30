@@ -2,6 +2,7 @@ package com.gii.api.service.student;
 
 import com.gii.api.model.response.student.OrderItemSummaryResponse;
 import com.gii.api.model.response.student.StudentOrderSummaryResponse;
+import com.gii.api.service.localization.LocalizedContentService;
 import com.gii.api.service.enrollment.CurrentUserService;
 import com.gii.common.entity.order.Order;
 import com.gii.common.entity.order.OrderItem;
@@ -23,6 +24,7 @@ public class StudentOrdersService {
   private final CurrentUserService currentUserService;
   private final OrderRepository orderRepository;
   private final OrderItemRepository orderItemRepository;
+  private final LocalizedContentService localizedContentService;
 
   public List<StudentOrderSummaryResponse> execute(Authentication authentication) {
     UUID userId = currentUserService.getCurrentUserId(authentication);
@@ -43,7 +45,9 @@ public class StudentOrdersService {
                       .courseId(item.getCourse() != null ? item.getCourse().getId() : null)
                       .collectionId(
                           item.getCollection() != null ? item.getCollection().getId() : null)
-                      .courseName(item.getTitleSnapshot())
+                      .courseName(
+                          localizedContentService.text(
+                              item.getTitleSnapshot(), item.getTitleSnapshotEn()))
                       .priceBdt(item.getPriceBdt())
                       .discountBdt(item.getDiscountBdt())
                       .finalAmount(finalAmount)

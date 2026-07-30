@@ -58,6 +58,9 @@ public class OrderItem {
   @Column(name = "title_snapshot", nullable = false)
   private String titleSnapshot;
 
+  @Column(name = "title_snapshot_en")
+  private String titleSnapshotEn;
+
   @Column(name = "price_bdt", nullable = false, updatable = false)
   private BigDecimal priceBdt;
 

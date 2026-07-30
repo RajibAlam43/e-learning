@@ -52,9 +52,11 @@ public class AdminSectionManagementService {
         CourseSection.builder()
             .course(course)
             .title(request.title().trim())
+            .titleEn(request.titleEn())
             .slug(request.slug().trim())
             .position(request.position())
             .description(request.description())
+            .descriptionEn(request.descriptionEn())
             .isMandatory(Boolean.TRUE.equals(request.isMandatory()))
             .isFree(Boolean.TRUE.equals(request.isFree()))
             .releaseType(parseReleaseType(request.releaseType()))
@@ -74,6 +76,9 @@ public class AdminSectionManagementService {
     if (request.title() != null) {
       section.setTitle(request.title().trim());
     }
+    if (request.titleEn() != null) {
+      section.setTitleEn(request.titleEn().trim());
+    }
     if (request.slug() != null) {
       section.setSlug(request.slug().trim());
     }
@@ -82,6 +87,9 @@ public class AdminSectionManagementService {
     }
     if (request.description() != null) {
       section.setDescription(request.description());
+    }
+    if (request.descriptionEn() != null) {
+      section.setDescriptionEn(request.descriptionEn());
     }
     if (request.isMandatory() != null) {
       section.setIsMandatory(request.isMandatory());
@@ -156,9 +164,11 @@ public class AdminSectionManagementService {
     return AdminCourseSectionResponse.builder()
         .sectionId(section.getId())
         .title(section.getTitle())
+        .titleEn(section.getTitleEn())
         .slug(section.getSlug())
         .position(section.getPosition())
         .description(section.getDescription())
+        .descriptionEn(section.getDescriptionEn())
         .isMandatory(section.getIsMandatory())
         .isFree(section.getIsFree())
         .status(section.getStatus().name())
@@ -176,6 +186,7 @@ public class AdminSectionManagementService {
     return AdminLessonSummaryResponse.builder()
         .lessonId(lesson.getId())
         .title(lesson.getTitle())
+        .titleEn(lesson.getTitleEn())
         .slug(lesson.getSlug())
         .position(lesson.getPosition())
         .lessonType(lesson.getLessonType().name())

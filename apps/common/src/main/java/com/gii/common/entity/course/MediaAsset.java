@@ -72,6 +72,9 @@ public class MediaAsset extends BaseUuidEntity {
   @Column(name = "title", nullable = false)
   private String title;
 
+  @Column(name = "title_en")
+  private String titleEn;
+
   @Column(name = "max_resolution", length = 20)
   private String maxResolution;
 

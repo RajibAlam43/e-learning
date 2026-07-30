@@ -5,6 +5,7 @@ import com.gii.api.model.request.payment.CreateCheckoutOrderRequest;
 import com.gii.api.model.response.payment.CheckoutOrderItemResponse;
 import com.gii.api.model.response.payment.CheckoutOrderResponse;
 import com.gii.api.service.storage.AssetUrlService;
+import com.gii.api.service.localization.LocalizedContentService;
 import com.gii.api.service.enrollment.CurrentUserService;
 import com.gii.common.entity.collection.Collection;
 import com.gii.common.entity.collection.CollectionCourse;
@@ -60,6 +61,7 @@ public class PendingCartOrderService {
   private final OrderRepository orderRepository;
   private final OrderItemRepository orderItemRepository;
   private final AssetUrlService assetUrlService;
+  private final LocalizedContentService localizedContentService;
 
   public CheckoutOrderResponse execute(CreateCheckoutOrderRequest request, Authentication authentication) {
     User user = currentUserService.getCurrentUser(authentication);
@@ -166,6 +168,7 @@ public class PendingCartOrderService {
                 .itemType(OrderItemType.COURSE)
                 .course(course)
                 .titleSnapshot(course.getTitle())
+                .titleSnapshotEn(course.getTitleEn())
                 .priceBdt(price)
                 .discountBdt(discount)
                 .build());
@@ -174,7 +177,7 @@ public class PendingCartOrderService {
                 .itemType(OrderItemType.COURSE)
                 .courseId(course.getId())
                 .collectionId(null)
-                .courseName(course.getTitle())
+                .courseName(localizedContentService.text(course.getTitle(), course.getTitleEn()))
                 .courseSlug(course.getSlug())
                 .courseThumbnailUrl(assetUrlService.publicUrl(course.getThumbnailObjectKey()))
                 .originalPrice(price)
@@ -207,6 +210,7 @@ public class PendingCartOrderService {
               .itemType(OrderItemType.COLLECTION)
               .collection(collection)
               .titleSnapshot(collection.getTitle())
+              .titleSnapshotEn(collection.getTitleEn())
               .priceBdt(price)
               .discountBdt(discount)
               .build());
@@ -215,7 +219,8 @@ public class PendingCartOrderService {
               .itemType(OrderItemType.COLLECTION)
               .courseId(null)
               .collectionId(collection.getId())
-              .courseName(collection.getTitle())
+              .courseName(
+                  localizedContentService.text(collection.getTitle(), collection.getTitleEn()))
               .courseSlug(collection.getSlug())
               .courseThumbnailUrl(null)
               .originalPrice(price)

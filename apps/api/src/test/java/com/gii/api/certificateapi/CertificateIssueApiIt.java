@@ -31,7 +31,9 @@ class CertificateIssueApiIt extends AbstractCertificateApiIntegrationTest {
     var creator = user("Creator", "creator-cert-1@example.com");
     var instructor = user("Instructor", "instructor-cert-1@example.com");
     var student = user("Student", "student-cert-1@example.com");
-    var course = course("Course Cert", "course-cert", creator, PublishStatus.PUBLISHED);
+    var course = course("বাংলা কোর্স", "course-cert", creator, PublishStatus.PUBLISHED);
+    course.setTitleEn("English Certificate Course");
+    courseRepository.saveAndFlush(course);
     primaryInstructor(course, instructor);
     var sec = section(course, 1, PublishStatus.PUBLISHED);
     var lesson1 = lesson(course, sec, 1, PublishStatus.PUBLISHED);
@@ -51,8 +53,12 @@ class CertificateIssueApiIt extends AbstractCertificateApiIntegrationTest {
         .andExpect(jsonPath("$.wasEligible").value(true))
         .andExpect(jsonPath("$.eligibilityReason").value("COURSE_COMPLETED"));
 
-    assertThat(certificateRepository.findByUserIdAndCourseId(student.getId(), course.getId()))
-        .isPresent();
+    assertThat(
+            certificateRepository
+                .findByUserIdAndCourseId(student.getId(), course.getId())
+                .orElseThrow()
+                .getTargetTitle())
+        .isEqualTo("English Certificate Course");
 
     mockMvc
         .perform(

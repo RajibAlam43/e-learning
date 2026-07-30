@@ -32,8 +32,11 @@ class AdminLiveClassesApiIt extends AbstractAdminApiIntegrationTest {
     var firstStudent = user("First Student", "first-live-student@example.com");
     final var secondStudent = user("Second Student", "second-live-student@example.com");
     var course = course("Database Live Course", "database-live-course", creator);
+    course.setTitleEn("Database Live Course English");
+    courseRepository.saveAndFlush(course);
     var section = section(course, 1);
     var liveClass = liveClass(course, section, lesson(course, section, 1));
+    liveClass.setTitleEn("Live Session English");
     liveClass.setInstructor(instructor);
     liveClassRepository.saveAndFlush(liveClass);
     registrant(liveClass, firstStudent, LiveClassRegistrantStatus.APPROVED);
@@ -46,7 +49,9 @@ class AdminLiveClassesApiIt extends AbstractAdminApiIntegrationTest {
         .andExpect(jsonPath("$.length()").value(1))
         .andExpect(jsonPath("$[0].liveClassId").value(liveClass.getId().toString()))
         .andExpect(jsonPath("$[0].title").value("Live Session"))
+        .andExpect(jsonPath("$[0].titleEn").value("Live Session English"))
         .andExpect(jsonPath("$[0].courseName").value("Database Live Course"))
+        .andExpect(jsonPath("$[0].courseNameEn").value("Database Live Course English"))
         .andExpect(jsonPath("$[0].instructorName").value("Live Class Instructor"))
         .andExpect(jsonPath("$[0].status").value("SCHEDULED"))
         .andExpect(jsonPath("$[0].registeredStudents").value(2))

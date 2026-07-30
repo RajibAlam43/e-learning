@@ -47,14 +47,26 @@ public class InstructorProfile {
   @Column(name = "headline")
   private String headline;
 
+  @Column(name = "headline_en")
+  private String headlineEn;
+
   @Column(name = "institution")
   private String institution;
+
+  @Column(name = "institution_en")
+  private String institutionEn;
 
   @Column(name = "expertise_area")
   private String expertiseArea;
 
+  @Column(name = "expertise_area_en")
+  private String expertiseAreaEn;
+
   @Column(name = "about")
   private String about;
+
+  @Column(name = "about_en")
+  private String aboutEn;
 
   @Column(name = "photo_url")
   private String photoUrl;
@@ -72,9 +84,16 @@ public class InstructorProfile {
   @Column(name = "credentials_text", columnDefinition = "text")
   private String credentialsText;
 
+  @Column(name = "credentials_text_en", columnDefinition = "text")
+  private String credentialsTextEn;
+
   @JdbcTypeCode(SqlTypes.JSON)
   @Column(name = "specialties_json", columnDefinition = "jsonb")
   private java.util.List<String> specialties;
+
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(name = "specialties_en", columnDefinition = "jsonb")
+  private java.util.List<String> specialtiesEn;
 
   @Column(name = "years_experience")
   private Integer yearsExperience;

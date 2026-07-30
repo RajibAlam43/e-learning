@@ -46,6 +46,13 @@ class InstructorDashboardApiIt extends AbstractInstructorApiIntegrationTest {
             LiveClassStatus.SCHEDULED,
             Instant.now().plusSeconds(1800),
             Instant.now().plusSeconds(3600));
+    course.setTitleEn("Instructor Course English");
+    courseRepository.saveAndFlush(course);
+    sec.setTitleEn("Instructor Section English");
+    courseSectionRepository.saveAndFlush(sec);
+    upcoming.setTitleEn("Upcoming Class English");
+    upcoming.setDescriptionEn("Upcoming description English");
+    liveClassRepository.saveAndFlush(upcoming);
     registrant(studentA, upcoming, LiveClassRegistrantStatus.APPROVED);
     registrant(studentB, upcoming, LiveClassRegistrantStatus.PENDING);
 
@@ -62,5 +69,20 @@ class InstructorDashboardApiIt extends AbstractInstructorApiIntegrationTest {
         .andExpect(jsonPath("$.upcomingLiveClasses[0].registeredStudents").value(1))
         .andExpect(jsonPath("$.upcomingLiveClasses[0].timeLabel").isString())
         .andExpect(jsonPath("$.upcomingLiveClasses[0].timeLabel").isNotEmpty());
+
+    mockMvc
+        .perform(
+            get("/instructor/dashboard")
+                .param("lang", "en")
+                .with(authentication(instructorAuth(instructor.getId()))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.assignedCourses[0].courseName").value("Instructor Course English"))
+        .andExpect(jsonPath("$.upcomingLiveClasses[0].title").value("Upcoming Class English"))
+        .andExpect(
+            jsonPath("$.upcomingLiveClasses[0].description")
+                .value("Upcoming description English"))
+        .andExpect(
+            jsonPath("$.upcomingLiveClasses[0].sectionTitle")
+                .value("Instructor Section English"));
   }
 }

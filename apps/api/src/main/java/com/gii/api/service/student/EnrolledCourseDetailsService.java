@@ -5,6 +5,7 @@ import com.gii.api.model.response.student.StudentLessonHomeResponse;
 import com.gii.api.model.response.student.StudentQuizHomeResponse;
 import com.gii.api.model.response.student.StudentSectionHomeResponse;
 import com.gii.api.service.storage.AssetUrlService;
+import com.gii.api.service.localization.LocalizedContentService;
 import com.gii.api.service.enrollment.CurrentUserService;
 import com.gii.common.entity.certificate.Certificate;
 import com.gii.common.entity.course.Course;
@@ -51,6 +52,7 @@ public class EnrolledCourseDetailsService {
   private final CertificateRepository certificateRepository;
   private final QuizRepository quizRepository;
   private final AssetUrlService assetUrlService;
+  private final LocalizedContentService localizedContentService;
 
   public StudentCourseHomeResponse execute(UUID courseId, Authentication authentication) {
     UUID userId = currentUserService.getCurrentUserId(authentication);
@@ -112,9 +114,10 @@ public class EnrolledCourseDetailsService {
 
     return StudentCourseHomeResponse.builder()
         .courseId(course.getId())
-        .courseName(course.getTitle())
+        .courseName(localizedContentService.text(course.getTitle(), course.getTitleEn()))
         .courseSlug(course.getSlug())
-        .description(course.getDescription())
+        .description(
+            localizedContentService.text(course.getDescription(), course.getDescriptionEn()))
         .thumbnailUrl(assetUrlService.publicUrl(course.getThumbnailObjectKey()))
         .instructor(instructorName)
         .courseLevel(course.getLevel().name())
@@ -160,7 +163,7 @@ public class EnrolledCourseDetailsService {
       lessonResponses.add(
           StudentLessonHomeResponse.builder()
               .lessonId(lesson.getId())
-              .lessonTitle(lesson.getTitle())
+              .lessonTitle(localizedContentService.text(lesson.getTitle(), lesson.getTitleEn()))
               .position(lesson.getPosition())
               .lessonType(lesson.getLessonType())
               .completed(progress != null && progress.getCompletedAt() != null)
@@ -176,9 +179,11 @@ public class EnrolledCourseDetailsService {
 
     return StudentSectionHomeResponse.builder()
         .sectionId(section.getId())
-        .sectionTitle(section.getTitle())
+        .sectionTitle(
+            localizedContentService.text(section.getTitle(), section.getTitleEn()))
         .position(section.getPosition())
-        .description(section.getDescription())
+        .description(
+            localizedContentService.text(section.getDescription(), section.getDescriptionEn()))
         .completionPercentage(round2(completion))
         .completedLessons(completedLessons)
         .totalLessons(totalLessons)
@@ -191,7 +196,9 @@ public class EnrolledCourseDetailsService {
                     quiz ->
                         StudentQuizHomeResponse.builder()
                             .quizId(quiz.getId())
-                            .quizTitle(quiz.getTitle())
+                            .quizTitle(
+                                localizedContentService.text(
+                                    quiz.getTitle(), quiz.getTitleEn()))
                             .position(quiz.getPosition())
                             .isAccessible(true)
                             .accessReason("AVAILABLE")
