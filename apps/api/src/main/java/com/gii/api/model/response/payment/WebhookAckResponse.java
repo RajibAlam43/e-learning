@@ -8,4 +8,4 @@ public record WebhookAckResponse(
     String message, // e.g., "Webhook received and queued for processing"
     String webhookId, // For provider reference
     Long processingDelayMs // Expected delay before processing
-) {}
+    ) {}

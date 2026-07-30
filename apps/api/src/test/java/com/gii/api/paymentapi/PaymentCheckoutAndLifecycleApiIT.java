@@ -18,9 +18,11 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
+@TestPropertySource(properties = "assets.base-url=https://assets.test")
 class PaymentCheckoutAndLifecycleApiIt extends AbstractPaymentApiIntegrationTest {
 
   @Autowired private MockMvc mockMvc;
@@ -53,8 +55,7 @@ class PaymentCheckoutAndLifecycleApiIt extends AbstractPaymentApiIntegrationTest
         .formatted(collectionId);
   }
 
-  private String mixedCheckoutPayload(
-      java.util.UUID courseId, java.util.UUID collectionId) {
+  private String mixedCheckoutPayload(java.util.UUID courseId, java.util.UUID collectionId) {
     return """
         {
           "items": [
@@ -154,6 +155,8 @@ class PaymentCheckoutAndLifecycleApiIt extends AbstractPaymentApiIntegrationTest
             creator,
             PublishStatus.PUBLISHED,
             BigDecimal.valueOf(2000));
+    collection.setThumbnailObjectKey("thumbnails/collections/discount-collection-a1b2c3d4.webp");
+    collectionRepository.saveAndFlush(collection);
     collectionCourse(collection, ownedCourse, 1, true);
     collectionCourse(collection, otherCourse, 2, true);
 
@@ -167,7 +170,25 @@ class PaymentCheckoutAndLifecycleApiIt extends AbstractPaymentApiIntegrationTest
         .andExpect(jsonPath("$.subtotal").value(2000))
         .andExpect(jsonPath("$.totalDiscount").value(900))
         .andExpect(jsonPath("$.totalAmount").value(1100))
+        .andExpect(
+            jsonPath("$.items[0].courseThumbnailUrl")
+                .value(
+                    "https://assets.test/thumbnails/collections/"
+                        + "discount-collection-a1b2c3d4.webp"))
         .andExpect(jsonPath("$.items[0].discountReason").value("ALREADY_OWNED_INCLUDED_COURSES"));
+
+    mockMvc
+        .perform(
+            post("/checkout/orders")
+                .with(authentication(studentAuth(student.getId())))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(singleCollectionCheckoutPayload(collection.getId())))
+        .andExpect(status().isOk())
+        .andExpect(
+            jsonPath("$.items[0].courseThumbnailUrl")
+                .value(
+                    "https://assets.test/thumbnails/collections/"
+                        + "discount-collection-a1b2c3d4.webp"));
   }
 
   @Test
@@ -495,5 +516,4 @@ class PaymentCheckoutAndLifecycleApiIt extends AbstractPaymentApiIntegrationTest
                 .with(authentication(studentAuth(student.getId()))))
         .andExpect(status().isBadRequest());
   }
-
 }

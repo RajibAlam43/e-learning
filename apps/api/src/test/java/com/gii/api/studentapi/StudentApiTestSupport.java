@@ -19,16 +19,16 @@ import com.gii.common.entity.quiz.Quiz;
 import com.gii.common.entity.user.User;
 import com.gii.common.entity.user.UserProfile;
 import com.gii.common.enums.CertificateTargetType;
+import com.gii.common.enums.CollectionType;
 import com.gii.common.enums.CourseLanguage;
 import com.gii.common.enums.CourseLevel;
-import com.gii.common.enums.CollectionType;
 import com.gii.common.enums.EnrollmentStatus;
 import com.gii.common.enums.LessonType;
 import com.gii.common.enums.LiveClassProvider;
 import com.gii.common.enums.LiveClassRegistrantStatus;
 import com.gii.common.enums.LiveClassStatus;
-import com.gii.common.enums.OrderProvider;
 import com.gii.common.enums.OrderItemType;
+import com.gii.common.enums.OrderProvider;
 import com.gii.common.enums.OrderStatus;
 import com.gii.common.enums.PublishStatus;
 import com.gii.common.enums.StudyMode;
@@ -95,7 +95,8 @@ abstract class StudentApiTestSupport {
     userRepository.deleteAll();
   }
 
-  protected Collection collection(String title, String slug, User creator, com.gii.common.enums.PublishStatus status) {
+  protected Collection collection(
+      String title, String slug, User creator, com.gii.common.enums.PublishStatus status) {
     return collectionRepository.save(
         Collection.builder()
             .title(title)
@@ -103,7 +104,8 @@ abstract class StudentApiTestSupport {
             .type(CollectionType.PACK)
             .priceBdt(BigDecimal.valueOf(2500))
             .status(status)
-            .publishedAt(status == com.gii.common.enums.PublishStatus.PUBLISHED ? Instant.now() : null)
+            .publishedAt(
+                status == com.gii.common.enums.PublishStatus.PUBLISHED ? Instant.now() : null)
             .createdBy(creator)
             .build());
   }

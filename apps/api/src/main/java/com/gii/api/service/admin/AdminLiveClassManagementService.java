@@ -6,16 +6,17 @@ import com.gii.api.model.response.admin.AdminLiveClassDetailResponse;
 import com.gii.api.model.response.admin.AdminLiveClassRegistrantResponse;
 import com.gii.api.model.response.admin.AdminLiveClassStartResponse;
 import com.gii.api.model.response.admin.AdminLiveClassSummaryResponse;
+import com.gii.api.service.live.LiveMeetingCancelRequest;
 import com.gii.api.service.live.LiveMeetingCreateRequest;
 import com.gii.api.service.live.LiveMeetingCreateResult;
-import com.gii.api.service.live.LiveMeetingUpdateRequest;
-import com.gii.api.service.live.LiveMeetingCancelRequest;
 import com.gii.api.service.live.LiveMeetingProvisioningService;
+import com.gii.api.service.live.LiveMeetingUpdateRequest;
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.course.CourseSection;
 import com.gii.common.entity.live.LiveClass;
 import com.gii.common.entity.live.LiveClassRegistrant;
 import com.gii.common.enums.LiveClassProvider;
+import com.gii.common.enums.LiveClassRegistrantStatus;
 import com.gii.common.enums.LiveClassStatus;
 import com.gii.common.repository.course.CourseRepository;
 import com.gii.common.repository.course.CourseSectionRepository;
@@ -28,10 +29,10 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -57,7 +58,7 @@ public class AdminLiveClassManagementService {
           HttpStatus.BAD_REQUEST, "Page must be non-negative and size must be between 1 and 100");
     }
     PageRequest pageable =
-        PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "startsAt"));
+        PageRequest.of(page, size, Sort.by(Sort.Order.asc("startsAt"), Sort.Order.asc("id")));
     Page<LiveClass> liveClasses =
         statuses == null || statuses.isEmpty()
             ? liveClassRepository.findAdminPage(pageable)
@@ -68,12 +69,10 @@ public class AdminLiveClassManagementService {
             ? Map.of()
             : registrantRepository
                 .countByLiveClassIdsAndStatus(
-                    liveClassIds,
-                    com.gii.common.enums.LiveClassRegistrantStatus.APPROVED)
+                    liveClassIds, com.gii.common.enums.LiveClassRegistrantStatus.APPROVED)
                 .stream()
                 .collect(
-                    Collectors.toMap(
-                        row -> (UUID) row[0], row -> ((Number) row[1]).intValue()));
+                    Collectors.toMap(row -> (UUID) row[0], row -> ((Number) row[1]).intValue()));
     return liveClasses.map(
         liveClass -> toSummary(liveClass, registrantCounts.getOrDefault(liveClass.getId(), 0)));
   }
@@ -164,17 +163,23 @@ public class AdminLiveClassManagementService {
       ensureNoProviderOverlap(liveClass.getProvider(), startsAt, endsAt, liveClass.getId());
       syncProviderUpdate(
           liveClass,
-          request.title() != null && !request.title().isBlank() ? request.title().trim() : liveClass.getTitle(),
+          request.title() != null && !request.title().isBlank()
+              ? request.title().trim()
+              : liveClass.getTitle(),
           request.description() != null ? request.description() : liveClass.getDescription(),
           startsAt,
           endsAt);
       liveClass.setStartsAt(startsAt);
       liveClass.setEndsAt(endsAt);
     }
-    if (request.startsAt() == null && request.endsAt() == null && (request.title() != null || request.description() != null)) {
+    if (request.startsAt() == null
+        && request.endsAt() == null
+        && (request.title() != null || request.description() != null)) {
       syncProviderUpdate(
           liveClass,
-          request.title() != null && !request.title().isBlank() ? request.title().trim() : liveClass.getTitle(),
+          request.title() != null && !request.title().isBlank()
+              ? request.title().trim()
+              : liveClass.getTitle(),
           request.description() != null ? request.description() : liveClass.getDescription(),
           liveClass.getStartsAt(),
           liveClass.getEndsAt());
@@ -205,8 +210,9 @@ public class AdminLiveClassManagementService {
     }
     liveClass.setStatus(LiveClassStatus.LIVE);
     LiveClass saved = liveClassRepository.save(liveClass);
-    int registered =
-        registrantRepository.findByLiveClassIdOrderByCreatedAtAsc(saved.getId()).size();
+    long approvedRegistrants =
+        registrantRepository.countByLiveClassIdAndStatus(
+            saved.getId(), LiveClassRegistrantStatus.APPROVED);
     return AdminLiveClassStartResponse.builder()
         .liveClassId(saved.getId())
         .title(saved.getTitle())
@@ -216,7 +222,7 @@ public class AdminLiveClassManagementService {
         .startsAt(saved.getStartsAt())
         .endsAt(saved.getEndsAt())
         .status(saved.getStatus().name())
-        .registeredStudents(registered)
+        .approvedRegistrants(Math.toIntExact(approvedRegistrants))
         .recordingEnabled(Boolean.FALSE)
         .build();
   }
@@ -239,7 +245,8 @@ public class AdminLiveClassManagementService {
   private void syncProviderUpdate(
       LiveClass liveClass, String title, String description, Instant startsAt, Instant endsAt) {
     if (isBlank(liveClass.effectiveMeetingId())) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Live class meeting is not provisioned");
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Live class meeting is not provisioned");
     }
     liveMeetingProvisioningService.updateMeeting(
         LiveMeetingUpdateRequest.builder()
@@ -254,7 +261,8 @@ public class AdminLiveClassManagementService {
 
   private void syncProviderCancel(LiveClass liveClass) {
     if (isBlank(liveClass.effectiveMeetingId())) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Live class meeting is not provisioned");
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Live class meeting is not provisioned");
     }
     liveMeetingProvisioningService.cancelMeeting(
         LiveMeetingCancelRequest.builder()
@@ -263,7 +271,7 @@ public class AdminLiveClassManagementService {
             .build());
   }
 
-  private AdminLiveClassSummaryResponse toSummary(LiveClass liveClass, int registered) {
+  private AdminLiveClassSummaryResponse toSummary(LiveClass liveClass, int approvedRegistrants) {
     String instructorName =
         liveClass.getInstructor() != null ? liveClass.getInstructor().getFullName() : null;
     return AdminLiveClassSummaryResponse.builder()
@@ -275,7 +283,7 @@ public class AdminLiveClassManagementService {
         .instructorName(instructorName)
         .status(liveClass.getStatus().name())
         .startsAt(liveClass.getStartsAt())
-        .registeredStudents(registered)
+        .approvedRegistrants(approvedRegistrants)
         .createdAt(liveClass.getCreatedAt())
         .build();
   }
@@ -359,13 +367,11 @@ public class AdminLiveClassManagementService {
     }
   }
 
-  private void ensureNoProviderOverlap(LiveClassProvider provider, Instant startsAt, Instant endsAt) {
+  private void ensureNoProviderOverlap(
+      LiveClassProvider provider, Instant startsAt, Instant endsAt) {
     boolean overlap =
         liveClassRepository.existsOverlappingByProvider(
-            provider,
-            List.of(LiveClassStatus.SCHEDULED, LiveClassStatus.LIVE),
-            startsAt,
-            endsAt);
+            provider, List.of(LiveClassStatus.SCHEDULED, LiveClassStatus.LIVE), startsAt, endsAt);
     if (overlap) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "Provider host account already has overlapping live class");

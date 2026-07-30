@@ -203,8 +203,7 @@ public class InstructorDashboardService {
         .liveClassId(liveClass.getId())
         .title(localizedContentService.text(liveClass.getTitle(), liveClass.getTitleEn()))
         .description(
-            localizedContentService.text(
-                liveClass.getDescription(), liveClass.getDescriptionEn()))
+            localizedContentService.text(liveClass.getDescription(), liveClass.getDescriptionEn()))
         .startsAt(liveClass.getStartsAt())
         .endsAt(liveClass.getEndsAt())
         .timeLabel(TIME_LABEL_FORMATTER.format(liveClass.getStartsAt()))

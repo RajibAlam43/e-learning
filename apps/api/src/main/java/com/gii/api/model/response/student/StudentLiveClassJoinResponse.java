@@ -1,7 +1,7 @@
 package com.gii.api.model.response.student;
 
-import com.gii.common.enums.LiveClassStatus;
 import com.gii.common.enums.LiveClassProvider;
+import com.gii.common.enums.LiveClassStatus;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.Builder;
@@ -36,4 +36,4 @@ public record StudentLiveClassJoinResponse(
     // Recording availability
     Boolean recordingAvailable,
     String recordingUrl // If class is completed/recorded
-) {}
+    ) {}

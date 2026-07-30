@@ -44,7 +44,8 @@ public class LiveClassApiController implements LiveClassApi {
               .provider(request.provider())
               .maxCapacity(request.maxCapacity())
               .build();
-      return ResponseEntity.ok(toUpsertResponse(adminLiveClassManagementService.create(courseId, adminRequest)));
+      return ResponseEntity.ok(
+          toUpsertResponse(adminLiveClassManagementService.create(courseId, adminRequest)));
     }
     if (hasRole(authentication, "ROLE_INSTRUCTOR")) {
       return ResponseEntity.ok(
@@ -74,7 +75,8 @@ public class LiveClassApiController implements LiveClassApi {
     }
     if (hasRole(authentication, "ROLE_INSTRUCTOR")) {
       return ResponseEntity.ok(
-          toUpsertResponse(instructorLiveClassService.update(liveClassId, request, authentication)));
+          toUpsertResponse(
+              instructorLiveClassService.update(liveClassId, request, authentication)));
     }
     throw new IllegalStateException("Authenticated role not eligible for update");
   }
@@ -96,7 +98,8 @@ public class LiveClassApiController implements LiveClassApi {
   public ResponseEntity<LiveClassUpsertResponse> cancel(
       UUID liveClassId, Authentication authentication) {
     if (hasRole(authentication, "ROLE_ADMIN")) {
-      return ResponseEntity.ok(toUpsertResponse(adminLiveClassManagementService.cancel(liveClassId)));
+      return ResponseEntity.ok(
+          toUpsertResponse(adminLiveClassManagementService.cancel(liveClassId)));
     }
     if (hasRole(authentication, "ROLE_INSTRUCTOR")) {
       return ResponseEntity.ok(
@@ -112,8 +115,7 @@ public class LiveClassApiController implements LiveClassApi {
   }
 
   private boolean hasRole(Authentication authentication, String role) {
-    return authentication.getAuthorities().stream()
-        .anyMatch(a -> role.equals(a.getAuthority()));
+    return authentication.getAuthorities().stream().anyMatch(a -> role.equals(a.getAuthority()));
   }
 
   private LiveClassUpsertResponse toUpsertResponse(AdminLiveClassDetailResponse response) {
@@ -168,7 +170,7 @@ public class LiveClassApiController implements LiveClassApi {
         .startsAt(response.startsAt())
         .endsAt(response.endsAt())
         .status(Enum.valueOf(com.gii.common.enums.LiveClassStatus.class, response.status()))
-        .registeredStudents(response.registeredStudents())
+        .approvedRegistrants(response.approvedRegistrants())
         .recordingEnabled(response.recordingEnabled())
         .build();
   }
@@ -183,7 +185,7 @@ public class LiveClassApiController implements LiveClassApi {
         .startsAt(response.startsAt())
         .endsAt(response.endsAt())
         .status(response.status())
-        .registeredStudents(response.registeredStudents())
+        .approvedRegistrants(response.approvedStudents())
         .recordingEnabled(response.recordingEnabled())
         .build();
   }

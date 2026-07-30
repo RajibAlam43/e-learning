@@ -33,8 +33,7 @@ class LessonContentApiIt extends AbstractLessonApiIntegrationTest {
     var sec = section(course, 1, PublishStatus.PUBLISHED);
     var lesson =
         lesson(course, sec, 1, PublishStatus.PUBLISHED, false, ReleaseType.IMMEDIATE, null, null);
-    String thumbnailKey =
-        "courses/" + course.getId() + "/thumbnails/course-content.webp";
+    String thumbnailKey = "courses/" + course.getId() + "/thumbnails/course-content.webp";
     course.setThumbnailObjectKey(thumbnailKey);
     enrollment(student, course, EnrollmentStatus.ACTIVE, Instant.now().plusSeconds(3600));
     course.setTitleEn("Course One English");
@@ -65,8 +64,7 @@ class LessonContentApiIt extends AbstractLessonApiIntegrationTest {
         .andExpect(jsonPath("$.mediaPlayback.provider").value("BUNNY"))
         .andExpect(jsonPath("$.thumbnailUrl").doesNotExist())
         .andExpect(
-            jsonPath("$.mediaPlayback.thumbnailUrl")
-                .value("https://assets.test/" + thumbnailKey));
+            jsonPath("$.mediaPlayback.thumbnailUrl").value("https://assets.test/" + thumbnailKey));
 
     mockMvc
         .perform(

@@ -8,12 +8,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.gii.common.enums.LiveClassRegistrantStatus;
+import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -63,7 +64,8 @@ class AdminLiveClassesApiIt extends AbstractAdminApiIntegrationTest {
         .andExpect(jsonPath("$.content[0].courseNameEn").value("Database Live Course English"))
         .andExpect(jsonPath("$.content[0].instructorName").value("Live Class Instructor"))
         .andExpect(jsonPath("$.content[0].status").value("SCHEDULED"))
-        .andExpect(jsonPath("$.content[0].registeredStudents").value(1))
+        .andExpect(jsonPath("$.content[0].approvedRegistrants").value(1))
+        .andExpect(jsonPath("$.content[0].registeredStudents").doesNotExist())
         .andExpect(jsonPath("$.content[0].startsAt").isNotEmpty())
         .andExpect(jsonPath("$.content[0].createdAt").isNotEmpty())
         .andExpect(
@@ -82,6 +84,31 @@ class AdminLiveClassesApiIt extends AbstractAdminApiIntegrationTest {
     mockMvc
         .perform(get("/admin/live-classes").with(authentication(studentAuthentication)))
         .andExpect(status().isForbidden());
+  }
+
+  @Test
+  void listLiveClassesShouldOrderSoonestClassFirst() throws Exception {
+    var admin = user("Ordering Admin", "ordering-admin@example.com");
+    var creator = user("Ordering Creator", "ordering-creator@example.com");
+    var course = course("Ordering Course", "ordering-course", creator);
+    var section = section(course, 1);
+    var laterClass = liveClass(course, section, lesson(course, section, 1));
+    laterClass.setStartsAt(Instant.parse("2030-01-02T10:00:00Z"));
+    laterClass.setEndsAt(Instant.parse("2030-01-02T11:00:00Z"));
+    laterClass = liveClassRepository.saveAndFlush(laterClass);
+    var soonerClass = liveClass(course, section, lesson(course, section, 2));
+    soonerClass.setStartsAt(Instant.parse("2030-01-01T10:00:00Z"));
+    soonerClass.setEndsAt(Instant.parse("2030-01-01T11:00:00Z"));
+    soonerClass = liveClassRepository.saveAndFlush(soonerClass);
+
+    mockMvc
+        .perform(
+            get("/admin/live-classes")
+                .param("status", "SCHEDULED")
+                .with(authentication(adminAuth(admin.getId()))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[0].liveClassId").value(soonerClass.getId().toString()))
+        .andExpect(jsonPath("$.content[1].liveClassId").value(laterClass.getId().toString()));
   }
 
   @Test

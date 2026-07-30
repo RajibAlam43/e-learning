@@ -110,8 +110,7 @@ public class CourseProgressService {
                   return SectionProgressResponse.builder()
                       .sectionId(section.getId())
                       .sectionTitle(
-                          localizedContentService.text(
-                              section.getTitle(), section.getTitleEn()))
+                          localizedContentService.text(section.getTitle(), section.getTitleEn()))
                       .position(section.getPosition())
                       .totalLessons(sectionTotal)
                       .completedLessons(sectionCompleted)

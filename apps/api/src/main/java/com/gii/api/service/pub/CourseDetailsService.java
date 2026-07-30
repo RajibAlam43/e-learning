@@ -6,8 +6,8 @@ import com.gii.api.model.response.CourseSectionResponse;
 import com.gii.api.model.response.InstructorSummaryResponse;
 import com.gii.api.model.response.LessonSummaryResponse;
 import com.gii.api.model.response.LessonVideoResponse;
-import com.gii.api.service.storage.AssetUrlService;
 import com.gii.api.service.localization.LocalizedContentService;
+import com.gii.api.service.storage.AssetUrlService;
 import com.gii.common.entity.course.Category;
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.course.CourseSection;
@@ -99,13 +99,11 @@ public class CourseDetailsService {
         .priceBdt(course.getPriceBdt())
         .highlights(localizedContentService.list(course.getHighlights(), course.getHighlightsEn()))
         .courseOutcomes(
-            localizedContentService.list(
-                course.getCourseOutcomes(), course.getCourseOutcomesEn()))
+            localizedContentService.list(course.getCourseOutcomes(), course.getCourseOutcomesEn()))
         .requirements(
             localizedContentService.list(course.getRequirements(), course.getRequirementsEn()))
         .prerequisites(
-            localizedContentService.list(
-                course.getPrerequisites(), course.getPrerequisitesEn()))
+            localizedContentService.list(course.getPrerequisites(), course.getPrerequisitesEn()))
         .studyMode(course.getStudyMode())
         .categories(categoryResponses)
         .publishedAt(course.getPublishedAt())

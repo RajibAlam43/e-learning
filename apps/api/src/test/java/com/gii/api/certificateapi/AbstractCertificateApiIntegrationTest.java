@@ -1,7 +1,6 @@
 package com.gii.api.certificateapi;
 
 import com.gii.api.testsupport.SharedPostgresContainer;
-
 import org.junit.jupiter.api.Tag;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -18,10 +17,8 @@ abstract class AbstractCertificateApiIntegrationTest extends CertificateApiTestS
   @DynamicPropertySource
   static void registerProperties(DynamicPropertyRegistry registry) {
     registry.add("spring.datasource.url", SharedPostgresContainer.INSTANCE::getJdbcUrl);
-    registry.add(
-        "spring.datasource.username", SharedPostgresContainer.INSTANCE::getUsername);
-    registry.add(
-        "spring.datasource.password", SharedPostgresContainer.INSTANCE::getPassword);
+    registry.add("spring.datasource.username", SharedPostgresContainer.INSTANCE::getUsername);
+    registry.add("spring.datasource.password", SharedPostgresContainer.INSTANCE::getPassword);
     registry.add("spring.jpa.hibernate.ddl-auto", () -> "validate");
     registry.add("spring.flyway.enabled", () -> "true");
     registry.add("app.jwt.secret", () -> "dGVzdF9zZWNyZXRfdGVzdF9zZWNyZXRfdGVzdF9zZWNyZXRfMTIz");

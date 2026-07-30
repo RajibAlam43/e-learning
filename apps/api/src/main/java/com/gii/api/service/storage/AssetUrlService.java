@@ -51,8 +51,7 @@ public class AssetUrlService {
   }
 
   private ResponseStatusException invalidThumbnailKey() {
-    return new ResponseStatusException(
-        HttpStatus.BAD_REQUEST, "Invalid thumbnail object key");
+    return new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid thumbnail object key");
   }
 
   private static String stripTrailingSlashes(String value) {

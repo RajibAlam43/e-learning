@@ -14,5 +14,5 @@ public record AdminLiveClassSummaryResponse(
     String instructorName,
     String status, // SCHEDULED, LIVE, COMPLETED, CANCELLED, FAILED
     Instant startsAt,
-    Integer registeredStudents,
+    Integer approvedRegistrants,
     Instant createdAt) {}

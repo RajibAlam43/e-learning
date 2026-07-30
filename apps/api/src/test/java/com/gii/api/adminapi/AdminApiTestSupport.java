@@ -20,9 +20,9 @@ import com.gii.common.entity.quiz.QuizQuestion;
 import com.gii.common.entity.user.InstructorProfile;
 import com.gii.common.entity.user.Role;
 import com.gii.common.entity.user.User;
+import com.gii.common.enums.CollectionType;
 import com.gii.common.enums.CourseLanguage;
 import com.gii.common.enums.CourseLevel;
-import com.gii.common.enums.CollectionType;
 import com.gii.common.enums.InstructorRole;
 import com.gii.common.enums.LessonType;
 import com.gii.common.enums.LiveClassProvider;
@@ -30,17 +30,17 @@ import com.gii.common.enums.LiveClassRegistrantStatus;
 import com.gii.common.enums.LiveClassStatus;
 import com.gii.common.enums.MediaProvider;
 import com.gii.common.enums.MediaStatus;
-import com.gii.common.enums.OrderProvider;
 import com.gii.common.enums.OrderItemType;
+import com.gii.common.enums.OrderProvider;
 import com.gii.common.enums.OrderStatus;
 import com.gii.common.enums.PublishStatus;
 import com.gii.common.enums.QuestionType;
 import com.gii.common.enums.SectionItemType;
 import com.gii.common.enums.StudyMode;
 import com.gii.common.enums.UserStatus;
-import com.gii.common.repository.course.CourseInstructorRepository;
 import com.gii.common.repository.collection.CollectionCourseRepository;
 import com.gii.common.repository.collection.CollectionRepository;
+import com.gii.common.repository.course.CourseInstructorRepository;
 import com.gii.common.repository.course.CourseRepository;
 import com.gii.common.repository.course.CourseSectionRepository;
 import com.gii.common.repository.course.LessonRepository;
@@ -200,17 +200,17 @@ abstract class AdminApiTestSupport {
   protected Lesson lesson(Course course, CourseSection section, int position) {
     Lesson lesson =
         lessonRepository.save(
-        Lesson.builder()
-            .course(course)
-            .section(section)
-            .title("Lesson " + position)
-            .slug("lesson-" + position + "-" + UUID.randomUUID().toString().substring(0, 6))
-            .position(position)
-            .lessonType(LessonType.VIDEO)
-            .status(PublishStatus.DRAFT)
-            .isFree(false)
-            .isMandatory(false)
-            .build());
+            Lesson.builder()
+                .course(course)
+                .section(section)
+                .title("Lesson " + position)
+                .slug("lesson-" + position + "-" + UUID.randomUUID().toString().substring(0, 6))
+                .position(position)
+                .lessonType(LessonType.VIDEO)
+                .status(PublishStatus.DRAFT)
+                .isFree(false)
+                .isMandatory(false)
+                .build());
     sectionItemRepository.save(
         SectionItem.builder()
             .section(section)
@@ -308,16 +308,16 @@ abstract class AdminApiTestSupport {
             + 1;
     Quiz quiz =
         quizRepository.save(
-        Quiz.builder()
-            .course(course)
-            .section(section)
-            .position(position)
-            .title(title)
-            .status(PublishStatus.DRAFT)
-            .passingScorePct(70)
-            .maxAttempts(2)
-            .timeLimitSec(900)
-            .build());
+            Quiz.builder()
+                .course(course)
+                .section(section)
+                .position(position)
+                .title(title)
+                .status(PublishStatus.DRAFT)
+                .passingScorePct(70)
+                .maxAttempts(2)
+                .timeLimitSec(900)
+                .build());
     sectionItemRepository.save(
         SectionItem.builder()
             .section(section)

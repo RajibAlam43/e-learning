@@ -44,8 +44,7 @@ public class R2PresignedUrlService {
     this.region = region;
   }
 
-  public PresignedUpload generateUploadUrl(
-      String objectKey, String contentType, long sizeBytes) {
+  public PresignedUpload generateUploadUrl(String objectKey, String contentType, long sizeBytes) {
     Duration signatureDuration = Duration.ofSeconds(uploadTtlSeconds);
     PutObjectRequest putObjectRequest =
         PutObjectRequest.builder()

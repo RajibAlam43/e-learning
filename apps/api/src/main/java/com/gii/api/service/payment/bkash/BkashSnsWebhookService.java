@@ -42,7 +42,9 @@ public class BkashSnsWebhookService {
   public WebhookAckResponse handle(Map<String, String> headers, String payload) {
     Message message = parseSnsMessage(payload);
     verifySnsSignature(message);
-    String messageType = normalizeSnsType(firstNonBlank(headerValue(headers, "x-amz-sns-message-type"), message.Type()));
+    String messageType =
+        normalizeSnsType(
+            firstNonBlank(headerValue(headers, "x-amz-sns-message-type"), message.Type()));
 
     if ("subscriptionconfirmation".equals(messageType)) {
       confirmSubscription(message.SubscribeURL());
@@ -56,10 +58,12 @@ public class BkashSnsWebhookService {
     }
 
     Map<String, Object> parsedNotification = parseNotificationMessage(message.Message());
-    String providerEventId = firstNonBlank(message.MessageId(), headerValue(headers, "x-request-id"));
+    String providerEventId =
+        firstNonBlank(message.MessageId(), headerValue(headers, "x-request-id"));
     if (providerEventId != null) {
       Optional<PaymentEvent> existing =
-          paymentEventRepository.findByProviderAndProviderEventId(OrderProvider.BKASH, providerEventId);
+          paymentEventRepository.findByProviderAndProviderEventId(
+              OrderProvider.BKASH, providerEventId);
       if (existing.isPresent()) {
         return acknowledged("Webhook already received", existing.get().getId().toString());
       }

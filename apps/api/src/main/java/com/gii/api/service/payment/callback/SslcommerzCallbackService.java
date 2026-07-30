@@ -39,7 +39,10 @@ public class SslcommerzCallbackService {
           ex.getReason());
     }
     flowSupportService.recordCallbackEvent(
-        order, PaymentEventType.CALLBACK_SUCCESS_REDIRECT, queryParams, PaymentEventStatus.PROCESSED);
+        order,
+        PaymentEventType.CALLBACK_SUCCESS_REDIRECT,
+        queryParams,
+        PaymentEventStatus.PROCESSED);
   }
 
   public void failedRedirect(UUID orderId, Map<String, String> queryParams) {

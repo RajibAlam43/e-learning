@@ -40,8 +40,7 @@ public class LessonResourcesService {
             resource ->
                 LessonResourceResponse.builder()
                     .resourceId(resource.getId())
-                    .title(
-                        localizedContentService.text(resource.getTitle(), resource.getTitleEn()))
+                    .title(localizedContentService.text(resource.getTitle(), resource.getTitleEn()))
                     .resourceType(resource.getResourceType())
                     .mimeType(resource.getMimeType())
                     .position(resource.getPosition())

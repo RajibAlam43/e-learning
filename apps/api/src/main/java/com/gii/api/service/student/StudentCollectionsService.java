@@ -2,8 +2,8 @@ package com.gii.api.service.student;
 
 import com.gii.api.model.response.student.StudentCollectionSummaryResponse;
 import com.gii.api.service.enrollment.CurrentUserService;
-import com.gii.api.service.storage.AssetUrlService;
 import com.gii.api.service.localization.LocalizedContentService;
+import com.gii.api.service.storage.AssetUrlService;
 import com.gii.common.entity.collection.Collection;
 import com.gii.common.entity.collection.CollectionCourse;
 import com.gii.common.entity.collection.CollectionEnrollment;
@@ -49,12 +49,15 @@ public class StudentCollectionsService {
             collectionIds, PublishStatus.PUBLISHED);
     Map<UUID, List<CollectionCourse>> coursesByCollectionId = new HashMap<>();
     for (CollectionCourse row : rows) {
-      coursesByCollectionId.computeIfAbsent(row.getCollection().getId(), ignored -> new java.util.ArrayList<>()).add(row);
+      coursesByCollectionId
+          .computeIfAbsent(row.getCollection().getId(), ignored -> new java.util.ArrayList<>())
+          .add(row);
     }
 
     List<UUID> allCourseIds = rows.stream().map(row -> row.getCourse().getId()).distinct().toList();
     Map<UUID, Integer> totalLessonsByCourseId = lessonCountByCourseId(allCourseIds);
-    Map<UUID, Integer> completedLessonsByCourseId = completedLessonCountByCourseId(userId, allCourseIds);
+    Map<UUID, Integer> completedLessonsByCourseId =
+        completedLessonCountByCourseId(userId, allCourseIds);
 
     return enrollments.stream()
         .map(
@@ -73,8 +76,7 @@ public class StudentCollectionsService {
               return StudentCollectionSummaryResponse.builder()
                   .collectionId(collection.getId())
                   .collectionName(
-                      localizedContentService.text(
-                          collection.getTitle(), collection.getTitleEn()))
+                      localizedContentService.text(collection.getTitle(), collection.getTitleEn()))
                   .collectionSlug(collection.getSlug())
                   .collectionType(collection.getType())
                   .thumbnailUrl(assetUrlService.publicUrl(collection.getThumbnailObjectKey()))
@@ -96,7 +98,8 @@ public class StudentCollectionsService {
       return Map.of();
     }
     Map<UUID, Integer> counts = new HashMap<>();
-    for (Object[] row : lessonRepository.countByCourseIdsAndStatus(courseIds, PublishStatus.PUBLISHED)) {
+    for (Object[] row :
+        lessonRepository.countByCourseIdsAndStatus(courseIds, PublishStatus.PUBLISHED)) {
       counts.put((UUID) row[0], ((Long) row[1]).intValue());
     }
     return counts;
@@ -107,7 +110,8 @@ public class StudentCollectionsService {
       return Map.of();
     }
     Map<UUID, Integer> counts = new HashMap<>();
-    for (Object[] row : lessonProgressRepository.countCompletedByUserIdAndCourseIds(userId, courseIds)) {
+    for (Object[] row :
+        lessonProgressRepository.countCompletedByUserIdAndCourseIds(userId, courseIds)) {
       counts.put((UUID) row[0], ((Long) row[1]).intValue());
     }
     return counts;

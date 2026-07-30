@@ -39,7 +39,8 @@ public class CertificateVerificationService {
     Double completionPct = null;
     String completionCriteria;
 
-    if (certificate.getTargetType() == CertificateTargetType.COURSE && certificate.getCourse() != null) {
+    if (certificate.getTargetType() == CertificateTargetType.COURSE
+        && certificate.getCourse() != null) {
       instructorName =
           courseInstructorRepository.findByCourseId(certificate.getCourse().getId()).stream()
               .filter(ci -> ci.getRole() == InstructorRole.PRIMARY)

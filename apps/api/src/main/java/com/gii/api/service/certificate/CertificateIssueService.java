@@ -2,11 +2,10 @@ package com.gii.api.service.certificate;
 
 import com.gii.api.model.response.certificate.CertificateIssueResponse;
 import com.gii.api.service.enrollment.CurrentUserService;
-import com.gii.api.service.storage.R2PresignedUrlService;
 import com.gii.api.service.localization.LocalizedContentService;
+import com.gii.api.service.storage.R2PresignedUrlService;
 import com.gii.common.entity.certificate.Certificate;
 import com.gii.common.entity.collection.Collection;
-import com.gii.common.entity.collection.CollectionCourse;
 import com.gii.common.entity.collection.CollectionEnrollment;
 import com.gii.common.entity.course.CourseInstructor;
 import com.gii.common.entity.enrollment.Enrollment;
@@ -123,12 +122,14 @@ public class CertificateIssueService {
     return toResponse(saved, true, "COURSE_COMPLETED");
   }
 
-  public CertificateIssueResponse executeCollection(UUID collectionId, Authentication authentication) {
+  public CertificateIssueResponse executeCollection(
+      UUID collectionId, Authentication authentication) {
     User user = currentUserService.getCurrentUser(authentication);
     Collection collection =
         collectionRepository
             .findById(collectionId)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Collection not found"));
+            .orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Collection not found"));
 
     Certificate existing =
         certificateRepository.findByUserIdAndCollectionId(user.getId(), collectionId).orElse(null);
@@ -140,9 +141,12 @@ public class CertificateIssueService {
         collectionEnrollmentRepository
             .findByUserIdAndCollectionIdForUpdate(user.getId(), collectionId)
             .orElseThrow(
-                () -> new ResponseStatusException(HttpStatus.FORBIDDEN, "Not enrolled in this collection"));
+                () ->
+                    new ResponseStatusException(
+                        HttpStatus.FORBIDDEN, "Not enrolled in this collection"));
 
-    existing = certificateRepository.findByUserIdAndCollectionId(user.getId(), collectionId).orElse(null);
+    existing =
+        certificateRepository.findByUserIdAndCollectionId(user.getId(), collectionId).orElse(null);
     if (existing != null) {
       return toResponse(existing, true, "CERTIFICATE_ALREADY_EXISTS");
     }
@@ -157,18 +161,21 @@ public class CertificateIssueService {
     var collectionCourses =
         collectionCourseRepository.findByCollection_IdOrderByPositionAscWithCourseStatus(
             collectionId, PublishStatus.PUBLISHED);
-    var courseIds = collectionCourses.stream().map(cc -> cc.getCourse().getId()).distinct().toList();
+    var courseIds =
+        collectionCourses.stream().map(cc -> cc.getCourse().getId()).distinct().toList();
     if (courseIds.isEmpty()) {
       throw new ResponseStatusException(
           HttpStatus.FORBIDDEN, "Collection completion criteria not met");
     }
 
     long totalLessons = 0;
-    for (Object[] row : lessonRepository.countByCourseIdsAndStatus(courseIds, PublishStatus.PUBLISHED)) {
+    for (Object[] row :
+        lessonRepository.countByCourseIdsAndStatus(courseIds, PublishStatus.PUBLISHED)) {
       totalLessons += (Long) row[1];
     }
     long completedLessons = 0;
-    for (Object[] row : lessonProgressRepository.countCompletedByUserIdAndCourseIds(user.getId(), courseIds)) {
+    for (Object[] row :
+        lessonProgressRepository.countCompletedByUserIdAndCourseIds(user.getId(), courseIds)) {
       completedLessons += (Long) row[1];
     }
 
@@ -188,11 +195,11 @@ public class CertificateIssueService {
             .issuedBy(user)
             .recipientName(user.getFullName())
             .targetTitle(
-                localizedContentService.english(
-                    collection.getTitle(), collection.getTitleEn()))
+                localizedContentService.english(collection.getTitle(), collection.getTitleEn()))
             .targetSlug(collection.getSlug())
             .build();
-    Certificate saved = saveCollectionCertificateIdempotent(certificate, user.getId(), collectionId);
+    Certificate saved =
+        saveCollectionCertificateIdempotent(certificate, user.getId(), collectionId);
     return toResponse(saved, true, "COLLECTION_COMPLETED");
   }
 
@@ -210,7 +217,8 @@ public class CertificateIssueService {
   private CertificateIssueResponse toResponse(
       Certificate certificate, boolean eligible, String eligibilityReason) {
     String instructorName = null;
-    if (certificate.getTargetType() == CertificateTargetType.COURSE && certificate.getCourse() != null) {
+    if (certificate.getTargetType() == CertificateTargetType.COURSE
+        && certificate.getCourse() != null) {
       instructorName =
           courseInstructorRepository.findByCourseId(certificate.getCourse().getId()).stream()
               .filter(ci -> ci.getRole() == InstructorRole.PRIMARY)

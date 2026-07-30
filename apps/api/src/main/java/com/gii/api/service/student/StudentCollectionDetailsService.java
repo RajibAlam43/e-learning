@@ -3,8 +3,8 @@ package com.gii.api.service.student;
 import com.gii.api.model.response.student.StudentCollectionCourseProgressResponse;
 import com.gii.api.model.response.student.StudentCollectionDetailsResponse;
 import com.gii.api.service.enrollment.CurrentUserService;
-import com.gii.api.service.storage.AssetUrlService;
 import com.gii.api.service.localization.LocalizedContentService;
+import com.gii.api.service.storage.AssetUrlService;
 import com.gii.common.entity.collection.Collection;
 import com.gii.common.entity.collection.CollectionCourse;
 import com.gii.common.entity.collection.CollectionEnrollment;
@@ -38,7 +38,8 @@ public class StudentCollectionDetailsService {
   private final AssetUrlService assetUrlService;
   private final LocalizedContentService localizedContentService;
 
-  public StudentCollectionDetailsResponse execute(UUID collectionId, Authentication authentication) {
+  public StudentCollectionDetailsResponse execute(
+      UUID collectionId, Authentication authentication) {
     UUID userId = currentUserService.getCurrentUserId(authentication);
     CollectionEnrollment enrollment =
         collectionEnrollmentRepository
@@ -55,7 +56,8 @@ public class StudentCollectionDetailsService {
 
     List<UUID> courseIds = collectionCourses.stream().map(cc -> cc.getCourse().getId()).toList();
     Map<UUID, Integer> totalLessonsByCourseId = lessonCountByCourseId(courseIds);
-    Map<UUID, Integer> completedLessonsByCourseId = completedLessonCountByCourseId(userId, courseIds);
+    Map<UUID, Integer> completedLessonsByCourseId =
+        completedLessonCountByCourseId(userId, courseIds);
 
     int totalLessons = 0;
     int completedLessons = 0;
@@ -118,7 +120,8 @@ public class StudentCollectionDetailsService {
       return Map.of();
     }
     Map<UUID, Integer> counts = new HashMap<>();
-    for (Object[] row : lessonRepository.countByCourseIdsAndStatus(courseIds, PublishStatus.PUBLISHED)) {
+    for (Object[] row :
+        lessonRepository.countByCourseIdsAndStatus(courseIds, PublishStatus.PUBLISHED)) {
       counts.put((UUID) row[0], ((Long) row[1]).intValue());
     }
     return counts;
@@ -129,7 +132,8 @@ public class StudentCollectionDetailsService {
       return Map.of();
     }
     Map<UUID, Integer> counts = new HashMap<>();
-    for (Object[] row : lessonProgressRepository.countCompletedByUserIdAndCourseIds(userId, courseIds)) {
+    for (Object[] row :
+        lessonProgressRepository.countCompletedByUserIdAndCourseIds(userId, courseIds)) {
       counts.put((UUID) row[0], ((Long) row[1]).intValue());
     }
     return counts;

@@ -38,6 +38,7 @@ public class SslcommerzWebhookService {
   private final SslcommerzCallbackService sslcommerzCallbackService;
   private final SslcommerzCallbackValidationService sslcommerzCallbackValidationService;
   private final SslcommerzValidationJobPublisherService validationJobPublisherService;
+
   @Value("${payments.sslcommerz.validate-on-webhook:true}")
   private boolean validateOnWebhook;
 
@@ -46,14 +47,16 @@ public class SslcommerzWebhookService {
     String providerEventId = firstNonBlank(h.get("x-event-id"), h.get("x-request-id"));
     if (providerEventId != null) {
       var existing =
-          paymentEventRepository.findByProviderAndProviderEventId(OrderProvider.SSLCOMMERZ, providerEventId);
+          paymentEventRepository.findByProviderAndProviderEventId(
+              OrderProvider.SSLCOMMERZ, providerEventId);
       if (existing.isPresent()) {
         return acknowledged("Webhook already received", existing.get().getId().toString());
       }
     }
 
     sslcommerzCallbackValidationService.validateWebhookSignature(params);
-    String txnId = firstNonBlank(params.get("tran_id"), h.get("x-transaction-id"), h.get("x-tran-id"));
+    String txnId =
+        firstNonBlank(params.get("tran_id"), h.get("x-transaction-id"), h.get("x-tran-id"));
     Optional<Order> orderOpt =
         txnId == null
             ? Optional.empty()
@@ -65,7 +68,8 @@ public class SslcommerzWebhookService {
       Map<String, String> callbackParams = new HashMap<>(params);
       callbackParams.put("tran_id", txnId);
       callbackParams.put("_verified_webhook", "true");
-      String resolvedStatus = normalizeUpper(firstNonBlank(params.get("status"), h.get("x-status")));
+      String resolvedStatus =
+          normalizeUpper(firstNonBlank(params.get("status"), h.get("x-status")));
       if (order.getStatus() == OrderStatus.PAID && SUCCESS.contains(resolvedStatus)) {
         PaymentEvent saved =
             paymentEventRepository.save(
@@ -120,11 +124,13 @@ public class SslcommerzWebhookService {
                       .eventType(PaymentEventType.SSLCOMMERZ_WEBHOOK)
                       .providerEventId(providerEventId)
                       .rawPayloadJson(
-                          Map.of("headers", new HashMap<>(headers), "payload", new HashMap<>(params)))
+                          Map.of(
+                              "headers", new HashMap<>(headers), "payload", new HashMap<>(params)))
                       .status(PaymentEventStatus.RECEIVED)
                       .processedAt(Instant.now())
                       .build());
-          return acknowledged("Webhook received and queued for validation", saved.getId().toString());
+          return acknowledged(
+              "Webhook received and queued for validation", saved.getId().toString());
         }
       }
 
@@ -137,11 +143,14 @@ public class SslcommerzWebhookService {
                       .provider(OrderProvider.SSLCOMMERZ)
                       .eventType(PaymentEventType.SSLCOMMERZ_WEBHOOK_RISK_HOLD)
                       .providerEventId(providerEventId)
-                      .rawPayloadJson(Map.of("headers", new HashMap<>(headers), "payload", new HashMap<>(params)))
+                      .rawPayloadJson(
+                          Map.of(
+                              "headers", new HashMap<>(headers), "payload", new HashMap<>(params)))
                       .status(PaymentEventStatus.RECEIVED)
                       .processedAt(Instant.now())
                       .build());
-          return acknowledged("Webhook received and held for risk verification", saved.getId().toString());
+          return acknowledged(
+              "Webhook received and held for risk verification", saved.getId().toString());
         }
         sslcommerzCallbackService.successFromWebhook(order.getId(), callbackParams);
         status = PaymentEventStatus.PROCESSED;
@@ -161,7 +170,8 @@ public class SslcommerzWebhookService {
                 .provider(OrderProvider.SSLCOMMERZ)
                 .eventType(PaymentEventType.SSLCOMMERZ_WEBHOOK)
                 .providerEventId(providerEventId)
-                .rawPayloadJson(Map.of("headers", new HashMap<>(headers), "payload", new HashMap<>(params)))
+                .rawPayloadJson(
+                    Map.of("headers", new HashMap<>(headers), "payload", new HashMap<>(params)))
                 .status(status)
                 .processedAt(Instant.now())
                 .build());

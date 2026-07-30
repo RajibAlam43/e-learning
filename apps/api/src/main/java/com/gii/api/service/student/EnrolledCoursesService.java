@@ -1,9 +1,9 @@
 package com.gii.api.service.student;
 
 import com.gii.api.model.response.student.StudentCourseSummaryResponse;
-import com.gii.api.service.storage.AssetUrlService;
-import com.gii.api.service.localization.LocalizedContentService;
 import com.gii.api.service.enrollment.CurrentUserService;
+import com.gii.api.service.localization.LocalizedContentService;
+import com.gii.api.service.storage.AssetUrlService;
 import com.gii.common.entity.certificate.Certificate;
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.course.CourseInstructor;

@@ -4,9 +4,9 @@ import com.gii.api.model.response.student.StudentCourseHomeResponse;
 import com.gii.api.model.response.student.StudentLessonHomeResponse;
 import com.gii.api.model.response.student.StudentQuizHomeResponse;
 import com.gii.api.model.response.student.StudentSectionHomeResponse;
-import com.gii.api.service.storage.AssetUrlService;
-import com.gii.api.service.localization.LocalizedContentService;
 import com.gii.api.service.enrollment.CurrentUserService;
+import com.gii.api.service.localization.LocalizedContentService;
+import com.gii.api.service.storage.AssetUrlService;
 import com.gii.common.entity.certificate.Certificate;
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.course.CourseInstructor;
@@ -179,8 +179,7 @@ public class EnrolledCourseDetailsService {
 
     return StudentSectionHomeResponse.builder()
         .sectionId(section.getId())
-        .sectionTitle(
-            localizedContentService.text(section.getTitle(), section.getTitleEn()))
+        .sectionTitle(localizedContentService.text(section.getTitle(), section.getTitleEn()))
         .position(section.getPosition())
         .description(
             localizedContentService.text(section.getDescription(), section.getDescriptionEn()))
@@ -197,8 +196,7 @@ public class EnrolledCourseDetailsService {
                         StudentQuizHomeResponse.builder()
                             .quizId(quiz.getId())
                             .quizTitle(
-                                localizedContentService.text(
-                                    quiz.getTitle(), quiz.getTitleEn()))
+                                localizedContentService.text(quiz.getTitle(), quiz.getTitleEn()))
                             .position(quiz.getPosition())
                             .isAccessible(true)
                             .accessReason("AVAILABLE")

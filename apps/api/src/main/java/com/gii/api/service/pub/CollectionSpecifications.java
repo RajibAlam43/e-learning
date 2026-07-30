@@ -10,7 +10,8 @@ public final class CollectionSpecifications {
   private CollectionSpecifications() {}
 
   public static Specification<Collection> hasStatus(PublishStatus status) {
-    return (root, query, cb) -> status == null ? cb.conjunction() : cb.equal(root.get("status"), status);
+    return (root, query, cb) ->
+        status == null ? cb.conjunction() : cb.equal(root.get("status"), status);
   }
 
   public static Specification<Collection> hasType(CollectionType type) {

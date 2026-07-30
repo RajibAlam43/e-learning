@@ -4,8 +4,8 @@ import com.gii.api.model.response.lesson.LessonContentResponse;
 import com.gii.api.model.response.lesson.LessonProgressResponse;
 import com.gii.api.model.response.lesson.LessonResourceResponse;
 import com.gii.api.model.response.lesson.MediaPlaybackResponse;
-import com.gii.api.service.storage.AssetUrlService;
 import com.gii.api.service.localization.LocalizedContentService;
+import com.gii.api.service.storage.AssetUrlService;
 import com.gii.common.entity.course.Lesson;
 import com.gii.common.entity.course.MediaAsset;
 import com.gii.common.entity.enrollment.Enrollment;
@@ -120,8 +120,7 @@ public class LessonContentService {
         .build();
   }
 
-  private MediaPlaybackResponse toLessonPlayback(
-      MediaAsset mediaAsset, String courseThumbnailUrl) {
+  private MediaPlaybackResponse toLessonPlayback(MediaAsset mediaAsset, String courseThumbnailUrl) {
     if (mediaAsset == null || mediaAsset.getStatus() != MediaStatus.READY) {
       return null;
     }
@@ -130,8 +129,7 @@ public class LessonContentService {
         .mediaAssetId(mediaAsset.getId())
         .assetType(mediaAsset.getAssetType())
         .provider(mediaAsset.getProvider())
-        .title(
-            localizedContentService.text(mediaAsset.getTitle(), mediaAsset.getTitleEn()))
+        .title(localizedContentService.text(mediaAsset.getTitle(), mediaAsset.getTitleEn()))
         .durationSec(mediaAsset.getDurationSec())
         .maxResolution(mediaAsset.getMaxResolution())
         .youtubeVideoId(

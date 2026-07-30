@@ -1,3 +1,5 @@
+ALTER TABLE lessons DROP COLUMN thumbnail_url;
+
 ALTER TABLE collections
     ADD COLUMN title_en text,
     ADD COLUMN short_description_en text,
@@ -21,7 +23,9 @@ ALTER TABLE course_sections
 
 ALTER TABLE lessons ADD COLUMN title_en text;
 ALTER TABLE lesson_resources ADD COLUMN title_en text;
-ALTER TABLE media_assets ADD COLUMN title_en text;
+ALTER TABLE media_assets
+    ADD COLUMN title_en text,
+    ADD COLUMN thumbnail_object_key text;
 ALTER TABLE quizzes ADD COLUMN title_en text;
 
 ALTER TABLE quiz_questions
@@ -47,3 +51,6 @@ ALTER TABLE faqs
     ADD COLUMN answer_en text;
 
 ALTER TABLE order_items ADD COLUMN title_snapshot_en text;
+
+CREATE INDEX idx_live_class_registrants_live_class_id_status
+    ON live_class_registrants (live_class_id, status);

@@ -45,7 +45,8 @@ class SmsDeliveryServiceTest {
     server.start();
 
     SmsDeliveryService service = new SmsDeliveryService();
-    ReflectionTestUtils.setField(service, "baseUrl", "http://127.0.0.1:" + server.getAddress().getPort());
+    ReflectionTestUtils.setField(
+        service, "baseUrl", "http://127.0.0.1:" + server.getAddress().getPort());
     ReflectionTestUtils.setField(service, "apiKey", "test-api-key");
     ReflectionTestUtils.setField(service, "senderId", "TESTSENDER");
     ReflectionTestUtils.setField(service, "timeoutMs", 3000L);
@@ -62,11 +63,13 @@ class SmsDeliveryServiceTest {
     server = HttpServer.create(new InetSocketAddress(0), 0);
     server.createContext(
         "/api/smsapi",
-        exchange -> write(exchange, 200, "{\"response_code\":1005,\"error_message\":\"rejected\"}"));
+        exchange ->
+            write(exchange, 200, "{\"response_code\":1005,\"error_message\":\"rejected\"}"));
     server.start();
 
     SmsDeliveryService service = new SmsDeliveryService();
-    ReflectionTestUtils.setField(service, "baseUrl", "http://127.0.0.1:" + server.getAddress().getPort());
+    ReflectionTestUtils.setField(
+        service, "baseUrl", "http://127.0.0.1:" + server.getAddress().getPort());
     ReflectionTestUtils.setField(service, "apiKey", "test-api-key");
     ReflectionTestUtils.setField(service, "senderId", "TESTSENDER");
     ReflectionTestUtils.setField(service, "timeoutMs", 3000L);
@@ -95,7 +98,8 @@ class SmsDeliveryServiceTest {
     }
     for (String pair : body.split("&")) {
       int idx = pair.indexOf('=');
-      String key = URLDecoder.decode(idx >= 0 ? pair.substring(0, idx) : pair, StandardCharsets.UTF_8);
+      String key =
+          URLDecoder.decode(idx >= 0 ? pair.substring(0, idx) : pair, StandardCharsets.UTF_8);
       String value =
           URLDecoder.decode(idx >= 0 ? pair.substring(idx + 1) : "", StandardCharsets.UTF_8);
       form.put(key, value);

@@ -100,8 +100,7 @@ public class AdminCourseManagementService {
             .titleEn(request.titleEn())
             .slug(request.slug().trim())
             .thumbnailObjectKey(
-                assetUrlService.normalizeThumbnailKey(
-                    request.thumbnailObjectKey(), "courses"))
+                assetUrlService.normalizeThumbnailKey(request.thumbnailObjectKey(), "courses"))
             .shortDescription(request.shortDescription())
             .shortDescriptionEn(request.shortDescriptionEn())
             .description(request.description())
@@ -289,15 +288,12 @@ public class AdminCourseManagementService {
     List<SectionItem> itemsToReposition = new java.util.ArrayList<>();
     Map<UUID, Integer> targetPositionByItemId = new LinkedHashMap<>();
     for (var itemReq : secReq.items()) {
-      if (itemReq.itemId() == null
-          || itemReq.itemType() == null
-          || itemReq.newPosition() == null) {
+      if (itemReq.itemId() == null || itemReq.itemType() == null || itemReq.newPosition() == null) {
         throw new ResponseStatusException(
             HttpStatus.BAD_REQUEST, "Invalid section item reorder entry");
       }
       if (itemReq.newPosition() <= 0) {
-        throw new ResponseStatusException(
-            HttpStatus.BAD_REQUEST, "Item position must be positive");
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Item position must be positive");
       }
       if (!seenItemIds.add(itemReq.itemId()) || !seenPositions.add(itemReq.newPosition())) {
         throw new ResponseStatusException(

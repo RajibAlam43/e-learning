@@ -1,17 +1,17 @@
 package com.gii.api.instructorapi;
 
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.gii.common.enums.InstructorRole;
 import com.gii.common.enums.LiveClassStatus;
@@ -295,9 +295,7 @@ class InstructorLiveClassesApiIt extends AbstractInstructorApiIntegrationTest {
         }
         """
             .formatted(
-                sec.getId(),
-                Instant.now().plusSeconds(4500),
-                Instant.now().plusSeconds(6200));
+                sec.getId(), Instant.now().plusSeconds(4500), Instant.now().plusSeconds(6200));
 
     mockMvc
         .perform(
@@ -319,9 +317,7 @@ class InstructorLiveClassesApiIt extends AbstractInstructorApiIntegrationTest {
         }
         """
             .formatted(
-                sec.getId(),
-                Instant.now().plusSeconds(8000),
-                Instant.now().plusSeconds(9200));
+                sec.getId(), Instant.now().plusSeconds(8000), Instant.now().plusSeconds(9200));
 
     mockMvc
         .perform(
@@ -356,9 +352,7 @@ class InstructorLiveClassesApiIt extends AbstractInstructorApiIntegrationTest {
         }
         """
             .formatted(
-                sec.getId(),
-                Instant.now().plusSeconds(3600),
-                Instant.now().plusSeconds(5400));
+                sec.getId(), Instant.now().plusSeconds(3600), Instant.now().plusSeconds(5400));
 
     mockMvc
         .perform(
@@ -390,9 +384,7 @@ class InstructorLiveClassesApiIt extends AbstractInstructorApiIntegrationTest {
         }
         """
             .formatted(
-                sec.getId(),
-                Instant.now().plusSeconds(3600),
-                Instant.now().plusSeconds(5400));
+                sec.getId(), Instant.now().plusSeconds(3600), Instant.now().plusSeconds(5400));
     mockMvc
         .perform(
             post("/live-classes/courses/{courseId}", course.getId())
