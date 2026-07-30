@@ -7,6 +7,7 @@ import com.gii.api.model.response.admin.AdminCollectionCourseResponse;
 import com.gii.api.model.response.admin.AdminCollectionDetailResponse;
 import com.gii.api.model.response.admin.AdminCollectionSummaryResponse;
 import com.gii.api.service.enrollment.CurrentUserService;
+import com.gii.api.service.storage.AssetUrlService;
 import com.gii.common.entity.collection.Collection;
 import com.gii.common.entity.collection.CollectionCourse;
 import com.gii.common.entity.collection.CollectionCourseId;
@@ -38,6 +39,7 @@ public class AdminCollectionManagementService {
   private final CollectionCourseRepository collectionCourseRepository;
   private final CourseRepository courseRepository;
   private final CurrentUserService currentUserService;
+  private final AssetUrlService assetUrlService;
 
   @Transactional(readOnly = true)
   public List<AdminCollectionSummaryResponse> list() {
@@ -57,6 +59,7 @@ public class AdminCollectionManagementService {
                     .title(c.getTitle())
                     .slug(c.getSlug())
                     .collectionType(c.getType())
+                    .thumbnailUrl(assetUrlService.publicUrl(c.getThumbnailObjectKey()))
                     .status(c.getStatus())
                     .priceBdt(c.getPriceBdt())
                     .courseCount(courseCountByCollectionId.getOrDefault(c.getId(), 0))
@@ -74,7 +77,9 @@ public class AdminCollectionManagementService {
             .title(request.title().trim())
             .slug(request.slug().trim())
             .type(request.collectionType())
-            .thumbnailObjectKey(request.thumbnailObjectKey())
+            .thumbnailObjectKey(
+                assetUrlService.normalizeCreateThumbnailKey(
+                    request.thumbnailObjectKey(), "collections"))
             .shortDescription(request.shortDescription())
             .description(request.description())
             .priceBdt(request.priceBdt())
@@ -110,7 +115,9 @@ public class AdminCollectionManagementService {
       collection.setType(request.collectionType());
     }
     if (request.thumbnailObjectKey() != null) {
-      collection.setThumbnailObjectKey(request.thumbnailObjectKey());
+      collection.setThumbnailObjectKey(
+          assetUrlService.normalizeThumbnailKey(
+              request.thumbnailObjectKey(), "collections", collection.getId()));
     }
     if (request.shortDescription() != null) {
       collection.setShortDescription(request.shortDescription());
@@ -220,6 +227,7 @@ public class AdminCollectionManagementService {
         .slug(collection.getSlug())
         .collectionType(collection.getType())
         .thumbnailObjectKey(collection.getThumbnailObjectKey())
+        .thumbnailUrl(assetUrlService.publicUrl(collection.getThumbnailObjectKey()))
         .shortDescription(collection.getShortDescription())
         .description(collection.getDescription())
         .priceBdt(collection.getPriceBdt())

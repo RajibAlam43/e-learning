@@ -4,6 +4,7 @@ import com.gii.api.model.response.lesson.LessonContentResponse;
 import com.gii.api.model.response.lesson.LessonProgressResponse;
 import com.gii.api.model.response.lesson.LessonResourceResponse;
 import com.gii.api.model.response.lesson.MediaPlaybackResponse;
+import com.gii.api.service.storage.AssetUrlService;
 import com.gii.common.entity.course.Lesson;
 import com.gii.common.entity.course.MediaAsset;
 import com.gii.common.entity.enrollment.Enrollment;
@@ -31,6 +32,7 @@ public class LessonContentService {
   private final LessonProgressRepository lessonProgressRepository;
   private final MediaAssetRepository mediaAssetRepository;
   private final LessonResourceRepository lessonResourceRepository;
+  private final AssetUrlService assetUrlService;
 
   public LessonContentResponse execute(UUID lessonId, Authentication authentication) {
     UUID userId = lessonAccessService.requireCurrentUserId(authentication);
@@ -52,8 +54,10 @@ public class LessonContentService {
                     .build())
             .orElse(null);
 
+    String thumbnailUrl = assetUrlService.publicUrl(lesson.getThumbnailObjectKey());
     MediaPlaybackResponse media =
-        toLessonPlayback(mediaAssetRepository.findByLessonId(lessonId).orElse(null));
+        toLessonPlayback(
+            mediaAssetRepository.findByLessonId(lessonId).orElse(null), thumbnailUrl);
     List<LessonResourceResponse> resources =
         lessonResourceRepository.findByLessonIdOrderByPositionAsc(lessonId).stream()
             .map(
@@ -76,7 +80,7 @@ public class LessonContentService {
         .lessonType(lesson.getLessonType())
         .description(null)
         .durationSeconds(lesson.getDurationSeconds())
-        .thumbnailUrl(lesson.getThumbnailUrl())
+        .thumbnailUrl(thumbnailUrl)
         .transcriptUrl(lesson.getTranscriptUrl())
         .isFree(lesson.getIsFree())
         .isMandatory(lesson.getIsMandatory())
@@ -110,7 +114,7 @@ public class LessonContentService {
         .build();
   }
 
-  private MediaPlaybackResponse toLessonPlayback(MediaAsset mediaAsset) {
+  private MediaPlaybackResponse toLessonPlayback(MediaAsset mediaAsset, String thumbnailUrl) {
     if (mediaAsset == null || mediaAsset.getStatus() != MediaStatus.READY) {
       return null;
     }
@@ -138,7 +142,7 @@ public class LessonContentService {
         .preferredPlaybackMode(mediaAsset.getPreferredPlaybackMode())
         .requiresSignedUrl(mediaAsset.getProvider() != com.gii.common.enums.MediaProvider.YOUTUBE)
         .subtitlesUrl(null)
-        .thumbnailUrl(null)
+        .thumbnailUrl(thumbnailUrl)
         .build();
   }
 }

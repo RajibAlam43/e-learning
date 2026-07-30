@@ -2,7 +2,7 @@ package com.gii.api.service.pub;
 
 import com.gii.api.model.response.CourseSummaryResponse;
 import com.gii.api.model.response.InstructorDetailsResponse;
-import com.gii.api.service.course.CourseThumbnailUrlService;
+import com.gii.api.service.storage.AssetUrlService;
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.course.CourseInstructor;
 import com.gii.common.entity.user.InstructorProfile;
@@ -26,7 +26,7 @@ public class InstructorDetailsService {
 
   private final InstructorProfileRepository instructorProfileRepository;
   private final CourseInstructorRepository courseInstructorRepository;
-  private final CourseThumbnailUrlService courseThumbnailUrlService;
+  private final AssetUrlService assetUrlService;
 
   public InstructorDetailsResponse execute(String slug) {
     UUID instructorId = parseInstructorId(slug);
@@ -79,7 +79,7 @@ public class InstructorDetailsService {
         .title(course.getTitle())
         .slug(course.getSlug())
         .shortDescription(course.getShortDescription())
-        .thumbnailUrl(courseThumbnailUrlService.buildCourseThumbnailUrl(course))
+        .thumbnailUrl(assetUrlService.publicUrl(course.getThumbnailObjectKey()))
         .priceBdt(course.getPriceBdt())
         .level(course.getLevel())
         .language(course.getLanguage())

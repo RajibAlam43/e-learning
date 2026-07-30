@@ -231,6 +231,23 @@ So cut:
 
 ## Admin Media / Resources
 
+### Thumbnail storage convention
+
+Course, collection, and lesson thumbnails use the same Cloudflare R2 convention:
+
+```text
+courses/{courseId}/thumbnails/course-cover.webp
+collections/{collectionId}/thumbnails/collection-cover.webp
+lessons/{lessonId}/thumbnails/lesson-cover.webp
+```
+
+The database and admin APIs use the full R2 `thumbnailObjectKey`. Public and student
+responses expose the resolved `thumbnailUrl`. For manual R2 uploads, create the entity,
+upload under its returned UUID, then set or replace the key with the entity's existing
+`PATCH` endpoint. Thumbnail filenames may be descriptive and should use lowercase letters,
+numbers, hyphens, or underscores instead of spaces. Send an empty `thumbnailObjectKey` to
+clear it.
+
 | API                                            |     MVP? | Main function              |
 | ---------------------------------------------- | -------: | -------------------------- |
 | `POST /api/admin/media/mux/upload-url`         | Required | Create Mux upload URL      |

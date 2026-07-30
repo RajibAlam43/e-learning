@@ -15,6 +15,7 @@ public record AdminCourseDetailResponse(
     UUID courseId,
     String title,
     String slug,
+    String thumbnailObjectKey,
     String thumbnailUrl,
     String shortDescription,
     String description,

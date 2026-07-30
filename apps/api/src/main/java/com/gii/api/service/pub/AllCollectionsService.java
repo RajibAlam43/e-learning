@@ -2,6 +2,7 @@ package com.gii.api.service.pub;
 
 import com.gii.api.model.response.CollectionSummaryResponse;
 import com.gii.api.model.response.PageResponse;
+import com.gii.api.service.storage.AssetUrlService;
 import com.gii.common.entity.collection.Collection;
 import com.gii.common.entity.collection.CollectionCourse;
 import com.gii.common.entity.course.CourseInstructor;
@@ -38,6 +39,7 @@ public class AllCollectionsService {
   private final CollectionRepository collectionRepository;
   private final CollectionCourseRepository collectionCourseRepository;
   private final CourseInstructorRepository courseInstructorRepository;
+  private final AssetUrlService assetUrlService;
 
   public PageResponse<CollectionSummaryResponse> execute(CollectionType collectionType, Pageable pageable) {
     Pageable safePageable = createSafePageable(pageable);
@@ -82,7 +84,7 @@ public class AllCollectionsService {
                       .slug(collection.getSlug())
                       .collectionType(collection.getType())
                       .shortDescription(collection.getShortDescription())
-                      .thumbnailObjectKey(collection.getThumbnailObjectKey())
+                      .thumbnailUrl(assetUrlService.publicUrl(collection.getThumbnailObjectKey()))
                       .priceBdt(collection.getPriceBdt())
                       .publishedAt(collection.getPublishedAt())
                       .courseCount(courseIds.size())

@@ -13,7 +13,7 @@ public record StudentCollectionDetailsResponse(
     String collectionName,
     String collectionSlug,
     CollectionType collectionType,
-    String thumbnailObjectKey,
+    String thumbnailUrl,
     String shortDescription,
     String description,
     Double progressPercentage,

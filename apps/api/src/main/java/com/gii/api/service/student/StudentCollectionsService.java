@@ -2,6 +2,7 @@ package com.gii.api.service.student;
 
 import com.gii.api.model.response.student.StudentCollectionSummaryResponse;
 import com.gii.api.service.enrollment.CurrentUserService;
+import com.gii.api.service.storage.AssetUrlService;
 import com.gii.common.entity.collection.Collection;
 import com.gii.common.entity.collection.CollectionCourse;
 import com.gii.common.entity.collection.CollectionEnrollment;
@@ -30,6 +31,7 @@ public class StudentCollectionsService {
   private final CollectionCourseRepository collectionCourseRepository;
   private final LessonRepository lessonRepository;
   private final LessonProgressRepository lessonProgressRepository;
+  private final AssetUrlService assetUrlService;
 
   public List<StudentCollectionSummaryResponse> execute(Authentication authentication) {
     UUID userId = currentUserService.getCurrentUserId(authentication);
@@ -71,7 +73,7 @@ public class StudentCollectionsService {
                   .collectionName(collection.getTitle())
                   .collectionSlug(collection.getSlug())
                   .collectionType(collection.getType())
-                  .thumbnailObjectKey(collection.getThumbnailObjectKey())
+                  .thumbnailUrl(assetUrlService.publicUrl(collection.getThumbnailObjectKey()))
                   .progressPercentage(round2(progress))
                   .completedLessons(completedLessons)
                   .totalLessons(totalLessons)

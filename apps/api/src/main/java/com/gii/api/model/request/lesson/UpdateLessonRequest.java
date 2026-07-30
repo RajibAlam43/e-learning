@@ -13,7 +13,7 @@ public record UpdateLessonRequest(
     Boolean isMandatory,
     Boolean isFree,
     Integer durationSeconds,
-    String thumbnailUrl,
+    String thumbnailObjectKey,
     String transcriptUrl,
     String releaseType,
     Instant releaseAt,

@@ -14,7 +14,7 @@ public record CollectionSummaryResponse(
     String slug,
     CollectionType collectionType,
     String shortDescription,
-    String thumbnailObjectKey,
+    String thumbnailUrl,
     BigDecimal priceBdt,
     Instant publishedAt,
     Integer courseCount,

@@ -7,8 +7,8 @@ import com.gii.api.model.response.admin.AdminCourseDetailResponse;
 import com.gii.api.model.response.admin.AdminCourseSectionResponse;
 import com.gii.api.model.response.admin.AdminCourseSummaryResponse;
 import com.gii.api.model.response.admin.AdminInstructorSummaryResponse;
-import com.gii.api.service.course.CourseThumbnailUrlService;
 import com.gii.api.service.enrollment.CurrentUserService;
+import com.gii.api.service.storage.AssetUrlService;
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.course.CourseInstructor;
 import com.gii.common.entity.course.CourseSection;
@@ -58,7 +58,7 @@ public class AdminCourseManagementService {
   private final EnrollmentRepository enrollmentRepository;
   private final CurrentUserService currentUserService;
   private final AdminSectionManagementService sectionManagementService;
-  private final CourseThumbnailUrlService courseThumbnailUrlService;
+  private final AssetUrlService assetUrlService;
 
   @Transactional(readOnly = true)
   public List<AdminCourseSummaryResponse> list() {
@@ -78,6 +78,7 @@ public class AdminCourseManagementService {
                   .courseId(course.getId())
                   .title(course.getTitle())
                   .slug(course.getSlug())
+                  .thumbnailUrl(assetUrlService.publicUrl(course.getThumbnailObjectKey()))
                   .status(course.getStatus())
                   .priceBdt(course.getPriceBdt())
                   .isFree(course.getIsFree())
@@ -97,7 +98,9 @@ public class AdminCourseManagementService {
         Course.builder()
             .title(request.title().trim())
             .slug(request.slug().trim())
-            .thumbnailObjectKey(request.thumbnailObjectKey())
+            .thumbnailObjectKey(
+                assetUrlService.normalizeCreateThumbnailKey(
+                    request.thumbnailObjectKey(), "courses"))
             .shortDescription(request.shortDescription())
             .description(request.description())
             .highlights(request.highlights())
@@ -143,7 +146,9 @@ public class AdminCourseManagementService {
       course.setSlug(request.slug().trim());
     }
     if (request.thumbnailObjectKey() != null) {
-      course.setThumbnailObjectKey(request.thumbnailObjectKey());
+      course.setThumbnailObjectKey(
+          assetUrlService.normalizeThumbnailKey(
+              request.thumbnailObjectKey(), "courses", course.getId()));
     }
     if (request.shortDescription() != null) {
       course.setShortDescription(request.shortDescription());
@@ -358,7 +363,8 @@ public class AdminCourseManagementService {
         .courseId(course.getId())
         .title(course.getTitle())
         .slug(course.getSlug())
-        .thumbnailUrl(courseThumbnailUrlService.buildCourseThumbnailUrl(course))
+        .thumbnailObjectKey(course.getThumbnailObjectKey())
+        .thumbnailUrl(assetUrlService.publicUrl(course.getThumbnailObjectKey()))
         .shortDescription(course.getShortDescription())
         .description(course.getDescription())
         .highlights(course.getHighlights())
