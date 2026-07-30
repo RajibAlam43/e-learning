@@ -15,7 +15,6 @@ public record LessonContentResponse(
     LessonType lessonType,
     String description, // Optional lesson description/notes
     Integer durationSeconds, // Optional: video duration
-    String thumbnailUrl, // Optional: lesson thumbnail
     String transcriptUrl, // Optional: video transcript URL
     Boolean isFree, // Whether lesson is free or requires enrollment
     Boolean isMandatory, // Whether lesson is mandatory for completion

@@ -157,7 +157,9 @@ public class InstructorLiveClassService {
 
     boolean mutatingMetadata =
         request.title() != null
+            || request.titleEn() != null
             || request.description() != null
+            || request.descriptionEn() != null
             || request.startsAt() != null
             || request.endsAt() != null;
     if (mutatingMetadata && liveClass.getStatus() != LiveClassStatus.SCHEDULED) {

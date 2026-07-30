@@ -9,9 +9,12 @@ import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Configuration;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
 @Service
 public class R2PresignedUrlService {
@@ -21,6 +24,7 @@ public class R2PresignedUrlService {
   private final String secretAccessKey;
   private final String bucket;
   private final long downloadTtlSeconds;
+  private final long uploadTtlSeconds;
   private final String region;
 
   public R2PresignedUrlService(
@@ -29,13 +33,37 @@ public class R2PresignedUrlService {
       @Value("${storage.r2.secret-access-key}") String secretAccessKey,
       @Value("${storage.r2.bucket}") String bucket,
       @Value("${storage.r2.download-url-ttl-seconds}") long downloadTtlSeconds,
+      @Value("${storage.r2.upload-url-ttl-seconds:600}") long uploadTtlSeconds,
       @Value("${storage.r2.region}") String region) {
     this.accountId = accountId;
     this.accessKeyId = accessKeyId;
     this.secretAccessKey = secretAccessKey;
     this.bucket = bucket;
     this.downloadTtlSeconds = downloadTtlSeconds;
+    this.uploadTtlSeconds = uploadTtlSeconds;
     this.region = region;
+  }
+
+  public PresignedUpload generateUploadUrl(
+      String objectKey, String contentType, long sizeBytes) {
+    Duration signatureDuration = Duration.ofSeconds(uploadTtlSeconds);
+    PutObjectRequest putObjectRequest =
+        PutObjectRequest.builder()
+            .bucket(bucket)
+            .key(objectKey)
+            .contentType(contentType)
+            .contentLength(sizeBytes)
+            .build();
+    PutObjectPresignRequest presignRequest =
+        PutObjectPresignRequest.builder()
+            .signatureDuration(signatureDuration)
+            .putObjectRequest(putObjectRequest)
+            .build();
+    try (S3Presigner presigner = buildPresigner()) {
+      PresignedPutObjectRequest signed = presigner.presignPutObject(presignRequest);
+      return new PresignedUpload(
+          signed.url().toString(), java.time.Instant.now().plus(signatureDuration));
+    }
   }
 
   /** Builds a time-limited signed GET URL for a lesson resource stored in Cloudflare R2. */
@@ -60,10 +88,11 @@ public class R2PresignedUrlService {
             .getObjectRequest(getRequest.build())
             .build();
 
-    PresignedGetObjectRequest signed = buildPresigner().presignGetObject(presignRequest);
-
-    return new PresignedDownload(
-        signed.url().toString(), java.time.Instant.now().plus(signatureDuration));
+    try (S3Presigner presigner = buildPresigner()) {
+      PresignedGetObjectRequest signed = presigner.presignGetObject(presignRequest);
+      return new PresignedDownload(
+          signed.url().toString(), java.time.Instant.now().plus(signatureDuration));
+    }
   }
 
   private S3Presigner buildPresigner() {
@@ -119,4 +148,6 @@ public class R2PresignedUrlService {
   }
 
   public record PresignedDownload(String downloadUrl, java.time.Instant expiresAt) {}
+
+  public record PresignedUpload(String uploadUrl, java.time.Instant expiresAt) {}
 }
