@@ -20,7 +20,8 @@ public class LocaleConfig {
       public Locale resolveLocale(HttpServletRequest request) {
         String requestedLanguage = request.getParameter("lang");
         if (requestedLanguage != null) {
-          return "en".equalsIgnoreCase(requestedLanguage) ? ENGLISH : DEFAULT_LOCALE;
+          Locale requestedLocale = Locale.forLanguageTag(requestedLanguage.trim());
+          return "en".equalsIgnoreCase(requestedLocale.getLanguage()) ? ENGLISH : DEFAULT_LOCALE;
         }
         String acceptLanguage = request.getHeader("Accept-Language");
         if (acceptLanguage == null || acceptLanguage.isBlank()) {

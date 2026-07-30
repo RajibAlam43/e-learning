@@ -136,6 +136,17 @@ class AdminThumbnailsApiIt extends AbstractAdminApiIntegrationTest {
         .andExpect(jsonPath("$.thumbnailObjectKey").value(mediaAssetKey))
         .andExpect(jsonPath("$.thumbnailUrl").value("https://assets.test/" + mediaAssetKey));
 
+    mockMvc
+        .perform(
+            patch("/admin/lessons/{id}", lesson.getId())
+                .with(authentication(adminAuth(admin.getId())))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.mediaAsset.thumbnailObjectKey").value(mediaAssetKey))
+        .andExpect(
+            jsonPath("$.mediaAsset.thumbnailUrl").value("https://assets.test/" + mediaAssetKey));
+
     assertThat(courseRepository.findById(course.getId()).orElseThrow().getThumbnailObjectKey())
         .isEqualTo(courseKey);
     assertThat(

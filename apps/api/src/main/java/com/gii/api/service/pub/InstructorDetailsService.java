@@ -2,8 +2,8 @@ package com.gii.api.service.pub;
 
 import com.gii.api.model.response.CourseSummaryResponse;
 import com.gii.api.model.response.InstructorDetailsResponse;
-import com.gii.api.service.storage.AssetUrlService;
 import com.gii.api.service.localization.LocalizedContentService;
+import com.gii.api.service.storage.AssetUrlService;
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.course.CourseInstructor;
 import com.gii.common.entity.user.InstructorProfile;
@@ -60,14 +60,16 @@ public class InstructorDetailsService {
         .institution(
             localizedContentService.text(profile.getInstitution(), profile.getInstitutionEn()))
         .expertiseArea(
-            localizedContentService.text(
-                profile.getExpertiseArea(), profile.getExpertiseAreaEn()))
+            localizedContentService.text(profile.getExpertiseArea(), profile.getExpertiseAreaEn()))
         .about(localizedContentService.text(profile.getAbout(), profile.getAboutEn()))
         .credentialsText(
             localizedContentService.text(
                 profile.getCredentialsText(), profile.getCredentialsTextEn()))
         .specialties(
-            localizedContentService.list(profile.getSpecialties(), profile.getSpecialtiesEn()))
+            java.util.Optional.ofNullable(
+                    localizedContentService.list(
+                        profile.getSpecialties(), profile.getSpecialtiesEn()))
+                .orElseGet(List::of))
         .yearsExperience(profile.getYearsExperience())
         .publishedCourses(publishedCourses)
         .build();

@@ -79,6 +79,21 @@ class PublicInstructorDetailsApiIt extends AbstractPublicApiIntegrationTest {
   }
 
   @Test
+  void returnsEmptySpecialtiesWhenNoSpecialtiesExist() throws Exception {
+    User instructor = user("No Specialties", "no-specialties@example.com", UserStatus.ACTIVE);
+    var profile = instructorProfile(instructor, true, "No specialties");
+    profile.setSpecialties(null);
+    profile.setSpecialtiesEn(null);
+    instructorProfileRepository.saveAndFlush(profile);
+
+    mockMvc
+        .perform(get("/public/instructors/{slug}", instructor.getId()).param("lang", "en"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.specialties").isArray())
+        .andExpect(jsonPath("$.specialties.length()").value(0));
+  }
+
+  @Test
   void returns404ForInactiveOrPrivateInstructor() throws Exception {
     User inactive = user("Inactive Instructor", "inactive@example.com", UserStatus.SUSPENDED);
     User privateActive = user("Private Instructor", "private@example.com", UserStatus.ACTIVE);

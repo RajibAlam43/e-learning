@@ -5,6 +5,7 @@ import com.gii.api.model.request.lesson.UpdateLessonRequest;
 import com.gii.api.model.response.admin.AdminLessonDetailResponse;
 import com.gii.api.model.response.admin.AdminLessonResourceResponse;
 import com.gii.api.model.response.admin.AdminMediaAssetResponse;
+import com.gii.api.service.storage.AssetUrlService;
 import com.gii.common.entity.course.CourseSection;
 import com.gii.common.entity.course.Lesson;
 import com.gii.common.entity.course.MediaAsset;
@@ -36,6 +37,7 @@ public class AdminLessonManagementService {
   private final MediaAssetRepository mediaAssetRepository;
   private final LessonResourceRepository resourceRepository;
   private final SectionItemRepository sectionItemRepository;
+  private final AssetUrlService assetUrlService;
 
   public AdminLessonDetailResponse create(UUID sectionId, CreateLessonRequest request) {
     CourseSection section =
@@ -204,6 +206,8 @@ public class AdminLessonManagementService {
                 .fileUrl(mediaAsset.getFileUrl())
                 .title(mediaAsset.getTitle())
                 .titleEn(mediaAsset.getTitleEn())
+                .thumbnailObjectKey(mediaAsset.getThumbnailObjectKey())
+                .thumbnailUrl(assetUrlService.publicUrl(mediaAsset.getThumbnailObjectKey()))
                 .maxResolution(mediaAsset.getMaxResolution())
                 .durationSec(mediaAsset.getDurationSec())
                 .status(mediaAsset.getStatus().name())

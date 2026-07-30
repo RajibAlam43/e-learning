@@ -39,6 +39,14 @@ class LocaleConfigTest {
   }
 
   @Test
+  void acceptsRegionalEnglishQueryParameter() {
+    var request = new MockHttpServletRequest();
+    request.setParameter("lang", "en-US");
+
+    assertThat(resolver.resolveLocale(request)).isEqualTo(Locale.ENGLISH);
+  }
+
+  @Test
   void unsupportedLanguageFallsBackToBangla() {
     var request = new MockHttpServletRequest();
     request.setParameter("lang", "fr");
