@@ -19,8 +19,8 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-security'
 
     // SQS
-    implementation 'io.awspring.cloud:spring-cloud-aws-starter-sqs:4.0.2'
-    implementation 'io.awspring.cloud:spring-cloud-aws-starter:4.0.2'
+    implementation 'io.awspring.cloud:spring-cloud-aws-starter-sqs:4.1.0'
+    implementation 'io.awspring.cloud:spring-cloud-aws-starter:4.1.0'
 
     // POSTGRESQL
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
@@ -37,7 +37,7 @@ dependencies {
     implementation 'org.projectlombok:lombok:1.18.46'
     implementation 'org.jetbrains:annotations:26.1.0'
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.22.1'
-    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.21.3'
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.22.1'
 
     // TESTS
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
