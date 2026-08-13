@@ -16,6 +16,7 @@ public record AdminCourseDetailResponse(
     String title,
     String titleEn,
     String slug,
+    List<AdminCategoryResponse> categories,
     String thumbnailObjectKey,
     String thumbnailUrl,
     String shortDescription,

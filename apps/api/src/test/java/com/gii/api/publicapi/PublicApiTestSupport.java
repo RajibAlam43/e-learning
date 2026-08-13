@@ -13,18 +13,18 @@ import com.gii.common.entity.course.MediaAsset;
 import com.gii.common.entity.support.SupportTicket;
 import com.gii.common.entity.user.InstructorProfile;
 import com.gii.common.entity.user.User;
+import com.gii.common.enums.CollectionType;
 import com.gii.common.enums.CourseLanguage;
 import com.gii.common.enums.CourseLevel;
-import com.gii.common.enums.CollectionType;
 import com.gii.common.enums.InstructorRole;
 import com.gii.common.enums.LessonType;
 import com.gii.common.enums.MediaProvider;
 import com.gii.common.enums.PublishStatus;
 import com.gii.common.enums.StudyMode;
 import com.gii.common.enums.UserStatus;
-import com.gii.common.repository.course.CategoryRepository;
 import com.gii.common.repository.collection.CollectionCourseRepository;
 import com.gii.common.repository.collection.CollectionRepository;
+import com.gii.common.repository.course.CategoryRepository;
 import com.gii.common.repository.course.CourseCategoryRepository;
 import com.gii.common.repository.course.CourseInstructorRepository;
 import com.gii.common.repository.course.CourseRepository;
@@ -139,7 +139,7 @@ abstract class PublicApiTestSupport {
   }
 
   protected Category category(String name, String slug) {
-    return categoryRepository.save(Category.builder().name(name).slug(slug).build());
+    return categoryRepository.save(Category.builder().name(name).nameEn(name).slug(slug).build());
   }
 
   protected void attachCategory(Course course, Category category) {

@@ -3,6 +3,7 @@ package com.gii.api.adminapi;
 import com.gii.common.entity.collection.Collection;
 import com.gii.common.entity.collection.CollectionCourse;
 import com.gii.common.entity.collection.CollectionCourseId;
+import com.gii.common.entity.course.Category;
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.course.CourseInstructor;
 import com.gii.common.entity.course.CourseInstructorId;
@@ -20,9 +21,9 @@ import com.gii.common.entity.quiz.QuizQuestion;
 import com.gii.common.entity.user.InstructorProfile;
 import com.gii.common.entity.user.Role;
 import com.gii.common.entity.user.User;
+import com.gii.common.enums.CollectionType;
 import com.gii.common.enums.CourseLanguage;
 import com.gii.common.enums.CourseLevel;
-import com.gii.common.enums.CollectionType;
 import com.gii.common.enums.InstructorRole;
 import com.gii.common.enums.LessonType;
 import com.gii.common.enums.LiveClassProvider;
@@ -30,17 +31,19 @@ import com.gii.common.enums.LiveClassRegistrantStatus;
 import com.gii.common.enums.LiveClassStatus;
 import com.gii.common.enums.MediaProvider;
 import com.gii.common.enums.MediaStatus;
-import com.gii.common.enums.OrderProvider;
 import com.gii.common.enums.OrderItemType;
+import com.gii.common.enums.OrderProvider;
 import com.gii.common.enums.OrderStatus;
 import com.gii.common.enums.PublishStatus;
 import com.gii.common.enums.QuestionType;
 import com.gii.common.enums.SectionItemType;
 import com.gii.common.enums.StudyMode;
 import com.gii.common.enums.UserStatus;
-import com.gii.common.repository.course.CourseInstructorRepository;
 import com.gii.common.repository.collection.CollectionCourseRepository;
 import com.gii.common.repository.collection.CollectionRepository;
+import com.gii.common.repository.course.CategoryRepository;
+import com.gii.common.repository.course.CourseCategoryRepository;
+import com.gii.common.repository.course.CourseInstructorRepository;
 import com.gii.common.repository.course.CourseRepository;
 import com.gii.common.repository.course.CourseSectionRepository;
 import com.gii.common.repository.course.LessonRepository;
@@ -74,6 +77,8 @@ abstract class AdminApiTestSupport {
   @Autowired protected CollectionRepository collectionRepository;
   @Autowired protected CollectionCourseRepository collectionCourseRepository;
   @Autowired protected CourseRepository courseRepository;
+  @Autowired protected CategoryRepository categoryRepository;
+  @Autowired protected CourseCategoryRepository courseCategoryRepository;
   @Autowired protected CourseSectionRepository courseSectionRepository;
   @Autowired protected LessonRepository lessonRepository;
   @Autowired protected MediaAssetRepository mediaAssetRepository;
@@ -110,7 +115,9 @@ abstract class AdminApiTestSupport {
     lessonRepository.deleteAll();
     courseSectionRepository.deleteAll();
     courseInstructorRepository.deleteAll();
+    courseCategoryRepository.deleteAll();
     courseRepository.deleteAll();
+    categoryRepository.deleteAll();
     instructorProfileRepository.deleteAll();
     userRepository.deleteAll();
   }
@@ -184,6 +191,10 @@ abstract class AdminApiTestSupport {
       c.setPublishedAt(Instant.now());
     }
     return courseRepository.save(c);
+  }
+
+  protected Category category(String name, String nameEn, String slug) {
+    return categoryRepository.save(Category.builder().name(name).nameEn(nameEn).slug(slug).build());
   }
 
   protected CourseSection section(Course course, int position) {

@@ -3,13 +3,16 @@ package com.gii.api.service.admin;
 import com.gii.api.model.request.admin.CreateCourseRequest;
 import com.gii.api.model.request.admin.ReorderCourseStructureRequest;
 import com.gii.api.model.request.admin.UpdateCourseRequest;
+import com.gii.api.model.response.admin.AdminCategoryResponse;
 import com.gii.api.model.response.admin.AdminCourseDetailResponse;
 import com.gii.api.model.response.admin.AdminCourseSectionResponse;
 import com.gii.api.model.response.admin.AdminCourseSummaryResponse;
 import com.gii.api.model.response.admin.AdminInstructorSummaryResponse;
 import com.gii.api.service.enrollment.CurrentUserService;
 import com.gii.api.service.storage.AssetUrlService;
+import com.gii.common.entity.course.Category;
 import com.gii.common.entity.course.Course;
+import com.gii.common.entity.course.CourseCategory;
 import com.gii.common.entity.course.CourseInstructor;
 import com.gii.common.entity.course.CourseSection;
 import com.gii.common.entity.course.SectionItem;
@@ -21,6 +24,8 @@ import com.gii.common.enums.InstructorRole;
 import com.gii.common.enums.PublishStatus;
 import com.gii.common.enums.SectionItemType;
 import com.gii.common.enums.StudyMode;
+import com.gii.common.repository.course.CategoryRepository;
+import com.gii.common.repository.course.CourseCategoryRepository;
 import com.gii.common.repository.course.CourseInstructorRepository;
 import com.gii.common.repository.course.CourseRepository;
 import com.gii.common.repository.course.CourseSectionRepository;
@@ -29,6 +34,7 @@ import com.gii.common.repository.course.SectionItemRepository;
 import com.gii.common.repository.enrollment.EnrollmentRepository;
 import com.gii.common.repository.quiz.QuizRepository;
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -50,6 +56,8 @@ import org.springframework.web.server.ResponseStatusException;
 public class AdminCourseManagementService {
 
   private final CourseRepository courseRepository;
+  private final CategoryRepository categoryRepository;
+  private final CourseCategoryRepository courseCategoryRepository;
   private final CourseSectionRepository sectionRepository;
   private final LessonRepository lessonRepository;
   private final QuizRepository quizRepository;
@@ -128,7 +136,9 @@ public class AdminCourseManagementService {
             .recordedHoursCount(0)
             .createdBy(user)
             .build();
-    return getResponse(courseRepository.save(course));
+    Course savedCourse = courseRepository.save(course);
+    replaceCategories(savedCourse, request.categoryIds());
+    return getResponse(savedCourse);
   }
 
   @Transactional(readOnly = true)
@@ -155,6 +165,9 @@ public class AdminCourseManagementService {
     }
     if (request.slug() != null) {
       course.setSlug(request.slug().trim());
+    }
+    if (request.categoryIds() != null) {
+      replaceCategories(course, request.categoryIds());
     }
     if (request.thumbnailObjectKey() != null) {
       course.setThumbnailObjectKey(
@@ -368,6 +381,14 @@ public class AdminCourseManagementService {
   }
 
   private AdminCourseDetailResponse getResponse(Course course) {
+    List<AdminCategoryResponse> categories =
+        courseCategoryRepository.findByCourseId(course.getId()).stream()
+            .map(CourseCategory::getCategory)
+            .map(this::toCategoryResponse)
+            .sorted(
+                Comparator.comparing(AdminCategoryResponse::name, String.CASE_INSENSITIVE_ORDER))
+            .toList();
+
     List<AdminCourseSectionResponse> sections =
         sectionRepository.findByCourseIdOrderByPositionAsc(course.getId()).stream()
             .map(sectionManagementService::toResponse)
@@ -395,6 +416,7 @@ public class AdminCourseManagementService {
         .title(course.getTitle())
         .titleEn(course.getTitleEn())
         .slug(course.getSlug())
+        .categories(categories)
         .thumbnailObjectKey(course.getThumbnailObjectKey())
         .thumbnailUrl(assetUrlService.publicUrl(course.getThumbnailObjectKey()))
         .shortDescription(course.getShortDescription())
@@ -431,6 +453,42 @@ public class AdminCourseManagementService {
         .updatedAt(course.getUpdatedAt())
         .sections(sections)
         .instructors(instructors)
+        .build();
+  }
+
+  private void replaceCategories(Course course, List<UUID> categoryIds) {
+    if (categoryIds == null || categoryIds.isEmpty()) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Course must have at least one category");
+    }
+    Set<UUID> uniqueCategoryIds = new HashSet<>(categoryIds);
+    if (uniqueCategoryIds.size() != categoryIds.size()) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Duplicate categories are not allowed");
+    }
+    List<Category> categories = categoryRepository.findAllById(uniqueCategoryIds);
+    if (categories.size() != uniqueCategoryIds.size()) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "One or more categories not found");
+    }
+
+    List<CourseCategory> existing = courseCategoryRepository.findByCourseId(course.getId());
+    if (!existing.isEmpty()) {
+      courseCategoryRepository.deleteAllInBatch(existing);
+    }
+    courseCategoryRepository.saveAll(
+        categories.stream()
+            .map(category -> CourseCategory.builder().course(course).category(category).build())
+            .toList());
+  }
+
+  private AdminCategoryResponse toCategoryResponse(Category category) {
+    return AdminCategoryResponse.builder()
+        .id(category.getId())
+        .name(category.getName())
+        .nameEn(category.getNameEn())
+        .slug(category.getSlug())
+        .parentId(category.getParent() != null ? category.getParent().getId() : null)
+        .createdAt(category.getCreatedAt())
         .build();
   }
 

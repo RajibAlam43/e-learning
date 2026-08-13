@@ -1,6 +1,7 @@
 package com.gii.api.controller;
 
 import com.gii.api.model.request.admin.AssignInstructorToCourseRequest;
+import com.gii.api.model.request.admin.CreateCategoryRequest;
 import com.gii.api.model.request.admin.CreateCollectionRequest;
 import com.gii.api.model.request.admin.CreateCourseRequest;
 import com.gii.api.model.request.admin.CreateInstructorRequest;
@@ -10,8 +11,9 @@ import com.gii.api.model.request.admin.CreateSectionRequest;
 import com.gii.api.model.request.admin.CreateThumbnailUploadRequest;
 import com.gii.api.model.request.admin.ReorderCourseStructureRequest;
 import com.gii.api.model.request.admin.SetCollectionCoursesRequest;
-import com.gii.api.model.request.admin.UpdateCourseRequest;
+import com.gii.api.model.request.admin.UpdateCategoryRequest;
 import com.gii.api.model.request.admin.UpdateCollectionRequest;
+import com.gii.api.model.request.admin.UpdateCourseRequest;
 import com.gii.api.model.request.admin.UpdateInstructorRequest;
 import com.gii.api.model.request.admin.UpdateMediaAssetRequest;
 import com.gii.api.model.request.admin.UpdateOrderRequest;
@@ -19,6 +21,7 @@ import com.gii.api.model.request.admin.UpdateQuizRequest;
 import com.gii.api.model.request.admin.UpdateSectionRequest;
 import com.gii.api.model.request.lesson.CreateLessonRequest;
 import com.gii.api.model.request.lesson.UpdateLessonRequest;
+import com.gii.api.model.response.admin.AdminCategoryResponse;
 import com.gii.api.model.response.admin.AdminCollectionDetailResponse;
 import com.gii.api.model.response.admin.AdminCollectionSummaryResponse;
 import com.gii.api.model.response.admin.AdminCourseDetailResponse;
@@ -33,8 +36,9 @@ import com.gii.api.model.response.admin.AdminOrderDetailResponse;
 import com.gii.api.model.response.admin.AdminOrderSummaryResponse;
 import com.gii.api.model.response.admin.AdminQuizDetailResponse;
 import com.gii.api.model.response.admin.ThumbnailUploadResponse;
-import com.gii.api.service.admin.AdminCourseManagementService;
+import com.gii.api.service.admin.AdminCategoryManagementService;
 import com.gii.api.service.admin.AdminCollectionManagementService;
+import com.gii.api.service.admin.AdminCourseManagementService;
 import com.gii.api.service.admin.AdminInstructorManagementService;
 import com.gii.api.service.admin.AdminLessonManagementService;
 import com.gii.api.service.admin.AdminLiveClassManagementService;
@@ -43,12 +47,12 @@ import com.gii.api.service.admin.AdminOrderManagementService;
 import com.gii.api.service.admin.AdminQuizManagementService;
 import com.gii.api.service.admin.AdminSectionManagementService;
 import com.gii.api.service.admin.AdminThumbnailUploadService;
+import com.gii.common.enums.LiveClassStatus;
 import java.util.List;
 import java.util.UUID;
-import com.gii.common.enums.LiveClassStatus;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
 import org.springframework.data.domain.Page;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -57,6 +61,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminApiController implements AdminApi {
 
   private final AdminCourseManagementService courseManagementService;
+  private final AdminCategoryManagementService categoryManagementService;
   private final AdminCollectionManagementService collectionManagementService;
   private final AdminSectionManagementService sectionManagementService;
   private final AdminLessonManagementService lessonManagementService;
@@ -71,6 +76,22 @@ public class AdminApiController implements AdminApi {
   public ResponseEntity<ThumbnailUploadResponse> createThumbnailUpload(
       CreateThumbnailUploadRequest request) {
     return ResponseEntity.ok(thumbnailUploadService.execute(request));
+  }
+
+  @Override
+  public ResponseEntity<List<AdminCategoryResponse>> listCategories() {
+    return ResponseEntity.ok(categoryManagementService.list());
+  }
+
+  @Override
+  public ResponseEntity<AdminCategoryResponse> createCategory(CreateCategoryRequest request) {
+    return ResponseEntity.ok(categoryManagementService.create(request));
+  }
+
+  @Override
+  public ResponseEntity<AdminCategoryResponse> updateCategory(
+      UUID categoryId, UpdateCategoryRequest request) {
+    return ResponseEntity.ok(categoryManagementService.update(categoryId, request));
   }
 
   @Override

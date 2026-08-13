@@ -1,6 +1,7 @@
 package com.gii.api.controller;
 
 import com.gii.api.model.request.CreateSupportTicketRequest;
+import com.gii.api.model.response.CategoryResponse;
 import com.gii.api.model.response.CollectionDetailsResponse;
 import com.gii.api.model.response.CollectionSummaryResponse;
 import com.gii.api.model.response.CourseDetailsResponse;
@@ -8,9 +9,9 @@ import com.gii.api.model.response.CourseSummaryResponse;
 import com.gii.api.model.response.InstructorDetailsResponse;
 import com.gii.api.model.response.InstructorSummaryResponse;
 import com.gii.api.model.response.PageResponse;
+import com.gii.common.enums.CollectionType;
 import com.gii.common.enums.CourseLanguage;
 import com.gii.common.enums.CourseLevel;
-import com.gii.common.enums.CollectionType;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -33,6 +34,13 @@ import org.springframework.web.bind.annotation.RequestParam;
 @Tag(name = "Public", description = "Public course catalog, instructors, and support")
 @RequestMapping("/public")
 public interface PublicApi {
+
+  @GetMapping("/categories")
+  @Operation(
+      summary = "List categories",
+      description = "Get all categories localized using lang or Accept-Language.")
+  @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Categories retrieved")})
+  ResponseEntity<List<CategoryResponse>> getAllCategories();
 
   @GetMapping("/courses")
   @Operation(

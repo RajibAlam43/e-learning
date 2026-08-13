@@ -1,6 +1,7 @@
 package com.gii.api.controller;
 
 import com.gii.api.model.request.admin.AssignInstructorToCourseRequest;
+import com.gii.api.model.request.admin.CreateCategoryRequest;
 import com.gii.api.model.request.admin.CreateCollectionRequest;
 import com.gii.api.model.request.admin.CreateCourseRequest;
 import com.gii.api.model.request.admin.CreateInstructorRequest;
@@ -10,8 +11,9 @@ import com.gii.api.model.request.admin.CreateSectionRequest;
 import com.gii.api.model.request.admin.CreateThumbnailUploadRequest;
 import com.gii.api.model.request.admin.ReorderCourseStructureRequest;
 import com.gii.api.model.request.admin.SetCollectionCoursesRequest;
-import com.gii.api.model.request.admin.UpdateCourseRequest;
+import com.gii.api.model.request.admin.UpdateCategoryRequest;
 import com.gii.api.model.request.admin.UpdateCollectionRequest;
+import com.gii.api.model.request.admin.UpdateCourseRequest;
 import com.gii.api.model.request.admin.UpdateInstructorRequest;
 import com.gii.api.model.request.admin.UpdateMediaAssetRequest;
 import com.gii.api.model.request.admin.UpdateOrderRequest;
@@ -19,6 +21,7 @@ import com.gii.api.model.request.admin.UpdateQuizRequest;
 import com.gii.api.model.request.admin.UpdateSectionRequest;
 import com.gii.api.model.request.lesson.CreateLessonRequest;
 import com.gii.api.model.request.lesson.UpdateLessonRequest;
+import com.gii.api.model.response.admin.AdminCategoryResponse;
 import com.gii.api.model.response.admin.AdminCollectionDetailResponse;
 import com.gii.api.model.response.admin.AdminCollectionSummaryResponse;
 import com.gii.api.model.response.admin.AdminCourseDetailResponse;
@@ -33,6 +36,7 @@ import com.gii.api.model.response.admin.AdminOrderDetailResponse;
 import com.gii.api.model.response.admin.AdminOrderSummaryResponse;
 import com.gii.api.model.response.admin.AdminQuizDetailResponse;
 import com.gii.api.model.response.admin.ThumbnailUploadResponse;
+import com.gii.common.enums.LiveClassStatus;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -43,9 +47,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
-import com.gii.common.enums.LiveClassStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.data.domain.Page;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -67,6 +70,21 @@ public interface AdminApi {
   @Operation(summary = "Create a direct R2 thumbnail upload URL")
   ResponseEntity<ThumbnailUploadResponse> createThumbnailUpload(
       @Valid @RequestBody CreateThumbnailUploadRequest request);
+
+  // ===== CATEGORY MANAGEMENT =====
+  @GetMapping("/categories")
+  @Operation(summary = "List all categories")
+  ResponseEntity<List<AdminCategoryResponse>> listCategories();
+
+  @PostMapping("/categories")
+  @Operation(summary = "Create category")
+  ResponseEntity<AdminCategoryResponse> createCategory(
+      @Valid @RequestBody CreateCategoryRequest request);
+
+  @PatchMapping("/categories/{categoryId}")
+  @Operation(summary = "Update category")
+  ResponseEntity<AdminCategoryResponse> updateCategory(
+      @PathVariable UUID categoryId, @Valid @RequestBody UpdateCategoryRequest request);
 
   // ===== COLLECTION MANAGEMENT =====
   @GetMapping("/collections")

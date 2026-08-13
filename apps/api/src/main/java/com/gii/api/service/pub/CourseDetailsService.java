@@ -6,8 +6,8 @@ import com.gii.api.model.response.CourseSectionResponse;
 import com.gii.api.model.response.InstructorSummaryResponse;
 import com.gii.api.model.response.LessonSummaryResponse;
 import com.gii.api.model.response.LessonVideoResponse;
-import com.gii.api.service.storage.AssetUrlService;
 import com.gii.api.service.localization.LocalizedContentService;
+import com.gii.api.service.storage.AssetUrlService;
 import com.gii.common.entity.course.Category;
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.course.CourseSection;
@@ -164,6 +164,7 @@ public class CourseDetailsService {
         .id(category.getId())
         .name(localizedContentService.text(category.getName(), category.getNameEn()))
         .slug(category.getSlug())
+        .parentId(category.getParent() != null ? category.getParent().getId() : null)
         .build();
   }
 
