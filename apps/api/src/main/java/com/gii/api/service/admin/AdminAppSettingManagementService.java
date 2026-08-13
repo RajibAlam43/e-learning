@@ -22,7 +22,8 @@ public class AdminAppSettingManagementService {
   private static final Pattern SENSITIVE_KEY =
       Pattern.compile(
           "(^|[._-])"
-              + "(secret|password|token|credential|private|api[_-]?key|access[_-]?key)"
+              + "(secrets?|passwords?|tokens?|credentials?|private|api[_-]?keys?"
+              + "|access[_-]?keys?)"
               + "($|[._-])");
 
   private final AppSettingRepository appSettingRepository;
@@ -41,7 +42,8 @@ public class AdminAppSettingManagementService {
 
   public AdminAppSettingResponse upsert(String key, UpsertAppSettingRequest request) {
     String normalizedKey = normalizeKey(key);
-    if (Boolean.TRUE.equals(request.isPublic()) && SENSITIVE_KEY.matcher(normalizedKey).find()) {
+    if (Boolean.TRUE.equals(request.isPublic())
+        && (isSensitiveKey(normalizedKey) || containsSensitiveField(request.value()))) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "Sensitive settings cannot be public");
     }
@@ -71,6 +73,29 @@ public class AdminAppSettingManagementService {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid setting key");
     }
     return normalized;
+  }
+
+  private boolean containsSensitiveField(Object value) {
+    if (value instanceof java.util.Map<?, ?> map) {
+      return map.entrySet().stream()
+          .anyMatch(
+              entry ->
+                  isSensitiveKey(String.valueOf(entry.getKey()))
+                      || containsSensitiveField(entry.getValue()));
+    }
+    if (value instanceof Iterable<?> values) {
+      for (Object item : values) {
+        if (containsSensitiveField(item)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  private boolean isSensitiveKey(String key) {
+    String normalized = key.replaceAll("([a-z0-9])([A-Z])", "$1_$2").toLowerCase(Locale.ROOT);
+    return SENSITIVE_KEY.matcher(normalized).find();
   }
 
   private String trimToNull(String value) {

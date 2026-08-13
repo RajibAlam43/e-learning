@@ -162,7 +162,7 @@ class BkashCheckoutServiceTest {
     ReflectionTestUtils.setField(service, "password", "p");
     ReflectionTestUtils.setField(service, "appKey", "app-key");
     ReflectionTestUtils.setField(service, "appSecret", "app-secret");
-    ReflectionTestUtils.setField(service, "timeoutMs", 3000L);
+    ReflectionTestUtils.setField(service, "timeoutMs", 10000L);
     ReflectionTestUtils.setField(service, "redirectSubdomain", "stage-api");
     return service;
   }

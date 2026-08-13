@@ -131,6 +131,19 @@ class AdminCatalogFeaturesApiIt extends AbstractAdminApiIntegrationTest {
     upsertSetting(admin.getId(), "internal.flags", false, "Hidden").andExpect(status().isOk());
     upsertSetting(admin.getId(), "payment.api_key", true, "Never expose")
         .andExpect(status().isBadRequest());
+    mockMvc
+        .perform(
+            put("/admin/settings/homepage.integrations")
+                .with(authentication(adminAuth(admin.getId())))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "value":{"provider":{"apiKey":"never-expose"}},
+                      "isPublic":true
+                    }
+                    """))
+        .andExpect(status().isBadRequest());
 
     mockMvc
         .perform(get("/public/settings"))
