@@ -1,6 +1,7 @@
 package com.gii.common.entity.course;
 
 import com.gii.common.entity.common.BaseUuidEntity;
+import com.gii.common.enums.LessonResourcePurpose;
 import com.gii.common.enums.LessonResourceType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -14,6 +15,7 @@ import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -40,6 +42,11 @@ public class LessonResource extends BaseUuidEntity {
   @Enumerated(EnumType.STRING)
   @Column(name = "resource_type", nullable = false, length = 20)
   private LessonResourceType resourceType;
+
+  @Enumerated(EnumType.STRING)
+  @Column(name = "purpose", nullable = false, length = 30)
+  @Builder.Default
+  private LessonResourcePurpose purpose = LessonResourcePurpose.SUPPLEMENTARY;
 
   @Column(name = "title")
   private String title;

@@ -6,11 +6,11 @@ import com.gii.api.model.response.instructor.InstructorLiveClassResponse;
 import com.gii.api.model.response.instructor.InstructorLiveClassStartResponse;
 import com.gii.api.model.response.instructor.LiveClassRegistrantSummaryResponse;
 import com.gii.api.service.enrollment.CurrentUserService;
+import com.gii.api.service.live.LiveMeetingCancelRequest;
 import com.gii.api.service.live.LiveMeetingCreateRequest;
 import com.gii.api.service.live.LiveMeetingCreateResult;
-import com.gii.api.service.live.LiveMeetingUpdateRequest;
-import com.gii.api.service.live.LiveMeetingCancelRequest;
 import com.gii.api.service.live.LiveMeetingProvisioningService;
+import com.gii.api.service.live.LiveMeetingUpdateRequest;
 import com.gii.api.service.localization.LocalizedContentService;
 import com.gii.common.entity.course.CourseSection;
 import com.gii.common.entity.live.LiveClass;
@@ -187,17 +187,23 @@ public class InstructorLiveClassService {
       ensureNoProviderOverlap(liveClass.getProvider(), startsAt, endsAt, liveClass.getId());
       syncProviderUpdate(
           liveClass,
-          request.title() != null && !request.title().isBlank() ? request.title().trim() : liveClass.getTitle(),
+          request.title() != null && !request.title().isBlank()
+              ? request.title().trim()
+              : liveClass.getTitle(),
           request.description() != null ? request.description() : liveClass.getDescription(),
           startsAt,
           endsAt);
       liveClass.setStartsAt(startsAt);
       liveClass.setEndsAt(endsAt);
     }
-    if (request.startsAt() == null && request.endsAt() == null && (request.title() != null || request.description() != null)) {
+    if (request.startsAt() == null
+        && request.endsAt() == null
+        && (request.title() != null || request.description() != null)) {
       syncProviderUpdate(
           liveClass,
-          request.title() != null && !request.title().isBlank() ? request.title().trim() : liveClass.getTitle(),
+          request.title() != null && !request.title().isBlank()
+              ? request.title().trim()
+              : liveClass.getTitle(),
           request.description() != null ? request.description() : liveClass.getDescription(),
           liveClass.getStartsAt(),
           liveClass.getEndsAt());
@@ -230,7 +236,8 @@ public class InstructorLiveClassService {
   private void syncProviderUpdate(
       LiveClass liveClass, String title, String description, Instant startsAt, Instant endsAt) {
     if (isBlank(liveClass.effectiveMeetingId())) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Live class meeting is not provisioned");
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Live class meeting is not provisioned");
     }
     liveMeetingProvisioningService.updateMeeting(
         LiveMeetingUpdateRequest.builder()
@@ -245,7 +252,8 @@ public class InstructorLiveClassService {
 
   private void syncProviderCancel(LiveClass liveClass) {
     if (isBlank(liveClass.effectiveMeetingId())) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Live class meeting is not provisioned");
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Live class meeting is not provisioned");
     }
     liveMeetingProvisioningService.cancelMeeting(
         LiveMeetingCancelRequest.builder()
@@ -285,13 +293,11 @@ public class InstructorLiveClassService {
     }
   }
 
-  private void ensureNoProviderOverlap(LiveClassProvider provider, Instant startsAt, Instant endsAt) {
+  private void ensureNoProviderOverlap(
+      LiveClassProvider provider, Instant startsAt, Instant endsAt) {
     boolean overlap =
         liveClassRepository.existsOverlappingByProvider(
-            provider,
-            List.of(LiveClassStatus.SCHEDULED, LiveClassStatus.LIVE),
-            startsAt,
-            endsAt);
+            provider, List.of(LiveClassStatus.SCHEDULED, LiveClassStatus.LIVE), startsAt, endsAt);
     if (overlap) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "Provider host account already has overlapping live class");
@@ -367,8 +373,7 @@ public class InstructorLiveClassService {
         .liveClassId(liveClass.getId())
         .title(localizedContentService.text(liveClass.getTitle(), liveClass.getTitleEn()))
         .description(
-            localizedContentService.text(
-                liveClass.getDescription(), liveClass.getDescriptionEn()))
+            localizedContentService.text(liveClass.getDescription(), liveClass.getDescriptionEn()))
         .courseId(liveClass.getCourse().getId())
         .courseName(
             localizedContentService.text(
@@ -415,5 +420,4 @@ public class InstructorLiveClassService {
   private boolean isBlank(String value) {
     return value == null || value.isBlank();
   }
-
 }

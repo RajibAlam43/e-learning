@@ -1,6 +1,7 @@
 package com.gii.api.service.admin;
 
 import com.gii.api.model.request.admin.CreateCourseRequest;
+import com.gii.api.model.request.admin.FeatureCourseRequest;
 import com.gii.api.model.request.admin.ReorderCourseStructureRequest;
 import com.gii.api.model.request.admin.UpdateCourseRequest;
 import com.gii.api.model.response.admin.AdminCategoryResponse;
@@ -92,6 +93,9 @@ public class AdminCourseManagementService {
                   .isFree(course.getIsFree())
                   .instructorName(instructorNameByCourseId.get(course.getId()))
                   .totalEnrolled(activeEnrollmentCountByCourseId.getOrDefault(course.getId(), 0))
+                  .isFeatured(course.getIsFeatured())
+                  .featuredPosition(course.getFeaturedPosition())
+                  .featuredAt(course.getFeaturedAt())
                   .publishedAt(course.getPublishedAt())
                   .createdAt(course.getCreatedAt())
                   .build();
@@ -108,8 +112,7 @@ public class AdminCourseManagementService {
             .titleEn(request.titleEn())
             .slug(request.slug().trim())
             .thumbnailObjectKey(
-                assetUrlService.normalizeThumbnailKey(
-                    request.thumbnailObjectKey(), "courses"))
+                assetUrlService.normalizeThumbnailKey(request.thumbnailObjectKey(), "courses"))
             .shortDescription(request.shortDescription())
             .shortDescriptionEn(request.shortDescriptionEn())
             .description(request.description())
@@ -263,7 +266,38 @@ public class AdminCourseManagementService {
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found"));
     course.setStatus(PublishStatus.DRAFT);
+    clearFeatured(course);
     courseRepository.save(course);
+  }
+
+  public AdminCourseDetailResponse feature(UUID courseId, FeatureCourseRequest request) {
+    Course course = findCourse(courseId);
+    if (course.getStatus() != PublishStatus.PUBLISHED) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Only published courses can be featured");
+    }
+    course.setIsFeatured(true);
+    course.setFeaturedPosition(request.position());
+    course.setFeaturedAt(Instant.now());
+    return getResponse(courseRepository.save(course));
+  }
+
+  public void unfeature(UUID courseId) {
+    Course course = findCourse(courseId);
+    clearFeatured(course);
+    courseRepository.save(course);
+  }
+
+  private Course findCourse(UUID courseId) {
+    return courseRepository
+        .findById(courseId)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found"));
+  }
+
+  private void clearFeatured(Course course) {
+    course.setIsFeatured(false);
+    course.setFeaturedPosition(null);
+    course.setFeaturedAt(null);
   }
 
   public void reorder(UUID courseId, ReorderCourseStructureRequest request) {
@@ -302,15 +336,12 @@ public class AdminCourseManagementService {
     List<SectionItem> itemsToReposition = new java.util.ArrayList<>();
     Map<UUID, Integer> targetPositionByItemId = new LinkedHashMap<>();
     for (var itemReq : secReq.items()) {
-      if (itemReq.itemId() == null
-          || itemReq.itemType() == null
-          || itemReq.newPosition() == null) {
+      if (itemReq.itemId() == null || itemReq.itemType() == null || itemReq.newPosition() == null) {
         throw new ResponseStatusException(
             HttpStatus.BAD_REQUEST, "Invalid section item reorder entry");
       }
       if (itemReq.newPosition() <= 0) {
-        throw new ResponseStatusException(
-            HttpStatus.BAD_REQUEST, "Item position must be positive");
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Item position must be positive");
       }
       if (!seenItemIds.add(itemReq.itemId()) || !seenPositions.add(itemReq.newPosition())) {
         throw new ResponseStatusException(
@@ -434,6 +465,9 @@ public class AdminCourseManagementService {
         .language(course.getLanguage())
         .studyMode(course.getStudyMode())
         .status(course.getStatus())
+        .isFeatured(course.getIsFeatured())
+        .featuredPosition(course.getFeaturedPosition())
+        .featuredAt(course.getFeaturedAt())
         .isFree(course.getIsFree())
         .liveSessionCount(course.getLiveSessionCount())
         .quizCount(course.getQuizCount())

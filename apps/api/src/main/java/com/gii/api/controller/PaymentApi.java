@@ -92,9 +92,8 @@ public interface PaymentApi {
       Authentication authentication);
 
   @RequestMapping(
-          value = "/payments/sslcommerz/{orderId}/success",
-          method = {RequestMethod.GET, RequestMethod.POST}
-  )
+      value = "/payments/sslcommerz/{orderId}/success",
+      method = {RequestMethod.GET, RequestMethod.POST})
   @Operation(
       summary = "Payment success callback",
       description = "Handle payment provider success redirect.",
@@ -109,9 +108,8 @@ public interface PaymentApi {
       @PathVariable UUID orderId, @RequestParam Map<String, String> queryParams);
 
   @RequestMapping(
-          value = "/payments/sslcommerz/{orderId}/failed",
-          method = {RequestMethod.GET, RequestMethod.POST}
-  )
+      value = "/payments/sslcommerz/{orderId}/failed",
+      method = {RequestMethod.GET, RequestMethod.POST})
   @Operation(
       summary = "Payment failed callback",
       description = "Handle payment provider failed redirect.",
@@ -125,9 +123,8 @@ public interface PaymentApi {
       @PathVariable UUID orderId, @RequestParam Map<String, String> queryParams);
 
   @RequestMapping(
-          value = "/payments/sslcommerz/{orderId}/cancelled",
-          method = {RequestMethod.GET, RequestMethod.POST}
-  )
+      value = "/payments/sslcommerz/{orderId}/cancelled",
+      method = {RequestMethod.GET, RequestMethod.POST})
   @Operation(
       summary = "Payment cancelled callback",
       description = "Handle payment provider cancelled redirect.",
@@ -141,9 +138,8 @@ public interface PaymentApi {
       @PathVariable UUID orderId, @RequestParam Map<String, String> queryParams);
 
   @RequestMapping(
-          value = "/payments/bkash/{orderId}/success",
-          method = {RequestMethod.GET, RequestMethod.POST}
-  )
+      value = "/payments/bkash/{orderId}/success",
+      method = {RequestMethod.GET, RequestMethod.POST})
   @Operation(
       summary = "bKash payment success callback",
       description = "Handle bKash success redirect.",
@@ -158,9 +154,8 @@ public interface PaymentApi {
       @PathVariable UUID orderId, @RequestParam Map<String, String> queryParams);
 
   @RequestMapping(
-          value = "/payments/bkash/{orderId}/failed",
-          method = {RequestMethod.GET, RequestMethod.POST}
-  )
+      value = "/payments/bkash/{orderId}/failed",
+      method = {RequestMethod.GET, RequestMethod.POST})
   @Operation(
       summary = "bKash payment failed callback",
       description = "Handle bKash failed redirect.",
@@ -174,9 +169,8 @@ public interface PaymentApi {
       @PathVariable UUID orderId, @RequestParam Map<String, String> queryParams);
 
   @RequestMapping(
-          value = "/payments/bkash/{orderId}/cancelled",
-          method = {RequestMethod.GET, RequestMethod.POST}
-  )
+      value = "/payments/bkash/{orderId}/cancelled",
+      method = {RequestMethod.GET, RequestMethod.POST})
   @Operation(
       summary = "bKash payment cancelled callback",
       description = "Handle bKash cancelled redirect.",

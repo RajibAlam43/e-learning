@@ -1,8 +1,8 @@
 package com.gii.api.service.live;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import java.nio.charset.StandardCharsets;
 import com.gii.common.enums.LiveClassProvider;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.ZoneOffset;
 import java.util.Base64;
@@ -45,13 +45,17 @@ public class ZoomLiveMeetingProvider implements LiveMeetingProvider {
 
   @Override
   public LiveMeetingCreateResult create(LiveMeetingCreateRequest request) {
-    if (accountId.isBlank() || clientId.isBlank() || clientSecret.isBlank() || hostUserId.isBlank()) {
+    if (accountId.isBlank()
+        || clientId.isBlank()
+        || clientSecret.isBlank()
+        || hostUserId.isBlank()) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "Zoom OAuth credentials are not configured");
     }
     String accessToken = issueAccessToken();
 
-    long durationMinutes = Math.max(1, Duration.between(request.startsAt(), request.endsAt()).toMinutes());
+    long durationMinutes =
+        Math.max(1, Duration.between(request.startsAt(), request.endsAt()).toMinutes());
     ZoomCreateMeetingResponse response =
         webClientBuilder
             .baseUrl(baseUrl)
@@ -73,8 +77,7 @@ public class ZoomLiveMeetingProvider implements LiveMeetingProvider {
             .block();
 
     if (response == null || response.id() == null || response.join_url() == null) {
-      throw new ResponseStatusException(
-          HttpStatus.BAD_GATEWAY, "Failed to create Zoom meeting");
+      throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Failed to create Zoom meeting");
     }
 
     return LiveMeetingCreateResult.builder()
@@ -87,7 +90,8 @@ public class ZoomLiveMeetingProvider implements LiveMeetingProvider {
   @Override
   public void update(LiveMeetingUpdateRequest request) {
     String accessToken = issueAccessToken();
-    long durationMinutes = Math.max(1, Duration.between(request.startsAt(), request.endsAt()).toMinutes());
+    long durationMinutes =
+        Math.max(1, Duration.between(request.startsAt(), request.endsAt()).toMinutes());
     webClientBuilder
         .baseUrl(baseUrl)
         .build()
@@ -123,7 +127,12 @@ public class ZoomLiveMeetingProvider implements LiveMeetingProvider {
   }
 
   private record ZoomCreateMeetingRequest(
-      String topic, String agenda, String start_time, long duration, Integer type, String timezone) {}
+      String topic,
+      String agenda,
+      String start_time,
+      long duration,
+      Integer type,
+      String timezone) {}
 
   private record ZoomCreateMeetingResponse(Long id, String start_url, String join_url) {}
 
@@ -139,7 +148,8 @@ public class ZoomLiveMeetingProvider implements LiveMeetingProvider {
             .uri(
                 oauthTokenUrl
                     + "?grant_type=account_credentials&account_id="
-                    + java.net.URLEncoder.encode(accountId, java.nio.charset.StandardCharsets.UTF_8))
+                    + java.net.URLEncoder.encode(
+                        accountId, java.nio.charset.StandardCharsets.UTF_8))
             .header(HttpHeaders.AUTHORIZATION, "Basic " + basicAuth)
             .retrieve()
             .bodyToMono(ZoomOAuthTokenResponse.class)

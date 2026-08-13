@@ -8,7 +8,10 @@ import com.gii.api.model.response.admin.LessonResourceUploadResponse;
 import com.gii.api.service.storage.R2PresignedUrlService;
 import com.gii.common.entity.course.Lesson;
 import com.gii.common.entity.course.LessonResource;
+import com.gii.common.enums.LessonResourcePurpose;
 import com.gii.common.enums.LessonResourceType;
+import com.gii.common.enums.LessonType;
+import com.gii.common.enums.PublishStatus;
 import com.gii.common.repository.course.LessonRepository;
 import com.gii.common.repository.course.LessonResourceRepository;
 import java.util.Locale;
@@ -74,8 +77,11 @@ public class AdminLessonResourceManagementService {
 
   public AdminLessonResourceResponse create(UUID lessonId, CreateLessonResourceRequest request) {
     final Lesson lesson = requireLesson(lessonId);
+    LessonResourcePurpose purpose =
+        request.purpose() != null ? request.purpose() : LessonResourcePurpose.SUPPLEMENTARY;
     validateObjectKey(lessonId, request.objectKey());
     validateTypeAndMime(request.resourceType(), request.mimeType());
+    validatePurpose(lesson, purpose, request.resourceType(), null);
     ensurePositionAvailable(lessonId, request.position(), null);
     LessonResource resource =
         LessonResource.builder()
@@ -83,6 +89,7 @@ public class AdminLessonResourceManagementService {
             .title(request.title().trim())
             .titleEn(trimToNull(request.titleEn()))
             .resourceType(request.resourceType())
+            .purpose(purpose)
             .mimeType(request.mimeType().trim().toLowerCase(Locale.ROOT))
             .fileObjectKey(request.objectKey().trim())
             .fileUrl(request.objectKey().trim())
@@ -104,9 +111,20 @@ public class AdminLessonResourceManagementService {
     }
     LessonResourceType type =
         request.resourceType() != null ? request.resourceType() : resource.getResourceType();
+    LessonResourcePurpose purpose =
+        request.purpose() != null ? request.purpose() : resource.getPurpose();
     String mimeType = request.mimeType() != null ? request.mimeType() : resource.getMimeType();
     validateTypeAndMime(type, mimeType);
+    validatePurpose(resource.getLesson(), purpose, type, resourceId);
+    if (resource.getLesson().getStatus() == PublishStatus.PUBLISHED
+        && resource.getLesson().getLessonType() == LessonType.PDF
+        && resource.getPurpose() == LessonResourcePurpose.PRIMARY_CONTENT
+        && purpose != LessonResourcePurpose.PRIMARY_CONTENT) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Unpublish the PDF lesson before removing its primary resource");
+    }
     resource.setResourceType(type);
+    resource.setPurpose(purpose);
     resource.setMimeType(mimeType.trim().toLowerCase(Locale.ROOT));
     if (request.objectKey() != null) {
       validateObjectKey(resource.getLesson().getId(), request.objectKey());
@@ -121,7 +139,14 @@ public class AdminLessonResourceManagementService {
   }
 
   public void delete(UUID resourceId) {
-    lessonResourceRepository.delete(findResource(resourceId));
+    LessonResource resource = findResource(resourceId);
+    if (resource.getLesson().getStatus() == PublishStatus.PUBLISHED
+        && resource.getLesson().getLessonType() == LessonType.PDF
+        && resource.getPurpose() == LessonResourcePurpose.PRIMARY_CONTENT) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Unpublish the PDF lesson before deleting its primary resource");
+    }
+    lessonResourceRepository.delete(resource);
   }
 
   private Lesson requireLesson(UUID lessonId) {
@@ -166,6 +191,28 @@ public class AdminLessonResourceManagementService {
     }
   }
 
+  private void validatePurpose(
+      Lesson lesson,
+      LessonResourcePurpose purpose,
+      LessonResourceType type,
+      UUID currentResourceId) {
+    if (purpose != LessonResourcePurpose.PRIMARY_CONTENT) {
+      return;
+    }
+    if (lesson.getLessonType() != LessonType.PDF || type != LessonResourceType.PDF) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Primary content must be a PDF resource on a PDF lesson");
+    }
+    lessonResourceRepository
+        .findByLessonIdAndPurpose(lesson.getId(), LessonResourcePurpose.PRIMARY_CONTENT)
+        .filter(existing -> !existing.getId().equals(currentResourceId))
+        .ifPresent(
+            existing -> {
+              throw new ResponseStatusException(
+                  HttpStatus.BAD_REQUEST, "PDF lesson already has a primary resource");
+            });
+  }
+
   private void ensurePositionAvailable(UUID lessonId, Integer position, UUID currentResourceId) {
     lessonResourceRepository.findByLessonIdOrderByPositionAsc(lessonId).stream()
         .filter(resource -> resource.getPosition().equals(position))
@@ -185,6 +232,7 @@ public class AdminLessonResourceManagementService {
         .title(resource.getTitle())
         .titleEn(resource.getTitleEn())
         .resourceType(resource.getResourceType())
+        .purpose(resource.getPurpose())
         .mimeType(resource.getMimeType())
         .fileUrl(resource.getFileUrl())
         .objectKey(resource.getFileObjectKey())

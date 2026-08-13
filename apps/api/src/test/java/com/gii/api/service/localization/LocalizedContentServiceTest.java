@@ -22,8 +22,7 @@ class LocalizedContentServiceTest {
     LocaleContextHolder.setLocale(Locale.ENGLISH);
 
     assertThat(service.text("বাংলা", "English")).isEqualTo("English");
-    assertThat(service.list(List.of("বাংলা"), List.of("English")))
-        .containsExactly("English");
+    assertThat(service.list(List.of("বাংলা"), List.of("English"))).containsExactly("English");
   }
 
   @Test
@@ -31,8 +30,7 @@ class LocalizedContentServiceTest {
     LocaleContextHolder.setLocale(Locale.forLanguageTag("bn-BD"));
 
     assertThat(service.text("বাংলা", "English")).isEqualTo("বাংলা");
-    assertThat(service.list(List.of("বাংলা"), List.of("English")))
-        .containsExactly("বাংলা");
+    assertThat(service.list(List.of("বাংলা"), List.of("English"))).containsExactly("বাংলা");
   }
 
   @Test

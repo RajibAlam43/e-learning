@@ -61,6 +61,7 @@ import com.gii.common.repository.quiz.QuizAttemptRepository;
 import com.gii.common.repository.quiz.QuizChoiceRepository;
 import com.gii.common.repository.quiz.QuizQuestionRepository;
 import com.gii.common.repository.quiz.QuizRepository;
+import com.gii.common.repository.setting.AppSettingRepository;
 import com.gii.common.repository.support.SupportTicketRepository;
 import com.gii.common.repository.user.InstructorProfileRepository;
 import com.gii.common.repository.user.RoleRepository;
@@ -104,8 +105,10 @@ abstract class AdminApiTestSupport {
   @Autowired protected SupportTicketRepository supportTicketRepository;
   @Autowired protected OrderItemRepository orderItemRepository;
   @Autowired protected OrderRepository orderRepository;
+  @Autowired protected AppSettingRepository appSettingRepository;
 
   protected void cleanupAdminData() {
+    appSettingRepository.deleteAll();
     courseReviewRepository.deleteAll();
     supportTicketRepository.deleteAll();
     collectionCourseRepository.deleteAll();
@@ -223,17 +226,17 @@ abstract class AdminApiTestSupport {
   protected Lesson lesson(Course course, CourseSection section, int position) {
     Lesson lesson =
         lessonRepository.save(
-        Lesson.builder()
-            .course(course)
-            .section(section)
-            .title("Lesson " + position)
-            .slug("lesson-" + position + "-" + UUID.randomUUID().toString().substring(0, 6))
-            .position(position)
-            .lessonType(LessonType.VIDEO)
-            .status(PublishStatus.DRAFT)
-            .isFree(false)
-            .isMandatory(false)
-            .build());
+            Lesson.builder()
+                .course(course)
+                .section(section)
+                .title("Lesson " + position)
+                .slug("lesson-" + position + "-" + UUID.randomUUID().toString().substring(0, 6))
+                .position(position)
+                .lessonType(LessonType.VIDEO)
+                .status(PublishStatus.DRAFT)
+                .isFree(false)
+                .isMandatory(false)
+                .build());
     sectionItemRepository.save(
         SectionItem.builder()
             .section(section)
@@ -331,16 +334,16 @@ abstract class AdminApiTestSupport {
             + 1;
     Quiz quiz =
         quizRepository.save(
-        Quiz.builder()
-            .course(course)
-            .section(section)
-            .position(position)
-            .title(title)
-            .status(PublishStatus.DRAFT)
-            .passingScorePct(70)
-            .maxAttempts(2)
-            .timeLimitSec(900)
-            .build());
+            Quiz.builder()
+                .course(course)
+                .section(section)
+                .position(position)
+                .title(title)
+                .status(PublishStatus.DRAFT)
+                .passingScorePct(70)
+                .maxAttempts(2)
+                .timeLimitSec(900)
+                .build());
     sectionItemRepository.save(
         SectionItem.builder()
             .section(section)

@@ -10,6 +10,7 @@ import com.gii.api.model.response.CourseSummaryResponse;
 import com.gii.api.model.response.InstructorDetailsResponse;
 import com.gii.api.model.response.InstructorSummaryResponse;
 import com.gii.api.model.response.PageResponse;
+import com.gii.api.model.response.PublicAppSettingResponse;
 import com.gii.api.model.response.SupportTicketCreatedResponse;
 import com.gii.common.enums.CollectionType;
 import com.gii.common.enums.CourseLanguage;
@@ -64,6 +65,15 @@ public interface PublicApi {
       @RequestParam(required = false) CourseLevel level,
       @RequestParam(required = false) CourseLanguage language,
       @PageableDefault(size = 20, sort = "publishedAt") Pageable pageable);
+
+  @GetMapping("/courses/featured")
+  @Operation(summary = "List featured published courses")
+  ResponseEntity<List<CourseSummaryResponse>> getFeaturedCourses(
+      @RequestParam(defaultValue = "8") int limit);
+
+  @GetMapping("/settings")
+  @Operation(summary = "List settings explicitly marked public")
+  ResponseEntity<List<PublicAppSettingResponse>> getPublicSettings();
 
   @GetMapping("/courses/{slug}")
   @Operation(

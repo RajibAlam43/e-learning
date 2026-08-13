@@ -11,6 +11,7 @@ import com.gii.api.model.request.admin.CreateMediaAssetRequest;
 import com.gii.api.model.request.admin.CreateQuizRequest;
 import com.gii.api.model.request.admin.CreateSectionRequest;
 import com.gii.api.model.request.admin.CreateThumbnailUploadRequest;
+import com.gii.api.model.request.admin.FeatureCourseRequest;
 import com.gii.api.model.request.admin.ReorderCourseStructureRequest;
 import com.gii.api.model.request.admin.SetCollectionCoursesRequest;
 import com.gii.api.model.request.admin.UpdateCategoryRequest;
@@ -23,8 +24,10 @@ import com.gii.api.model.request.admin.UpdateOrderRequest;
 import com.gii.api.model.request.admin.UpdateQuizRequest;
 import com.gii.api.model.request.admin.UpdateSectionRequest;
 import com.gii.api.model.request.admin.UpdateSupportTicketRequest;
+import com.gii.api.model.request.admin.UpsertAppSettingRequest;
 import com.gii.api.model.request.lesson.CreateLessonRequest;
 import com.gii.api.model.request.lesson.UpdateLessonRequest;
+import com.gii.api.model.response.admin.AdminAppSettingResponse;
 import com.gii.api.model.response.admin.AdminCategoryResponse;
 import com.gii.api.model.response.admin.AdminCollectionDetailResponse;
 import com.gii.api.model.response.admin.AdminCollectionSummaryResponse;
@@ -44,6 +47,7 @@ import com.gii.api.model.response.admin.AdminQuizDetailResponse;
 import com.gii.api.model.response.admin.AdminSupportTicketResponse;
 import com.gii.api.model.response.admin.LessonResourceUploadResponse;
 import com.gii.api.model.response.admin.ThumbnailUploadResponse;
+import com.gii.api.service.admin.AdminAppSettingManagementService;
 import com.gii.api.service.admin.AdminCategoryManagementService;
 import com.gii.api.service.admin.AdminCollectionManagementService;
 import com.gii.api.service.admin.AdminCourseManagementService;
@@ -87,6 +91,7 @@ public class AdminApiController implements AdminApi {
   private final AdminLiveClassManagementService liveClassManagementService;
   private final AdminOrderManagementService orderManagementService;
   private final AdminThumbnailUploadService thumbnailUploadService;
+  private final AdminAppSettingManagementService appSettingManagementService;
 
   @Override
   public ResponseEntity<ThumbnailUploadResponse> createThumbnailUpload(
@@ -222,6 +227,40 @@ public class AdminApiController implements AdminApi {
   public ResponseEntity<Void> unpublishCourse(UUID courseId) {
     courseManagementService.unpublish(courseId);
     return ResponseEntity.ok().build();
+  }
+
+  @Override
+  public ResponseEntity<AdminCourseDetailResponse> featureCourse(
+      UUID courseId, FeatureCourseRequest request) {
+    return ResponseEntity.ok(courseManagementService.feature(courseId, request));
+  }
+
+  @Override
+  public ResponseEntity<Void> unfeatureCourse(UUID courseId) {
+    courseManagementService.unfeature(courseId);
+    return ResponseEntity.ok().build();
+  }
+
+  @Override
+  public ResponseEntity<List<AdminAppSettingResponse>> listSettings() {
+    return ResponseEntity.ok(appSettingManagementService.list());
+  }
+
+  @Override
+  public ResponseEntity<AdminAppSettingResponse> getSetting(String key) {
+    return ResponseEntity.ok(appSettingManagementService.get(key));
+  }
+
+  @Override
+  public ResponseEntity<AdminAppSettingResponse> upsertSetting(
+      String key, UpsertAppSettingRequest request) {
+    return ResponseEntity.ok(appSettingManagementService.upsert(key, request));
+  }
+
+  @Override
+  public ResponseEntity<Void> deleteSetting(String key) {
+    appSettingManagementService.delete(key);
+    return ResponseEntity.noContent().build();
   }
 
   @Override

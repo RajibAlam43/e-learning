@@ -11,6 +11,7 @@ import com.gii.api.model.request.admin.CreateMediaAssetRequest;
 import com.gii.api.model.request.admin.CreateQuizRequest;
 import com.gii.api.model.request.admin.CreateSectionRequest;
 import com.gii.api.model.request.admin.CreateThumbnailUploadRequest;
+import com.gii.api.model.request.admin.FeatureCourseRequest;
 import com.gii.api.model.request.admin.ReorderCourseStructureRequest;
 import com.gii.api.model.request.admin.SetCollectionCoursesRequest;
 import com.gii.api.model.request.admin.UpdateCategoryRequest;
@@ -23,8 +24,10 @@ import com.gii.api.model.request.admin.UpdateOrderRequest;
 import com.gii.api.model.request.admin.UpdateQuizRequest;
 import com.gii.api.model.request.admin.UpdateSectionRequest;
 import com.gii.api.model.request.admin.UpdateSupportTicketRequest;
+import com.gii.api.model.request.admin.UpsertAppSettingRequest;
 import com.gii.api.model.request.lesson.CreateLessonRequest;
 import com.gii.api.model.request.lesson.UpdateLessonRequest;
+import com.gii.api.model.response.admin.AdminAppSettingResponse;
 import com.gii.api.model.response.admin.AdminCategoryResponse;
 import com.gii.api.model.response.admin.AdminCollectionDetailResponse;
 import com.gii.api.model.response.admin.AdminCollectionSummaryResponse;
@@ -66,6 +69,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -232,6 +236,33 @@ public interface AdminApi {
         @ApiResponse(responseCode = "404", description = "Course not found")
       })
   ResponseEntity<Void> unpublishCourse(@PathVariable UUID courseId);
+
+  @PostMapping("/courses/{courseId}/feature")
+  @Operation(summary = "Feature a published course")
+  ResponseEntity<AdminCourseDetailResponse> featureCourse(
+      @PathVariable UUID courseId, @Valid @RequestBody FeatureCourseRequest request);
+
+  @PostMapping("/courses/{courseId}/unfeature")
+  @Operation(summary = "Remove course from featured courses")
+  ResponseEntity<Void> unfeatureCourse(@PathVariable UUID courseId);
+
+  // ===== APPLICATION SETTINGS =====
+  @GetMapping("/settings")
+  @Operation(summary = "List application settings")
+  ResponseEntity<List<AdminAppSettingResponse>> listSettings();
+
+  @GetMapping("/settings/{key}")
+  @Operation(summary = "Get application setting")
+  ResponseEntity<AdminAppSettingResponse> getSetting(@PathVariable String key);
+
+  @PutMapping("/settings/{key}")
+  @Operation(summary = "Create or replace application setting")
+  ResponseEntity<AdminAppSettingResponse> upsertSetting(
+      @PathVariable String key, @Valid @RequestBody UpsertAppSettingRequest request);
+
+  @DeleteMapping("/settings/{key}")
+  @Operation(summary = "Delete application setting")
+  ResponseEntity<Void> deleteSetting(@PathVariable String key);
 
   // ===== SECTION MANAGEMENT =====
   @PostMapping("/courses/{courseId}/sections")

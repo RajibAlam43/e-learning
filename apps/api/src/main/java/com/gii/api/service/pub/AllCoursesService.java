@@ -86,6 +86,35 @@ public class AllCoursesService {
         .build();
   }
 
+  public List<CourseSummaryResponse> executeFeatured(int requestedLimit) {
+    int limit = Math.clamp(requestedLimit, 1, MAX_PAGE_SIZE);
+    Pageable pageable =
+        PageRequest.of(
+            0,
+            limit,
+            Sort.by(
+                Sort.Order.asc("featuredPosition"),
+                Sort.Order.desc("featuredAt"),
+                Sort.Order.desc("id")));
+    List<Course> courses =
+        courseRepository
+            .findByStatusAndIsFeaturedTrue(PublishStatus.PUBLISHED, pageable)
+            .getContent();
+    List<UUID> courseIds = courses.stream().map(Course::getId).toList();
+    Map<UUID, List<String>> categories = getCategoryNamesByCourseId(courseIds);
+    Map<UUID, List<String>> instructors = getInstructorNamesByCourseId(courseIds);
+    Map<UUID, ReviewAggregate> reviews = getReviewAggregates(courseIds);
+    return courses.stream()
+        .map(
+            course ->
+                toCourseSummaryResponse(
+                    course,
+                    categories.getOrDefault(course.getId(), List.of()),
+                    instructors.getOrDefault(course.getId(), List.of()),
+                    reviews.getOrDefault(course.getId(), ReviewAggregate.EMPTY)))
+        .toList();
+  }
+
   private Pageable createSafePageable(Pageable pageable) {
     int pageNumber = Math.max(pageable.getPageNumber(), 0);
     int pageSize = Math.clamp(pageable.getPageSize(), 1, MAX_PAGE_SIZE);

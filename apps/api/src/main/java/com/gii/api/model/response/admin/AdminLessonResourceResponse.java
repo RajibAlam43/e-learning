@@ -1,5 +1,6 @@
 package com.gii.api.model.response.admin;
 
+import com.gii.common.enums.LessonResourcePurpose;
 import com.gii.common.enums.LessonResourceType;
 import java.time.Instant;
 import java.util.UUID;
@@ -12,6 +13,7 @@ public record AdminLessonResourceResponse(
     String title,
     String titleEn,
     LessonResourceType resourceType, // PDF, IMAGE
+    LessonResourcePurpose purpose,
     String mimeType, // e.g., "application/pdf", "image/png"
     String fileUrl,
     String objectKey,

@@ -30,7 +30,6 @@ public class SqsConfig {
     return mapper;
   }
 
-
   @Bean
   @Profile("local")
   public SqsAsyncClient sqsAsyncClientLocal() {

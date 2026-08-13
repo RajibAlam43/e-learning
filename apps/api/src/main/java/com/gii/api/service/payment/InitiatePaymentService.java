@@ -56,10 +56,12 @@ public class InitiatePaymentService {
     }
 
     String sessionId = "pay_" + UUID.randomUUID();
-    String redirectUrl = "/payments/" + order.getId() + "/gateway/" + request.provider().name().toLowerCase();
+    String redirectUrl =
+        "/payments/" + order.getId() + "/gateway/" + request.provider().name().toLowerCase();
 
     if (request.provider() == OrderProvider.BKASH) {
-      BkashCheckoutService.CreatePaymentResult createResult = bkashCheckoutService.createPayment(order);
+      BkashCheckoutService.CreatePaymentResult createResult =
+          bkashCheckoutService.createPayment(order);
       sessionId = createResult.paymentId();
       if (createResult.bkashUrl() != null && !createResult.bkashUrl().isBlank()) {
         redirectUrl = createResult.bkashUrl();
@@ -72,10 +74,7 @@ public class InitiatePaymentService {
                 firstNonBlank(order.getUser().getPhone(), sslcommerzFallbackPhone));
         SslcommerzCheckoutService.InitiationResult result =
             sslcommerzCheckoutService.createSession(
-                order,
-                order.getUser().getFullName(),
-                customerEmail,
-                customerPhone);
+                order, order.getUser().getFullName(), customerEmail, customerPhone);
         sessionId = result.tranId();
         redirectUrl = result.gatewayPageUrl();
       }
@@ -124,5 +123,4 @@ public class InitiatePaymentService {
     }
     return normalized;
   }
-
 }

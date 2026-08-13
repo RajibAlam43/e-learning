@@ -10,6 +10,8 @@ import com.gii.common.entity.course.CourseSection;
 import com.gii.common.entity.course.Lesson;
 import com.gii.common.entity.course.MediaAsset;
 import com.gii.common.entity.course.SectionItem;
+import com.gii.common.enums.LessonResourcePurpose;
+import com.gii.common.enums.LessonResourceType;
 import com.gii.common.enums.LessonType;
 import com.gii.common.enums.PublishStatus;
 import com.gii.common.enums.ReleaseType;
@@ -100,7 +102,14 @@ public class AdminLessonManagementService {
       lesson.setPosition(request.position());
     }
     if (request.lessonType() != null) {
-      lesson.setLessonType(parseLessonType(request.lessonType()));
+      LessonType requestedType = parseLessonType(request.lessonType());
+      if (lesson.getStatus() == PublishStatus.PUBLISHED
+          && requestedType != lesson.getLessonType()
+          && (requestedType == LessonType.PDF || lesson.getLessonType() == LessonType.PDF)) {
+        throw new ResponseStatusException(
+            HttpStatus.BAD_REQUEST, "Unpublish the lesson before changing its PDF lesson type");
+      }
+      lesson.setLessonType(requestedType);
     }
     if (request.isMandatory() != null) {
       lesson.setIsMandatory(request.isMandatory());
@@ -152,6 +161,12 @@ public class AdminLessonManagementService {
             .findById(lessonId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lesson not found"));
+    if (lesson.getLessonType() == LessonType.PDF
+        && !resourceRepository.existsByLessonIdAndPurposeAndResourceType(
+            lessonId, LessonResourcePurpose.PRIMARY_CONTENT, LessonResourceType.PDF)) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "PDF lesson requires a primary PDF resource before publishing");
+    }
     lesson.setStatus(PublishStatus.PUBLISHED);
     lessonRepository.save(lesson);
   }
@@ -221,7 +236,7 @@ public class AdminLessonManagementService {
                 .updatedAt(mediaAsset.getUpdatedAt())
                 .build();
 
-    List<AdminLessonResourceResponse> resources =
+    List<AdminLessonResourceResponse> allResources =
         resourceRepository.findByLessonIdOrderByPositionAsc(lesson.getId()).stream()
             .map(
                 r ->
@@ -231,6 +246,7 @@ public class AdminLessonManagementService {
                         .title(r.getTitle())
                         .titleEn(r.getTitleEn())
                         .resourceType(r.getResourceType())
+                        .purpose(r.getPurpose())
                         .mimeType(r.getMimeType())
                         .fileUrl(r.getFileUrl())
                         .objectKey(r.getFileObjectKey())
@@ -238,6 +254,15 @@ public class AdminLessonManagementService {
                         .createdAt(r.getCreatedAt())
                         .updatedAt(r.getUpdatedAt())
                         .build())
+            .toList();
+    AdminLessonResourceResponse primaryResource =
+        allResources.stream()
+            .filter(r -> r.purpose() == LessonResourcePurpose.PRIMARY_CONTENT)
+            .findFirst()
+            .orElse(null);
+    List<AdminLessonResourceResponse> resources =
+        allResources.stream()
+            .filter(r -> r.purpose() == LessonResourcePurpose.SUPPLEMENTARY)
             .toList();
 
     return AdminLessonDetailResponse.builder()
@@ -259,6 +284,7 @@ public class AdminLessonManagementService {
         .createdAt(lesson.getCreatedAt())
         .updatedAt(lesson.getUpdatedAt())
         .mediaAsset(media)
+        .primaryResource(primaryResource)
         .resources(resources)
         .build();
   }

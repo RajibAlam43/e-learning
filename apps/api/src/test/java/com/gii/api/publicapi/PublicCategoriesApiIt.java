@@ -29,9 +29,7 @@ class PublicCategoriesApiIt extends AbstractPublicApiIntegrationTest {
         .andExpect(jsonPath("$[?(@.slug == 'technology')].name", hasItem("প্রযুক্তি")))
         .andExpect(jsonPath("$[?(@.slug == 'programming')].name", hasItem("প্রোগ্রামিং")))
         .andExpect(
-            jsonPath(
-                "$[?(@.slug == 'programming')].parentId",
-                hasItem(parent.getId().toString())));
+            jsonPath("$[?(@.slug == 'programming')].parentId", hasItem(parent.getId().toString())));
 
     mockMvc
         .perform(get("/public/categories").param("lang", "en"))

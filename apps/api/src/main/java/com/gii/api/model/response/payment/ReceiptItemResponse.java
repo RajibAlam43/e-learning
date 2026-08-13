@@ -9,7 +9,6 @@ public record ReceiptItemResponse(
     UUID itemId,
     String itemName,
     String itemSlug,
-
     UUID courseId,
     String courseName,
     String courseSlug,
@@ -22,4 +21,4 @@ public record ReceiptItemResponse(
     // Access info
     String accessStartDate,
     String accessExpiryDate // If applicable
-) {}
+    ) {}
