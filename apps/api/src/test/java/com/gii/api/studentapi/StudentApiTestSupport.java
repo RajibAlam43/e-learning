@@ -38,6 +38,7 @@ import com.gii.common.repository.collection.CollectionCourseRepository;
 import com.gii.common.repository.collection.CollectionEnrollmentRepository;
 import com.gii.common.repository.collection.CollectionRepository;
 import com.gii.common.repository.course.CourseRepository;
+import com.gii.common.repository.course.CourseReviewRepository;
 import com.gii.common.repository.course.CourseSectionRepository;
 import com.gii.common.repository.course.LessonRepository;
 import com.gii.common.repository.enrollment.EnrollmentRepository;
@@ -46,6 +47,7 @@ import com.gii.common.repository.live.LiveClassRegistrantRepository;
 import com.gii.common.repository.live.LiveClassRepository;
 import com.gii.common.repository.order.OrderItemRepository;
 import com.gii.common.repository.order.OrderRepository;
+import com.gii.common.repository.quiz.QuizAttemptRepository;
 import com.gii.common.repository.quiz.QuizRepository;
 import com.gii.common.repository.user.UserProfileRepository;
 import com.gii.common.repository.user.UserRepository;
@@ -62,6 +64,7 @@ abstract class StudentApiTestSupport {
   @Autowired protected UserRepository userRepository;
   @Autowired protected UserProfileRepository userProfileRepository;
   @Autowired protected CourseRepository courseRepository;
+  @Autowired protected CourseReviewRepository courseReviewRepository;
   @Autowired protected CollectionRepository collectionRepository;
   @Autowired protected CollectionCourseRepository collectionCourseRepository;
   @Autowired protected CollectionEnrollmentRepository collectionEnrollmentRepository;
@@ -73,10 +76,12 @@ abstract class StudentApiTestSupport {
   @Autowired protected OrderItemRepository orderItemRepository;
   @Autowired protected CertificateRepository certificateRepository;
   @Autowired protected QuizRepository quizRepository;
+  @Autowired protected QuizAttemptRepository quizAttemptRepository;
   @Autowired protected LiveClassRepository liveClassRepository;
   @Autowired protected LiveClassRegistrantRepository liveClassRegistrantRepository;
 
   protected void cleanupStudentData() {
+    courseReviewRepository.deleteAll();
     certificateRepository.deleteAll();
     collectionEnrollmentRepository.deleteAll();
     collectionCourseRepository.deleteAll();
@@ -87,6 +92,7 @@ abstract class StudentApiTestSupport {
     enrollmentRepository.deleteAll();
     orderItemRepository.deleteAll();
     orderRepository.deleteAll();
+    quizAttemptRepository.deleteAll();
     quizRepository.deleteAll();
     lessonRepository.deleteAll();
     courseSectionRepository.deleteAll();

@@ -9,6 +9,8 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
@@ -48,9 +50,23 @@ public class LessonResource extends BaseUuidEntity {
   @Column(name = "file_url", nullable = false)
   private String fileUrl;
 
+  @Column(name = "file_object_key", nullable = false)
+  private String fileObjectKey;
+
   @Column(name = "mime_type")
   private String mimeType;
 
   @Column(name = "position", nullable = false)
   private Integer position;
+
+  @PrePersist
+  @PreUpdate
+  void synchronizeStorageFields() {
+    if ((fileObjectKey == null || fileObjectKey.isBlank()) && fileUrl != null) {
+      fileObjectKey = fileUrl;
+    }
+    if ((fileUrl == null || fileUrl.isBlank()) && fileObjectKey != null) {
+      fileUrl = fileObjectKey;
+    }
+  }
 }

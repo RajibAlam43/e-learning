@@ -14,7 +14,9 @@ import com.gii.common.enums.EnrollmentStatus;
 import com.gii.common.enums.InstructorRole;
 import com.gii.common.enums.LiveClassStatus;
 import com.gii.common.enums.PublishStatus;
+import com.gii.common.enums.ReviewStatus;
 import com.gii.common.repository.course.CourseInstructorRepository;
+import com.gii.common.repository.course.CourseReviewRepository;
 import com.gii.common.repository.course.CourseSectionRepository;
 import com.gii.common.repository.course.LessonRepository;
 import com.gii.common.repository.enrollment.EnrollmentRepository;
@@ -47,6 +49,7 @@ public class InstructorDashboardService {
   private final CurrentUserService currentUserService;
   private final InstructorProfileRepository instructorProfileRepository;
   private final CourseInstructorRepository courseInstructorRepository;
+  private final CourseReviewRepository courseReviewRepository;
   private final EnrollmentRepository enrollmentRepository;
   private final CourseSectionRepository courseSectionRepository;
   private final LessonRepository lessonRepository;
@@ -123,6 +126,7 @@ public class InstructorDashboardService {
         courseIds.stream()
             .mapToInt(courseId -> activeEnrollmentsByCourseId.getOrDefault(courseId, 0))
             .sum();
+    ReviewAggregate reviewAggregate = aggregateReviews(courseIds);
 
     return InstructorDashboardResponse.builder()
         .instructorName(instructor.getFullName())
@@ -137,10 +141,28 @@ public class InstructorDashboardService {
         .totalStudentsAcrossAllCourses(totalStudents)
         .assignedCourses(snapshots)
         .upcomingLiveClasses(upcomingResponses)
-        .averageCourseRating(null)
-        .totalReviews(null)
+        .averageCourseRating(reviewAggregate.averageRating())
+        .totalReviews(reviewAggregate.totalReviews())
         .build();
   }
+
+  private ReviewAggregate aggregateReviews(List<UUID> courseIds) {
+    if (courseIds.isEmpty()) {
+      return new ReviewAggregate(null, 0);
+    }
+    double weightedRating = 0;
+    int totalReviews = 0;
+    for (Object[] row :
+        courseReviewRepository.aggregateByCourseIdsAndStatus(courseIds, ReviewStatus.PUBLISHED)) {
+      int count = ((Number) row[2]).intValue();
+      weightedRating += ((Number) row[1]).doubleValue() * count;
+      totalReviews += count;
+    }
+    return new ReviewAggregate(
+        totalReviews == 0 ? null : weightedRating / totalReviews, totalReviews);
+  }
+
+  private record ReviewAggregate(Double averageRating, Integer totalReviews) {}
 
   private List<InstructorUpcomingLiveClassResponse> toUpcomingLiveClassResponses(
       List<LiveClass> upcoming, UUID instructorId) {
@@ -203,8 +225,7 @@ public class InstructorDashboardService {
         .liveClassId(liveClass.getId())
         .title(localizedContentService.text(liveClass.getTitle(), liveClass.getTitleEn()))
         .description(
-            localizedContentService.text(
-                liveClass.getDescription(), liveClass.getDescriptionEn()))
+            localizedContentService.text(liveClass.getDescription(), liveClass.getDescriptionEn()))
         .startsAt(liveClass.getStartsAt())
         .endsAt(liveClass.getEndsAt())
         .timeLabel(TIME_LABEL_FORMATTER.format(liveClass.getStartsAt()))

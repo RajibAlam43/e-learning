@@ -5,10 +5,12 @@ import com.gii.api.model.response.CategoryResponse;
 import com.gii.api.model.response.CollectionDetailsResponse;
 import com.gii.api.model.response.CollectionSummaryResponse;
 import com.gii.api.model.response.CourseDetailsResponse;
+import com.gii.api.model.response.CourseReviewResponse;
 import com.gii.api.model.response.CourseSummaryResponse;
 import com.gii.api.model.response.InstructorDetailsResponse;
 import com.gii.api.model.response.InstructorSummaryResponse;
 import com.gii.api.model.response.PageResponse;
+import com.gii.api.model.response.SupportTicketCreatedResponse;
 import com.gii.common.enums.CollectionType;
 import com.gii.common.enums.CourseLanguage;
 import com.gii.common.enums.CourseLevel;
@@ -24,6 +26,7 @@ import java.util.UUID;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -77,6 +80,10 @@ public interface PublicApi {
         @ApiResponse(responseCode = "404", description = "Course not found")
       })
   ResponseEntity<CourseDetailsResponse> getCourseDetails(@PathVariable String slug);
+
+  @GetMapping("/courses/{slug}/reviews")
+  @Operation(summary = "List published course reviews")
+  ResponseEntity<List<CourseReviewResponse>> getCourseReviews(@PathVariable String slug);
 
   @GetMapping("/collections")
   @Operation(
@@ -136,5 +143,6 @@ public interface PublicApi {
         @ApiResponse(responseCode = "400", description = "Invalid input"),
         @ApiResponse(responseCode = "429", description = "Rate limit exceeded")
       })
-  ResponseEntity<Void> createSupportTicket(@Valid @RequestBody CreateSupportTicketRequest request);
+  ResponseEntity<SupportTicketCreatedResponse> createSupportTicket(
+      @Valid @RequestBody CreateSupportTicketRequest request, Authentication authentication);
 }

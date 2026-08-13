@@ -1,8 +1,10 @@
 package com.gii.api.controller;
 
+import com.gii.api.model.request.student.CreateCourseReviewRequest;
+import com.gii.api.model.response.CourseReviewResponse;
+import com.gii.api.model.response.student.StudentCertificateSummaryResponse;
 import com.gii.api.model.response.student.StudentCollectionDetailsResponse;
 import com.gii.api.model.response.student.StudentCollectionSummaryResponse;
-import com.gii.api.model.response.student.StudentCertificateSummaryResponse;
 import com.gii.api.model.response.student.StudentCourseHomeResponse;
 import com.gii.api.model.response.student.StudentCourseSummaryResponse;
 import com.gii.api.model.response.student.StudentDashboardResponse;
@@ -15,6 +17,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
@@ -22,6 +25,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 @Tag(
@@ -74,14 +79,16 @@ public interface StudentApi {
   @GetMapping("/collections/{collectionId}")
   @Operation(
       summary = "Get collection details",
-      description = "Get enrolled collection details with overall progress and per-course progress.")
+      description =
+          "Get enrolled collection details with overall progress and per-course progress.")
   @ApiResponses(
       value = {
         @ApiResponse(
             responseCode = "200",
             description = "Collection details retrieved",
             content =
-                @Content(schema = @Schema(implementation = StudentCollectionDetailsResponse.class))),
+                @Content(
+                    schema = @Schema(implementation = StudentCollectionDetailsResponse.class))),
         @ApiResponse(responseCode = "401", description = "Unauthorized"),
         @ApiResponse(responseCode = "404", description = "Collection not found or not enrolled")
       })
@@ -103,6 +110,13 @@ public interface StudentApi {
       })
   ResponseEntity<StudentCourseHomeResponse> getMyCourseDetails(
       @PathVariable UUID courseId, Authentication authentication);
+
+  @PostMapping("/courses/{courseId}/reviews")
+  @Operation(summary = "Submit course review")
+  ResponseEntity<CourseReviewResponse> createCourseReview(
+      @PathVariable UUID courseId,
+      @Valid @RequestBody CreateCourseReviewRequest request,
+      Authentication authentication);
 
   @GetMapping("/orders")
   @Operation(summary = "List my orders", description = "Get purchase history and order status.")
@@ -147,5 +161,4 @@ public interface StudentApi {
       })
   ResponseEntity<List<StudentLiveClassSummaryResponse>> getCourseLiveClasses(
       @PathVariable UUID courseId, Authentication authentication);
-
 }

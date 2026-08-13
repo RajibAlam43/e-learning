@@ -106,8 +106,8 @@ public interface LessonApi {
   @Operation(
       summary = "Get course progress",
       description =
-          "Get overall course progress: completion percentage, completed/total lessons"
-              + " per section.")
+          "Get overall course progress across published lessons and quizzes, with"
+              + " completed/total items per section. A quiz is complete after it is passed.")
   @ApiResponses(
       value = {
         @ApiResponse(

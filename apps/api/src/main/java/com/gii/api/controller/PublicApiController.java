@@ -5,16 +5,19 @@ import com.gii.api.model.response.CategoryResponse;
 import com.gii.api.model.response.CollectionDetailsResponse;
 import com.gii.api.model.response.CollectionSummaryResponse;
 import com.gii.api.model.response.CourseDetailsResponse;
+import com.gii.api.model.response.CourseReviewResponse;
 import com.gii.api.model.response.CourseSummaryResponse;
 import com.gii.api.model.response.InstructorDetailsResponse;
 import com.gii.api.model.response.InstructorSummaryResponse;
 import com.gii.api.model.response.PageResponse;
+import com.gii.api.model.response.SupportTicketCreatedResponse;
 import com.gii.api.service.pub.AllCategoriesService;
 import com.gii.api.service.pub.AllCollectionsService;
 import com.gii.api.service.pub.AllCoursesService;
 import com.gii.api.service.pub.AllInstructorsService;
 import com.gii.api.service.pub.CollectionDetailsService;
 import com.gii.api.service.pub.CourseDetailsService;
+import com.gii.api.service.pub.CourseReviewsService;
 import com.gii.api.service.pub.InstructorDetailsService;
 import com.gii.api.service.pub.SupportTicketService;
 import com.gii.common.enums.CollectionType;
@@ -25,6 +28,7 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -35,6 +39,7 @@ public class PublicApiController implements PublicApi {
   private final AllCategoriesService allCategoriesService;
   private final AllCollectionsService allCollectionsService;
   private final CourseDetailsService courseDetailsService;
+  private final CourseReviewsService courseReviewsService;
   private final CollectionDetailsService collectionDetailsService;
   private final AllInstructorsService allInstructorsService;
   private final InstructorDetailsService instructorDetailsService;
@@ -54,6 +59,11 @@ public class PublicApiController implements PublicApi {
   @Override
   public ResponseEntity<CourseDetailsResponse> getCourseDetails(String slug) {
     return ResponseEntity.ok(courseDetailsService.execute(slug));
+  }
+
+  @Override
+  public ResponseEntity<List<CourseReviewResponse>> getCourseReviews(String slug) {
+    return ResponseEntity.ok(courseReviewsService.execute(slug));
   }
 
   @Override
@@ -78,8 +88,9 @@ public class PublicApiController implements PublicApi {
   }
 
   @Override
-  public ResponseEntity<Void> createSupportTicket(CreateSupportTicketRequest request) {
-    supportTicketService.execute(request);
-    return ResponseEntity.ok().build();
+  public ResponseEntity<SupportTicketCreatedResponse> createSupportTicket(
+      CreateSupportTicketRequest request, Authentication authentication) {
+    return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED)
+        .body(supportTicketService.execute(request, authentication));
   }
 }

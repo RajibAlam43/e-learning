@@ -1,7 +1,7 @@
 package com.gii.common.entity.support;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.gii.common.entity.common.CreatedOnlyUuidEntity;
+import com.gii.common.entity.common.BaseUuidEntity;
 import com.gii.common.entity.user.User;
 import com.gii.common.enums.SupportTicketStatus;
 import jakarta.persistence.Column;
@@ -26,7 +26,7 @@ import lombok.experimental.SuperBuilder;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
 @Table(name = "support_tickets")
-public class SupportTicket extends CreatedOnlyUuidEntity {
+public class SupportTicket extends BaseUuidEntity {
 
   @JsonIgnore
   @ManyToOne(fetch = FetchType.LAZY)

@@ -15,9 +15,11 @@ import com.gii.common.entity.course.Lesson;
 import com.gii.common.entity.course.MediaAsset;
 import com.gii.common.entity.user.User;
 import com.gii.common.enums.PublishStatus;
+import com.gii.common.enums.ReviewStatus;
 import com.gii.common.repository.course.CourseCategoryRepository;
 import com.gii.common.repository.course.CourseInstructorRepository;
 import com.gii.common.repository.course.CourseRepository;
+import com.gii.common.repository.course.CourseReviewRepository;
 import com.gii.common.repository.course.CourseSectionRepository;
 import com.gii.common.repository.course.LessonRepository;
 import java.util.Comparator;
@@ -41,6 +43,7 @@ public class CourseDetailsService {
   private final LessonRepository lessonRepository;
   private final CourseCategoryRepository courseCategoryRepository;
   private final CourseInstructorRepository courseInstructorRepository;
+  private final CourseReviewRepository courseReviewRepository;
   private final AssetUrlService assetUrlService;
   private final LocalizedContentService localizedContentService;
 
@@ -84,6 +87,18 @@ public class CourseDetailsService {
             .sorted(Comparator.comparing(InstructorSummaryResponse::fullName))
             .toList();
 
+    List<Object[]> reviewAggregates =
+        courseReviewRepository.aggregateByCourseIdAndStatus(course.getId(), ReviewStatus.PUBLISHED);
+    Object[] reviewAggregate = reviewAggregates.isEmpty() ? null : reviewAggregates.getFirst();
+    Double averageRating =
+        reviewAggregate == null || reviewAggregate[0] == null
+            ? null
+            : ((Number) reviewAggregate[0]).doubleValue();
+    long totalReviews =
+        reviewAggregate == null || reviewAggregate[1] == null
+            ? 0L
+            : ((Number) reviewAggregate[1]).longValue();
+
     return CourseDetailsResponse.builder()
         .id(course.getId())
         .title(localizedContentService.text(course.getTitle(), course.getTitleEn()))
@@ -99,13 +114,11 @@ public class CourseDetailsService {
         .priceBdt(course.getPriceBdt())
         .highlights(localizedContentService.list(course.getHighlights(), course.getHighlightsEn()))
         .courseOutcomes(
-            localizedContentService.list(
-                course.getCourseOutcomes(), course.getCourseOutcomesEn()))
+            localizedContentService.list(course.getCourseOutcomes(), course.getCourseOutcomesEn()))
         .requirements(
             localizedContentService.list(course.getRequirements(), course.getRequirementsEn()))
         .prerequisites(
-            localizedContentService.list(
-                course.getPrerequisites(), course.getPrerequisitesEn()))
+            localizedContentService.list(course.getPrerequisites(), course.getPrerequisitesEn()))
         .studyMode(course.getStudyMode())
         .categories(categoryResponses)
         .publishedAt(course.getPublishedAt())
@@ -114,6 +127,8 @@ public class CourseDetailsService {
         .quizCount(course.getQuizCount())
         .recordedHoursCount(course.getRecordedHoursCount())
         .isFree(course.getIsFree())
+        .averageRating(averageRating)
+        .totalReviews(totalReviews)
         .sections(sectionResponses)
         .build();
   }

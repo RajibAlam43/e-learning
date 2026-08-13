@@ -27,6 +27,8 @@ public record StudentCourseHomeResponse(
     Double completionPercentage,
     Integer completedLessons,
     Integer totalLessons,
+    Integer completedItems,
+    Integer totalItems,
 
     // Course structure with progress
     List<StudentSectionHomeResponse> sections,

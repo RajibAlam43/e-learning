@@ -1,21 +1,23 @@
 package com.gii.api.controller;
 
+import com.gii.api.model.request.student.CreateCourseReviewRequest;
+import com.gii.api.model.response.CourseReviewResponse;
+import com.gii.api.model.response.student.StudentCertificateSummaryResponse;
 import com.gii.api.model.response.student.StudentCollectionDetailsResponse;
 import com.gii.api.model.response.student.StudentCollectionSummaryResponse;
-import com.gii.api.model.response.student.StudentCertificateSummaryResponse;
 import com.gii.api.model.response.student.StudentCourseHomeResponse;
 import com.gii.api.model.response.student.StudentCourseSummaryResponse;
 import com.gii.api.model.response.student.StudentDashboardResponse;
 import com.gii.api.model.response.student.StudentLiveClassSummaryResponse;
 import com.gii.api.model.response.student.StudentOrderSummaryResponse;
 import com.gii.api.service.student.CourseLiveClassesService;
+import com.gii.api.service.student.CourseReviewSubmissionService;
 import com.gii.api.service.student.EnrolledCourseDetailsService;
 import com.gii.api.service.student.EnrolledCoursesService;
+import com.gii.api.service.student.StudentCertificatesService;
 import com.gii.api.service.student.StudentCollectionDetailsService;
 import com.gii.api.service.student.StudentCollectionsService;
-import com.gii.api.service.student.StudentCertificatesService;
 import com.gii.api.service.student.StudentDashboardService;
-import com.gii.api.service.student.StudentJoinLiveClassesService;
 import com.gii.api.service.student.StudentOrdersService;
 import com.gii.api.service.student.StudentUpcomingLiveClasses;
 import java.util.List;
@@ -30,6 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class StudentApiController implements StudentApi {
 
   private final StudentDashboardService studentDashboardService;
+  private final CourseReviewSubmissionService courseReviewSubmissionService;
   private final EnrolledCoursesService enrolledCoursesService;
   private final StudentCollectionsService studentCollectionsService;
   private final StudentCollectionDetailsService studentCollectionDetailsService;
@@ -69,6 +72,13 @@ public class StudentApiController implements StudentApi {
   }
 
   @Override
+  public ResponseEntity<CourseReviewResponse> createCourseReview(
+      UUID courseId, CreateCourseReviewRequest request, Authentication authentication) {
+    return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED)
+        .body(courseReviewSubmissionService.execute(courseId, request, authentication));
+  }
+
+  @Override
   public ResponseEntity<List<StudentOrderSummaryResponse>> getMyOrders(
       Authentication authentication) {
     return ResponseEntity.ok(studentOrdersService.execute(authentication));
@@ -91,5 +101,4 @@ public class StudentApiController implements StudentApi {
       UUID courseId, Authentication authentication) {
     return ResponseEntity.ok(courseLiveClassesService.execute(courseId, authentication));
   }
-
 }

@@ -15,6 +15,9 @@ public record CourseProgressResponse(
     Integer totalLessons,
     Integer completedLessons,
     Integer pendingLessons,
+    Integer totalItems,
+    Integer completedItems,
+    Integer pendingItems,
     Double completionPercentage, // 0-100
 
     // Enrollment info

@@ -4,19 +4,24 @@ import com.gii.api.model.response.lesson.CourseProgressResponse;
 import com.gii.api.model.response.lesson.LessonProgressSummaryResponse;
 import com.gii.api.model.response.lesson.SectionProgressResponse;
 import com.gii.api.service.localization.LocalizedContentService;
+import com.gii.api.service.progress.CourseCompletionService;
+import com.gii.api.service.progress.CourseCompletionService.CourseCompletion;
 import com.gii.common.entity.course.CourseSection;
 import com.gii.common.entity.course.Lesson;
 import com.gii.common.entity.enrollment.Enrollment;
 import com.gii.common.entity.enrollment.LessonProgress;
+import com.gii.common.entity.quiz.Quiz;
 import com.gii.common.enums.EnrollmentStatus;
 import com.gii.common.enums.PublishStatus;
 import com.gii.common.repository.course.CourseSectionRepository;
 import com.gii.common.repository.course.LessonRepository;
 import com.gii.common.repository.enrollment.EnrollmentRepository;
 import com.gii.common.repository.enrollment.LessonProgressRepository;
+import com.gii.common.repository.quiz.QuizRepository;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -35,6 +40,8 @@ public class CourseProgressService {
   private final LessonRepository lessonRepository;
   private final LessonProgressRepository lessonProgressRepository;
   private final CourseSectionRepository sectionRepository;
+  private final QuizRepository quizRepository;
+  private final CourseCompletionService courseCompletionService;
   private final LocalizedContentService localizedContentService;
 
   public CourseProgressResponse execute(UUID courseId, Authentication authentication) {
@@ -56,6 +63,10 @@ public class CourseProgressService {
     List<CourseSection> sections =
         sectionRepository.findByCourseIdAndStatusOrderByPositionAsc(
             courseId, PublishStatus.PUBLISHED);
+    List<Quiz> quizzes =
+        quizRepository.findByCourseIdAndStatusOrderByPositionAsc(courseId, PublishStatus.PUBLISHED);
+    Set<UUID> passedQuizIds = courseCompletionService.getPassedQuizIds(userId, courseId);
+    CourseCompletion courseCompletion = courseCompletionService.get(userId, courseId);
 
     Map<UUID, LessonProgress> progressByLessonId = new HashMap<>();
     for (LessonProgress progress : progresses) {
@@ -65,6 +76,9 @@ public class CourseProgressService {
     Map<UUID, List<Lesson>> lessonsBySectionId =
         lessons.stream()
             .collect(java.util.stream.Collectors.groupingBy(lesson -> lesson.getSection().getId()));
+    Map<UUID, List<Quiz>> quizzesBySectionId =
+        quizzes.stream()
+            .collect(java.util.stream.Collectors.groupingBy(quiz -> quiz.getSection().getId()));
 
     List<SectionProgressResponse> sectionResponses =
         sections.stream()
@@ -81,8 +95,20 @@ public class CourseProgressService {
                               .filter(
                                   progress -> progress != null && progress.getCompletedAt() != null)
                               .count();
+                  List<Quiz> sectionQuizzes =
+                      quizzesBySectionId.getOrDefault(section.getId(), List.of());
+                  int completedQuizzes =
+                      (int)
+                          sectionQuizzes.stream()
+                              .map(Quiz::getId)
+                              .filter(passedQuizIds::contains)
+                              .count();
+                  int sectionTotalItems = sectionTotal + sectionQuizzes.size();
+                  int sectionCompletedItems = sectionCompleted + completedQuizzes;
                   double sectionPct =
-                      sectionTotal == 0 ? 0.0 : (sectionCompleted * 100.0) / sectionTotal;
+                      sectionTotalItems == 0
+                          ? 0.0
+                          : (sectionCompletedItems * 100.0) / sectionTotalItems;
 
                   List<LessonProgressSummaryResponse> lessonResponses =
                       sectionLessons.stream()
@@ -110,21 +136,17 @@ public class CourseProgressService {
                   return SectionProgressResponse.builder()
                       .sectionId(section.getId())
                       .sectionTitle(
-                          localizedContentService.text(
-                              section.getTitle(), section.getTitleEn()))
+                          localizedContentService.text(section.getTitle(), section.getTitleEn()))
                       .position(section.getPosition())
                       .totalLessons(sectionTotal)
                       .completedLessons(sectionCompleted)
+                      .totalItems(sectionTotalItems)
+                      .completedItems(sectionCompletedItems)
                       .completionPercentage(round2(sectionPct))
                       .lessons(lessonResponses)
                       .build();
                 })
             .toList();
-
-    int totalLessons = lessons.size();
-    int completedLessons =
-        (int) progresses.stream().filter(progress -> progress.getCompletedAt() != null).count();
-    double completionPct = totalLessons == 0 ? 0.0 : (completedLessons * 100.0) / totalLessons;
 
     return CourseProgressResponse.builder()
         .courseId(enrollment.getCourse().getId())
@@ -132,10 +154,15 @@ public class CourseProgressService {
             localizedContentService.text(
                 enrollment.getCourse().getTitle(), enrollment.getCourse().getTitleEn()))
         .courseSlug(enrollment.getCourse().getSlug())
-        .totalLessons(totalLessons)
-        .completedLessons(completedLessons)
-        .pendingLessons(Math.max(0, totalLessons - completedLessons))
-        .completionPercentage(round2(completionPct))
+        .totalLessons(courseCompletion.totalLessons())
+        .completedLessons(courseCompletion.completedLessons())
+        .pendingLessons(
+            Math.max(0, courseCompletion.totalLessons() - courseCompletion.completedLessons()))
+        .totalItems(courseCompletion.totalItems())
+        .completedItems(courseCompletion.completedItems())
+        .pendingItems(
+            Math.max(0, courseCompletion.totalItems() - courseCompletion.completedItems()))
+        .completionPercentage(courseCompletion.completionPercentage())
         .enrolledAt(enrollment.getEnrolledAt())
         .completedAt(enrollment.getCompletedAt())
         .expiresAt(enrollment.getExpiresAt())

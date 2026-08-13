@@ -42,7 +42,7 @@ public class ResourceDownloadService {
 
     R2PresignedUrlService.PresignedDownload signed =
         r2PresignedUrlService.generateDownloadUrl(
-            resource.getFileUrl(),
+            resource.getFileObjectKey(),
             localizedContentService.text(resource.getTitle(), resource.getTitleEn()),
             resource.getMimeType());
 

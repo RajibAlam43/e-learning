@@ -5,6 +5,8 @@ import com.gii.api.model.request.admin.CreateCategoryRequest;
 import com.gii.api.model.request.admin.CreateCollectionRequest;
 import com.gii.api.model.request.admin.CreateCourseRequest;
 import com.gii.api.model.request.admin.CreateInstructorRequest;
+import com.gii.api.model.request.admin.CreateLessonResourceRequest;
+import com.gii.api.model.request.admin.CreateLessonResourceUploadRequest;
 import com.gii.api.model.request.admin.CreateMediaAssetRequest;
 import com.gii.api.model.request.admin.CreateQuizRequest;
 import com.gii.api.model.request.admin.CreateSectionRequest;
@@ -15,39 +17,50 @@ import com.gii.api.model.request.admin.UpdateCategoryRequest;
 import com.gii.api.model.request.admin.UpdateCollectionRequest;
 import com.gii.api.model.request.admin.UpdateCourseRequest;
 import com.gii.api.model.request.admin.UpdateInstructorRequest;
+import com.gii.api.model.request.admin.UpdateLessonResourceRequest;
 import com.gii.api.model.request.admin.UpdateMediaAssetRequest;
 import com.gii.api.model.request.admin.UpdateOrderRequest;
 import com.gii.api.model.request.admin.UpdateQuizRequest;
 import com.gii.api.model.request.admin.UpdateSectionRequest;
+import com.gii.api.model.request.admin.UpdateSupportTicketRequest;
 import com.gii.api.model.request.lesson.CreateLessonRequest;
 import com.gii.api.model.request.lesson.UpdateLessonRequest;
 import com.gii.api.model.response.admin.AdminCategoryResponse;
 import com.gii.api.model.response.admin.AdminCollectionDetailResponse;
 import com.gii.api.model.response.admin.AdminCollectionSummaryResponse;
 import com.gii.api.model.response.admin.AdminCourseDetailResponse;
+import com.gii.api.model.response.admin.AdminCourseReviewResponse;
 import com.gii.api.model.response.admin.AdminCourseSectionResponse;
 import com.gii.api.model.response.admin.AdminCourseSummaryResponse;
 import com.gii.api.model.response.admin.AdminInstructorDetailResponse;
 import com.gii.api.model.response.admin.AdminInstructorSummaryResponse;
 import com.gii.api.model.response.admin.AdminLessonDetailResponse;
+import com.gii.api.model.response.admin.AdminLessonResourceResponse;
 import com.gii.api.model.response.admin.AdminLiveClassSummaryResponse;
 import com.gii.api.model.response.admin.AdminMediaAssetResponse;
 import com.gii.api.model.response.admin.AdminOrderDetailResponse;
 import com.gii.api.model.response.admin.AdminOrderSummaryResponse;
 import com.gii.api.model.response.admin.AdminQuizDetailResponse;
+import com.gii.api.model.response.admin.AdminSupportTicketResponse;
+import com.gii.api.model.response.admin.LessonResourceUploadResponse;
 import com.gii.api.model.response.admin.ThumbnailUploadResponse;
 import com.gii.api.service.admin.AdminCategoryManagementService;
 import com.gii.api.service.admin.AdminCollectionManagementService;
 import com.gii.api.service.admin.AdminCourseManagementService;
+import com.gii.api.service.admin.AdminCourseReviewManagementService;
 import com.gii.api.service.admin.AdminInstructorManagementService;
 import com.gii.api.service.admin.AdminLessonManagementService;
+import com.gii.api.service.admin.AdminLessonResourceManagementService;
 import com.gii.api.service.admin.AdminLiveClassManagementService;
 import com.gii.api.service.admin.AdminMediaAssetManagementService;
 import com.gii.api.service.admin.AdminOrderManagementService;
 import com.gii.api.service.admin.AdminQuizManagementService;
 import com.gii.api.service.admin.AdminSectionManagementService;
+import com.gii.api.service.admin.AdminSupportTicketManagementService;
 import com.gii.api.service.admin.AdminThumbnailUploadService;
 import com.gii.common.enums.LiveClassStatus;
+import com.gii.common.enums.ReviewStatus;
+import com.gii.common.enums.SupportTicketStatus;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -62,9 +75,12 @@ public class AdminApiController implements AdminApi {
 
   private final AdminCourseManagementService courseManagementService;
   private final AdminCategoryManagementService categoryManagementService;
+  private final AdminCourseReviewManagementService courseReviewManagementService;
+  private final AdminSupportTicketManagementService supportTicketManagementService;
   private final AdminCollectionManagementService collectionManagementService;
   private final AdminSectionManagementService sectionManagementService;
   private final AdminLessonManagementService lessonManagementService;
+  private final AdminLessonResourceManagementService lessonResourceManagementService;
   private final AdminMediaAssetManagementService mediaAssetManagementService;
   private final AdminQuizManagementService quizManagementService;
   private final AdminInstructorManagementService instructorManagementService;
@@ -92,6 +108,46 @@ public class AdminApiController implements AdminApi {
   public ResponseEntity<AdminCategoryResponse> updateCategory(
       UUID categoryId, UpdateCategoryRequest request) {
     return ResponseEntity.ok(categoryManagementService.update(categoryId, request));
+  }
+
+  @Override
+  public ResponseEntity<List<AdminCourseReviewResponse>> listCourseReviews(ReviewStatus status) {
+    return ResponseEntity.ok(courseReviewManagementService.list(status));
+  }
+
+  @Override
+  public ResponseEntity<Void> publishCourseReview(UUID reviewId) {
+    courseReviewManagementService.publish(reviewId);
+    return ResponseEntity.ok().build();
+  }
+
+  @Override
+  public ResponseEntity<Void> unpublishCourseReview(UUID reviewId) {
+    courseReviewManagementService.unpublish(reviewId);
+    return ResponseEntity.ok().build();
+  }
+
+  @Override
+  public ResponseEntity<Void> deleteCourseReview(UUID reviewId) {
+    courseReviewManagementService.delete(reviewId);
+    return ResponseEntity.noContent().build();
+  }
+
+  @Override
+  public ResponseEntity<List<AdminSupportTicketResponse>> listSupportTickets(
+      SupportTicketStatus status) {
+    return ResponseEntity.ok(supportTicketManagementService.list(status));
+  }
+
+  @Override
+  public ResponseEntity<AdminSupportTicketResponse> getSupportTicket(UUID ticketId) {
+    return ResponseEntity.ok(supportTicketManagementService.get(ticketId));
+  }
+
+  @Override
+  public ResponseEntity<AdminSupportTicketResponse> updateSupportTicket(
+      UUID ticketId, UpdateSupportTicketRequest request) {
+    return ResponseEntity.ok(supportTicketManagementService.update(ticketId, request));
   }
 
   @Override
@@ -229,6 +285,31 @@ public class AdminApiController implements AdminApi {
   }
 
   @Override
+  public ResponseEntity<LessonResourceUploadResponse> createLessonResourceUpload(
+      UUID lessonId, CreateLessonResourceUploadRequest request) {
+    return ResponseEntity.ok(lessonResourceManagementService.createUpload(lessonId, request));
+  }
+
+  @Override
+  public ResponseEntity<AdminLessonResourceResponse> createLessonResource(
+      UUID lessonId, CreateLessonResourceRequest request) {
+    return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED)
+        .body(lessonResourceManagementService.create(lessonId, request));
+  }
+
+  @Override
+  public ResponseEntity<AdminLessonResourceResponse> updateLessonResource(
+      UUID resourceId, UpdateLessonResourceRequest request) {
+    return ResponseEntity.ok(lessonResourceManagementService.update(resourceId, request));
+  }
+
+  @Override
+  public ResponseEntity<Void> deleteLessonResource(UUID resourceId) {
+    lessonResourceManagementService.delete(resourceId);
+    return ResponseEntity.noContent().build();
+  }
+
+  @Override
   public ResponseEntity<Void> reorderCourseStructure(
       UUID courseId, ReorderCourseStructureRequest request) {
     courseManagementService.reorder(courseId, request);
@@ -261,6 +342,12 @@ public class AdminApiController implements AdminApi {
   public ResponseEntity<AdminInstructorDetailResponse> updateInstructor(
       UUID instructorId, UpdateInstructorRequest request) {
     return ResponseEntity.ok(instructorManagementService.update(instructorId, request));
+  }
+
+  @Override
+  public ResponseEntity<Void> deleteInstructor(UUID instructorId) {
+    instructorManagementService.delete(instructorId);
+    return ResponseEntity.noContent().build();
   }
 
   @Override
@@ -298,6 +385,12 @@ public class AdminApiController implements AdminApi {
   public ResponseEntity<Void> unpublishQuiz(UUID quizId) {
     quizManagementService.unpublish(quizId);
     return ResponseEntity.ok().build();
+  }
+
+  @Override
+  public ResponseEntity<Void> deleteQuiz(UUID quizId) {
+    quizManagementService.delete(quizId);
+    return ResponseEntity.noContent().build();
   }
 
   @Override

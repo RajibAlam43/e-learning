@@ -17,6 +17,8 @@ public record StudentCourseSummaryResponse(
     Double completionPercentage,
     Integer completedLessons,
     Integer totalLessons,
+    Integer completedItems,
+    Integer totalItems,
 
     // Enrollment details
     EnrollmentStatus enrollmentStatus, // ACTIVE, REFUNDED, REVOKED
@@ -31,4 +33,4 @@ public record StudentCourseSummaryResponse(
     // Certificates
     Boolean hasCertificate,
     String certificateCode // If earned
-) {}
+    ) {}

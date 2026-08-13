@@ -233,6 +233,7 @@ public class AdminLessonManagementService {
                         .resourceType(r.getResourceType())
                         .mimeType(r.getMimeType())
                         .fileUrl(r.getFileUrl())
+                        .objectKey(r.getFileObjectKey())
                         .position(r.getPosition())
                         .createdAt(r.getCreatedAt())
                         .updatedAt(r.getUpdatedAt())
@@ -264,7 +265,15 @@ public class AdminLessonManagementService {
 
   private LessonType parseLessonType(String lessonType) {
     try {
-      return LessonType.valueOf(lessonType.trim().toUpperCase());
+      LessonType parsed = LessonType.valueOf(lessonType.trim().toUpperCase());
+      if (parsed == LessonType.QUIZ) {
+        throw new ResponseStatusException(
+            HttpStatus.BAD_REQUEST,
+            "Quizzes are standalone section items and cannot be created as lessons");
+      }
+      return parsed;
+    } catch (ResponseStatusException e) {
+      throw e;
     } catch (Exception e) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid lessonType");
     }

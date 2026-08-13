@@ -2,11 +2,12 @@ package com.gii.api.service.certificate;
 
 import com.gii.api.model.response.certificate.CertificateIssueResponse;
 import com.gii.api.service.enrollment.CurrentUserService;
-import com.gii.api.service.storage.R2PresignedUrlService;
 import com.gii.api.service.localization.LocalizedContentService;
+import com.gii.api.service.progress.CourseCompletionService;
+import com.gii.api.service.progress.CourseCompletionService.CourseCompletion;
+import com.gii.api.service.storage.R2PresignedUrlService;
 import com.gii.common.entity.certificate.Certificate;
 import com.gii.common.entity.collection.Collection;
-import com.gii.common.entity.collection.CollectionCourse;
 import com.gii.common.entity.collection.CollectionEnrollment;
 import com.gii.common.entity.course.CourseInstructor;
 import com.gii.common.entity.enrollment.Enrollment;
@@ -21,9 +22,7 @@ import com.gii.common.repository.collection.CollectionEnrollmentRepository;
 import com.gii.common.repository.collection.CollectionRepository;
 import com.gii.common.repository.course.CourseInstructorRepository;
 import com.gii.common.repository.course.CourseRepository;
-import com.gii.common.repository.course.LessonRepository;
 import com.gii.common.repository.enrollment.EnrollmentRepository;
-import com.gii.common.repository.enrollment.LessonProgressRepository;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.Locale;
@@ -53,8 +52,7 @@ public class CertificateIssueService {
   private final CollectionEnrollmentRepository collectionEnrollmentRepository;
   private final CollectionCourseRepository collectionCourseRepository;
   private final EnrollmentRepository enrollmentRepository;
-  private final LessonRepository lessonRepository;
-  private final LessonProgressRepository lessonProgressRepository;
+  private final CourseCompletionService courseCompletionService;
   private final CertificateRepository certificateRepository;
   private final CourseInstructorRepository courseInstructorRepository;
   private final R2PresignedUrlService r2PresignedUrlService;
@@ -93,12 +91,9 @@ public class CertificateIssueService {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Enrollment has expired");
     }
 
-    long totalLessons =
-        lessonRepository.countByCourseIdAndStatus(courseId, PublishStatus.PUBLISHED);
-    long completedLessons =
-        lessonProgressRepository.countByUserIdAndLessonCourseIdAndCompletedAtIsNotNull(
-            user.getId(), courseId);
-    boolean eligible = totalLessons > 0 && completedLessons >= totalLessons;
+    CourseCompletion completion = courseCompletionService.get(user.getId(), courseId);
+    boolean eligible =
+        completion.totalItems() > 0 && completion.completedItems() >= completion.totalItems();
 
     if (!eligible) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Course completion criteria not met");
@@ -123,12 +118,14 @@ public class CertificateIssueService {
     return toResponse(saved, true, "COURSE_COMPLETED");
   }
 
-  public CertificateIssueResponse executeCollection(UUID collectionId, Authentication authentication) {
+  public CertificateIssueResponse executeCollection(
+      UUID collectionId, Authentication authentication) {
     User user = currentUserService.getCurrentUser(authentication);
-    Collection collection =
+    final Collection collection =
         collectionRepository
             .findById(collectionId)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Collection not found"));
+            .orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Collection not found"));
 
     Certificate existing =
         certificateRepository.findByUserIdAndCollectionId(user.getId(), collectionId).orElse(null);
@@ -140,9 +137,12 @@ public class CertificateIssueService {
         collectionEnrollmentRepository
             .findByUserIdAndCollectionIdForUpdate(user.getId(), collectionId)
             .orElseThrow(
-                () -> new ResponseStatusException(HttpStatus.FORBIDDEN, "Not enrolled in this collection"));
+                () ->
+                    new ResponseStatusException(
+                        HttpStatus.FORBIDDEN, "Not enrolled in this collection"));
 
-    existing = certificateRepository.findByUserIdAndCollectionId(user.getId(), collectionId).orElse(null);
+    existing =
+        certificateRepository.findByUserIdAndCollectionId(user.getId(), collectionId).orElse(null);
     if (existing != null) {
       return toResponse(existing, true, "CERTIFICATE_ALREADY_EXISTS");
     }
@@ -157,22 +157,18 @@ public class CertificateIssueService {
     var collectionCourses =
         collectionCourseRepository.findByCollection_IdOrderByPositionAscWithCourseStatus(
             collectionId, PublishStatus.PUBLISHED);
-    var courseIds = collectionCourses.stream().map(cc -> cc.getCourse().getId()).distinct().toList();
+    var courseIds =
+        collectionCourses.stream().map(cc -> cc.getCourse().getId()).distinct().toList();
     if (courseIds.isEmpty()) {
       throw new ResponseStatusException(
           HttpStatus.FORBIDDEN, "Collection completion criteria not met");
     }
 
-    long totalLessons = 0;
-    for (Object[] row : lessonRepository.countByCourseIdsAndStatus(courseIds, PublishStatus.PUBLISHED)) {
-      totalLessons += (Long) row[1];
-    }
-    long completedLessons = 0;
-    for (Object[] row : lessonProgressRepository.countCompletedByUserIdAndCourseIds(user.getId(), courseIds)) {
-      completedLessons += (Long) row[1];
-    }
-
-    boolean eligible = totalLessons > 0 && completedLessons >= totalLessons;
+    var completions = courseCompletionService.getByCourseIds(user.getId(), courseIds);
+    int totalItems = completions.values().stream().mapToInt(CourseCompletion::totalItems).sum();
+    int completedItems =
+        completions.values().stream().mapToInt(CourseCompletion::completedItems).sum();
+    boolean eligible = totalItems > 0 && completedItems >= totalItems;
     if (!eligible) {
       throw new ResponseStatusException(
           HttpStatus.FORBIDDEN, "Collection completion criteria not met");
@@ -188,11 +184,11 @@ public class CertificateIssueService {
             .issuedBy(user)
             .recipientName(user.getFullName())
             .targetTitle(
-                localizedContentService.english(
-                    collection.getTitle(), collection.getTitleEn()))
+                localizedContentService.english(collection.getTitle(), collection.getTitleEn()))
             .targetSlug(collection.getSlug())
             .build();
-    Certificate saved = saveCollectionCertificateIdempotent(certificate, user.getId(), collectionId);
+    Certificate saved =
+        saveCollectionCertificateIdempotent(certificate, user.getId(), collectionId);
     return toResponse(saved, true, "COLLECTION_COMPLETED");
   }
 
@@ -210,7 +206,8 @@ public class CertificateIssueService {
   private CertificateIssueResponse toResponse(
       Certificate certificate, boolean eligible, String eligibilityReason) {
     String instructorName = null;
-    if (certificate.getTargetType() == CertificateTargetType.COURSE && certificate.getCourse() != null) {
+    if (certificate.getTargetType() == CertificateTargetType.COURSE
+        && certificate.getCourse() != null) {
       instructorName =
           courseInstructorRepository.findByCourseId(certificate.getCourse().getId()).stream()
               .filter(ci -> ci.getRole() == InstructorRole.PRIMARY)

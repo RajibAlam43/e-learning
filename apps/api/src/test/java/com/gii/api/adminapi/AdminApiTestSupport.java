@@ -45,8 +45,10 @@ import com.gii.common.repository.course.CategoryRepository;
 import com.gii.common.repository.course.CourseCategoryRepository;
 import com.gii.common.repository.course.CourseInstructorRepository;
 import com.gii.common.repository.course.CourseRepository;
+import com.gii.common.repository.course.CourseReviewRepository;
 import com.gii.common.repository.course.CourseSectionRepository;
 import com.gii.common.repository.course.LessonRepository;
+import com.gii.common.repository.course.LessonResourceRepository;
 import com.gii.common.repository.course.MediaAssetRepository;
 import com.gii.common.repository.course.SectionItemRepository;
 import com.gii.common.repository.enrollment.EnrollmentRepository;
@@ -59,9 +61,11 @@ import com.gii.common.repository.quiz.QuizAttemptRepository;
 import com.gii.common.repository.quiz.QuizChoiceRepository;
 import com.gii.common.repository.quiz.QuizQuestionRepository;
 import com.gii.common.repository.quiz.QuizRepository;
+import com.gii.common.repository.support.SupportTicketRepository;
 import com.gii.common.repository.user.InstructorProfileRepository;
 import com.gii.common.repository.user.RoleRepository;
 import com.gii.common.repository.user.UserRepository;
+import com.gii.common.repository.user.UserRoleRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
@@ -77,10 +81,12 @@ abstract class AdminApiTestSupport {
   @Autowired protected CollectionRepository collectionRepository;
   @Autowired protected CollectionCourseRepository collectionCourseRepository;
   @Autowired protected CourseRepository courseRepository;
+  @Autowired protected CourseReviewRepository courseReviewRepository;
   @Autowired protected CategoryRepository categoryRepository;
   @Autowired protected CourseCategoryRepository courseCategoryRepository;
   @Autowired protected CourseSectionRepository courseSectionRepository;
   @Autowired protected LessonRepository lessonRepository;
+  @Autowired protected LessonResourceRepository lessonResourceRepository;
   @Autowired protected MediaAssetRepository mediaAssetRepository;
   @Autowired protected SectionItemRepository sectionItemRepository;
   @Autowired protected EnrollmentRepository enrollmentRepository;
@@ -94,10 +100,14 @@ abstract class AdminApiTestSupport {
   @Autowired protected CourseInstructorRepository courseInstructorRepository;
   @Autowired protected InstructorProfileRepository instructorProfileRepository;
   @Autowired protected RoleRepository roleRepository;
+  @Autowired protected UserRoleRepository userRoleRepository;
+  @Autowired protected SupportTicketRepository supportTicketRepository;
   @Autowired protected OrderItemRepository orderItemRepository;
   @Autowired protected OrderRepository orderRepository;
 
   protected void cleanupAdminData() {
+    courseReviewRepository.deleteAll();
+    supportTicketRepository.deleteAll();
     collectionCourseRepository.deleteAll();
     collectionRepository.deleteAll();
     quizAttemptAnswerRepository.deleteAll();
@@ -112,6 +122,7 @@ abstract class AdminApiTestSupport {
     orderItemRepository.deleteAll();
     orderRepository.deleteAll();
     mediaAssetRepository.deleteAll();
+    lessonResourceRepository.deleteAll();
     lessonRepository.deleteAll();
     courseSectionRepository.deleteAll();
     courseInstructorRepository.deleteAll();
@@ -119,6 +130,7 @@ abstract class AdminApiTestSupport {
     courseRepository.deleteAll();
     categoryRepository.deleteAll();
     instructorProfileRepository.deleteAll();
+    userRoleRepository.deleteAll();
     userRepository.deleteAll();
   }
 

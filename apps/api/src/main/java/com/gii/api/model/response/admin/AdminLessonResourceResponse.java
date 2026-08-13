@@ -14,6 +14,7 @@ public record AdminLessonResourceResponse(
     LessonResourceType resourceType, // PDF, IMAGE
     String mimeType, // e.g., "application/pdf", "image/png"
     String fileUrl,
+    String objectKey,
     Integer position, // Display order within lesson
     Instant createdAt,
     Instant updatedAt) {}

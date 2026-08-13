@@ -5,6 +5,8 @@ import com.gii.api.model.request.admin.CreateCategoryRequest;
 import com.gii.api.model.request.admin.CreateCollectionRequest;
 import com.gii.api.model.request.admin.CreateCourseRequest;
 import com.gii.api.model.request.admin.CreateInstructorRequest;
+import com.gii.api.model.request.admin.CreateLessonResourceRequest;
+import com.gii.api.model.request.admin.CreateLessonResourceUploadRequest;
 import com.gii.api.model.request.admin.CreateMediaAssetRequest;
 import com.gii.api.model.request.admin.CreateQuizRequest;
 import com.gii.api.model.request.admin.CreateSectionRequest;
@@ -15,28 +17,36 @@ import com.gii.api.model.request.admin.UpdateCategoryRequest;
 import com.gii.api.model.request.admin.UpdateCollectionRequest;
 import com.gii.api.model.request.admin.UpdateCourseRequest;
 import com.gii.api.model.request.admin.UpdateInstructorRequest;
+import com.gii.api.model.request.admin.UpdateLessonResourceRequest;
 import com.gii.api.model.request.admin.UpdateMediaAssetRequest;
 import com.gii.api.model.request.admin.UpdateOrderRequest;
 import com.gii.api.model.request.admin.UpdateQuizRequest;
 import com.gii.api.model.request.admin.UpdateSectionRequest;
+import com.gii.api.model.request.admin.UpdateSupportTicketRequest;
 import com.gii.api.model.request.lesson.CreateLessonRequest;
 import com.gii.api.model.request.lesson.UpdateLessonRequest;
 import com.gii.api.model.response.admin.AdminCategoryResponse;
 import com.gii.api.model.response.admin.AdminCollectionDetailResponse;
 import com.gii.api.model.response.admin.AdminCollectionSummaryResponse;
 import com.gii.api.model.response.admin.AdminCourseDetailResponse;
+import com.gii.api.model.response.admin.AdminCourseReviewResponse;
 import com.gii.api.model.response.admin.AdminCourseSectionResponse;
 import com.gii.api.model.response.admin.AdminCourseSummaryResponse;
 import com.gii.api.model.response.admin.AdminInstructorDetailResponse;
 import com.gii.api.model.response.admin.AdminInstructorSummaryResponse;
 import com.gii.api.model.response.admin.AdminLessonDetailResponse;
+import com.gii.api.model.response.admin.AdminLessonResourceResponse;
 import com.gii.api.model.response.admin.AdminLiveClassSummaryResponse;
 import com.gii.api.model.response.admin.AdminMediaAssetResponse;
 import com.gii.api.model.response.admin.AdminOrderDetailResponse;
 import com.gii.api.model.response.admin.AdminOrderSummaryResponse;
 import com.gii.api.model.response.admin.AdminQuizDetailResponse;
+import com.gii.api.model.response.admin.AdminSupportTicketResponse;
+import com.gii.api.model.response.admin.LessonResourceUploadResponse;
 import com.gii.api.model.response.admin.ThumbnailUploadResponse;
 import com.gii.common.enums.LiveClassStatus;
+import com.gii.common.enums.ReviewStatus;
+import com.gii.common.enums.SupportTicketStatus;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -85,6 +95,39 @@ public interface AdminApi {
   @Operation(summary = "Update category")
   ResponseEntity<AdminCategoryResponse> updateCategory(
       @PathVariable UUID categoryId, @Valid @RequestBody UpdateCategoryRequest request);
+
+  // ===== REVIEW MANAGEMENT =====
+  @GetMapping("/reviews")
+  @Operation(summary = "List course reviews")
+  ResponseEntity<List<AdminCourseReviewResponse>> listCourseReviews(
+      @RequestParam(required = false) ReviewStatus status);
+
+  @PostMapping("/reviews/{reviewId}/publish")
+  @Operation(summary = "Publish course review")
+  ResponseEntity<Void> publishCourseReview(@PathVariable UUID reviewId);
+
+  @PostMapping("/reviews/{reviewId}/unpublish")
+  @Operation(summary = "Unpublish course review")
+  ResponseEntity<Void> unpublishCourseReview(@PathVariable UUID reviewId);
+
+  @DeleteMapping("/reviews/{reviewId}")
+  @Operation(summary = "Delete course review")
+  ResponseEntity<Void> deleteCourseReview(@PathVariable UUID reviewId);
+
+  // ===== SUPPORT TICKET MANAGEMENT =====
+  @GetMapping("/support/tickets")
+  @Operation(summary = "List support tickets")
+  ResponseEntity<List<AdminSupportTicketResponse>> listSupportTickets(
+      @RequestParam(required = false) SupportTicketStatus status);
+
+  @GetMapping("/support/tickets/{ticketId}")
+  @Operation(summary = "Get support ticket")
+  ResponseEntity<AdminSupportTicketResponse> getSupportTicket(@PathVariable UUID ticketId);
+
+  @PatchMapping("/support/tickets/{ticketId}")
+  @Operation(summary = "Close or reopen support ticket")
+  ResponseEntity<AdminSupportTicketResponse> updateSupportTicket(
+      @PathVariable UUID ticketId, @Valid @RequestBody UpdateSupportTicketRequest request);
 
   // ===== COLLECTION MANAGEMENT =====
   @GetMapping("/collections")
@@ -266,6 +309,25 @@ public interface AdminApi {
       })
   ResponseEntity<Void> deleteLesson(@PathVariable UUID lessonId);
 
+  @PostMapping("/lessons/{lessonId}/resources/upload-url")
+  @Operation(summary = "Create direct R2 upload URL for lesson resource")
+  ResponseEntity<LessonResourceUploadResponse> createLessonResourceUpload(
+      @PathVariable UUID lessonId, @Valid @RequestBody CreateLessonResourceUploadRequest request);
+
+  @PostMapping("/lessons/{lessonId}/resources")
+  @Operation(summary = "Create lesson resource metadata")
+  ResponseEntity<AdminLessonResourceResponse> createLessonResource(
+      @PathVariable UUID lessonId, @Valid @RequestBody CreateLessonResourceRequest request);
+
+  @PatchMapping("/lesson-resources/{resourceId}")
+  @Operation(summary = "Update lesson resource")
+  ResponseEntity<AdminLessonResourceResponse> updateLessonResource(
+      @PathVariable UUID resourceId, @Valid @RequestBody UpdateLessonResourceRequest request);
+
+  @DeleteMapping("/lesson-resources/{resourceId}")
+  @Operation(summary = "Delete lesson resource metadata")
+  ResponseEntity<Void> deleteLessonResource(@PathVariable UUID resourceId);
+
   @PostMapping("/courses/{courseId}/structure/reorder")
   @Operation(summary = "Reorder course structure")
   @ApiResponses(
@@ -316,6 +378,10 @@ public interface AdminApi {
   ResponseEntity<AdminInstructorDetailResponse> updateInstructor(
       @PathVariable UUID instructorId, @Valid @RequestBody UpdateInstructorRequest request);
 
+  @DeleteMapping("/instructors/{instructorId}")
+  @Operation(summary = "Remove instructor capability while preserving user account")
+  ResponseEntity<Void> deleteInstructor(@PathVariable UUID instructorId);
+
   @PostMapping("/courses/{courseId}/instructors")
   @Operation(summary = "Assign instructor to course")
   ResponseEntity<Void> assignInstructorToCourse(
@@ -353,6 +419,10 @@ public interface AdminApi {
   @PostMapping("/quizzes/{quizId}/unpublish")
   @Operation(summary = "Unpublish quiz")
   ResponseEntity<Void> unpublishQuiz(@PathVariable UUID quizId);
+
+  @DeleteMapping("/quizzes/{quizId}")
+  @Operation(summary = "Delete quiz when no student attempts exist")
+  ResponseEntity<Void> deleteQuiz(@PathVariable UUID quizId);
 
   // ===== ORDER MANAGEMENT =====
   @GetMapping("/orders")

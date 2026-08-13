@@ -210,6 +210,25 @@ public class AdminInstructorManagementService {
     courseInstructorRepository.save(assignment);
   }
 
+  public void delete(UUID instructorId) {
+    InstructorProfile profile =
+        instructorProfileRepository
+            .findById(instructorId)
+            .orElseThrow(
+                () ->
+                    new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Instructor profile not found"));
+    List<CourseInstructor> assignments =
+        courseInstructorRepository.findByInstructorId(instructorId);
+    if (!assignments.isEmpty()) {
+      courseInstructorRepository.deleteAll(assignments);
+    }
+    roleRepository
+        .findByName("INSTRUCTOR")
+        .ifPresent(role -> userRoleRepository.deleteByUserIdAndRoleId(instructorId, role.getId()));
+    instructorProfileRepository.delete(profile);
+  }
+
   private void attachInstructorRole(User user) {
     Role role =
         roleRepository
