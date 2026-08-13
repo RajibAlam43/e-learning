@@ -14,13 +14,13 @@ public record InstructorCourseSnapshotResponse(
     PublishStatus status, // DRAFT, PUBLISHED, ARCHIVED
 
     // Enrollment metrics
-    Integer totalEnrolledStudents,
-    Integer completedStudents,
+    Long totalEnrolledStudents,
+    Long completedStudents,
 
     // Content metrics
-    Integer totalSections,
-    Integer totalLessons,
-    Integer liveClassCount,
+    Long totalSections,
+    Long totalLessons,
+    Long liveClassCount,
     Integer quizCount,
 
     // Instructor role
