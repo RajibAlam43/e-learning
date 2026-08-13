@@ -65,6 +65,37 @@ class AdminCategoriesApiIt extends AbstractAdminApiIntegrationTest {
   }
 
   @Test
+  void explicitNullClearsParentWhileOmittedParentPreservesIt() throws Exception {
+    var admin = user("Category Parent Admin", "category-parent-admin@example.com");
+    var parent = category("প্রযুক্তি", "Technology", "technology");
+    var child = category("প্রোগ্রামিং", "Programming", "programming");
+    child.setParent(parent);
+    categoryRepository.save(child);
+
+    mockMvc
+        .perform(
+            patch("/admin/categories/{categoryId}", child.getId())
+                .with(authentication(adminAuth(admin.getId())))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"nameEn\":\"Software Development\"}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.parentId").value(parent.getId().toString()));
+
+    mockMvc
+        .perform(
+            patch("/admin/categories/{categoryId}", child.getId())
+                .with(authentication(adminAuth(admin.getId())))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"parentId\":null}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.parentId").doesNotExist());
+
+    org.assertj.core.api.Assertions.assertThat(
+            categoryRepository.findById(child.getId()).orElseThrow().getParent())
+        .isNull();
+  }
+
+  @Test
   void requiresBothNamesAndUniqueSlug() throws Exception {
     var admin = user("Category Validator", "category-validator@example.com");
     category("প্রযুক্তি", "Technology", "technology");

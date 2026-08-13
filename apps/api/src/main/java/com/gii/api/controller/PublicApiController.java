@@ -25,6 +25,7 @@ import com.gii.api.service.pub.SupportTicketService;
 import com.gii.common.enums.CollectionType;
 import com.gii.common.enums.CourseLanguage;
 import com.gii.common.enums.CourseLevel;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -102,8 +103,10 @@ public class PublicApiController implements PublicApi {
 
   @Override
   public ResponseEntity<SupportTicketCreatedResponse> createSupportTicket(
-      CreateSupportTicketRequest request, Authentication authentication) {
+      CreateSupportTicketRequest request,
+      Authentication authentication,
+      HttpServletRequest httpRequest) {
     return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED)
-        .body(supportTicketService.execute(request, authentication));
+        .body(supportTicketService.execute(request, authentication, httpRequest.getRemoteAddr()));
   }
 }

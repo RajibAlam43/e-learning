@@ -25,7 +25,7 @@ class PublicSupportTicketApiIt extends AbstractPublicApiIntegrationTest {
         """
         {
           "name": "  Rajib Alam  ",
-          "email": "rajib@example.com",
+          "email": "Rajib@Example.COM",
           "subject": "  Need help with enrollment  ",
           "message": "  Please assist me.  "
         }
@@ -76,7 +76,7 @@ class PublicSupportTicketApiIt extends AbstractPublicApiIntegrationTest {
         .andExpect(status().isCreated());
 
     assertThat(supportTicketCount()).isEqualTo(1);
-    assertThat(latestSupportTicket().getPhone()).isEqualTo("01700000000");
+    assertThat(latestSupportTicket().getPhone()).isEqualTo("+8801700000000");
   }
 
   @Test
@@ -128,7 +128,7 @@ class PublicSupportTicketApiIt extends AbstractPublicApiIntegrationTest {
   }
 
   @Test
-  void rateLimitsRepeatedTicketFromSameContact() throws Exception {
+  void rateLimitsRepeatedTicketFromSameAnonymousClient() throws Exception {
     String body =
         """
         {
@@ -146,6 +146,99 @@ class PublicSupportTicketApiIt extends AbstractPublicApiIntegrationTest {
 
     mockMvc
         .perform(post("/public/support/tickets").contentType(APPLICATION_JSON).content(body))
+        .andExpect(status().isTooManyRequests());
+
+    assertThat(supportTicketCount()).isEqualTo(1);
+  }
+
+  @Test
+  void callerCannotRateLimitVictimContactFromAnotherClientIdentity() throws Exception {
+    String attackerBody =
+        """
+        {
+          "email":"victim@example.com",
+          "subject":"Attacker submission",
+          "message":"Attempt to consume contact limit"
+        }
+        """;
+    String victimBody =
+        """
+        {
+          "email":"Victim@Example.com",
+          "subject":"Real request",
+          "message":"The victim can still submit"
+        }
+        """;
+
+    mockMvc
+        .perform(
+            post("/public/support/tickets")
+                .with(
+                    request -> {
+                      request.setRemoteAddr("198.51.100.10");
+                      return request;
+                    })
+                .contentType(APPLICATION_JSON)
+                .content(attackerBody))
+        .andExpect(status().isCreated());
+
+    mockMvc
+        .perform(
+            post("/public/support/tickets")
+                .with(
+                    request -> {
+                      request.setRemoteAddr("203.0.113.20");
+                      return request;
+                    })
+                .contentType(APPLICATION_JSON)
+                .content(victimBody))
+        .andExpect(status().isCreated());
+
+    assertThat(supportTicketCount()).isEqualTo(2);
+    assertThat(supportTicketRepository.findAll())
+        .allSatisfy(ticket -> assertThat(ticket.getEmail()).isEqualTo("victim@example.com"));
+  }
+
+  @Test
+  void changingCallerSuppliedContactAndForwardingHeaderCannotEvadeClientLimit() throws Exception {
+    mockMvc
+        .perform(
+            post("/public/support/tickets")
+                .with(
+                    request -> {
+                      request.setRemoteAddr("198.51.100.30");
+                      return request;
+                    })
+                .header("X-Forwarded-For", "203.0.113.1")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "email":"first@example.com",
+                      "subject":"First request",
+                      "message":"First message"
+                    }
+                    """))
+        .andExpect(status().isCreated());
+
+    mockMvc
+        .perform(
+            post("/public/support/tickets")
+                .with(
+                    request -> {
+                      request.setRemoteAddr("198.51.100.30");
+                      return request;
+                    })
+                .header("X-Forwarded-For", "203.0.113.2")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "phone":"01700000000",
+                      "subject":"Second request",
+                      "message":"Second message"
+                    }
+                    """))
         .andExpect(status().isTooManyRequests());
 
     assertThat(supportTicketCount()).isEqualTo(1);

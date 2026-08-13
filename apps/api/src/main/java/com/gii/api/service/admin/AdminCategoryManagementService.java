@@ -44,19 +44,19 @@ public class AdminCategoryManagementService {
 
   public AdminCategoryResponse update(UUID categoryId, UpdateCategoryRequest request) {
     Category category = findCategory(categoryId);
-    if (request.name() != null) {
-      category.setName(requiredText(request.name(), "Bangla category name is required"));
+    if (request.getName() != null) {
+      category.setName(requiredText(request.getName(), "Bangla category name is required"));
     }
-    if (request.nameEn() != null) {
-      category.setNameEn(requiredText(request.nameEn(), "English category name is required"));
+    if (request.getNameEn() != null) {
+      category.setNameEn(requiredText(request.getNameEn(), "English category name is required"));
     }
-    if (request.slug() != null) {
-      String slug = requiredText(request.slug(), "Category slug is required");
+    if (request.getSlug() != null) {
+      String slug = requiredText(request.getSlug(), "Category slug is required");
       ensureSlugAvailable(slug, categoryId);
       category.setSlug(slug);
     }
-    if (request.parentId() != null) {
-      Category parent = findParent(request.parentId());
+    if (request.isParentIdPresent()) {
+      Category parent = findParent(request.getParentId());
       ensureValidParent(category, parent);
       category.setParent(parent);
     }

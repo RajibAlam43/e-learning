@@ -48,6 +48,10 @@ public class SupportTicket extends BaseUuidEntity {
   @Column(name = "message", nullable = false)
   private String message;
 
+  @JsonIgnore
+  @Column(name = "rate_limit_key_hash", length = 64)
+  private String rateLimitKeyHash;
+
   @Enumerated(EnumType.STRING)
   @Column(name = "status", nullable = false, length = 30)
   @Builder.Default

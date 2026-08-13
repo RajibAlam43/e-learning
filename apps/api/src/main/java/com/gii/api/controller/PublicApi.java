@@ -21,6 +21,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
@@ -154,5 +155,7 @@ public interface PublicApi {
         @ApiResponse(responseCode = "429", description = "Rate limit exceeded")
       })
   ResponseEntity<SupportTicketCreatedResponse> createSupportTicket(
-      @Valid @RequestBody CreateSupportTicketRequest request, Authentication authentication);
+      @Valid @RequestBody CreateSupportTicketRequest request,
+      Authentication authentication,
+      HttpServletRequest httpRequest);
 }
