@@ -47,6 +47,7 @@ import com.gii.api.model.response.admin.AdminQuizDetailResponse;
 import com.gii.api.model.response.admin.AdminSupportTicketResponse;
 import com.gii.api.model.response.admin.LessonResourceUploadResponse;
 import com.gii.api.model.response.admin.ThumbnailUploadResponse;
+import com.gii.api.model.response.lesson.ResourceDownloadUrlResponse;
 import com.gii.common.enums.LiveClassStatus;
 import com.gii.common.enums.ReviewStatus;
 import com.gii.common.enums.SupportTicketStatus;
@@ -313,6 +314,10 @@ public interface AdminApi {
   ResponseEntity<AdminLessonDetailResponse> createLesson(
       @PathVariable UUID sectionId, @Valid @RequestBody CreateLessonRequest request);
 
+  @GetMapping("/lessons/{lessonId}")
+  @Operation(summary = "Get lesson details including media and resources")
+  ResponseEntity<AdminLessonDetailResponse> getLesson(@PathVariable UUID lessonId);
+
   @PatchMapping("/lessons/{lessonId}")
   @Operation(summary = "Update lesson")
   @ApiResponses(
@@ -349,6 +354,11 @@ public interface AdminApi {
   @Operation(summary = "Create lesson resource metadata")
   ResponseEntity<AdminLessonResourceResponse> createLessonResource(
       @PathVariable UUID lessonId, @Valid @RequestBody CreateLessonResourceRequest request);
+
+  @GetMapping("/lesson-resources/{resourceId}/download-url")
+  @Operation(summary = "Create an admin download URL for a lesson resource")
+  ResponseEntity<ResourceDownloadUrlResponse> getLessonResourceDownloadUrl(
+      @PathVariable UUID resourceId);
 
   @PatchMapping("/lesson-resources/{resourceId}")
   @Operation(summary = "Update lesson resource")

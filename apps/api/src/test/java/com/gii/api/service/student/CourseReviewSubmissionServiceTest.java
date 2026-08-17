@@ -7,6 +7,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.gii.api.model.request.student.CreateCourseReviewRequest;
+import com.gii.api.model.request.student.UpdateCourseReviewRequest;
 import com.gii.api.service.enrollment.CurrentUserService;
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.course.CourseReview;
@@ -105,5 +106,41 @@ class CourseReviewSubmissionServiceTest {
                     courseId, new CreateCourseReviewRequest(4, "Helpful"), authentication))
         .isInstanceOf(ResponseStatusException.class)
         .hasMessageContaining("409 CONFLICT");
+  }
+
+  @Test
+  void studentUpdatesAndDeletesOwnedReview() {
+    UUID userId = UUID.randomUUID();
+    UUID courseId = UUID.randomUUID();
+    User user = User.builder().fullName("Student").email("student@example.com").build();
+    user.setId(userId);
+    Course course = Course.builder().title("Course").slug("course").build();
+    course.setId(courseId);
+    CourseReview review =
+        CourseReview.builder()
+            .course(course)
+            .user(user)
+            .rating(5)
+            .reviewText("Original")
+            .status(ReviewStatus.PUBLISHED)
+            .build();
+    review.setId(UUID.randomUUID());
+    review.setCreatedAt(Instant.now());
+    when(currentUserService.getCurrentUserId(authentication)).thenReturn(userId);
+    when(courseReviewRepository.findByCourseIdAndUserId(courseId, userId))
+        .thenReturn(Optional.of(review));
+    when(courseReviewRepository.save(review)).thenReturn(review);
+
+    var response =
+        service.update(
+            courseId, new UpdateCourseReviewRequest(4, "  Updated review  "), authentication);
+
+    assertThat(response.rating()).isEqualTo(4);
+    assertThat(response.reviewText()).isEqualTo("Updated review");
+    assertThat(review.getStatus()).isEqualTo(ReviewStatus.PENDING);
+
+    service.delete(courseId, authentication);
+
+    verify(courseReviewRepository).delete(review);
   }
 }

@@ -1,6 +1,7 @@
 package com.gii.api.service.student;
 
 import com.gii.api.model.request.student.CreateCourseReviewRequest;
+import com.gii.api.model.request.student.UpdateCourseReviewRequest;
 import com.gii.api.model.response.CourseReviewResponse;
 import com.gii.api.service.enrollment.CurrentUserService;
 import com.gii.common.entity.course.Course;
@@ -72,6 +73,30 @@ public class CourseReviewSubmissionService {
       throw new ResponseStatusException(
           HttpStatus.CONFLICT, "A review for this course already exists", exception);
     }
+  }
+
+  public CourseReviewResponse update(
+      UUID courseId, UpdateCourseReviewRequest request, Authentication authentication) {
+    CourseReview review = findOwnedReview(courseId, authentication);
+    if (request.rating() != null) {
+      review.setRating(request.rating());
+    }
+    if (request.reviewText() != null) {
+      review.setReviewText(request.reviewText().trim());
+    }
+    review.setStatus(ReviewStatus.PENDING);
+    return toResponse(courseReviewRepository.save(review));
+  }
+
+  public void delete(UUID courseId, Authentication authentication) {
+    courseReviewRepository.delete(findOwnedReview(courseId, authentication));
+  }
+
+  private CourseReview findOwnedReview(UUID courseId, Authentication authentication) {
+    UUID userId = currentUserService.getCurrentUserId(authentication);
+    return courseReviewRepository
+        .findByCourseIdAndUserId(courseId, userId)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Review not found"));
   }
 
   private CourseReviewResponse toResponse(CourseReview review) {

@@ -5,6 +5,7 @@ import com.gii.api.model.request.admin.CreateLessonResourceUploadRequest;
 import com.gii.api.model.request.admin.UpdateLessonResourceRequest;
 import com.gii.api.model.response.admin.AdminLessonResourceResponse;
 import com.gii.api.model.response.admin.LessonResourceUploadResponse;
+import com.gii.api.model.response.lesson.ResourceDownloadUrlResponse;
 import com.gii.api.service.storage.R2PresignedUrlService;
 import com.gii.common.entity.course.Lesson;
 import com.gii.common.entity.course.LessonResource;
@@ -96,6 +97,21 @@ public class AdminLessonResourceManagementService {
             .position(request.position())
             .build();
     return toResponse(lessonResourceRepository.save(resource));
+  }
+
+  @Transactional(readOnly = true)
+  public ResourceDownloadUrlResponse download(UUID resourceId) {
+    LessonResource resource = findResource(resourceId);
+    String fileName =
+        R2PresignedUrlService.resolveDownloadFileName(resource.getTitle(), resource.getMimeType());
+    R2PresignedUrlService.PresignedDownload signed =
+        r2PresignedUrlService.generateDownloadUrl(
+            resource.getFileObjectKey(), fileName, resource.getMimeType());
+    return ResourceDownloadUrlResponse.builder()
+        .downloadUrl(signed.downloadUrl())
+        .expiresAt(signed.expiresAt())
+        .fileName(fileName)
+        .build();
   }
 
   public AdminLessonResourceResponse update(UUID resourceId, UpdateLessonResourceRequest request) {

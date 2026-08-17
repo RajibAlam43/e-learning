@@ -24,7 +24,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.util.List;
-import java.util.UUID;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
@@ -62,7 +61,7 @@ public interface PublicApi {
         @ApiResponse(responseCode = "400", description = "Invalid filter parameters")
       })
   ResponseEntity<PageResponse<CourseSummaryResponse>> getAllCourses(
-      @RequestParam(required = false) UUID categoryId,
+      @RequestParam(required = false) List<String> categorySlugs,
       @RequestParam(required = false) CourseLevel level,
       @RequestParam(required = false) CourseLanguage language,
       @PageableDefault(size = 20, sort = "publishedAt") Pageable pageable);
@@ -91,6 +90,12 @@ public interface PublicApi {
         @ApiResponse(responseCode = "404", description = "Course not found")
       })
   ResponseEntity<CourseDetailsResponse> getCourseDetails(@PathVariable String slug);
+
+  @GetMapping("/reviews")
+  @Operation(summary = "List published reviews across published courses")
+  ResponseEntity<PageResponse<CourseReviewResponse>> getAllCourseReviews(
+      @RequestParam(required = false) Integer rating,
+      @PageableDefault(size = 20) Pageable pageable);
 
   @GetMapping("/courses/{slug}/reviews")
   @Operation(summary = "List published course reviews")

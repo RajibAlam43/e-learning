@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -179,6 +180,93 @@ class StudentCourseReviewsApiIt extends AbstractStudentApiIntegrationTest {
         .perform(get("/admin/reviews").with(authentication(studentAuth(student.getId()))))
         .andExpect(status().isForbidden());
     assertThat(courseReviewRepository.count()).isZero();
+  }
+
+  @Test
+  void studentCanUpdateAndDeleteOwnReview() throws Exception {
+    var creator = user("Creator", "review-owner-creator@example.com");
+    var student = user("Student", "review-owner@example.com");
+    var outsider = user("Outsider", "review-owner-outsider@example.com");
+    var course = course("Owned Review", "owned-review", creator, PublishStatus.PUBLISHED);
+    enrollment(student, course, EnrollmentStatus.ACTIVE, null);
+
+    mockMvc
+        .perform(
+            post("/student/courses/{courseId}/reviews", course.getId())
+                .with(authentication(studentAuth(student.getId())))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"rating\":5,\"reviewText\":\"Original\"}"))
+        .andExpect(status().isCreated());
+
+    var review = courseReviewRepository.findAll().getFirst();
+    review.setStatus(ReviewStatus.PUBLISHED);
+    courseReviewRepository.saveAndFlush(review);
+
+    mockMvc
+        .perform(
+            patch("/student/courses/{courseId}/reviews", course.getId())
+                .with(authentication(studentAuth(outsider.getId())))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"rating\":1}"))
+        .andExpect(status().isNotFound());
+
+    mockMvc
+        .perform(
+            patch("/student/courses/{courseId}/reviews", course.getId())
+                .with(authentication(studentAuth(student.getId())))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"rating\":4,\"reviewText\":\"  Updated review  \"}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.rating").value(4))
+        .andExpect(jsonPath("$.reviewText").value("Updated review"));
+
+    var updated = courseReviewRepository.findById(review.getId()).orElseThrow();
+    assertThat(updated.getStatus()).isEqualTo(ReviewStatus.PENDING);
+
+    mockMvc
+        .perform(
+            delete("/student/courses/{courseId}/reviews", course.getId())
+                .with(authentication(studentAuth(outsider.getId()))))
+        .andExpect(status().isNotFound());
+
+    mockMvc
+        .perform(
+            delete("/student/courses/{courseId}/reviews", course.getId())
+                .with(authentication(studentAuth(student.getId()))))
+        .andExpect(status().isNoContent());
+    assertThat(courseReviewRepository.existsById(review.getId())).isFalse();
+  }
+
+  @Test
+  void updateRejectsEmptyAndBlankPayloads() throws Exception {
+    var creator = user("Creator", "review-validation-creator@example.com");
+    var student = user("Student", "review-validation-student@example.com");
+    var course = course("Review Validation", "review-validation", creator, PublishStatus.PUBLISHED);
+    enrollment(student, course, EnrollmentStatus.ACTIVE, null);
+
+    mockMvc
+        .perform(
+            post("/student/courses/{courseId}/reviews", course.getId())
+                .with(authentication(studentAuth(student.getId())))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"rating\":5,\"reviewText\":\"Original\"}"))
+        .andExpect(status().isCreated());
+
+    mockMvc
+        .perform(
+            patch("/student/courses/{courseId}/reviews", course.getId())
+                .with(authentication(studentAuth(student.getId())))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
+        .andExpect(status().isBadRequest());
+
+    mockMvc
+        .perform(
+            patch("/student/courses/{courseId}/reviews", course.getId())
+                .with(authentication(studentAuth(student.getId())))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"reviewText\":\"   \"}"))
+        .andExpect(status().isBadRequest());
   }
 
   private UsernamePasswordAuthenticationToken adminAuthentication() {

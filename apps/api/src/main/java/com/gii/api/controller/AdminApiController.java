@@ -47,6 +47,7 @@ import com.gii.api.model.response.admin.AdminQuizDetailResponse;
 import com.gii.api.model.response.admin.AdminSupportTicketResponse;
 import com.gii.api.model.response.admin.LessonResourceUploadResponse;
 import com.gii.api.model.response.admin.ThumbnailUploadResponse;
+import com.gii.api.model.response.lesson.ResourceDownloadUrlResponse;
 import com.gii.api.service.admin.AdminAppSettingManagementService;
 import com.gii.api.service.admin.AdminCategoryManagementService;
 import com.gii.api.service.admin.AdminCollectionManagementService;
@@ -300,6 +301,11 @@ public class AdminApiController implements AdminApi {
   }
 
   @Override
+  public ResponseEntity<AdminLessonDetailResponse> getLesson(UUID lessonId) {
+    return ResponseEntity.ok(lessonManagementService.get(lessonId));
+  }
+
+  @Override
   public ResponseEntity<AdminLessonDetailResponse> updateLesson(
       UUID lessonId, UpdateLessonRequest request) {
     return ResponseEntity.ok(lessonManagementService.update(lessonId, request));
@@ -334,6 +340,11 @@ public class AdminApiController implements AdminApi {
       UUID lessonId, CreateLessonResourceRequest request) {
     return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED)
         .body(lessonResourceManagementService.create(lessonId, request));
+  }
+
+  @Override
+  public ResponseEntity<ResourceDownloadUrlResponse> getLessonResourceDownloadUrl(UUID resourceId) {
+    return ResponseEntity.ok(lessonResourceManagementService.download(resourceId));
   }
 
   @Override

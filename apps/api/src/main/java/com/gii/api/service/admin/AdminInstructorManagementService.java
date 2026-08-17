@@ -24,6 +24,7 @@ import com.gii.common.repository.user.RoleRepository;
 import com.gii.common.repository.user.UserRepository;
 import com.gii.common.repository.user.UserRoleRepository;
 import java.math.BigDecimal;
+import java.security.SecureRandom;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,6 +40,11 @@ import org.springframework.web.server.ResponseStatusException;
 @RequiredArgsConstructor
 @Transactional
 public class AdminInstructorManagementService {
+
+  private static final int TEMPORARY_PASSWORD_LENGTH = 8;
+  private static final char[] ALPHANUMERIC =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789".toCharArray();
+  private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
   private final UserRepository userRepository;
   private final RoleRepository roleRepository;
@@ -64,14 +70,14 @@ public class AdminInstructorManagementService {
 
   public AdminInstructorDetailResponse create(CreateInstructorRequest request) {
     validateUniqueContacts(request.email(), request.phone(), null);
+    String temporaryPassword = generateTemporaryPassword();
 
     User user =
         User.builder()
             .fullName(request.fullName().trim())
             .email(trimToNull(request.email()))
             .phone(trimToNull(request.phone()))
-            // Generated placeholder hash; instructor should set real password through reset flow.
-            .passwordHash(passwordEncoder.encode(UUID.randomUUID().toString()))
+            .passwordHash(passwordEncoder.encode(temporaryPassword))
             .status(UserStatus.ACTIVE)
             .build();
     User savedUser = userRepository.save(user);
@@ -98,7 +104,7 @@ public class AdminInstructorManagementService {
             .yearsExperience(request.yearsExperience())
             .build();
     InstructorProfile savedProfile = instructorProfileRepository.save(profile);
-    return toDetail(savedProfile);
+    return toDetail(savedProfile, temporaryPassword);
   }
 
   public AdminInstructorDetailResponse update(UUID instructorId, UpdateInstructorRequest request) {
@@ -178,7 +184,7 @@ public class AdminInstructorManagementService {
     }
 
     userRepository.save(user);
-    return toDetail(instructorProfileRepository.save(profile));
+    return toDetail(instructorProfileRepository.save(profile), null);
   }
 
   public void assign(UUID courseId, AssignInstructorToCourseRequest request) {
@@ -257,7 +263,8 @@ public class AdminInstructorManagementService {
         .build();
   }
 
-  private AdminInstructorDetailResponse toDetail(InstructorProfile profile) {
+  private AdminInstructorDetailResponse toDetail(
+      InstructorProfile profile, String temporaryPassword) {
     User user = profile.getUser();
     List<AdminCourseSummaryResponse> assignedCourses =
         courseInstructorRepository.findByInstructorId(user.getId()).stream()
@@ -288,7 +295,16 @@ public class AdminInstructorManagementService {
         .createdAt(profile.getCreatedAt())
         .updatedAt(profile.getUpdatedAt())
         .assignedCourses(assignedCourses)
+        .temporaryPassword(temporaryPassword)
         .build();
+  }
+
+  private String generateTemporaryPassword() {
+    StringBuilder password = new StringBuilder(TEMPORARY_PASSWORD_LENGTH);
+    for (int i = 0; i < TEMPORARY_PASSWORD_LENGTH; i++) {
+      password.append(ALPHANUMERIC[SECURE_RANDOM.nextInt(ALPHANUMERIC.length)]);
+    }
+    return password.toString();
   }
 
   private AdminCourseSummaryResponse toCourseSummary(Course course) {

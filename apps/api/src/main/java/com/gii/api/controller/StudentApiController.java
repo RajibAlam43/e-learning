@@ -1,6 +1,7 @@
 package com.gii.api.controller;
 
 import com.gii.api.model.request.student.CreateCourseReviewRequest;
+import com.gii.api.model.request.student.UpdateCourseReviewRequest;
 import com.gii.api.model.response.CourseReviewResponse;
 import com.gii.api.model.response.student.StudentCertificateSummaryResponse;
 import com.gii.api.model.response.student.StudentCollectionDetailsResponse;
@@ -76,6 +77,19 @@ public class StudentApiController implements StudentApi {
       UUID courseId, CreateCourseReviewRequest request, Authentication authentication) {
     return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED)
         .body(courseReviewSubmissionService.execute(courseId, request, authentication));
+  }
+
+  @Override
+  public ResponseEntity<CourseReviewResponse> updateCourseReview(
+      UUID courseId, UpdateCourseReviewRequest request, Authentication authentication) {
+    return ResponseEntity.ok(
+        courseReviewSubmissionService.update(courseId, request, authentication));
+  }
+
+  @Override
+  public ResponseEntity<Void> deleteCourseReview(UUID courseId, Authentication authentication) {
+    courseReviewSubmissionService.delete(courseId, authentication);
+    return ResponseEntity.noContent().build();
   }
 
   @Override

@@ -27,7 +27,6 @@ import com.gii.common.enums.CourseLanguage;
 import com.gii.common.enums.CourseLevel;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
-import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
@@ -56,8 +55,8 @@ public class PublicApiController implements PublicApi {
 
   @Override
   public ResponseEntity<PageResponse<CourseSummaryResponse>> getAllCourses(
-      UUID categoryId, CourseLevel level, CourseLanguage language, Pageable pageable) {
-    return ResponseEntity.ok(allCoursesService.execute(categoryId, level, language, pageable));
+      List<String> categorySlugs, CourseLevel level, CourseLanguage language, Pageable pageable) {
+    return ResponseEntity.ok(allCoursesService.execute(categorySlugs, level, language, pageable));
   }
 
   @Override
@@ -73,6 +72,12 @@ public class PublicApiController implements PublicApi {
   @Override
   public ResponseEntity<CourseDetailsResponse> getCourseDetails(String slug) {
     return ResponseEntity.ok(courseDetailsService.execute(slug));
+  }
+
+  @Override
+  public ResponseEntity<PageResponse<CourseReviewResponse>> getAllCourseReviews(
+      Integer rating, Pageable pageable) {
+    return ResponseEntity.ok(courseReviewsService.executeAll(rating, pageable));
   }
 
   @Override

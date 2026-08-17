@@ -118,6 +118,36 @@ class AdminNewCapabilitiesApiIt extends AbstractAdminApiIntegrationTest {
 
     mockMvc
         .perform(
+            get("/admin/lessons/{lessonId}", lesson.getId())
+                .with(authentication(adminAuth(admin.getId()))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.lessonId").value(lesson.getId().toString()))
+        .andExpect(jsonPath("$.primaryResource").doesNotExist())
+        .andExpect(jsonPath("$.resources[0].resourceId").value(resourceId.toString()))
+        .andExpect(jsonPath("$.resources[0].title").value("Updated handout"));
+
+    mockMvc
+        .perform(
+            get("/admin/lesson-resources/{resourceId}/download-url", resourceId)
+                .with(authentication(adminAuth(admin.getId()))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.downloadUrl").isNotEmpty())
+        .andExpect(jsonPath("$.fileName").value("Updated handout.pdf"));
+
+    mockMvc
+        .perform(
+            get("/admin/lessons/{lessonId}", lesson.getId())
+                .with(authentication(studentAuthentication())))
+        .andExpect(status().isForbidden());
+
+    mockMvc
+        .perform(
+            get("/admin/lesson-resources/{resourceId}/download-url", resourceId)
+                .with(authentication(studentAuthentication())))
+        .andExpect(status().isForbidden());
+
+    mockMvc
+        .perform(
             post("/admin/lessons/{lessonId}/resources", lesson.getId())
                 .with(authentication(studentAuthentication()))
                 .contentType(MediaType.APPLICATION_JSON)

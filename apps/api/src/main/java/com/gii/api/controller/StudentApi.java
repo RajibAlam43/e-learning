@@ -1,6 +1,7 @@
 package com.gii.api.controller;
 
 import com.gii.api.model.request.student.CreateCourseReviewRequest;
+import com.gii.api.model.request.student.UpdateCourseReviewRequest;
 import com.gii.api.model.response.CourseReviewResponse;
 import com.gii.api.model.response.student.StudentCertificateSummaryResponse;
 import com.gii.api.model.response.student.StudentCollectionDetailsResponse;
@@ -23,7 +24,9 @@ import java.util.UUID;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -117,6 +120,18 @@ public interface StudentApi {
       @PathVariable UUID courseId,
       @Valid @RequestBody CreateCourseReviewRequest request,
       Authentication authentication);
+
+  @PatchMapping("/courses/{courseId}/reviews")
+  @Operation(summary = "Update my course review")
+  ResponseEntity<CourseReviewResponse> updateCourseReview(
+      @PathVariable UUID courseId,
+      @Valid @RequestBody UpdateCourseReviewRequest request,
+      Authentication authentication);
+
+  @DeleteMapping("/courses/{courseId}/reviews")
+  @Operation(summary = "Delete my course review")
+  ResponseEntity<Void> deleteCourseReview(
+      @PathVariable UUID courseId, Authentication authentication);
 
   @GetMapping("/orders")
   @Operation(summary = "List my orders", description = "Get purchase history and order status.")

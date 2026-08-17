@@ -61,7 +61,7 @@ class LessonResourcesApiIt extends AbstractLessonApiIntegrationTest {
                 .with(authentication(studentAuth(student.getId()))))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.downloadUrl").value("https://signed.test/file"))
-        .andExpect(jsonPath("$.fileName").value("Workbook"));
+        .andExpect(jsonPath("$.fileName").value("Workbook.pdf"));
   }
 
   @Test

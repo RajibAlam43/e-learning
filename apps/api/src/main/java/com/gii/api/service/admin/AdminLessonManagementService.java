@@ -41,6 +41,16 @@ public class AdminLessonManagementService {
   private final SectionItemRepository sectionItemRepository;
   private final AssetUrlService assetUrlService;
 
+  @Transactional(readOnly = true)
+  public AdminLessonDetailResponse get(UUID lessonId) {
+    Lesson lesson =
+        lessonRepository
+            .findById(lessonId)
+            .orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lesson not found"));
+    return toDetail(lesson);
+  }
+
   public AdminLessonDetailResponse create(UUID sectionId, CreateLessonRequest request) {
     CourseSection section =
         sectionRepository

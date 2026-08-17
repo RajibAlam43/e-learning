@@ -1,10 +1,13 @@
 package com.gii.common.repository.course;
 
 import com.gii.common.entity.course.CourseReview;
+import com.gii.common.enums.PublishStatus;
 import com.gii.common.enums.ReviewStatus;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -14,6 +17,29 @@ public interface CourseReviewRepository extends JpaRepository<CourseReview, UUID
   boolean existsByCourseIdAndUserId(UUID courseId, UUID userId);
 
   Optional<CourseReview> findByCourseIdAndUserId(UUID courseId, UUID userId);
+
+  @Query(
+      value =
+          """
+            SELECT r FROM CourseReview r
+            JOIN FETCH r.course
+            JOIN FETCH r.user
+            WHERE r.status = :status
+              AND r.course.status = :courseStatus
+              AND (:rating IS NULL OR r.rating = :rating)
+          """,
+      countQuery =
+          """
+            SELECT COUNT(r) FROM CourseReview r
+            WHERE r.status = :status
+              AND r.course.status = :courseStatus
+              AND (:rating IS NULL OR r.rating = :rating)
+          """)
+  Page<CourseReview> findPublicReviews(
+      @Param("status") ReviewStatus status,
+      @Param("courseStatus") PublishStatus courseStatus,
+      @Param("rating") Integer rating,
+      Pageable pageable);
 
   @Query(
       """

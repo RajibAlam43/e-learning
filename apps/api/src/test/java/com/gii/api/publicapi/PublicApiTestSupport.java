@@ -7,6 +7,7 @@ import com.gii.common.entity.course.Category;
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.course.CourseCategory;
 import com.gii.common.entity.course.CourseInstructor;
+import com.gii.common.entity.course.CourseReview;
 import com.gii.common.entity.course.CourseSection;
 import com.gii.common.entity.course.Lesson;
 import com.gii.common.entity.course.MediaAsset;
@@ -20,6 +21,7 @@ import com.gii.common.enums.InstructorRole;
 import com.gii.common.enums.LessonType;
 import com.gii.common.enums.MediaProvider;
 import com.gii.common.enums.PublishStatus;
+import com.gii.common.enums.ReviewStatus;
 import com.gii.common.enums.StudyMode;
 import com.gii.common.enums.UserStatus;
 import com.gii.common.repository.collection.CollectionCourseRepository;
@@ -28,6 +30,7 @@ import com.gii.common.repository.course.CategoryRepository;
 import com.gii.common.repository.course.CourseCategoryRepository;
 import com.gii.common.repository.course.CourseInstructorRepository;
 import com.gii.common.repository.course.CourseRepository;
+import com.gii.common.repository.course.CourseReviewRepository;
 import com.gii.common.repository.course.CourseSectionRepository;
 import com.gii.common.repository.course.LessonRepository;
 import com.gii.common.repository.course.MediaAssetRepository;
@@ -45,6 +48,7 @@ abstract class PublicApiTestSupport {
 
   @Autowired protected UserRepository userRepository;
   @Autowired protected CourseRepository courseRepository;
+  @Autowired protected CourseReviewRepository courseReviewRepository;
   @Autowired protected CourseSectionRepository courseSectionRepository;
   @Autowired protected LessonRepository lessonRepository;
   @Autowired protected MediaAssetRepository mediaAssetRepository;
@@ -58,6 +62,7 @@ abstract class PublicApiTestSupport {
 
   @AfterEach
   void cleanDb() {
+    courseReviewRepository.deleteAll();
     collectionCourseRepository.deleteAll();
     collectionRepository.deleteAll();
     mediaAssetRepository.deleteAll();
@@ -153,6 +158,18 @@ abstract class PublicApiTestSupport {
             .course(course)
             .instructor(instructor)
             .role(InstructorRole.PRIMARY)
+            .build());
+  }
+
+  protected CourseReview review(
+      Course course, User student, int rating, String text, ReviewStatus status) {
+    return courseReviewRepository.save(
+        CourseReview.builder()
+            .course(course)
+            .user(student)
+            .rating(rating)
+            .reviewText(text)
+            .status(status)
             .build());
   }
 

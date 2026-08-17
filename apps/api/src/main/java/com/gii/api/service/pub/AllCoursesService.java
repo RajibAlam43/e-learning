@@ -49,12 +49,12 @@ public class AllCoursesService {
   private final LocalizedContentService localizedContentService;
 
   public PageResponse<CourseSummaryResponse> execute(
-      UUID categoryId, CourseLevel level, CourseLanguage language, Pageable pageable) {
+      List<String> categorySlugs, CourseLevel level, CourseLanguage language, Pageable pageable) {
     Pageable safePageable = createSafePageable(pageable);
 
     Specification<Course> spec =
         Specification.where(CourseSpecifications.hasStatus(PublishStatus.PUBLISHED))
-            .and(CourseSpecifications.hasCategory(categoryId))
+            .and(CourseSpecifications.hasAnyCategorySlug(categorySlugs))
             .and(CourseSpecifications.hasLevel(level))
             .and(CourseSpecifications.hasLanguage(language));
 
