@@ -41,7 +41,7 @@ dependencies {
     // OTHERS
     implementation 'org.projectlombok:lombok:1.18.46'
     implementation 'org.jetbrains:annotations:26.1.0'
-    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3'
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.0'
     implementation 'com.googlecode.libphonenumber:libphonenumber:9.0.37'
 
     // TESTS
