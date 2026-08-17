@@ -25,4 +25,4 @@ public record UpdateProfileRequest(
     String credentialsText, // Credentials/certifications
     java.util.List<String> specialties, // List of specialties
     Integer yearsExperience // Years of experience
-) {}
+    ) {}

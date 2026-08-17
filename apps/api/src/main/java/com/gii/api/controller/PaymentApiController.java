@@ -10,10 +10,10 @@ import com.gii.api.model.response.payment.WebhookAckResponse;
 import com.gii.api.service.payment.InitiatePaymentService;
 import com.gii.api.service.payment.OrderStatusService;
 import com.gii.api.service.payment.PendingCartOrderService;
+import com.gii.api.service.payment.ReceiptService;
 import com.gii.api.service.payment.callback.BkashCallbackService;
 import com.gii.api.service.payment.callback.SslcommerzCallbackService;
 import com.gii.api.service.payment.webhook.PaymentWebhookService;
-import com.gii.api.service.payment.ReceiptService;
 import java.net.URI;
 import java.util.Map;
 import java.util.UUID;
@@ -61,51 +61,39 @@ public class PaymentApiController implements PaymentApi {
   public ResponseEntity<Void> sslcommerzPaymentSuccess(
       UUID orderId, Map<String, String> queryParams) {
     sslcommerzCallbackService.successRedirect(orderId, queryParams);
-    return ResponseEntity.status(303)
-        .location(buildRedirectUri(orderId, "success"))
-        .build();
+    return ResponseEntity.status(303).location(buildRedirectUri(orderId, "success")).build();
   }
 
   @Override
   public ResponseEntity<Void> sslcommerzPaymentFailed(
       UUID orderId, Map<String, String> queryParams) {
     sslcommerzCallbackService.failedRedirect(orderId, queryParams);
-    return ResponseEntity.status(303)
-        .location(buildRedirectUri(orderId, "failed"))
-        .build();
+    return ResponseEntity.status(303).location(buildRedirectUri(orderId, "failed")).build();
   }
 
   @Override
   public ResponseEntity<Void> sslcommerzPaymentCancelled(
       UUID orderId, Map<String, String> queryParams) {
     sslcommerzCallbackService.cancelledRedirect(orderId, queryParams);
-    return ResponseEntity.status(303)
-        .location(buildRedirectUri(orderId, "cancelled"))
-        .build();
+    return ResponseEntity.status(303).location(buildRedirectUri(orderId, "cancelled")).build();
   }
 
   @Override
   public ResponseEntity<Void> bkashPaymentSuccess(UUID orderId, Map<String, String> queryParams) {
     bkashCallbackService.successRedirect(orderId, queryParams);
-    return ResponseEntity.status(303)
-        .location(buildRedirectUri(orderId, "success"))
-        .build();
+    return ResponseEntity.status(303).location(buildRedirectUri(orderId, "success")).build();
   }
 
   @Override
   public ResponseEntity<Void> bkashPaymentFailed(UUID orderId, Map<String, String> queryParams) {
     bkashCallbackService.failedRedirect(orderId, queryParams);
-    return ResponseEntity.status(303)
-        .location(buildRedirectUri(orderId, "failed"))
-        .build();
+    return ResponseEntity.status(303).location(buildRedirectUri(orderId, "failed")).build();
   }
 
   @Override
   public ResponseEntity<Void> bkashPaymentCancelled(UUID orderId, Map<String, String> queryParams) {
     bkashCallbackService.cancelledRedirect(orderId, queryParams);
-    return ResponseEntity.status(303)
-        .location(buildRedirectUri(orderId, "cancelled"))
-        .build();
+    return ResponseEntity.status(303).location(buildRedirectUri(orderId, "cancelled")).build();
   }
 
   @Override

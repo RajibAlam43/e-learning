@@ -145,12 +145,16 @@ For local Docker-only runs, `docker-compose.yml` sets `SPRING_FLYWAY_ENABLED=tru
 
 **Deployment flow:** Server has Flyway CLI (`/opt/flyway/flyway`) for independent migrations before app startup.
 
+For managed stage databases, run `scripts/stage/db-user-permissions.sql` as an admin user so the Flyway migration user can create extensions/schema objects and the app users can read/write existing and future tables/sequences.
+
 ## Build & Test
 
 **Build everything:**
 ```bash
 ./gradlew clean test bootJar
 ```
+
+**API test split:** `test` excludes `@Tag("integration")` tests; run `./gradlew integrationTest` for the API integration suite backed by the shared Testcontainers Postgres container in `apps/api/src/test/java/com/gii/api/testsupport/SharedPostgresContainer.java`.
 
 **Code quality gates (configured in all modules):**
 ```bash
@@ -181,7 +185,9 @@ Set via `SPRING_PROFILES_ACTIVE` env var (docker-compose, systemd service files)
 - **Video:** Mux (config: `mux.signing-key-id`, `mux.private-key-pem`) and Bunny (config: `bunny.token-security-key`)
 - **Object Storage:** Cloudflare R2 S3-compatible signed downloads via `R2PresignedUrlService` (config: `storage.r2.*`)
 - **Payments:** SSL Commerce, bKash, Nagad webhook handlers in `PaymentApiController`
-- **Email:** Spring Mail in worker module
+- **Live classes:** Zoom and Google Calendar/Google Meet providers in `apps/api/src/main/java/com/gii/api/service/live/`
+- **Email:** Amazon SES in worker module (`EmailDeliveryService`, `SesConfig`)
+- **SMS:** Bulksmsbd OTP delivery in worker module (`SmsDeliveryService`)
 
 ## Local Development
 
@@ -216,9 +222,15 @@ docker-compose down
 ## Key File References
 
 - Architecture: `settings.gradle`, `build.gradle`
+- Common shared code: `apps/common/src/main/java/com/gii/common/{dto,enums,entity,repository}/`
 - API config: `apps/api/src/main/resources/application.properties`
+- API services/config: `apps/api/src/main/java/com/gii/api/{service,config}/`
+- API live class providers: `apps/api/src/main/java/com/gii/api/service/live/`
+- API test support: `apps/api/src/test/java/com/gii/api/testsupport/`
 - Worker config: `apps/worker/src/main/resources/application.properties`
+- Worker services/listeners/config: `apps/worker/src/main/java/com/gii/worker/{service,listener,config}/`
 - Common entities: `apps/common/src/main/java/com/gii/common/entity/`
 - API controllers: `apps/api/src/main/java/com/gii/api/controller/`
 - Services: `apps/api/src/main/java/com/gii/api/service/`
 - Migrations: `apps/api/src/main/resources/db/migration/`
+- Stage deployment permissions: `scripts/stage/db-user-permissions.sql`

@@ -45,15 +45,21 @@ public class SslcommerzCheckoutService {
   private String callbackBaseUrl;
 
   public boolean isConfigured() {
-    return !isBlank(sessionApiUrl) && !isBlank(storeId) && !isBlank(storePassword) && !isBlank(callbackBaseUrl);
+    return !isBlank(sessionApiUrl)
+        && !isBlank(storeId)
+        && !isBlank(storePassword)
+        && !isBlank(callbackBaseUrl);
   }
 
-  public InitiationResult createSession(Order order, String customerName, String customerEmail, String customerPhone) {
+  public InitiationResult createSession(
+      Order order, String customerName, String customerEmail, String customerPhone) {
     if (!isConfigured()) {
-      throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "SSLCommerz is not configured");
+      throw new ResponseStatusException(
+          HttpStatus.SERVICE_UNAVAILABLE, "SSLCommerz is not configured");
     }
     if (isBlank(customerEmail) || isBlank(customerPhone)) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Customer contact info is required");
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Customer contact info is required");
     }
 
     String tranId = buildTranId(order.getId().toString());
@@ -67,7 +73,8 @@ public class SslcommerzCheckoutService {
     form.add("tran_id", tranId);
     form.add("success_url", callbackBaseUrl + "/payments/sslcommerz/" + order.getId() + "/success");
     form.add("fail_url", callbackBaseUrl + "/payments/sslcommerz/" + order.getId() + "/failed");
-    form.add("cancel_url", callbackBaseUrl + "/payments/sslcommerz/" + order.getId() + "/cancelled");
+    form.add(
+        "cancel_url", callbackBaseUrl + "/payments/sslcommerz/" + order.getId() + "/cancelled");
     form.add("ipn_url", callbackBaseUrl + "/public/webhooks/payments/sslcommerz");
     form.add("cus_name", customerName);
     form.add("cus_email", customerEmail);
@@ -80,13 +87,15 @@ public class SslcommerzCheckoutService {
     Map<String, Object> response = requestSession(form);
     String status = asString(response.get("status"));
     if (!"SUCCESS".equalsIgnoreCase(status)) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "SSLCommerz session creation failed");
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "SSLCommerz session creation failed");
     }
 
     String gatewayPageUrl = asString(response.get("GatewayPageURL"));
     String sessionKey = asString(response.get("sessionkey"));
     if (isBlank(gatewayPageUrl) || isBlank(sessionKey)) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "SSLCommerz session creation failed");
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "SSLCommerz session creation failed");
     }
     return new InitiationResult(tranId, sessionKey, gatewayPageUrl);
   }
@@ -105,14 +114,16 @@ public class SslcommerzCheckoutService {
               .bodyToMono(String.class)
               .block(Duration.ofMillis(timeoutMs));
       if (body == null || body.isBlank()) {
-        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "SSLCommerz session creation failed");
+        throw new ResponseStatusException(
+            HttpStatus.BAD_REQUEST, "SSLCommerz session creation failed");
       }
       return objectMapper.readValue(body, MAP_TYPE);
     } catch (Exception ex) {
       if (ex instanceof ResponseStatusException rse) {
         throw rse;
       }
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "SSLCommerz session creation failed", ex);
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "SSLCommerz session creation failed", ex);
     }
   }
 

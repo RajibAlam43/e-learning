@@ -126,7 +126,8 @@ class AuthVerificationApiIt extends AbstractAuthApiIntegrationTest {
 
   @Test
   void verifyCodeRejectsPasswordResetPurpose() throws Exception {
-    User user = user("Verify Purpose", "purpose@example.com", null, "Secret123!", UserStatus.ACTIVE);
+    User user =
+        user("Verify Purpose", "purpose@example.com", null, "Secret123!", UserStatus.ACTIVE);
     verificationCode(
         user,
         VerificationPurpose.PASSWORD_RESET,

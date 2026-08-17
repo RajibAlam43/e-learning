@@ -21,8 +21,7 @@ class PublicCollectionsApiIt extends AbstractPublicApiIntegrationTest {
   @Test
   void listsPublishedCollectionsAndAppliesTypeFilter() throws Exception {
     var creator = user("Creator", "creator-public-collections@example.com", UserStatus.ACTIVE);
-    var instructor =
-        user("Instructor", "inst-public-collections@example.com", UserStatus.ACTIVE);
+    var instructor = user("Instructor", "inst-public-collections@example.com", UserStatus.ACTIVE);
     var c1 =
         course(
             "Track Course",
@@ -169,8 +168,7 @@ class PublicCollectionsApiIt extends AbstractPublicApiIntegrationTest {
     collectionRepository.saveAndFlush(collection);
     mockMvc
         .perform(
-            get("/public/collections/{slug}", collection.getSlug())
-                .header("Accept-Language", "en"))
+            get("/public/collections/{slug}", collection.getSlug()).header("Accept-Language", "en"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.title").value("বাংলা সংগ্রহ"));
   }

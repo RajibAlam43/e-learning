@@ -15,4 +15,3 @@ public record AdminQuizSummaryResponse(
     Integer maxAttempts,
     Integer timeLimitSec,
     Instant createdAt) {}
-

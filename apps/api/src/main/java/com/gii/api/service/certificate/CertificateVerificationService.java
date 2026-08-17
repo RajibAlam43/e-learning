@@ -1,15 +1,14 @@
 package com.gii.api.service.certificate;
 
 import com.gii.api.model.response.certificate.PublicCertificateVerificationResponse;
+import com.gii.api.service.progress.CourseCompletionService;
+import com.gii.api.service.progress.CourseCompletionService.CourseCompletion;
 import com.gii.common.entity.certificate.Certificate;
 import com.gii.common.entity.course.CourseInstructor;
 import com.gii.common.enums.CertificateTargetType;
 import com.gii.common.enums.InstructorRole;
-import com.gii.common.enums.PublishStatus;
 import com.gii.common.repository.certificate.CertificateRepository;
 import com.gii.common.repository.course.CourseInstructorRepository;
-import com.gii.common.repository.course.LessonRepository;
-import com.gii.common.repository.enrollment.LessonProgressRepository;
 import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -24,8 +23,7 @@ public class CertificateVerificationService {
 
   private final CertificateRepository certificateRepository;
   private final CourseInstructorRepository courseInstructorRepository;
-  private final LessonRepository lessonRepository;
-  private final LessonProgressRepository lessonProgressRepository;
+  private final CourseCompletionService courseCompletionService;
 
   public PublicCertificateVerificationResponse execute(String code) {
     String normalizedCode = normalizeCode(code);
@@ -39,7 +37,8 @@ public class CertificateVerificationService {
     Double completionPct = null;
     String completionCriteria;
 
-    if (certificate.getTargetType() == CertificateTargetType.COURSE && certificate.getCourse() != null) {
+    if (certificate.getTargetType() == CertificateTargetType.COURSE
+        && certificate.getCourse() != null) {
       instructorName =
           courseInstructorRepository.findByCourseId(certificate.getCourse().getId()).stream()
               .filter(ci -> ci.getRole() == InstructorRole.PRIMARY)
@@ -53,19 +52,14 @@ public class CertificateVerificationService {
               .map(CourseInstructor::getInstructor)
               .map(instructor -> instructor.getFullName())
               .orElse("Instructor");
-      long totalLessons =
-          lessonRepository.countByCourseIdAndStatus(
-              certificate.getCourse().getId(), PublishStatus.PUBLISHED);
-      long completedLessons =
-          lessonProgressRepository.countByUserIdAndLessonCourseIdAndCompletedAtIsNotNull(
+      CourseCompletion completion =
+          courseCompletionService.get(
               certificate.getUser().getId(), certificate.getCourse().getId());
-      completionPct =
-          totalLessons == 0
-              ? null
-              : Math.round(((completedLessons * 10000.0) / totalLessons)) / 100.0;
-      completionCriteria = "Completed all published lessons";
+      completionPct = completion.totalItems() == 0 ? null : completion.completionPercentage();
+      completionCriteria = "Completed all published lessons and passed all published quizzes";
     } else {
-      completionCriteria = "Completed all published lessons in collection";
+      completionCriteria =
+          "Completed all published lessons and passed all published quizzes in collection";
     }
 
     String status = certificate.getRevokedAt() == null ? "VALID" : "REVOKED";

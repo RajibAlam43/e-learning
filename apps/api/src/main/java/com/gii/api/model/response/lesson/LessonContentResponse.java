@@ -30,10 +30,11 @@ public record LessonContentResponse(
 
     // Related content
     MediaPlaybackResponse mediaPlayback, // Optional: media info if VIDEO/PDF type
-    List<LessonResourceResponse> resources, // Lesson resources (PDFs, images)
+    LessonResourceResponse primaryResource, // Primary PDF content for PDF lessons
+    List<LessonResourceResponse> resources, // Supplementary lesson resources
 
     // Navigation context
     UUID courseId,
     UUID sectionId,
     String courseName // For breadcrumb/context
-) {}
+    ) {}

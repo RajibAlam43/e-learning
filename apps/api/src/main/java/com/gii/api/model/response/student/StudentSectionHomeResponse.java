@@ -15,6 +15,8 @@ public record StudentSectionHomeResponse(
     Double completionPercentage,
     Integer completedLessons,
     Integer totalLessons,
+    Integer completedItems,
+    Integer totalItems,
 
     // Access status
     Boolean isAccessible, // Based on release type/drip content

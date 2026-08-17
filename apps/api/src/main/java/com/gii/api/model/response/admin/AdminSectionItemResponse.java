@@ -10,4 +10,3 @@ public record AdminSectionItemResponse(
     Integer position,
     AdminLessonSummaryResponse lesson,
     AdminQuizSummaryResponse quiz) {}
-

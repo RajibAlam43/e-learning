@@ -223,7 +223,10 @@ public class VerificationCodeService {
 
   private void queueOtpSend(
       UUID userId,
-      VerificationChannel channel, String channelValue, String code, VerificationPurpose purpose) {
+      VerificationChannel channel,
+      String channelValue,
+      String code,
+      VerificationPurpose purpose) {
     if (channel == VerificationChannel.EMAIL) {
       EmailJobMessage job =
           EmailJobMessage.builder()

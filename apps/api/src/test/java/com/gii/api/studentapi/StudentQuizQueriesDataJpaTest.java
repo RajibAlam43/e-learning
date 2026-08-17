@@ -23,7 +23,8 @@ class StudentQuizQueriesDataJpaTest extends AbstractStudentDataJpaTest {
     quiz(course, section, 3, PublishStatus.DRAFT, "Draft Quiz");
 
     var result =
-        quizRepository.findByCourseIdAndStatusOrderByPositionAsc(course.getId(), PublishStatus.PUBLISHED);
+        quizRepository.findByCourseIdAndStatusOrderByPositionAsc(
+            course.getId(), PublishStatus.PUBLISHED);
 
     assertThat(result).extracting(q -> q.getId()).containsExactly(first.getId(), second.getId());
     assertThat(result).allMatch(q -> q.getStatus() == PublishStatus.PUBLISHED);

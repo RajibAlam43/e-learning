@@ -1,5 +1,6 @@
 package com.gii.api.model.response.admin;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -29,4 +30,5 @@ public record AdminInstructorDetailResponse(
     Integer yearsExperience,
     Instant createdAt,
     Instant updatedAt,
-    List<AdminCourseSummaryResponse> assignedCourses) {}
+    List<AdminCourseSummaryResponse> assignedCourses,
+    @JsonInclude(JsonInclude.Include.NON_NULL) String temporaryPassword) {}

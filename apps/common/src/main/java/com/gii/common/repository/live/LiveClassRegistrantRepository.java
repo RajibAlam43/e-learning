@@ -40,5 +40,4 @@ public interface LiveClassRegistrantRepository extends JpaRepository<LiveClassRe
   List<Object[]> countByLiveClassIdsAndStatus(
       @Param("liveClassIds") List<UUID> liveClassIds,
       @Param("status") LiveClassRegistrantStatus status);
-
 }

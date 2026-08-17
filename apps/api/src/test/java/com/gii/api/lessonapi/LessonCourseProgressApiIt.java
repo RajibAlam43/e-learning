@@ -1,5 +1,6 @@
 package com.gii.api.lessonapi;
 
+import static org.hamcrest.Matchers.aMapWithSize;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -24,7 +25,7 @@ class LessonCourseProgressApiIt extends AbstractLessonApiIntegrationTest {
   }
 
   @Test
-  void courseProgressReturnsSectionAndCompletionSummary() throws Exception {
+  void courseProgressReturnsOnlyCourseIdAndCompletionPercentage() throws Exception {
     var creator = user("Creator", "creator-cp@example.com");
     var student = user("Student", "student-cp@example.com");
     var course = course("Course Progress", "course-progress", creator, PublishStatus.PUBLISHED);
@@ -61,9 +62,8 @@ class LessonCourseProgressApiIt extends AbstractLessonApiIntegrationTest {
             get("/learn/courses/{courseId}/progress", course.getId())
                 .with(authentication(studentAuth(student.getId()))))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.totalLessons").value(3))
-        .andExpect(jsonPath("$.completedLessons").value(1))
-        .andExpect(jsonPath("$.pendingLessons").value(2))
-        .andExpect(jsonPath("$.sections.length()").value(2));
+        .andExpect(jsonPath("$.courseId").value(course.getId().toString()))
+        .andExpect(jsonPath("$.completionPercentage").value(33.33))
+        .andExpect(jsonPath("$").value(aMapWithSize(2)));
   }
 }

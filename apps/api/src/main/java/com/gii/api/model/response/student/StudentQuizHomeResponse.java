@@ -12,4 +12,5 @@ public record StudentQuizHomeResponse(
     String accessReason,
     Integer passingScorePct,
     Integer maxAttempts,
-    Integer timeLimitSec) {}
+    Integer timeLimitSec,
+    Boolean completed) {}

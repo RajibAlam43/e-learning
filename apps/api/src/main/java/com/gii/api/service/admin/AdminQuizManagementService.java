@@ -19,6 +19,7 @@ import com.gii.common.enums.QuestionType;
 import com.gii.common.enums.SectionItemType;
 import com.gii.common.repository.course.CourseSectionRepository;
 import com.gii.common.repository.course.SectionItemRepository;
+import com.gii.common.repository.quiz.QuizAttemptRepository;
 import com.gii.common.repository.quiz.QuizChoiceRepository;
 import com.gii.common.repository.quiz.QuizQuestionRepository;
 import com.gii.common.repository.quiz.QuizRepository;
@@ -38,6 +39,7 @@ public class AdminQuizManagementService {
   private final CourseSectionRepository sectionRepository;
   private final SectionItemRepository sectionItemRepository;
   private final QuizRepository quizRepository;
+  private final QuizAttemptRepository quizAttemptRepository;
   private final QuizQuestionRepository questionRepository;
   private final QuizChoiceRepository choiceRepository;
 
@@ -158,6 +160,19 @@ public class AdminQuizManagementService {
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Quiz not found"));
     quiz.setStatus(PublishStatus.DRAFT);
     quizRepository.save(quiz);
+  }
+
+  public void delete(UUID quizId) {
+    Quiz quiz =
+        quizRepository
+            .findById(quizId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Quiz not found"));
+    if (quizAttemptRepository.existsByQuizId(quizId)) {
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT, "Quiz with student attempts cannot be deleted");
+    }
+    sectionItemRepository.deleteByItemTypeAndItemId(SectionItemType.QUIZ, quizId);
+    quizRepository.delete(quiz);
   }
 
   private void createQuestions(Quiz quiz, List<CreateQuizQuestionRequest> questionRequests) {

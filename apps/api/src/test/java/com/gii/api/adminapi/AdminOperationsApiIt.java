@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gii.common.enums.LiveClassRegistrantStatus;
 import com.gii.common.enums.OrderStatus;
 import com.gii.common.enums.PublishStatus;
@@ -27,12 +28,14 @@ import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.server.ResponseStatusException;
 
 class AdminOperationsApiIt extends AbstractAdminApiIntegrationTest {
 
   @Autowired private MockMvc mockMvc;
+  @Autowired private PasswordEncoder passwordEncoder;
 
   @AfterEach
   void cleanup() {
@@ -117,17 +120,30 @@ class AdminOperationsApiIt extends AbstractAdminApiIntegrationTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.title").value("Updated Intro"));
 
-    mockMvc
-        .perform(
-            post("/admin/instructors")
-                .with(authentication(adminAuth(admin.getId())))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(
-                    """
-                    {"fullName":"New Instructor","email":"new-instructor@example.com","displayName":"New Inst"}
-                    """))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.fullName").value("New Instructor"));
+    String instructorResponse =
+        mockMvc
+            .perform(
+                post("/admin/instructors")
+                    .with(authentication(adminAuth(admin.getId())))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(
+                        """
+                        {"fullName":"New Instructor","email":"new-instructor@example.com","displayName":"New Inst"}
+                        """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.fullName").value("New Instructor"))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    String temporaryPassword =
+        new ObjectMapper().readTree(instructorResponse).get("temporaryPassword").asText();
+    org.assertj.core.api.Assertions.assertThat(temporaryPassword).matches("[A-Za-z0-9]{8}");
+    var createdInstructor = userRepository.findByEmail("new-instructor@example.com").orElseThrow();
+    org.assertj.core.api.Assertions.assertThat(
+            passwordEncoder.matches(temporaryPassword, createdInstructor.getPasswordHash()))
+        .isTrue();
+    org.assertj.core.api.Assertions.assertThat(createdInstructor.getPasswordHash())
+        .doesNotContain(temporaryPassword);
 
     mockMvc
         .perform(
