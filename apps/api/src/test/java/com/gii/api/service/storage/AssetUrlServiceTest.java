@@ -9,8 +9,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 class AssetUrlServiceTest {
 
-  private final AssetUrlService service =
-      new AssetUrlService("https://assets.example.com/");
+  private final AssetUrlService service = new AssetUrlService("https://assets.example.com/");
 
   @Test
   void shouldResolveFullObjectKeyAndNormalizeBlank() {

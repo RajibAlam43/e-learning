@@ -118,6 +118,16 @@ public class Course extends BaseUuidEntity {
   @Column(name = "published_at")
   private Instant publishedAt;
 
+  @Column(name = "is_featured", nullable = false)
+  @Builder.Default
+  private Boolean isFeatured = false;
+
+  @Column(name = "featured_position")
+  private Integer featuredPosition;
+
+  @Column(name = "featured_at")
+  private Instant featuredAt;
+
   // For ease of use
   @Column(name = "is_free", nullable = false)
   @Builder.Default

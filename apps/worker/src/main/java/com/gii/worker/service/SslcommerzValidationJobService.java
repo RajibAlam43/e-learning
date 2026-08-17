@@ -46,11 +46,13 @@ import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
 public class SslcommerzValidationJobService {
 
   private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {};
-  private static final TypeReference<List<Map<String, Object>>> LIST_TYPE = new TypeReference<>() {};
+  private static final TypeReference<List<Map<String, Object>>> LIST_TYPE =
+      new TypeReference<>() {};
   private static final BigDecimal MAX_DIFF = new BigDecimal("0.1");
 
   @Qualifier("jacksonObjectMapper")
   private final ObjectMapper objectMapper;
+
   private final WebClient.Builder webClientBuilder;
   private final SqsAsyncClient sqsClient;
   private final OrderRepository orderRepository;
@@ -91,8 +93,7 @@ public class SslcommerzValidationJobService {
     if (order.getStatus() == OrderStatus.PAID) {
       return;
     }
-    if (order.getStatus() == OrderStatus.CANCELLED
-        || order.getStatus() == OrderStatus.REFUNDED) {
+    if (order.getStatus() == OrderStatus.CANCELLED || order.getStatus() == OrderStatus.REFUNDED) {
       log.info(
           "SSLCommerz validation job skipped for terminal order state; orderId={}, status={}, valId={}, attempt={}",
           order.getId(),
@@ -189,7 +190,8 @@ public class SslcommerzValidationJobService {
                     clientResponse
                         .bodyToMono(String.class)
                         .defaultIfEmpty("")
-                        .map(body -> new RawHttpResponse(clientResponse.statusCode().value(), body)))
+                        .map(
+                            body -> new RawHttpResponse(clientResponse.statusCode().value(), body)))
             .block(Duration.ofMillis(validationTimeoutMs));
     if (response == null || response.statusCode() < 200 || response.statusCode() >= 300) {
       throw new IllegalStateException("Validation API call failed");
@@ -284,7 +286,8 @@ public class SslcommerzValidationJobService {
     };
   }
 
-  private void recordEvent(Order order, SslcommerzValidationJobMessage job, PaymentEventStatus status) {
+  private void recordEvent(
+      Order order, SslcommerzValidationJobMessage job, PaymentEventStatus status) {
     paymentEventRepository.save(
         PaymentEvent.builder()
             .order(order)
@@ -348,10 +351,12 @@ public class SslcommerzValidationJobService {
       }
       if (item.getItemType() == OrderItemType.COLLECTION) {
         activateOrCreateCollectionEnrollment(order, item, now);
-        collectionCourseRepository.findByCollection_IdOrderByPositionAsc(item.getCollection().getId()).forEach(
-            collectionCourse ->
-                activateOrCreateCourseEnrollment(
-                    order, item, collectionCourse.getCourse(), now, item.getCollection()));
+        collectionCourseRepository
+            .findByCollection_IdOrderByPositionAsc(item.getCollection().getId())
+            .forEach(
+                collectionCourse ->
+                    activateOrCreateCourseEnrollment(
+                        order, item, collectionCourse.getCourse(), now, item.getCollection()));
       }
     }
   }
@@ -362,7 +367,8 @@ public class SslcommerzValidationJobService {
       com.gii.common.entity.course.Course course,
       Instant now,
       com.gii.common.entity.collection.Collection sourceCollection) {
-    var existingOpt = enrollmentRepository.findByUserIdAndCourseId(order.getUser().getId(), course.getId());
+    var existingOpt =
+        enrollmentRepository.findByUserIdAndCourseId(order.getUser().getId(), course.getId());
     if (existingOpt.isPresent()) {
       Enrollment existing = existingOpt.get();
       existing.setStatus(EnrollmentStatus.ACTIVE);
@@ -386,7 +392,8 @@ public class SslcommerzValidationJobService {
     saveEnrollmentIdempotent(enrollment);
   }
 
-  private void activateOrCreateCollectionEnrollment(Order order, OrderItem sourceOrderItem, Instant now) {
+  private void activateOrCreateCollectionEnrollment(
+      Order order, OrderItem sourceOrderItem, Instant now) {
     var existingOpt =
         collectionEnrollmentRepository.findByUserIdAndCollectionId(
             order.getUser().getId(), sourceOrderItem.getCollection().getId());

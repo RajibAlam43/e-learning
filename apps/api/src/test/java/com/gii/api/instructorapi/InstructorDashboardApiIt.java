@@ -79,10 +79,8 @@ class InstructorDashboardApiIt extends AbstractInstructorApiIntegrationTest {
         .andExpect(jsonPath("$.assignedCourses[0].courseName").value("Instructor Course English"))
         .andExpect(jsonPath("$.upcomingLiveClasses[0].title").value("Upcoming Class English"))
         .andExpect(
-            jsonPath("$.upcomingLiveClasses[0].description")
-                .value("Upcoming description English"))
+            jsonPath("$.upcomingLiveClasses[0].description").value("Upcoming description English"))
         .andExpect(
-            jsonPath("$.upcomingLiveClasses[0].sectionTitle")
-                .value("Instructor Section English"));
+            jsonPath("$.upcomingLiveClasses[0].sectionTitle").value("Instructor Section English"));
   }
 }

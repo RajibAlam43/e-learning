@@ -9,7 +9,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface CollectionCourseRepository extends JpaRepository<CollectionCourse, CollectionCourseId> {
+public interface CollectionCourseRepository
+    extends JpaRepository<CollectionCourse, CollectionCourseId> {
 
   List<CollectionCourse> findByCollection_IdOrderByPositionAsc(UUID collectionId);
 
@@ -35,7 +36,8 @@ public interface CollectionCourseRepository extends JpaRepository<CollectionCour
       JOIN FETCH cc.course
       WHERE cc.collection.id IN :collectionIds
       """)
-  List<CollectionCourse> findByCollection_IdInWithCourse(@Param("collectionIds") List<UUID> collectionIds);
+  List<CollectionCourse> findByCollection_IdInWithCourse(
+      @Param("collectionIds") List<UUID> collectionIds);
 
   @Query(
       """

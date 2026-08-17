@@ -8,4 +8,4 @@ public record PaymentCallbackResponse(
     PaymentStatusResponse paymentStatus,
     Map<String, String> providerMetadata, // Raw provider callback data
     String callbackType // "SUCCESS", "FAILED", "CANCELLED"
-) {}
+    ) {}

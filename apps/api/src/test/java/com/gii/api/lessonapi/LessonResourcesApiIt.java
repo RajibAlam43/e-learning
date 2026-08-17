@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.gii.api.service.storage.R2PresignedUrlService;
 import com.gii.common.enums.EnrollmentStatus;
+import com.gii.common.enums.LessonResourcePurpose;
 import com.gii.common.enums.PublishStatus;
 import com.gii.common.enums.ReleaseType;
 import java.time.Instant;
@@ -36,6 +37,8 @@ class LessonResourcesApiIt extends AbstractLessonApiIntegrationTest {
     var sec = section(course, 1, PublishStatus.PUBLISHED);
     var lesson =
         lesson(course, sec, 1, PublishStatus.PUBLISHED, false, ReleaseType.IMMEDIATE, null, null);
+    lesson.setLessonType(com.gii.common.enums.LessonType.PDF);
+    lessonRepository.save(lesson);
     enrollment(student, course, EnrollmentStatus.ACTIVE, Instant.now().plusSeconds(3600));
     var resourceA = resource(lesson, 2, "Appendix");
     var resourceB = resource(lesson, 1, "Workbook");
@@ -58,6 +61,40 @@ class LessonResourcesApiIt extends AbstractLessonApiIntegrationTest {
                 .with(authentication(studentAuth(student.getId()))))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.downloadUrl").value("https://signed.test/file"))
-        .andExpect(jsonPath("$.fileName").value("Workbook"));
+        .andExpect(jsonPath("$.fileName").value("Workbook.pdf"));
+  }
+
+  @Test
+  void lessonContentSeparatesPrimaryPdfFromSupplementaryResources() throws Exception {
+    var creator = user("PDF Creator", "pdf-content-creator@example.com");
+    var student = user("PDF Student", "pdf-content-student@example.com");
+    var course = course("PDF Content", "pdf-content", creator, PublishStatus.PUBLISHED);
+    var sec = section(course, 1, PublishStatus.PUBLISHED);
+    var lesson =
+        lesson(course, sec, 1, PublishStatus.PUBLISHED, false, ReleaseType.IMMEDIATE, null, null);
+    enrollment(student, course, EnrollmentStatus.ACTIVE, Instant.now().plusSeconds(3600));
+    var primary = resource(lesson, 1, "Main PDF");
+    primary.setPurpose(LessonResourcePurpose.PRIMARY_CONTENT);
+    lessonResourceRepository.save(primary);
+    var supplementary = resource(lesson, 2, "Workbook");
+
+    mockMvc
+        .perform(
+            get("/learn/lessons/{lessonId}", lesson.getId())
+                .with(authentication(studentAuth(student.getId()))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.primaryResource.resourceId").value(primary.getId().toString()))
+        .andExpect(jsonPath("$.primaryResource.purpose").value("PRIMARY_CONTENT"))
+        .andExpect(jsonPath("$.resources.length()").value(1))
+        .andExpect(jsonPath("$.resources[0].resourceId").value(supplementary.getId().toString()))
+        .andExpect(jsonPath("$.resources[0].purpose").value("SUPPLEMENTARY"));
+
+    mockMvc
+        .perform(
+            get("/learn/lessons/{lessonId}/resources", lesson.getId())
+                .with(authentication(studentAuth(student.getId()))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.length()").value(1))
+        .andExpect(jsonPath("$[0].resourceId").value(supplementary.getId().toString()));
   }
 }

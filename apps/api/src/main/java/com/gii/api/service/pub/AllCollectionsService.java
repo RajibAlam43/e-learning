@@ -2,8 +2,8 @@ package com.gii.api.service.pub;
 
 import com.gii.api.model.response.CollectionSummaryResponse;
 import com.gii.api.model.response.PageResponse;
-import com.gii.api.service.storage.AssetUrlService;
 import com.gii.api.service.localization.LocalizedContentService;
+import com.gii.api.service.storage.AssetUrlService;
 import com.gii.common.entity.collection.Collection;
 import com.gii.common.entity.collection.CollectionCourse;
 import com.gii.common.entity.course.CourseInstructor;
@@ -43,7 +43,8 @@ public class AllCollectionsService {
   private final AssetUrlService assetUrlService;
   private final LocalizedContentService localizedContentService;
 
-  public PageResponse<CollectionSummaryResponse> execute(CollectionType collectionType, Pageable pageable) {
+  public PageResponse<CollectionSummaryResponse> execute(
+      CollectionType collectionType, Pageable pageable) {
     Pageable safePageable = createSafePageable(pageable);
 
     Specification<Collection> spec =
@@ -63,22 +64,28 @@ public class AllCollectionsService {
     Map<UUID, List<UUID>> courseIdsByCollectionId = new HashMap<>();
     for (CollectionCourse collectionCourse : collectionCourses) {
       courseIdsByCollectionId
-          .computeIfAbsent(collectionCourse.getCollection().getId(), ignored -> new java.util.ArrayList<>())
+          .computeIfAbsent(
+              collectionCourse.getCollection().getId(), ignored -> new java.util.ArrayList<>())
           .add(collectionCourse.getCourse().getId());
     }
 
     List<UUID> allCourseIds =
-        collectionCourses.stream().map(collectionCourse -> collectionCourse.getCourse().getId()).distinct().toList();
+        collectionCourses.stream()
+            .map(collectionCourse -> collectionCourse.getCourse().getId())
+            .distinct()
+            .toList();
     Map<UUID, List<String>> instructorNamesByCourseId = getInstructorNamesByCourseId(allCourseIds);
 
     List<CollectionSummaryResponse> content =
         collections.stream()
             .map(
                 collection -> {
-                  List<UUID> courseIds = courseIdsByCollectionId.getOrDefault(collection.getId(), List.of());
+                  List<UUID> courseIds =
+                      courseIdsByCollectionId.getOrDefault(collection.getId(), List.of());
                   LinkedHashSet<String> instructorNames = new LinkedHashSet<>();
                   for (UUID courseId : courseIds) {
-                    instructorNames.addAll(instructorNamesByCourseId.getOrDefault(courseId, List.of()));
+                    instructorNames.addAll(
+                        instructorNamesByCourseId.getOrDefault(courseId, List.of()));
                   }
                   return CollectionSummaryResponse.builder()
                       .id(collection.getId())
@@ -89,8 +96,7 @@ public class AllCollectionsService {
                       .collectionType(collection.getType())
                       .shortDescription(
                           localizedContentService.text(
-                              collection.getShortDescription(),
-                              collection.getShortDescriptionEn()))
+                              collection.getShortDescription(), collection.getShortDescriptionEn()))
                       .thumbnailUrl(assetUrlService.publicUrl(collection.getThumbnailObjectKey()))
                       .priceBdt(collection.getPriceBdt())
                       .publishedAt(collection.getPublishedAt())
@@ -123,7 +129,9 @@ public class AllCollectionsService {
     }
 
     List<Sort.Order> safeOrders =
-        requestedSort.stream().filter(order -> ALLOWED_SORT_FIELDS.contains(order.getProperty())).toList();
+        requestedSort.stream()
+            .filter(order -> ALLOWED_SORT_FIELDS.contains(order.getProperty()))
+            .toList();
 
     if (safeOrders.isEmpty()) {
       return defaultSort;
@@ -147,7 +155,9 @@ public class AllCollectionsService {
             Collectors.groupingBy(
                 instructor -> instructor.getCourse().getId(),
                 Collectors.collectingAndThen(
-                    Collectors.mapping(instructor -> instructor.getInstructor().getFullName(), Collectors.toList()),
+                    Collectors.mapping(
+                        instructor -> instructor.getInstructor().getFullName(),
+                        Collectors.toList()),
                     names -> new java.util.ArrayList<>(new LinkedHashSet<>(names)))));
   }
 }

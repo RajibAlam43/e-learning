@@ -1,6 +1,7 @@
 package com.gii.common.entity.course;
 
 import com.gii.common.entity.common.BaseUuidEntity;
+import com.gii.common.enums.LessonResourcePurpose;
 import com.gii.common.enums.LessonResourceType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -9,9 +10,12 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -39,6 +43,11 @@ public class LessonResource extends BaseUuidEntity {
   @Column(name = "resource_type", nullable = false, length = 20)
   private LessonResourceType resourceType;
 
+  @Enumerated(EnumType.STRING)
+  @Column(name = "purpose", nullable = false, length = 30)
+  @Builder.Default
+  private LessonResourcePurpose purpose = LessonResourcePurpose.SUPPLEMENTARY;
+
   @Column(name = "title")
   private String title;
 
@@ -48,9 +57,23 @@ public class LessonResource extends BaseUuidEntity {
   @Column(name = "file_url", nullable = false)
   private String fileUrl;
 
+  @Column(name = "file_object_key", nullable = false)
+  private String fileObjectKey;
+
   @Column(name = "mime_type")
   private String mimeType;
 
   @Column(name = "position", nullable = false)
   private Integer position;
+
+  @PrePersist
+  @PreUpdate
+  void synchronizeStorageFields() {
+    if ((fileObjectKey == null || fileObjectKey.isBlank()) && fileUrl != null) {
+      fileObjectKey = fileUrl;
+    }
+    if ((fileUrl == null || fileUrl.isBlank()) && fileObjectKey != null) {
+      fileUrl = fileObjectKey;
+    }
+  }
 }

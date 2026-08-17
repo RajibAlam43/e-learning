@@ -14,9 +14,9 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
-import org.springframework.test.web.servlet.MockMvc;
 
 class PaymentApiContractGapIt extends AbstractPaymentApiIntegrationTest {
 
@@ -42,7 +42,10 @@ class PaymentApiContractGapIt extends AbstractPaymentApiIntegrationTest {
         .perform(
             post("/public/webhooks/payments/sslcommerz")
                 .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                .params(toFormParams(signedSslPayload("tran_id=public-callback&status=UNATTEMPTED&val_id=val-public"))))
+                .params(
+                    toFormParams(
+                        signedSslPayload(
+                            "tran_id=public-callback&status=UNATTEMPTED&val_id=val-public"))))
         .andExpect(status().isOk());
   }
 

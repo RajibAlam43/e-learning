@@ -31,4 +31,4 @@ public record QuizAttemptQuestionResultResponse(
 
     // Feedback
     String feedbackMessage // e.g., "Correct!", "Incorrect. The correct answer is..."
-) {}
+    ) {}

@@ -16,6 +16,8 @@ public record StudentCollectionSummaryResponse(
     Double progressPercentage,
     Integer completedLessons,
     Integer totalLessons,
+    Integer completedItems,
+    Integer totalItems,
     Integer courseCount,
     EnrollmentStatus enrollmentStatus,
     Instant enrolledAt,

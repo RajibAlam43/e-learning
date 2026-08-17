@@ -2,8 +2,8 @@ package com.gii.api.service.payment;
 
 import com.gii.api.model.response.payment.ReceiptItemResponse;
 import com.gii.api.model.response.payment.ReceiptResponse;
-import com.gii.api.service.localization.LocalizedContentService;
 import com.gii.api.service.enrollment.CurrentUserService;
+import com.gii.api.service.localization.LocalizedContentService;
 import com.gii.common.entity.order.Order;
 import com.gii.common.entity.order.OrderItem;
 import com.gii.common.enums.OrderStatus;
@@ -52,25 +52,33 @@ public class ReceiptService {
                         .itemId(
                             item.getCourse() != null
                                 ? item.getCourse().getId()
-                                : item.getCollection() != null ? item.getCollection().getId() : null)
+                                : item.getCollection() != null
+                                    ? item.getCollection().getId()
+                                    : null)
                         .itemName(
                             localizedContentService.text(
                                 item.getTitleSnapshot(), item.getTitleSnapshotEn()))
                         .itemSlug(
                             item.getCourse() != null
                                 ? item.getCourse().getSlug()
-                                : item.getCollection() != null ? item.getCollection().getSlug() : null)
+                                : item.getCollection() != null
+                                    ? item.getCollection().getSlug()
+                                    : null)
                         .courseId(
                             item.getCourse() != null
                                 ? item.getCourse().getId()
-                                : item.getCollection() != null ? item.getCollection().getId() : null)
+                                : item.getCollection() != null
+                                    ? item.getCollection().getId()
+                                    : null)
                         .courseName(
                             localizedContentService.text(
                                 item.getTitleSnapshot(), item.getTitleSnapshotEn()))
                         .courseSlug(
                             item.getCourse() != null
                                 ? item.getCourse().getSlug()
-                                : item.getCollection() != null ? item.getCollection().getSlug() : null)
+                                : item.getCollection() != null
+                                    ? item.getCollection().getSlug()
+                                    : null)
                         .unitPrice(item.getPriceBdt())
                         .discountAmount(item.getDiscountBdt())
                         .lineTotal(item.getPriceBdt().subtract(item.getDiscountBdt()))
@@ -83,9 +91,7 @@ public class ReceiptService {
     BigDecimal subtotal =
         items.stream().map(OrderItem::getPriceBdt).reduce(BigDecimal.ZERO, BigDecimal::add);
     BigDecimal discount =
-        items.stream()
-            .map(OrderItem::getDiscountBdt)
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        items.stream().map(OrderItem::getDiscountBdt).reduce(BigDecimal.ZERO, BigDecimal::add);
     BigDecimal finalAmount = subtotal.subtract(discount);
 
     return ReceiptResponse.builder()

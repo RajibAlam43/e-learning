@@ -79,8 +79,7 @@ public class AdminCollectionManagementService {
             .slug(request.slug().trim())
             .type(request.collectionType())
             .thumbnailObjectKey(
-                assetUrlService.normalizeThumbnailKey(
-                    request.thumbnailObjectKey(), "collections"))
+                assetUrlService.normalizeThumbnailKey(request.thumbnailObjectKey(), "collections"))
             .shortDescription(request.shortDescription())
             .shortDescriptionEn(request.shortDescriptionEn())
             .description(request.description())
@@ -122,8 +121,7 @@ public class AdminCollectionManagementService {
     }
     if (request.thumbnailObjectKey() != null) {
       collection.setThumbnailObjectKey(
-          assetUrlService.normalizeThumbnailKey(
-              request.thumbnailObjectKey(), "collections"));
+          assetUrlService.normalizeThumbnailKey(request.thumbnailObjectKey(), "collections"));
     }
     if (request.shortDescription() != null) {
       collection.setShortDescription(request.shortDescription());
@@ -168,7 +166,8 @@ public class AdminCollectionManagementService {
     collectionRepository.save(collection);
   }
 
-  public AdminCollectionDetailResponse setCourses(UUID collectionId, SetCollectionCoursesRequest request) {
+  public AdminCollectionDetailResponse setCourses(
+      UUID collectionId, SetCollectionCoursesRequest request) {
     Collection collection =
         collectionRepository
             .findById(collectionId)
@@ -185,11 +184,14 @@ public class AdminCollectionManagementService {
         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Duplicate course positions");
       }
       if (!seenCourses.add(item.courseId())) {
-        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Duplicate courses in collection");
+        throw new ResponseStatusException(
+            HttpStatus.BAD_REQUEST, "Duplicate courses in collection");
       }
     }
 
-    List<Course> courses = courseRepository.findAllById(request.items().stream().map(SetCollectionCoursesRequest.Item::courseId).toList());
+    List<Course> courses =
+        courseRepository.findAllById(
+            request.items().stream().map(SetCollectionCoursesRequest.Item::courseId).toList());
     Map<UUID, Course> courseById = new HashMap<>();
     for (Course course : courses) {
       courseById.put(course.getId(), course);
@@ -198,7 +200,8 @@ public class AdminCollectionManagementService {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "One or more courses not found");
     }
 
-    collectionCourseRepository.deleteAll(collectionCourseRepository.findByCollection_IdOrderByPositionAsc(collectionId));
+    collectionCourseRepository.deleteAll(
+        collectionCourseRepository.findByCollection_IdOrderByPositionAsc(collectionId));
 
     List<CollectionCourse> newRows =
         request.items().stream()
@@ -222,7 +225,9 @@ public class AdminCollectionManagementService {
 
   private AdminCollectionDetailResponse toDetail(Collection collection) {
     List<AdminCollectionCourseResponse> courses =
-        collectionCourseRepository.findByCollection_IdOrderByPositionAscWithCourse(collection.getId()).stream()
+        collectionCourseRepository
+            .findByCollection_IdOrderByPositionAscWithCourse(collection.getId())
+            .stream()
             .map(
                 row ->
                     AdminCollectionCourseResponse.builder()

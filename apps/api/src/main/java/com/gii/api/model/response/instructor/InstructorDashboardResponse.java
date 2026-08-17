@@ -14,7 +14,7 @@ public record InstructorDashboardResponse(
     // Quick stats
     Integer totalCoursesAssigned,
     Integer activeCourses, // PUBLISHED courses
-    Integer totalStudentsAcrossAllCourses,
+    Long totalStudentsAcrossAllCourses,
 
     // Courses teaching
     List<InstructorCourseSnapshotResponse> assignedCourses,
@@ -24,4 +24,4 @@ public record InstructorDashboardResponse(
 
     // Performance metrics (optional)
     Double averageCourseRating,
-    Integer totalReviews) {}
+    Long totalReviews) {}

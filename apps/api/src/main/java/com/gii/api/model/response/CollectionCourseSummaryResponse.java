@@ -5,4 +5,9 @@ import lombok.Builder;
 
 @Builder
 public record CollectionCourseSummaryResponse(
-    UUID id, String title, String slug, String thumbnailUrl, Integer position, Boolean isMandatory) {}
+    UUID id,
+    String title,
+    String slug,
+    String thumbnailUrl,
+    Integer position,
+    Boolean isMandatory) {}

@@ -24,7 +24,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 
-@Tag(name = "Live Classes", description = "Shared live class operations for admin, instructor, and student")
+@Tag(
+    name = "Live Classes",
+    description = "Shared live class operations for admin, instructor, and student")
 @SecurityRequirement(name = "bearerAuth")
 @RequestMapping("/live-classes")
 public interface LiveClassApi {
@@ -47,7 +49,9 @@ public interface LiveClassApi {
 
   @PatchMapping("/{liveClassId}")
   @PreAuthorize("hasRole('ADMIN') or hasRole('INSTRUCTOR')")
-  @Operation(summary = "Update live class", description = "Update metadata or status for a live class.")
+  @Operation(
+      summary = "Update live class",
+      description = "Update metadata or status for a live class.")
   @ApiResponses({
     @ApiResponse(
         responseCode = "200",
