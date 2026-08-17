@@ -2,11 +2,17 @@ package com.gii.api.publicapi;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.gii.common.enums.UserStatus;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.web.servlet.MockMvc;
 
 class PublicSupportTicketApiIt extends AbstractPublicApiIntegrationTest {
@@ -19,7 +25,7 @@ class PublicSupportTicketApiIt extends AbstractPublicApiIntegrationTest {
         """
         {
           "name": "  Rajib Alam  ",
-          "email": "rajib@example.com",
+          "email": "Rajib@Example.COM",
           "subject": "  Need help with enrollment  ",
           "message": "  Please assist me.  "
         }
@@ -27,7 +33,7 @@ class PublicSupportTicketApiIt extends AbstractPublicApiIntegrationTest {
 
     mockMvc
         .perform(post("/public/support/tickets").contentType(APPLICATION_JSON).content(body))
-        .andExpect(status().isOk());
+        .andExpect(status().isCreated());
 
     assertThat(supportTicketCount()).isEqualTo(1);
     var ticket = latestSupportTicket();
@@ -67,10 +73,10 @@ class PublicSupportTicketApiIt extends AbstractPublicApiIntegrationTest {
 
     mockMvc
         .perform(post("/public/support/tickets").contentType(APPLICATION_JSON).content(body))
-        .andExpect(status().isOk());
+        .andExpect(status().isCreated());
 
     assertThat(supportTicketCount()).isEqualTo(1);
-    assertThat(latestSupportTicket().getPhone()).isEqualTo("01700000000");
+    assertThat(latestSupportTicket().getPhone()).isEqualTo("+8801700000000");
   }
 
   @Test
@@ -119,5 +125,149 @@ class PublicSupportTicketApiIt extends AbstractPublicApiIntegrationTest {
         .perform(post("/public/support/tickets").contentType(APPLICATION_JSON).content(body))
         .andExpect(status().isBadRequest());
     assertThat(supportTicketCount()).isZero();
+  }
+
+  @Test
+  void rateLimitsRepeatedTicketFromSameAnonymousClient() throws Exception {
+    String body =
+        """
+        {
+          "email": "rate-limit@example.com",
+          "subject": "First request",
+          "message": "Please help"
+        }
+        """;
+
+    mockMvc
+        .perform(post("/public/support/tickets").contentType(APPLICATION_JSON).content(body))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.ticketId").isNotEmpty())
+        .andExpect(jsonPath("$.status").value("OPEN"));
+
+    mockMvc
+        .perform(post("/public/support/tickets").contentType(APPLICATION_JSON).content(body))
+        .andExpect(status().isTooManyRequests());
+
+    assertThat(supportTicketCount()).isEqualTo(1);
+  }
+
+  @Test
+  void callerCannotRateLimitVictimContactFromAnotherClientIdentity() throws Exception {
+    String attackerBody =
+        """
+        {
+          "email":"victim@example.com",
+          "subject":"Attacker submission",
+          "message":"Attempt to consume contact limit"
+        }
+        """;
+    String victimBody =
+        """
+        {
+          "email":"Victim@Example.com",
+          "subject":"Real request",
+          "message":"The victim can still submit"
+        }
+        """;
+
+    mockMvc
+        .perform(
+            post("/public/support/tickets")
+                .with(
+                    request -> {
+                      request.setRemoteAddr("198.51.100.10");
+                      return request;
+                    })
+                .contentType(APPLICATION_JSON)
+                .content(attackerBody))
+        .andExpect(status().isCreated());
+
+    mockMvc
+        .perform(
+            post("/public/support/tickets")
+                .with(
+                    request -> {
+                      request.setRemoteAddr("203.0.113.20");
+                      return request;
+                    })
+                .contentType(APPLICATION_JSON)
+                .content(victimBody))
+        .andExpect(status().isCreated());
+
+    assertThat(supportTicketCount()).isEqualTo(2);
+    assertThat(supportTicketRepository.findAll())
+        .allSatisfy(ticket -> assertThat(ticket.getEmail()).isEqualTo("victim@example.com"));
+  }
+
+  @Test
+  void changingCallerSuppliedContactAndForwardingHeaderCannotEvadeClientLimit() throws Exception {
+    mockMvc
+        .perform(
+            post("/public/support/tickets")
+                .with(
+                    request -> {
+                      request.setRemoteAddr("198.51.100.30");
+                      return request;
+                    })
+                .header("X-Forwarded-For", "203.0.113.1")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "email":"first@example.com",
+                      "subject":"First request",
+                      "message":"First message"
+                    }
+                    """))
+        .andExpect(status().isCreated());
+
+    mockMvc
+        .perform(
+            post("/public/support/tickets")
+                .with(
+                    request -> {
+                      request.setRemoteAddr("198.51.100.30");
+                      return request;
+                    })
+                .header("X-Forwarded-For", "203.0.113.2")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "phone":"01700000000",
+                      "subject":"Second request",
+                      "message":"Second message"
+                    }
+                    """))
+        .andExpect(status().isTooManyRequests());
+
+    assertThat(supportTicketCount()).isEqualTo(1);
+  }
+
+  @Test
+  void authenticatedTicketAssociatesUserAndFillsMissingContact() throws Exception {
+    var student = user("Signed In Student", "signed-in-support@example.com", UserStatus.ACTIVE);
+    var auth =
+        new UsernamePasswordAuthenticationToken(
+            student.getId(), null, List.of(new SimpleGrantedAuthority("ROLE_STUDENT")));
+
+    mockMvc
+        .perform(
+            post("/public/support/tickets")
+                .with(authentication(auth))
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "subject":"Account help",
+                      "message":"Please help with my account"
+                    }
+                    """))
+        .andExpect(status().isCreated());
+
+    var ticket = latestSupportTicket();
+    assertThat(ticket.getUser().getId()).isEqualTo(student.getId());
+    assertThat(ticket.getName()).isEqualTo("Signed In Student");
+    assertThat(ticket.getEmail()).isEqualTo("signed-in-support@example.com");
   }
 }

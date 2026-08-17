@@ -3,6 +3,7 @@ package com.gii.api.adminapi;
 import com.gii.common.entity.collection.Collection;
 import com.gii.common.entity.collection.CollectionCourse;
 import com.gii.common.entity.collection.CollectionCourseId;
+import com.gii.common.entity.course.Category;
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.course.CourseInstructor;
 import com.gii.common.entity.course.CourseInstructorId;
@@ -20,9 +21,9 @@ import com.gii.common.entity.quiz.QuizQuestion;
 import com.gii.common.entity.user.InstructorProfile;
 import com.gii.common.entity.user.Role;
 import com.gii.common.entity.user.User;
+import com.gii.common.enums.CollectionType;
 import com.gii.common.enums.CourseLanguage;
 import com.gii.common.enums.CourseLevel;
-import com.gii.common.enums.CollectionType;
 import com.gii.common.enums.InstructorRole;
 import com.gii.common.enums.LessonType;
 import com.gii.common.enums.LiveClassProvider;
@@ -30,20 +31,24 @@ import com.gii.common.enums.LiveClassRegistrantStatus;
 import com.gii.common.enums.LiveClassStatus;
 import com.gii.common.enums.MediaProvider;
 import com.gii.common.enums.MediaStatus;
-import com.gii.common.enums.OrderProvider;
 import com.gii.common.enums.OrderItemType;
+import com.gii.common.enums.OrderProvider;
 import com.gii.common.enums.OrderStatus;
 import com.gii.common.enums.PublishStatus;
 import com.gii.common.enums.QuestionType;
 import com.gii.common.enums.SectionItemType;
 import com.gii.common.enums.StudyMode;
 import com.gii.common.enums.UserStatus;
-import com.gii.common.repository.course.CourseInstructorRepository;
 import com.gii.common.repository.collection.CollectionCourseRepository;
 import com.gii.common.repository.collection.CollectionRepository;
+import com.gii.common.repository.course.CategoryRepository;
+import com.gii.common.repository.course.CourseCategoryRepository;
+import com.gii.common.repository.course.CourseInstructorRepository;
 import com.gii.common.repository.course.CourseRepository;
+import com.gii.common.repository.course.CourseReviewRepository;
 import com.gii.common.repository.course.CourseSectionRepository;
 import com.gii.common.repository.course.LessonRepository;
+import com.gii.common.repository.course.LessonResourceRepository;
 import com.gii.common.repository.course.MediaAssetRepository;
 import com.gii.common.repository.course.SectionItemRepository;
 import com.gii.common.repository.enrollment.EnrollmentRepository;
@@ -56,9 +61,12 @@ import com.gii.common.repository.quiz.QuizAttemptRepository;
 import com.gii.common.repository.quiz.QuizChoiceRepository;
 import com.gii.common.repository.quiz.QuizQuestionRepository;
 import com.gii.common.repository.quiz.QuizRepository;
+import com.gii.common.repository.setting.AppSettingRepository;
+import com.gii.common.repository.support.SupportTicketRepository;
 import com.gii.common.repository.user.InstructorProfileRepository;
 import com.gii.common.repository.user.RoleRepository;
 import com.gii.common.repository.user.UserRepository;
+import com.gii.common.repository.user.UserRoleRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
@@ -74,8 +82,12 @@ abstract class AdminApiTestSupport {
   @Autowired protected CollectionRepository collectionRepository;
   @Autowired protected CollectionCourseRepository collectionCourseRepository;
   @Autowired protected CourseRepository courseRepository;
+  @Autowired protected CourseReviewRepository courseReviewRepository;
+  @Autowired protected CategoryRepository categoryRepository;
+  @Autowired protected CourseCategoryRepository courseCategoryRepository;
   @Autowired protected CourseSectionRepository courseSectionRepository;
   @Autowired protected LessonRepository lessonRepository;
+  @Autowired protected LessonResourceRepository lessonResourceRepository;
   @Autowired protected MediaAssetRepository mediaAssetRepository;
   @Autowired protected SectionItemRepository sectionItemRepository;
   @Autowired protected EnrollmentRepository enrollmentRepository;
@@ -89,10 +101,16 @@ abstract class AdminApiTestSupport {
   @Autowired protected CourseInstructorRepository courseInstructorRepository;
   @Autowired protected InstructorProfileRepository instructorProfileRepository;
   @Autowired protected RoleRepository roleRepository;
+  @Autowired protected UserRoleRepository userRoleRepository;
+  @Autowired protected SupportTicketRepository supportTicketRepository;
   @Autowired protected OrderItemRepository orderItemRepository;
   @Autowired protected OrderRepository orderRepository;
+  @Autowired protected AppSettingRepository appSettingRepository;
 
   protected void cleanupAdminData() {
+    appSettingRepository.deleteAll();
+    courseReviewRepository.deleteAll();
+    supportTicketRepository.deleteAll();
     collectionCourseRepository.deleteAll();
     collectionRepository.deleteAll();
     quizAttemptAnswerRepository.deleteAll();
@@ -107,11 +125,15 @@ abstract class AdminApiTestSupport {
     orderItemRepository.deleteAll();
     orderRepository.deleteAll();
     mediaAssetRepository.deleteAll();
+    lessonResourceRepository.deleteAll();
     lessonRepository.deleteAll();
     courseSectionRepository.deleteAll();
     courseInstructorRepository.deleteAll();
+    courseCategoryRepository.deleteAll();
     courseRepository.deleteAll();
+    categoryRepository.deleteAll();
     instructorProfileRepository.deleteAll();
+    userRoleRepository.deleteAll();
     userRepository.deleteAll();
   }
 
@@ -186,6 +208,10 @@ abstract class AdminApiTestSupport {
     return courseRepository.save(c);
   }
 
+  protected Category category(String name, String nameEn, String slug) {
+    return categoryRepository.save(Category.builder().name(name).nameEn(nameEn).slug(slug).build());
+  }
+
   protected CourseSection section(Course course, int position) {
     return courseSectionRepository.save(
         CourseSection.builder()
@@ -200,17 +226,17 @@ abstract class AdminApiTestSupport {
   protected Lesson lesson(Course course, CourseSection section, int position) {
     Lesson lesson =
         lessonRepository.save(
-        Lesson.builder()
-            .course(course)
-            .section(section)
-            .title("Lesson " + position)
-            .slug("lesson-" + position + "-" + UUID.randomUUID().toString().substring(0, 6))
-            .position(position)
-            .lessonType(LessonType.VIDEO)
-            .status(PublishStatus.DRAFT)
-            .isFree(false)
-            .isMandatory(false)
-            .build());
+            Lesson.builder()
+                .course(course)
+                .section(section)
+                .title("Lesson " + position)
+                .slug("lesson-" + position + "-" + UUID.randomUUID().toString().substring(0, 6))
+                .position(position)
+                .lessonType(LessonType.VIDEO)
+                .status(PublishStatus.DRAFT)
+                .isFree(false)
+                .isMandatory(false)
+                .build());
     sectionItemRepository.save(
         SectionItem.builder()
             .section(section)
@@ -308,16 +334,16 @@ abstract class AdminApiTestSupport {
             + 1;
     Quiz quiz =
         quizRepository.save(
-        Quiz.builder()
-            .course(course)
-            .section(section)
-            .position(position)
-            .title(title)
-            .status(PublishStatus.DRAFT)
-            .passingScorePct(70)
-            .maxAttempts(2)
-            .timeLimitSec(900)
-            .build());
+            Quiz.builder()
+                .course(course)
+                .section(section)
+                .position(position)
+                .title(title)
+                .status(PublishStatus.DRAFT)
+                .passingScorePct(70)
+                .maxAttempts(2)
+                .timeLimitSec(900)
+                .build());
     sectionItemRepository.save(
         SectionItem.builder()
             .section(section)

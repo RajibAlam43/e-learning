@@ -110,7 +110,8 @@ public class StudentJoinLiveClassesService {
     return registrant;
   }
 
-  private LiveClassRegistrant createApprovedRegistrant(LiveClass liveClass, com.gii.common.entity.user.User user) {
+  private LiveClassRegistrant createApprovedRegistrant(
+      LiveClass liveClass, com.gii.common.entity.user.User user) {
     enforceCapacityForNewRegistrant(liveClass);
     LiveClassRegistrant registrant =
         LiveClassRegistrant.builder()

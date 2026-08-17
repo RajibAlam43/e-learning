@@ -75,7 +75,7 @@ class PublicCoursesApiIt extends AbstractPublicApiIntegrationTest {
     mockMvc
         .perform(
             get("/public/courses")
-                .param("categoryId", category.getId().toString())
+                .param("categorySlugs", category.getSlug())
                 .param("level", "BEGINNER")
                 .param("language", "EN"))
         .andExpect(status().isOk())
@@ -124,13 +124,77 @@ class PublicCoursesApiIt extends AbstractPublicApiIntegrationTest {
   }
 
   @Test
-  void rejectsInvalidEnumAndUuidFilters() throws Exception {
-    mockMvc
-        .perform(get("/public/courses").param("level", "INVALID_LEVEL"))
-        .andExpect(status().isBadRequest());
+  void filtersByAnySelectedCategorySlug() throws Exception {
+    User creator = user("Creator", "creator-categories@example.com", UserStatus.ACTIVE);
+    Course programmingCourse =
+        course(
+            "Programming Course",
+            uniqueSlug("programming-course"),
+            PublishStatus.PUBLISHED,
+            creator,
+            CourseLevel.BEGINNER,
+            CourseLanguage.EN,
+            Instant.now());
+    Course businessCourse =
+        course(
+            "Business Course",
+            uniqueSlug("business-course"),
+            PublishStatus.PUBLISHED,
+            creator,
+            CourseLevel.BEGINNER,
+            CourseLanguage.EN,
+            Instant.now());
+    Course excludedCourse =
+        course(
+            "Excluded Course",
+            uniqueSlug("excluded-course"),
+            PublishStatus.PUBLISHED,
+            creator,
+            CourseLevel.BEGINNER,
+            CourseLanguage.EN,
+            Instant.now());
+
+    var programming = category("Programming", uniqueSlug("programming-filter"));
+    var business = category("Business", uniqueSlug("business-filter"));
+    attachCategory(programmingCourse, programming);
+    attachCategory(businessCourse, business);
+    attachCategory(excludedCourse, category("Other", uniqueSlug("other-filter")));
 
     mockMvc
-        .perform(get("/public/courses").param("categoryId", "not-a-uuid"))
+        .perform(
+            get("/public/courses")
+                .param("categorySlugs", programming.getSlug(), business.getSlug()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content.length()").value(2))
+        .andExpect(
+            jsonPath("$.content[*].title")
+                .value(
+                    org.hamcrest.Matchers.containsInAnyOrder(
+                        "Programming Course", "Business Course")));
+  }
+
+  @Test
+  void returnsEmptyPageForUnknownCategorySlug() throws Exception {
+    User creator = user("Creator", "creator-unknown-category@example.com", UserStatus.ACTIVE);
+    course(
+        "Published Course",
+        uniqueSlug("unknown-category-course"),
+        PublishStatus.PUBLISHED,
+        creator,
+        CourseLevel.BEGINNER,
+        CourseLanguage.EN,
+        Instant.now());
+
+    mockMvc
+        .perform(get("/public/courses").param("categorySlugs", "does-not-exist"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content.length()").value(0));
+  }
+
+  @Test
+  void rejectsInvalidEnumFilters() throws Exception {
+    mockMvc
+        .perform(get("/public/courses").param("level", "INVALID_LEVEL"))
         .andExpect(status().isBadRequest());
   }
 

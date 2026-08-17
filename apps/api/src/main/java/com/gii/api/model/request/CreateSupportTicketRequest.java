@@ -11,4 +11,4 @@ public record CreateSupportTicketRequest(
     String phone, // Optional: additional contact method
     @NotBlank String subject, // Ticket subject
     @NotBlank String message // Detailed message
-) {}
+    ) {}

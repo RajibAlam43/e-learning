@@ -1,38 +1,56 @@
 package com.gii.api.controller;
 
 import com.gii.api.model.request.admin.AssignInstructorToCourseRequest;
+import com.gii.api.model.request.admin.CreateCategoryRequest;
 import com.gii.api.model.request.admin.CreateCollectionRequest;
 import com.gii.api.model.request.admin.CreateCourseRequest;
 import com.gii.api.model.request.admin.CreateInstructorRequest;
+import com.gii.api.model.request.admin.CreateLessonResourceRequest;
+import com.gii.api.model.request.admin.CreateLessonResourceUploadRequest;
 import com.gii.api.model.request.admin.CreateMediaAssetRequest;
 import com.gii.api.model.request.admin.CreateQuizRequest;
 import com.gii.api.model.request.admin.CreateSectionRequest;
 import com.gii.api.model.request.admin.CreateThumbnailUploadRequest;
+import com.gii.api.model.request.admin.FeatureCourseRequest;
 import com.gii.api.model.request.admin.ReorderCourseStructureRequest;
 import com.gii.api.model.request.admin.SetCollectionCoursesRequest;
-import com.gii.api.model.request.admin.UpdateCourseRequest;
+import com.gii.api.model.request.admin.UpdateCategoryRequest;
 import com.gii.api.model.request.admin.UpdateCollectionRequest;
+import com.gii.api.model.request.admin.UpdateCourseRequest;
 import com.gii.api.model.request.admin.UpdateInstructorRequest;
+import com.gii.api.model.request.admin.UpdateLessonResourceRequest;
 import com.gii.api.model.request.admin.UpdateMediaAssetRequest;
 import com.gii.api.model.request.admin.UpdateOrderRequest;
 import com.gii.api.model.request.admin.UpdateQuizRequest;
 import com.gii.api.model.request.admin.UpdateSectionRequest;
+import com.gii.api.model.request.admin.UpdateSupportTicketRequest;
+import com.gii.api.model.request.admin.UpsertAppSettingRequest;
 import com.gii.api.model.request.lesson.CreateLessonRequest;
 import com.gii.api.model.request.lesson.UpdateLessonRequest;
+import com.gii.api.model.response.admin.AdminAppSettingResponse;
+import com.gii.api.model.response.admin.AdminCategoryResponse;
 import com.gii.api.model.response.admin.AdminCollectionDetailResponse;
 import com.gii.api.model.response.admin.AdminCollectionSummaryResponse;
 import com.gii.api.model.response.admin.AdminCourseDetailResponse;
+import com.gii.api.model.response.admin.AdminCourseReviewResponse;
 import com.gii.api.model.response.admin.AdminCourseSectionResponse;
 import com.gii.api.model.response.admin.AdminCourseSummaryResponse;
 import com.gii.api.model.response.admin.AdminInstructorDetailResponse;
 import com.gii.api.model.response.admin.AdminInstructorSummaryResponse;
 import com.gii.api.model.response.admin.AdminLessonDetailResponse;
+import com.gii.api.model.response.admin.AdminLessonResourceResponse;
 import com.gii.api.model.response.admin.AdminLiveClassSummaryResponse;
 import com.gii.api.model.response.admin.AdminMediaAssetResponse;
 import com.gii.api.model.response.admin.AdminOrderDetailResponse;
 import com.gii.api.model.response.admin.AdminOrderSummaryResponse;
 import com.gii.api.model.response.admin.AdminQuizDetailResponse;
+import com.gii.api.model.response.admin.AdminSupportTicketResponse;
+import com.gii.api.model.response.admin.LessonResourceUploadResponse;
 import com.gii.api.model.response.admin.ThumbnailUploadResponse;
+import com.gii.api.model.response.lesson.ResourceDownloadUrlResponse;
+import com.gii.common.enums.LiveClassStatus;
+import com.gii.common.enums.ReviewStatus;
+import com.gii.common.enums.SupportTicketStatus;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -43,9 +61,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
-import com.gii.common.enums.LiveClassStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.data.domain.Page;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -53,6 +70,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -67,6 +85,54 @@ public interface AdminApi {
   @Operation(summary = "Create a direct R2 thumbnail upload URL")
   ResponseEntity<ThumbnailUploadResponse> createThumbnailUpload(
       @Valid @RequestBody CreateThumbnailUploadRequest request);
+
+  // ===== CATEGORY MANAGEMENT =====
+  @GetMapping("/categories")
+  @Operation(summary = "List all categories")
+  ResponseEntity<List<AdminCategoryResponse>> listCategories();
+
+  @PostMapping("/categories")
+  @Operation(summary = "Create category")
+  ResponseEntity<AdminCategoryResponse> createCategory(
+      @Valid @RequestBody CreateCategoryRequest request);
+
+  @PatchMapping("/categories/{categoryId}")
+  @Operation(summary = "Update category")
+  ResponseEntity<AdminCategoryResponse> updateCategory(
+      @PathVariable UUID categoryId, @Valid @RequestBody UpdateCategoryRequest request);
+
+  // ===== REVIEW MANAGEMENT =====
+  @GetMapping("/reviews")
+  @Operation(summary = "List course reviews")
+  ResponseEntity<List<AdminCourseReviewResponse>> listCourseReviews(
+      @RequestParam(required = false) ReviewStatus status);
+
+  @PostMapping("/reviews/{reviewId}/publish")
+  @Operation(summary = "Publish course review")
+  ResponseEntity<Void> publishCourseReview(@PathVariable UUID reviewId);
+
+  @PostMapping("/reviews/{reviewId}/unpublish")
+  @Operation(summary = "Unpublish course review")
+  ResponseEntity<Void> unpublishCourseReview(@PathVariable UUID reviewId);
+
+  @DeleteMapping("/reviews/{reviewId}")
+  @Operation(summary = "Delete course review")
+  ResponseEntity<Void> deleteCourseReview(@PathVariable UUID reviewId);
+
+  // ===== SUPPORT TICKET MANAGEMENT =====
+  @GetMapping("/support/tickets")
+  @Operation(summary = "List support tickets")
+  ResponseEntity<List<AdminSupportTicketResponse>> listSupportTickets(
+      @RequestParam(required = false) SupportTicketStatus status);
+
+  @GetMapping("/support/tickets/{ticketId}")
+  @Operation(summary = "Get support ticket")
+  ResponseEntity<AdminSupportTicketResponse> getSupportTicket(@PathVariable UUID ticketId);
+
+  @PatchMapping("/support/tickets/{ticketId}")
+  @Operation(summary = "Close or reopen support ticket")
+  ResponseEntity<AdminSupportTicketResponse> updateSupportTicket(
+      @PathVariable UUID ticketId, @Valid @RequestBody UpdateSupportTicketRequest request);
 
   // ===== COLLECTION MANAGEMENT =====
   @GetMapping("/collections")
@@ -172,6 +238,33 @@ public interface AdminApi {
       })
   ResponseEntity<Void> unpublishCourse(@PathVariable UUID courseId);
 
+  @PostMapping("/courses/{courseId}/feature")
+  @Operation(summary = "Feature a published course")
+  ResponseEntity<AdminCourseDetailResponse> featureCourse(
+      @PathVariable UUID courseId, @Valid @RequestBody FeatureCourseRequest request);
+
+  @PostMapping("/courses/{courseId}/unfeature")
+  @Operation(summary = "Remove course from featured courses")
+  ResponseEntity<Void> unfeatureCourse(@PathVariable UUID courseId);
+
+  // ===== APPLICATION SETTINGS =====
+  @GetMapping("/settings")
+  @Operation(summary = "List application settings")
+  ResponseEntity<List<AdminAppSettingResponse>> listSettings();
+
+  @GetMapping("/settings/{key}")
+  @Operation(summary = "Get application setting")
+  ResponseEntity<AdminAppSettingResponse> getSetting(@PathVariable String key);
+
+  @PutMapping("/settings/{key}")
+  @Operation(summary = "Create or replace application setting")
+  ResponseEntity<AdminAppSettingResponse> upsertSetting(
+      @PathVariable String key, @Valid @RequestBody UpsertAppSettingRequest request);
+
+  @DeleteMapping("/settings/{key}")
+  @Operation(summary = "Delete application setting")
+  ResponseEntity<Void> deleteSetting(@PathVariable String key);
+
   // ===== SECTION MANAGEMENT =====
   @PostMapping("/courses/{courseId}/sections")
   @Operation(summary = "Create course section")
@@ -221,6 +314,10 @@ public interface AdminApi {
   ResponseEntity<AdminLessonDetailResponse> createLesson(
       @PathVariable UUID sectionId, @Valid @RequestBody CreateLessonRequest request);
 
+  @GetMapping("/lessons/{lessonId}")
+  @Operation(summary = "Get lesson details including media and resources")
+  ResponseEntity<AdminLessonDetailResponse> getLesson(@PathVariable UUID lessonId);
+
   @PatchMapping("/lessons/{lessonId}")
   @Operation(summary = "Update lesson")
   @ApiResponses(
@@ -247,6 +344,30 @@ public interface AdminApi {
         @ApiResponse(responseCode = "404", description = "Lesson not found")
       })
   ResponseEntity<Void> deleteLesson(@PathVariable UUID lessonId);
+
+  @PostMapping("/lessons/{lessonId}/resources/upload-url")
+  @Operation(summary = "Create direct R2 upload URL for lesson resource")
+  ResponseEntity<LessonResourceUploadResponse> createLessonResourceUpload(
+      @PathVariable UUID lessonId, @Valid @RequestBody CreateLessonResourceUploadRequest request);
+
+  @PostMapping("/lessons/{lessonId}/resources")
+  @Operation(summary = "Create lesson resource metadata")
+  ResponseEntity<AdminLessonResourceResponse> createLessonResource(
+      @PathVariable UUID lessonId, @Valid @RequestBody CreateLessonResourceRequest request);
+
+  @GetMapping("/lesson-resources/{resourceId}/download-url")
+  @Operation(summary = "Create an admin download URL for a lesson resource")
+  ResponseEntity<ResourceDownloadUrlResponse> getLessonResourceDownloadUrl(
+      @PathVariable UUID resourceId);
+
+  @PatchMapping("/lesson-resources/{resourceId}")
+  @Operation(summary = "Update lesson resource")
+  ResponseEntity<AdminLessonResourceResponse> updateLessonResource(
+      @PathVariable UUID resourceId, @Valid @RequestBody UpdateLessonResourceRequest request);
+
+  @DeleteMapping("/lesson-resources/{resourceId}")
+  @Operation(summary = "Delete lesson resource metadata")
+  ResponseEntity<Void> deleteLessonResource(@PathVariable UUID resourceId);
 
   @PostMapping("/courses/{courseId}/structure/reorder")
   @Operation(summary = "Reorder course structure")
@@ -298,6 +419,10 @@ public interface AdminApi {
   ResponseEntity<AdminInstructorDetailResponse> updateInstructor(
       @PathVariable UUID instructorId, @Valid @RequestBody UpdateInstructorRequest request);
 
+  @DeleteMapping("/instructors/{instructorId}")
+  @Operation(summary = "Remove instructor capability while preserving user account")
+  ResponseEntity<Void> deleteInstructor(@PathVariable UUID instructorId);
+
   @PostMapping("/courses/{courseId}/instructors")
   @Operation(summary = "Assign instructor to course")
   ResponseEntity<Void> assignInstructorToCourse(
@@ -335,6 +460,10 @@ public interface AdminApi {
   @PostMapping("/quizzes/{quizId}/unpublish")
   @Operation(summary = "Unpublish quiz")
   ResponseEntity<Void> unpublishQuiz(@PathVariable UUID quizId);
+
+  @DeleteMapping("/quizzes/{quizId}")
+  @Operation(summary = "Delete quiz when no student attempts exist")
+  ResponseEntity<Void> deleteQuiz(@PathVariable UUID quizId);
 
   // ===== ORDER MANAGEMENT =====
   @GetMapping("/orders")

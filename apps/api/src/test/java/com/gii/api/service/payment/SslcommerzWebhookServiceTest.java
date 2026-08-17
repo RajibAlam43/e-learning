@@ -53,7 +53,8 @@ class SslcommerzWebhookServiceTest {
 
     String payload =
         "tran_id=txn-ssl-risk&status=VALID&val_id=val-1&verify_key=status,tran_id,val_id&verify_sign=abc";
-    when(paymentEventRepository.findByProviderAndProviderEventId(OrderProvider.SSLCOMMERZ, "evt-risk-1"))
+    when(paymentEventRepository.findByProviderAndProviderEventId(
+            OrderProvider.SSLCOMMERZ, "evt-risk-1"))
         .thenReturn(Optional.empty());
     when(orderRepository.findByProviderAndProviderTxnId(OrderProvider.SSLCOMMERZ, "txn-ssl-risk"))
         .thenReturn(Optional.of(order));
@@ -81,7 +82,8 @@ class SslcommerzWebhookServiceTest {
 
     String payload =
         "tran_id=txn-ssl-failed&status=VALID&val_id=val-2&verify_key=status,tran_id,val_id&verify_sign=abc";
-    when(paymentEventRepository.findByProviderAndProviderEventId(OrderProvider.SSLCOMMERZ, "evt-failed-1"))
+    when(paymentEventRepository.findByProviderAndProviderEventId(
+            OrderProvider.SSLCOMMERZ, "evt-failed-1"))
         .thenReturn(Optional.empty());
     when(orderRepository.findByProviderAndProviderTxnId(OrderProvider.SSLCOMMERZ, "txn-ssl-failed"))
         .thenReturn(Optional.of(order));

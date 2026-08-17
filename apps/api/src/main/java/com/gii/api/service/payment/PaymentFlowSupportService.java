@@ -1,8 +1,8 @@
 package com.gii.api.service.payment;
 
 import com.gii.api.model.response.payment.PaymentStatusResponse;
-import com.gii.common.entity.enrollment.Enrollment;
 import com.gii.common.entity.collection.CollectionEnrollment;
+import com.gii.common.entity.enrollment.Enrollment;
 import com.gii.common.entity.order.Order;
 import com.gii.common.entity.order.OrderItem;
 import com.gii.common.entity.order.PaymentEvent;
@@ -11,9 +11,9 @@ import com.gii.common.enums.OrderItemType;
 import com.gii.common.enums.OrderStatus;
 import com.gii.common.enums.PaymentEventStatus;
 import com.gii.common.enums.PaymentEventType;
-import com.gii.common.repository.enrollment.EnrollmentRepository;
 import com.gii.common.repository.collection.CollectionCourseRepository;
 import com.gii.common.repository.collection.CollectionEnrollmentRepository;
+import com.gii.common.repository.enrollment.EnrollmentRepository;
 import com.gii.common.repository.order.OrderItemRepository;
 import com.gii.common.repository.order.OrderRepository;
 import com.gii.common.repository.order.PaymentEventRepository;
@@ -67,7 +67,10 @@ public class PaymentFlowSupportService {
   }
 
   public void recordCallbackEvent(
-          Order order, PaymentEventType eventType, Map<String, String> payload, PaymentEventStatus status) {
+      Order order,
+      PaymentEventType eventType,
+      Map<String, String> payload,
+      PaymentEventStatus status) {
     String providerEventId =
         firstNonBlank(payload.get("event_id"), payload.get("eventId"), payload.get("event_ref"));
     PaymentEvent event =
@@ -126,11 +129,13 @@ public class PaymentFlowSupportService {
       if (item.getItemType() == OrderItemType.COLLECTION) {
         activateOrCreateCollectionEnrollment(order, item, now);
 
-        collectionCourseRepository.findByCollection_IdOrderByPositionAsc(item.getCollection().getId()).forEach(
-            collectionCourse -> {
-              activateOrCreateCourseEnrollment(
-                  order, item, collectionCourse.getCourse(), now, item.getCollection());
-            });
+        collectionCourseRepository
+            .findByCollection_IdOrderByPositionAsc(item.getCollection().getId())
+            .forEach(
+                collectionCourse -> {
+                  activateOrCreateCourseEnrollment(
+                      order, item, collectionCourse.getCourse(), now, item.getCollection());
+                });
       }
     }
   }
@@ -141,7 +146,8 @@ public class PaymentFlowSupportService {
       com.gii.common.entity.course.Course course,
       Instant now,
       com.gii.common.entity.collection.Collection sourceCollection) {
-    var existingOpt = enrollmentRepository.findByUserIdAndCourseId(order.getUser().getId(), course.getId());
+    var existingOpt =
+        enrollmentRepository.findByUserIdAndCourseId(order.getUser().getId(), course.getId());
     if (existingOpt.isPresent()) {
       Enrollment existing = existingOpt.get();
       existing.setStatus(EnrollmentStatus.ACTIVE);
@@ -166,7 +172,8 @@ public class PaymentFlowSupportService {
     saveEnrollmentIdempotent(enrollment);
   }
 
-  private void activateOrCreateCollectionEnrollment(Order order, OrderItem sourceOrderItem, Instant now) {
+  private void activateOrCreateCollectionEnrollment(
+      Order order, OrderItem sourceOrderItem, Instant now) {
     var existingOpt =
         collectionEnrollmentRepository.findByUserIdAndCollectionId(
             order.getUser().getId(), sourceOrderItem.getCollection().getId());
@@ -204,7 +211,8 @@ public class PaymentFlowSupportService {
     try {
       collectionEnrollmentRepository.save(enrollment);
     } catch (DataIntegrityViolationException ignored) {
-      // Unique constraint on (user_id, collection_id) keeps this idempotent under concurrent callbacks.
+      // Unique constraint on (user_id, collection_id) keeps this idempotent under concurrent
+      // callbacks.
     }
   }
 
@@ -253,10 +261,11 @@ public class PaymentFlowSupportService {
                             EnrollmentStatus.ACTIVE);
                       }
                       if (item.getItemType() == OrderItemType.COLLECTION) {
-                        return collectionEnrollmentRepository.existsByUserIdAndCollectionIdAndStatus(
-                            order.getUser().getId(),
-                            item.getCollection().getId(),
-                            EnrollmentStatus.ACTIVE);
+                        return collectionEnrollmentRepository
+                            .existsByUserIdAndCollectionIdAndStatus(
+                                order.getUser().getId(),
+                                item.getCollection().getId(),
+                                EnrollmentStatus.ACTIVE);
                       }
                       return false;
                     })

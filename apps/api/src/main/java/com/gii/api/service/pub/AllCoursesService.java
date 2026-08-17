@@ -2,17 +2,19 @@ package com.gii.api.service.pub;
 
 import com.gii.api.model.response.CourseSummaryResponse;
 import com.gii.api.model.response.PageResponse;
-import com.gii.api.service.storage.AssetUrlService;
 import com.gii.api.service.localization.LocalizedContentService;
+import com.gii.api.service.storage.AssetUrlService;
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.course.CourseCategory;
 import com.gii.common.entity.course.CourseInstructor;
 import com.gii.common.enums.CourseLanguage;
 import com.gii.common.enums.CourseLevel;
 import com.gii.common.enums.PublishStatus;
+import com.gii.common.enums.ReviewStatus;
 import com.gii.common.repository.course.CourseCategoryRepository;
 import com.gii.common.repository.course.CourseInstructorRepository;
 import com.gii.common.repository.course.CourseRepository;
+import com.gii.common.repository.course.CourseReviewRepository;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -42,16 +44,17 @@ public class AllCoursesService {
   private final CourseRepository courseRepository;
   private final CourseCategoryRepository courseCategoryRepository;
   private final CourseInstructorRepository courseInstructorRepository;
+  private final CourseReviewRepository courseReviewRepository;
   private final AssetUrlService assetUrlService;
   private final LocalizedContentService localizedContentService;
 
   public PageResponse<CourseSummaryResponse> execute(
-      UUID categoryId, CourseLevel level, CourseLanguage language, Pageable pageable) {
+      List<String> categorySlugs, CourseLevel level, CourseLanguage language, Pageable pageable) {
     Pageable safePageable = createSafePageable(pageable);
 
     Specification<Course> spec =
         Specification.where(CourseSpecifications.hasStatus(PublishStatus.PUBLISHED))
-            .and(CourseSpecifications.hasCategory(categoryId))
+            .and(CourseSpecifications.hasAnyCategorySlug(categorySlugs))
             .and(CourseSpecifications.hasLevel(level))
             .and(CourseSpecifications.hasLanguage(language));
 
@@ -61,6 +64,7 @@ public class AllCoursesService {
 
     Map<UUID, List<String>> categoryNamesByCourseId = getCategoryNamesByCourseId(courseIds);
     Map<UUID, List<String>> instructorNamesByCourseId = getInstructorNamesByCourseId(courseIds);
+    Map<UUID, ReviewAggregate> reviewsByCourseId = getReviewAggregates(courseIds);
 
     List<CourseSummaryResponse> courses =
         courseList.stream()
@@ -69,7 +73,8 @@ public class AllCoursesService {
                     toCourseSummaryResponse(
                         course,
                         categoryNamesByCourseId.getOrDefault(course.getId(), List.of()),
-                        instructorNamesByCourseId.getOrDefault(course.getId(), List.of())))
+                        instructorNamesByCourseId.getOrDefault(course.getId(), List.of()),
+                        reviewsByCourseId.getOrDefault(course.getId(), ReviewAggregate.EMPTY)))
             .toList();
 
     return PageResponse.<CourseSummaryResponse>builder()
@@ -79,6 +84,35 @@ public class AllCoursesService {
         .totalElements(coursePage.getTotalElements())
         .totalPages(coursePage.getTotalPages())
         .build();
+  }
+
+  public List<CourseSummaryResponse> executeFeatured(int requestedLimit) {
+    int limit = Math.clamp(requestedLimit, 1, MAX_PAGE_SIZE);
+    Pageable pageable =
+        PageRequest.of(
+            0,
+            limit,
+            Sort.by(
+                Sort.Order.asc("featuredPosition"),
+                Sort.Order.desc("featuredAt"),
+                Sort.Order.desc("id")));
+    List<Course> courses =
+        courseRepository
+            .findByStatusAndIsFeaturedTrue(PublishStatus.PUBLISHED, pageable)
+            .getContent();
+    List<UUID> courseIds = courses.stream().map(Course::getId).toList();
+    Map<UUID, List<String>> categories = getCategoryNamesByCourseId(courseIds);
+    Map<UUID, List<String>> instructors = getInstructorNamesByCourseId(courseIds);
+    Map<UUID, ReviewAggregate> reviews = getReviewAggregates(courseIds);
+    return courses.stream()
+        .map(
+            course ->
+                toCourseSummaryResponse(
+                    course,
+                    categories.getOrDefault(course.getId(), List.of()),
+                    instructors.getOrDefault(course.getId(), List.of()),
+                    reviews.getOrDefault(course.getId(), ReviewAggregate.EMPTY)))
+        .toList();
   }
 
   private Pageable createSafePageable(Pageable pageable) {
@@ -150,7 +184,10 @@ public class AllCoursesService {
   }
 
   private CourseSummaryResponse toCourseSummaryResponse(
-      Course course, List<String> categoryNames, List<String> instructorNames) {
+      Course course,
+      List<String> categoryNames,
+      List<String> instructorNames,
+      ReviewAggregate reviews) {
     return CourseSummaryResponse.builder()
         .id(course.getId())
         .title(localizedContentService.text(course.getTitle(), course.getTitleEn()))
@@ -165,6 +202,28 @@ public class AllCoursesService {
         .publishedAt(course.getPublishedAt())
         .categoryNames(categoryNames.stream().sorted(Comparator.naturalOrder()).toList())
         .instructorNames(instructorNames.stream().sorted(Comparator.naturalOrder()).toList())
+        .averageRating(reviews.averageRating())
+        .totalReviews(reviews.totalReviews())
         .build();
+  }
+
+  private Map<UUID, ReviewAggregate> getReviewAggregates(List<UUID> courseIds) {
+    if (courseIds.isEmpty()) {
+      return Map.of();
+    }
+    Map<UUID, ReviewAggregate> result = new HashMap<>();
+    for (Object[] row :
+        courseReviewRepository.aggregateByCourseIdsAndStatus(courseIds, ReviewStatus.PUBLISHED)) {
+      result.put(
+          (UUID) row[0],
+          new ReviewAggregate(
+              row[1] == null ? null : ((Number) row[1]).doubleValue(),
+              ((Number) row[2]).longValue()));
+    }
+    return result;
+  }
+
+  private record ReviewAggregate(Double averageRating, Long totalReviews) {
+    private static final ReviewAggregate EMPTY = new ReviewAggregate(null, 0L);
   }
 }

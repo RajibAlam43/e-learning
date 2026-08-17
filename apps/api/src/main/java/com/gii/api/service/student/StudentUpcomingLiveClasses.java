@@ -77,8 +77,7 @@ public class StudentUpcomingLiveClasses {
         .liveClassId(liveClass.getId())
         .title(localizedContentService.text(liveClass.getTitle(), liveClass.getTitleEn()))
         .description(
-            localizedContentService.text(
-                liveClass.getDescription(), liveClass.getDescriptionEn()))
+            localizedContentService.text(liveClass.getDescription(), liveClass.getDescriptionEn()))
         .instructorName(
             liveClass.getInstructor() != null ? liveClass.getInstructor().getFullName() : null)
         .instructorImageUrl(null)

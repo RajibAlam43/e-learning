@@ -48,8 +48,9 @@ public class OrderStatusService {
                             userId, item.getCourse().getId(), EnrollmentStatus.ACTIVE);
                       }
                       if (item.getItemType() == OrderItemType.COLLECTION) {
-                        return collectionEnrollmentRepository.existsByUserIdAndCollectionIdAndStatus(
-                            userId, item.getCollection().getId(), EnrollmentStatus.ACTIVE);
+                        return collectionEnrollmentRepository
+                            .existsByUserIdAndCollectionIdAndStatus(
+                                userId, item.getCollection().getId(), EnrollmentStatus.ACTIVE);
                       }
                       return false;
                     })

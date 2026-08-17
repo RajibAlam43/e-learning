@@ -52,7 +52,8 @@ public class SslcommerzCallbackValidationService {
     }
   }
 
-  public ValidationOutcome validateIpnNotification(Order order, Map<String, String> callbackParams) {
+  public ValidationOutcome validateIpnNotification(
+      Order order, Map<String, String> callbackParams) {
     String valId = callbackParams.get("val_id");
     if (isBlank(valId)) {
       log.warn(
@@ -65,7 +66,8 @@ public class SslcommerzCallbackValidationService {
     Map<String, Object> validated = validateByValId(valId);
     validateAgainstOrder(order, validated);
     return new ValidationOutcome(
-        normalize(asString(validated.get("status"))), parseRiskLevel(asString(validated.get("risk_level"))));
+        normalize(asString(validated.get("status"))),
+        parseRiskLevel(asString(validated.get("risk_level"))));
   }
 
   public void validateWebhookSignature(Map<String, String> callbackParams) {
@@ -124,8 +126,7 @@ public class SslcommerzCallbackValidationService {
     String computedDecodedWithRawPassword = computeSignature(fragments, safeStorePassword);
     String computedEncodedWithRawPassword = computeSignature(encodedFragments, safeStorePassword);
 
-    boolean valid =
-        equalsSignature(computedDecodedWithMd5Password, verifySign);
+    boolean valid = equalsSignature(computedDecodedWithMd5Password, verifySign);
     if (!valid) {
       log.info("Option 1 of password did not work");
       valid = equalsSignature(computedEncodedWithMd5Password, verifySign);
@@ -148,15 +149,13 @@ public class SslcommerzCallbackValidationService {
     }
   }
 
-
-
   private Map<String, Object> validateByValId(String valId) {
     if (isBlank(validationApiUrl) || isBlank(storeId) || isBlank(storePassword)) {
-      throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "SSLCommerz is not configured");
+      throw new ResponseStatusException(
+          HttpStatus.SERVICE_UNAVAILABLE, "SSLCommerz is not configured");
     }
     try {
-      String url =
-          validationApiUrl;
+      String url = validationApiUrl;
       RawHttpResponse response =
           webClientBuilder
               .build()
@@ -176,7 +175,9 @@ public class SslcommerzCallbackValidationService {
                       clientResponse
                           .bodyToMono(String.class)
                           .defaultIfEmpty("")
-                          .map(body -> new RawHttpResponse(clientResponse.statusCode().value(), body)))
+                          .map(
+                              body ->
+                                  new RawHttpResponse(clientResponse.statusCode().value(), body)))
               .block(Duration.ofMillis(validationTimeoutMs));
       if (response == null || response.statusCode() < 200 || response.statusCode() >= 300) {
         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid callback");
@@ -268,7 +269,8 @@ public class SslcommerzCallbackValidationService {
     }
     String trimmed = body.trim();
     if (trimmed.startsWith("[")) {
-      List<Map<String, Object>> list = objectMapper.readValue(trimmed, new TypeReference<List<Map<String, Object>>>() {});
+      List<Map<String, Object>> list =
+          objectMapper.readValue(trimmed, new TypeReference<List<Map<String, Object>>>() {});
       if (list == null || list.isEmpty() || list.getFirst() == null) {
         return Map.of();
       }

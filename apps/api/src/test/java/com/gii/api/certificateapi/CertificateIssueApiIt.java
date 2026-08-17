@@ -93,11 +93,14 @@ class CertificateIssueApiIt extends AbstractCertificateApiIntegrationTest {
 
     var collection =
         collection("Collection Cert", "collection-cert", creator, PublishStatus.PUBLISHED);
-    var course1 = course("Collection Course 1", "collection-course-1", creator, PublishStatus.PUBLISHED);
-    var course2 = course("Collection Course 2", "collection-course-2", creator, PublishStatus.PUBLISHED);
+    var course1 =
+        course("Collection Course 1", "collection-course-1", creator, PublishStatus.PUBLISHED);
+    var course2 =
+        course("Collection Course 2", "collection-course-2", creator, PublishStatus.PUBLISHED);
     collectionCourse(collection, course1, 1, true);
     collectionCourse(collection, course2, 2, true);
-    collectionEnrollment(student, collection, EnrollmentStatus.ACTIVE, Instant.now().plusSeconds(3600));
+    collectionEnrollment(
+        student, collection, EnrollmentStatus.ACTIVE, Instant.now().plusSeconds(3600));
 
     var s1 = section(course1, 1, PublishStatus.PUBLISHED);
     var c1l1 = lesson(course1, s1, 1, PublishStatus.PUBLISHED);

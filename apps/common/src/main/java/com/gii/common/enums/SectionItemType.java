@@ -4,4 +4,3 @@ public enum SectionItemType {
   LESSON,
   QUIZ
 }
-

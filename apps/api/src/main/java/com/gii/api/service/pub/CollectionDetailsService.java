@@ -2,8 +2,8 @@ package com.gii.api.service.pub;
 
 import com.gii.api.model.response.CollectionCourseSummaryResponse;
 import com.gii.api.model.response.CollectionDetailsResponse;
-import com.gii.api.service.storage.AssetUrlService;
 import com.gii.api.service.localization.LocalizedContentService;
+import com.gii.api.service.storage.AssetUrlService;
 import com.gii.common.entity.collection.Collection;
 import com.gii.common.entity.collection.CollectionCourse;
 import com.gii.common.entity.course.CourseInstructor;

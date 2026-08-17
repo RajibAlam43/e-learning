@@ -73,7 +73,9 @@ public class ProfileService {
     }
 
     if (request.email() != null) {
-      String normalizedEmail = IdentifierNormalizationUtil.normalizeIdentifier(VerificationChannel.EMAIL, request.email());
+      String normalizedEmail =
+          IdentifierNormalizationUtil.normalizeIdentifier(
+              VerificationChannel.EMAIL, request.email());
       if (!normalizedEmail.equals(user.getEmail())
           && userRepository.existsByEmail(normalizedEmail)) {
         throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already in use");
@@ -86,7 +88,9 @@ public class ProfileService {
     }
 
     if (request.phone() != null) {
-      String normalizedPhone = IdentifierNormalizationUtil.normalizeIdentifier(VerificationChannel.PHONE, request.phone());
+      String normalizedPhone =
+          IdentifierNormalizationUtil.normalizeIdentifier(
+              VerificationChannel.PHONE, request.phone());
       if (!normalizedPhone.equals(user.getPhone())
           && userRepository.existsByPhone(normalizedPhone)) {
         throw new ResponseStatusException(HttpStatus.CONFLICT, "Phone already in use");

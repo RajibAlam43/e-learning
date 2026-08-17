@@ -9,6 +9,5 @@ import org.springframework.test.context.ActiveProfiles;
 class WorkerContextSmokeTest {
 
   @Test
-  void contextLoads() {
-  }
+  void contextLoads() {}
 }

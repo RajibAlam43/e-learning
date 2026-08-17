@@ -15,6 +15,8 @@ public record StudentOngoingCourseSnapshot(
     Double completionPercentage,
     Integer completedLessons,
     Integer totalLessons,
+    Integer completedItems,
+    Integer totalItems,
 
     // Enrollment info
     Instant enrolledAt,
@@ -23,4 +25,4 @@ public record StudentOngoingCourseSnapshot(
 
     // Quick action
     String nextLessonId // For "Continue Learning" button
-) {}
+    ) {}

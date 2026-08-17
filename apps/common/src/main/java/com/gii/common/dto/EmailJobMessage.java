@@ -18,4 +18,3 @@ public record EmailJobMessage(
     VerificationChannel verificationChannel,
     String verificationCode,
     Instant createdAt) {}
-

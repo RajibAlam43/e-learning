@@ -25,4 +25,4 @@ public record QuizAttemptSummaryResponse(
 
     // Quick action
     String resultUrl // Link to detailed result view
-) {}
+    ) {}

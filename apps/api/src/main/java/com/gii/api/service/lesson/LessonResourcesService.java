@@ -5,6 +5,7 @@ import com.gii.api.service.localization.LocalizedContentService;
 import com.gii.common.entity.course.Lesson;
 import com.gii.common.entity.course.LessonResource;
 import com.gii.common.entity.enrollment.Enrollment;
+import com.gii.common.enums.LessonResourcePurpose;
 import com.gii.common.repository.course.LessonResourceRepository;
 import java.time.Instant;
 import java.util.List;
@@ -36,13 +37,14 @@ public class LessonResourcesService {
     List<LessonResource> resources =
         lessonResourceRepository.findByLessonIdOrderByPositionAsc(lessonId);
     return resources.stream()
+        .filter(resource -> resource.getPurpose() == LessonResourcePurpose.SUPPLEMENTARY)
         .map(
             resource ->
                 LessonResourceResponse.builder()
                     .resourceId(resource.getId())
-                    .title(
-                        localizedContentService.text(resource.getTitle(), resource.getTitleEn()))
+                    .title(localizedContentService.text(resource.getTitle(), resource.getTitleEn()))
                     .resourceType(resource.getResourceType())
+                    .purpose(resource.getPurpose())
                     .mimeType(resource.getMimeType())
                     .position(resource.getPosition())
                     // Download URL should be requested through signed endpoint.

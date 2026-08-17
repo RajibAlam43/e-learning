@@ -1,8 +1,8 @@
 package com.gii.common.entity.enrollment;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.gii.common.entity.common.CreatedOnlyUuidEntity;
 import com.gii.common.entity.collection.Collection;
+import com.gii.common.entity.common.CreatedOnlyUuidEntity;
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.order.OrderItem;
 import com.gii.common.entity.user.User;

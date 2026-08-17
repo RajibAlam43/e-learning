@@ -24,7 +24,7 @@ public record InstructorUpcomingLiveClassResponse(
 
     // Status & registration
     LiveClassStatus status,
-    Integer registeredStudents,
+    Long registeredStudents,
     Integer maxCapacity, // If any limit
 
     // Quick action

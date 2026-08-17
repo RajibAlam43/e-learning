@@ -29,7 +29,8 @@ public class CertificateApiController implements CertificateApi {
   @Override
   public ResponseEntity<CertificateIssueResponse> issueOrGetCollectionCertificate(
       UUID collectionId, Authentication authentication) {
-    return ResponseEntity.ok(certificateIssueService.executeCollection(collectionId, authentication));
+    return ResponseEntity.ok(
+        certificateIssueService.executeCollection(collectionId, authentication));
   }
 
   @Override
