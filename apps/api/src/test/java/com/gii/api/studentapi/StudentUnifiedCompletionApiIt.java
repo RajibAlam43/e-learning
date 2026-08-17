@@ -84,9 +84,7 @@ class StudentUnifiedCompletionApiIt extends AbstractStudentApiIntegrationTest {
             get("/learn/courses/{courseId}/progress", course.getId())
                 .with(authentication(studentAuth(student.getId()))))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.completedItems").value(2))
-        .andExpect(jsonPath("$.totalItems").value(4))
-        .andExpect(jsonPath("$.pendingItems").value(2))
+        .andExpect(jsonPath("$.courseId").value(course.getId().toString()))
         .andExpect(jsonPath("$.completionPercentage").value(50.0));
 
     mockMvc
@@ -179,8 +177,7 @@ class StudentUnifiedCompletionApiIt extends AbstractStudentApiIntegrationTest {
             get("/learn/courses/{courseId}/progress", course.getId())
                 .with(authentication(studentAuth(student.getId()))))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.completedItems").value(1))
-        .andExpect(jsonPath("$.totalItems").value(1))
+        .andExpect(jsonPath("$.courseId").value(course.getId().toString()))
         .andExpect(jsonPath("$.completionPercentage").value(100.0));
   }
 }
