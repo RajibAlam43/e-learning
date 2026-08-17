@@ -11,4 +11,6 @@ public record StudentCollectionCourseProgressResponse(
     String courseThumbnailUrl,
     Double completionPercentage,
     Integer completedLessons,
-    Integer totalLessons) {}
+    Integer totalLessons,
+    Integer completedItems,
+    Integer totalItems) {}

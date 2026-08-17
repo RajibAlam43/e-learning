@@ -4,12 +4,13 @@ import com.gii.api.model.response.lesson.LessonContentResponse;
 import com.gii.api.model.response.lesson.LessonProgressResponse;
 import com.gii.api.model.response.lesson.LessonResourceResponse;
 import com.gii.api.model.response.lesson.MediaPlaybackResponse;
-import com.gii.api.service.storage.AssetUrlService;
 import com.gii.api.service.localization.LocalizedContentService;
+import com.gii.api.service.storage.AssetUrlService;
 import com.gii.common.entity.course.Lesson;
 import com.gii.common.entity.course.MediaAsset;
 import com.gii.common.entity.enrollment.Enrollment;
 import com.gii.common.entity.enrollment.LessonProgress;
+import com.gii.common.enums.LessonResourcePurpose;
 import com.gii.common.enums.MediaStatus;
 import com.gii.common.repository.course.LessonResourceRepository;
 import com.gii.common.repository.course.MediaAssetRepository;
@@ -61,7 +62,7 @@ public class LessonContentService {
     MediaPlaybackResponse media =
         toLessonPlayback(
             mediaAssetRepository.findByLessonId(lessonId).orElse(null), courseThumbnailUrl);
-    List<LessonResourceResponse> resources =
+    List<LessonResourceResponse> allResources =
         lessonResourceRepository.findByLessonIdOrderByPositionAsc(lessonId).stream()
             .map(
                 resource ->
@@ -71,10 +72,20 @@ public class LessonContentService {
                             localizedContentService.text(
                                 resource.getTitle(), resource.getTitleEn()))
                         .resourceType(resource.getResourceType())
+                        .purpose(resource.getPurpose())
                         .mimeType(resource.getMimeType())
                         .position(resource.getPosition())
                         .downloadUrl(null)
                         .build())
+            .toList();
+    LessonResourceResponse primaryResource =
+        allResources.stream()
+            .filter(resource -> resource.purpose() == LessonResourcePurpose.PRIMARY_CONTENT)
+            .findFirst()
+            .orElse(null);
+    List<LessonResourceResponse> resources =
+        allResources.stream()
+            .filter(resource -> resource.purpose() == LessonResourcePurpose.SUPPLEMENTARY)
             .toList();
 
     return LessonContentResponse.builder()
@@ -94,6 +105,7 @@ public class LessonContentService {
         .unlockAfterDays(lesson.getUnlockAfterDays())
         .userProgress(toProgress(progress))
         .mediaPlayback(media)
+        .primaryResource(primaryResource)
         .resources(resources)
         .courseId(lesson.getCourse().getId())
         .sectionId(lesson.getSection().getId())
@@ -120,8 +132,7 @@ public class LessonContentService {
         .build();
   }
 
-  private MediaPlaybackResponse toLessonPlayback(
-      MediaAsset mediaAsset, String courseThumbnailUrl) {
+  private MediaPlaybackResponse toLessonPlayback(MediaAsset mediaAsset, String courseThumbnailUrl) {
     if (mediaAsset == null || mediaAsset.getStatus() != MediaStatus.READY) {
       return null;
     }
@@ -130,8 +141,7 @@ public class LessonContentService {
         .mediaAssetId(mediaAsset.getId())
         .assetType(mediaAsset.getAssetType())
         .provider(mediaAsset.getProvider())
-        .title(
-            localizedContentService.text(mediaAsset.getTitle(), mediaAsset.getTitleEn()))
+        .title(localizedContentService.text(mediaAsset.getTitle(), mediaAsset.getTitleEn()))
         .durationSec(mediaAsset.getDurationSec())
         .maxResolution(mediaAsset.getMaxResolution())
         .youtubeVideoId(

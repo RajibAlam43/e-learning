@@ -19,5 +19,4 @@ public record CreateLiveClassRequest(
     @NotNull @Future Instant startsAt,
     @NotNull @Future Instant endsAt,
     @NotNull LiveClassProvider provider,
-    @NotNull @Positive Integer maxCapacity
-) {}
+    @NotNull @Positive Integer maxCapacity) {}

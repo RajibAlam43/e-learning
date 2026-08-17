@@ -1,7 +1,6 @@
 package com.gii.api.quizapi;
 
 import com.gii.api.testsupport.SharedPostgresContainer;
-
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;

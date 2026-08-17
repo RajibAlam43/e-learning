@@ -32,4 +32,6 @@ public record CourseDetailsResponse(
     Integer liveSessionCount,
     Integer quizCount,
     Integer recordedHoursCount,
-    Boolean isFree) {}
+    Boolean isFree,
+    Double averageRating,
+    Long totalReviews) {}

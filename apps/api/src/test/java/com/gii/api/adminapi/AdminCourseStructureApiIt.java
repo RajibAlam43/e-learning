@@ -26,6 +26,7 @@ class AdminCourseStructureApiIt extends AbstractAdminApiIntegrationTest {
   @Test
   void createGetUpdateAndPublishCourseShouldPersistState() throws Exception {
     var admin = user("Admin One", "admin-course@example.com");
+    var category = category("প্রোগ্রামিং", "Programming", "programming");
 
     mockMvc
         .perform(
@@ -37,15 +38,18 @@ class AdminCourseStructureApiIt extends AbstractAdminApiIntegrationTest {
                     {
                       "title":"Course Alpha",
                       "slug":"course-alpha",
+                      "categoryIds":["%s"],
                       "priceBdt":1500,
                       "level":"BEGINNER",
                       "language":"EN",
                       "studyMode":"SCHEDULED",
                       "isFree":false
                     }
-                    """))
+                    """
+                        .formatted(category.getId())))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.title").value("Course Alpha"))
+        .andExpect(jsonPath("$.categories[0].id").value(category.getId().toString()))
         .andExpect(jsonPath("$.status").value("DRAFT"));
 
     var course =

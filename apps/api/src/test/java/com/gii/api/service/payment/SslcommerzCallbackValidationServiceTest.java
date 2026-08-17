@@ -1,7 +1,7 @@
 package com.gii.api.service.payment;
 
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gii.api.service.payment.sslcommerz.SslcommerzCallbackValidationService;
@@ -55,7 +55,9 @@ class SslcommerzCallbackValidationServiceTest {
     ReflectionTestUtils.setField(
         service,
         "validationApiUrl",
-        "http://127.0.0.1:" + server.getAddress().getPort() + "/validator/api/validationserverAPI.php");
+        "http://127.0.0.1:"
+            + server.getAddress().getPort()
+            + "/validator/api/validationserverAPI.php");
 
     Order order = sampleOrder("txn-1", new BigDecimal("1000.00"));
     Map<String, String> params = callbackParams("txn-1", "val-1", "1000.00", "BDT", "VALID");
@@ -131,7 +133,8 @@ class SslcommerzCallbackValidationServiceTest {
   private SslcommerzCallbackValidationService buildService() {
     SslcommerzCallbackValidationService service =
         new SslcommerzCallbackValidationService(new ObjectMapper(), WebClient.builder());
-    ReflectionTestUtils.setField(service, "validationApiUrl", "http://127.0.0.1:0/validator/api/validationserverAPI.php");
+    ReflectionTestUtils.setField(
+        service, "validationApiUrl", "http://127.0.0.1:0/validator/api/validationserverAPI.php");
     ReflectionTestUtils.setField(service, "storeId", "store-id");
     ReflectionTestUtils.setField(service, "storePassword", "store-pass");
     ReflectionTestUtils.setField(service, "validationTimeoutMs", 3000L);

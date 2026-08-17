@@ -8,4 +8,4 @@ import lombok.Builder;
 @Builder
 public record AssignInstructorToCourseRequest(
     @NotNull UUID instructorUserId, @NotBlank String role // PRIMARY, ASSISTANT
-) {}
+    ) {}

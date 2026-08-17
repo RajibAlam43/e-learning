@@ -40,16 +40,18 @@ public class ResourceDownloadService {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Lesson is not available yet");
     }
 
+    String localizedTitle =
+        localizedContentService.text(resource.getTitle(), resource.getTitleEn());
+    String fileName =
+        R2PresignedUrlService.resolveDownloadFileName(localizedTitle, resource.getMimeType());
     R2PresignedUrlService.PresignedDownload signed =
         r2PresignedUrlService.generateDownloadUrl(
-            resource.getFileUrl(),
-            localizedContentService.text(resource.getTitle(), resource.getTitleEn()),
-            resource.getMimeType());
+            resource.getFileObjectKey(), fileName, resource.getMimeType());
 
     return ResourceDownloadUrlResponse.builder()
         .downloadUrl(signed.downloadUrl())
         .expiresAt(signed.expiresAt())
-        .fileName(localizedContentService.text(resource.getTitle(), resource.getTitleEn()))
+        .fileName(fileName)
         .build();
   }
 }

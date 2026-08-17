@@ -1,7 +1,7 @@
 package com.gii.api.model.response.instructor;
 
-import com.gii.common.enums.LiveClassStatus;
 import com.gii.common.enums.LiveClassProvider;
+import com.gii.common.enums.LiveClassStatus;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.Builder;
@@ -10,7 +10,6 @@ import lombok.Builder;
 public record InstructorLiveClassStartResponse(
     UUID liveClassId,
     String title,
-
     LiveClassProvider provider,
     String hostStartUrl,
     String meetingId,

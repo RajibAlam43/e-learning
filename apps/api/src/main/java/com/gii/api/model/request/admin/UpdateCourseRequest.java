@@ -1,7 +1,10 @@
 package com.gii.api.model.request.admin;
 
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.UUID;
 import lombok.Builder;
 
 @Builder
@@ -9,6 +12,7 @@ public record UpdateCourseRequest(
     String title,
     String titleEn,
     String slug,
+    @Size(min = 1) List<@NotNull UUID> categoryIds,
     String thumbnailObjectKey,
     String shortDescription,
     String shortDescriptionEn,

@@ -17,5 +17,8 @@ public record AdminCourseSummaryResponse(
     Boolean isFree,
     String instructorName,
     Integer totalEnrolled,
+    Boolean isFeatured,
+    Integer featuredPosition,
+    Instant featuredAt,
     Instant publishedAt,
     Instant createdAt) {}

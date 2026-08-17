@@ -86,6 +86,8 @@ public class StudentDashboardService {
         .completionPercentage(course.completionPercentage())
         .completedLessons(course.completedLessons())
         .totalLessons(course.totalLessons())
+        .completedItems(course.completedItems())
+        .totalItems(course.totalItems())
         .enrolledAt(course.enrolledAt())
         .expiresAt(course.expiresAt())
         .isExpiring(

@@ -2,6 +2,7 @@ package com.gii.api.service.storage;
 
 import java.net.URI;
 import java.time.Duration;
+import java.util.Locale;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
@@ -44,8 +45,7 @@ public class R2PresignedUrlService {
     this.region = region;
   }
 
-  public PresignedUpload generateUploadUrl(
-      String objectKey, String contentType, long sizeBytes) {
+  public PresignedUpload generateUploadUrl(String objectKey, String contentType, long sizeBytes) {
     Duration signatureDuration = Duration.ofSeconds(uploadTtlSeconds);
     PutObjectRequest putObjectRequest =
         PutObjectRequest.builder()
@@ -76,7 +76,8 @@ public class R2PresignedUrlService {
         GetObjectRequest.builder()
             .bucket(bucket)
             .key(objectKey)
-            .responseContentDisposition("attachment; filename=\"" + safeFileName(fileName) + "\"");
+            .responseContentDisposition(
+                "attachment; filename=\"" + resolveDownloadFileName(fileName, mimeType) + "\"");
 
     if (mimeType != null && !mimeType.isBlank()) {
       getRequest.responseContentType(mimeType);
@@ -140,11 +141,28 @@ public class R2PresignedUrlService {
     }
   }
 
-  private String safeFileName(String fileName) {
+  private static String safeFileName(String fileName) {
     if (fileName == null || fileName.isBlank()) {
       return "resource";
     }
     return fileName.replace("\"", "");
+  }
+
+  public static String resolveDownloadFileName(String fileName, String mimeType) {
+    String safeName = safeFileName(fileName);
+    if (mimeType == null || mimeType.isBlank()) {
+      return safeName;
+    }
+    String normalizedMimeType = mimeType.trim().toLowerCase(Locale.ROOT);
+    String lowerName = safeName.toLowerCase(Locale.ROOT);
+    return switch (normalizedMimeType) {
+      case "application/pdf" -> lowerName.endsWith(".pdf") ? safeName : safeName + ".pdf";
+      case "image/jpeg" ->
+          lowerName.endsWith(".jpg") || lowerName.endsWith(".jpeg") ? safeName : safeName + ".jpg";
+      case "image/png" -> lowerName.endsWith(".png") ? safeName : safeName + ".png";
+      case "image/webp" -> lowerName.endsWith(".webp") ? safeName : safeName + ".webp";
+      default -> safeName;
+    };
   }
 
   public record PresignedDownload(String downloadUrl, java.time.Instant expiresAt) {}

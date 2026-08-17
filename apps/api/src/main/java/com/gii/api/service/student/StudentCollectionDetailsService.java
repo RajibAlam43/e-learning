@@ -3,8 +3,10 @@ package com.gii.api.service.student;
 import com.gii.api.model.response.student.StudentCollectionCourseProgressResponse;
 import com.gii.api.model.response.student.StudentCollectionDetailsResponse;
 import com.gii.api.service.enrollment.CurrentUserService;
-import com.gii.api.service.storage.AssetUrlService;
 import com.gii.api.service.localization.LocalizedContentService;
+import com.gii.api.service.progress.CourseCompletionService;
+import com.gii.api.service.progress.CourseCompletionService.CourseCompletion;
+import com.gii.api.service.storage.AssetUrlService;
 import com.gii.common.entity.collection.Collection;
 import com.gii.common.entity.collection.CollectionCourse;
 import com.gii.common.entity.collection.CollectionEnrollment;
@@ -12,9 +14,6 @@ import com.gii.common.enums.EnrollmentStatus;
 import com.gii.common.enums.PublishStatus;
 import com.gii.common.repository.collection.CollectionCourseRepository;
 import com.gii.common.repository.collection.CollectionEnrollmentRepository;
-import com.gii.common.repository.course.LessonRepository;
-import com.gii.common.repository.enrollment.LessonProgressRepository;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -33,12 +32,12 @@ public class StudentCollectionDetailsService {
   private final CurrentUserService currentUserService;
   private final CollectionEnrollmentRepository collectionEnrollmentRepository;
   private final CollectionCourseRepository collectionCourseRepository;
-  private final LessonRepository lessonRepository;
-  private final LessonProgressRepository lessonProgressRepository;
+  private final CourseCompletionService courseCompletionService;
   private final AssetUrlService assetUrlService;
   private final LocalizedContentService localizedContentService;
 
-  public StudentCollectionDetailsResponse execute(UUID collectionId, Authentication authentication) {
+  public StudentCollectionDetailsResponse execute(
+      UUID collectionId, Authentication authentication) {
     UUID userId = currentUserService.getCurrentUserId(authentication);
     CollectionEnrollment enrollment =
         collectionEnrollmentRepository
@@ -54,8 +53,8 @@ public class StudentCollectionDetailsService {
             collectionId, PublishStatus.PUBLISHED);
 
     List<UUID> courseIds = collectionCourses.stream().map(cc -> cc.getCourse().getId()).toList();
-    Map<UUID, Integer> totalLessonsByCourseId = lessonCountByCourseId(courseIds);
-    Map<UUID, Integer> completedLessonsByCourseId = completedLessonCountByCourseId(userId, courseIds);
+    Map<UUID, CourseCompletion> completionByCourseId =
+        courseCompletionService.getByCourseIds(userId, courseIds);
 
     int totalLessons = 0;
     int completedLessons = 0;
@@ -64,9 +63,7 @@ public class StudentCollectionDetailsService {
             .map(
                 cc -> {
                   UUID courseId = cc.getCourse().getId();
-                  int total = totalLessonsByCourseId.getOrDefault(courseId, 0);
-                  int completed = completedLessonsByCourseId.getOrDefault(courseId, 0);
-                  double progress = total == 0 ? 0.0 : (completed * 100.0) / total;
+                  CourseCompletion completion = completionByCourseId.get(courseId);
                   return StudentCollectionCourseProgressResponse.builder()
                       .courseId(courseId)
                       .courseName(
@@ -75,9 +72,11 @@ public class StudentCollectionDetailsService {
                       .courseSlug(cc.getCourse().getSlug())
                       .courseThumbnailUrl(
                           assetUrlService.publicUrl(cc.getCourse().getThumbnailObjectKey()))
-                      .completionPercentage(round2(progress))
-                      .completedLessons(completed)
-                      .totalLessons(total)
+                      .completionPercentage(completion.completionPercentage())
+                      .completedLessons(completion.completedLessons())
+                      .totalLessons(completion.totalLessons())
+                      .completedItems(completion.completedItems())
+                      .totalItems(completion.totalItems())
                       .build();
                 })
             .toList();
@@ -86,7 +85,12 @@ public class StudentCollectionDetailsService {
       totalLessons += item.totalLessons();
       completedLessons += item.completedLessons();
     }
-    double progress = totalLessons == 0 ? 0.0 : (completedLessons * 100.0) / totalLessons;
+    int totalItems =
+        courses.stream().mapToInt(StudentCollectionCourseProgressResponse::totalItems).sum();
+    int completedItems =
+        courses.stream().mapToInt(StudentCollectionCourseProgressResponse::completedItems).sum();
+    double progress =
+        totalItems == 0 ? 0.0 : Math.round(completedItems * 10000.0 / totalItems) / 100.0;
 
     return StudentCollectionDetailsResponse.builder()
         .collectionId(collection.getId())
@@ -101,9 +105,11 @@ public class StudentCollectionDetailsService {
         .description(
             localizedContentService.text(
                 collection.getDescription(), collection.getDescriptionEn()))
-        .progressPercentage(round2(progress))
+        .progressPercentage(progress)
         .completedLessons(completedLessons)
         .totalLessons(totalLessons)
+        .completedItems(completedItems)
+        .totalItems(totalItems)
         .courseCount(courses.size())
         .enrollmentStatus(enrollment.getStatus())
         .enrolledAt(enrollment.getEnrolledAt())
@@ -111,31 +117,5 @@ public class StudentCollectionDetailsService {
         .expiresAt(enrollment.getExpiresAt())
         .courses(courses)
         .build();
-  }
-
-  private Map<UUID, Integer> lessonCountByCourseId(List<UUID> courseIds) {
-    if (courseIds.isEmpty()) {
-      return Map.of();
-    }
-    Map<UUID, Integer> counts = new HashMap<>();
-    for (Object[] row : lessonRepository.countByCourseIdsAndStatus(courseIds, PublishStatus.PUBLISHED)) {
-      counts.put((UUID) row[0], ((Long) row[1]).intValue());
-    }
-    return counts;
-  }
-
-  private Map<UUID, Integer> completedLessonCountByCourseId(UUID userId, List<UUID> courseIds) {
-    if (courseIds.isEmpty()) {
-      return Map.of();
-    }
-    Map<UUID, Integer> counts = new HashMap<>();
-    for (Object[] row : lessonProgressRepository.countCompletedByUserIdAndCourseIds(userId, courseIds)) {
-      counts.put((UUID) row[0], ((Long) row[1]).intValue());
-    }
-    return counts;
-  }
-
-  private double round2(double value) {
-    return Math.round(value * 100.0) / 100.0;
   }
 }

@@ -25,4 +25,5 @@ public record AdminLessonDetailResponse(
     Instant createdAt,
     Instant updatedAt,
     AdminMediaAssetResponse mediaAsset,
+    AdminLessonResourceResponse primaryResource,
     List<AdminLessonResourceResponse> resources) {}

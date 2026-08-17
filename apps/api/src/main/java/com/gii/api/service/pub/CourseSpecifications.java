@@ -5,6 +5,7 @@ import com.gii.common.entity.course.CourseCategory;
 import com.gii.common.enums.CourseLanguage;
 import com.gii.common.enums.CourseLevel;
 import com.gii.common.enums.PublishStatus;
+import java.util.List;
 import java.util.UUID;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.data.jpa.domain.Specification;
@@ -15,11 +16,13 @@ public class CourseSpecifications {
     return (root, query, cb) -> cb.equal(root.get("status"), status);
   }
 
-  public static Specification<@NotNull Course> hasCategory(UUID categoryId) {
+  public static Specification<@NotNull Course> hasAnyCategorySlug(List<String> categorySlugs) {
     return (root, query, cb) -> {
-      if (categoryId == null) {
+      if (categorySlugs == null || categorySlugs.isEmpty()) {
         return null;
       }
+
+      List<String> uniqueSlugs = categorySlugs.stream().distinct().toList();
 
       var subquery = query.subquery(UUID.class);
       var courseCategory = subquery.from(CourseCategory.class);
@@ -28,7 +31,7 @@ public class CourseSpecifications {
           .select(courseCategory.get("course").get("id"))
           .where(
               cb.equal(courseCategory.get("course").get("id"), root.get("id")),
-              cb.equal(courseCategory.get("category").get("id"), categoryId));
+              courseCategory.get("category").get("slug").in(uniqueSlugs));
 
       return cb.exists(subquery);
     };

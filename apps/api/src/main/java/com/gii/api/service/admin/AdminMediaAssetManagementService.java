@@ -47,8 +47,7 @@ public class AdminMediaAssetManagementService {
             .title(request.title())
             .titleEn(request.titleEn())
             .thumbnailObjectKey(
-                assetUrlService.normalizeThumbnailKey(
-                    request.thumbnailObjectKey(), "media-assets"))
+                assetUrlService.normalizeThumbnailKey(request.thumbnailObjectKey(), "media-assets"))
             .maxResolution(request.maxResolution())
             .durationSec(request.durationSec())
             .status(MediaStatus.READY)
@@ -71,8 +70,7 @@ public class AdminMediaAssetManagementService {
     }
     if (request.thumbnailObjectKey() != null) {
       asset.setThumbnailObjectKey(
-          assetUrlService.normalizeThumbnailKey(
-              request.thumbnailObjectKey(), "media-assets"));
+          assetUrlService.normalizeThumbnailKey(request.thumbnailObjectKey(), "media-assets"));
     }
     if (request.provider() != null) {
       asset.setProvider(request.provider());

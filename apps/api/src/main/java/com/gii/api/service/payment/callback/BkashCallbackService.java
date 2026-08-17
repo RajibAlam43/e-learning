@@ -22,7 +22,9 @@ public class BkashCallbackService {
   public void successRedirect(UUID orderId, Map<String, String> queryParams) {
     String providerEventId =
         flowSupportService.firstNonBlank(
-            queryParams.get("payment_id"), queryParams.get("paymentID"), queryParams.get("tran_id"));
+            queryParams.get("payment_id"),
+            queryParams.get("paymentID"),
+            queryParams.get("tran_id"));
     if (providerEventId == null) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "Missing required callback transaction identifier");
@@ -39,7 +41,9 @@ public class BkashCallbackService {
   public void failedRedirect(UUID orderId, Map<String, String> queryParams) {
     String providerEventId =
         flowSupportService.firstNonBlank(
-            queryParams.get("payment_id"), queryParams.get("paymentID"), queryParams.get("tran_id"));
+            queryParams.get("payment_id"),
+            queryParams.get("paymentID"),
+            queryParams.get("tran_id"));
     if (providerEventId == null) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "Missing required callback transaction identifier");
@@ -54,7 +58,9 @@ public class BkashCallbackService {
   public void cancelledRedirect(UUID orderId, Map<String, String> queryParams) {
     String providerEventId =
         flowSupportService.firstNonBlank(
-            queryParams.get("payment_id"), queryParams.get("paymentID"), queryParams.get("tran_id"));
+            queryParams.get("payment_id"),
+            queryParams.get("paymentID"),
+            queryParams.get("tran_id"));
     if (providerEventId == null) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "Missing required callback transaction identifier");
@@ -90,4 +96,3 @@ public class BkashCallbackService {
     cancelledRedirect(orderId, params);
   }
 }
-
