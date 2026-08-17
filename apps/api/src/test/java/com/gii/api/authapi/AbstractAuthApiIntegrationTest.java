@@ -1,9 +1,8 @@
 package com.gii.api.authapi;
 
-import com.gii.api.testsupport.SharedPostgresContainer;
-
 import com.gii.api.service.util.EmailJobPublisherService;
 import com.gii.api.service.util.SmsJobPublisherService;
+import com.gii.api.testsupport.SharedPostgresContainer;
 import org.junit.jupiter.api.Tag;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;

@@ -20,4 +20,6 @@ public record CourseSummaryResponse(
     String thumbnailUrl,
     BigDecimal priceBdt,
     Instant publishedAt,
-    List<String> instructorNames) {}
+    List<String> instructorNames,
+    Double averageRating,
+    Long totalReviews) {}

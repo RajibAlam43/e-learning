@@ -42,10 +42,8 @@ class StudentDashboardApiIt extends AbstractStudentApiIntegrationTest {
         BigDecimal.ZERO);
     certificate(student, course, "CERT-001", false);
 
-    var expectedPrefix = progress.getUpdatedAt()
-            .truncatedTo(ChronoUnit.MILLIS)
-            .toString()
-            .replace("Z", "");
+    var expectedPrefix =
+        progress.getUpdatedAt().truncatedTo(ChronoUnit.MILLIS).toString().replace("Z", "");
 
     mockMvc
         .perform(get("/student/dashboard").with(authentication(studentAuth(student.getId()))))

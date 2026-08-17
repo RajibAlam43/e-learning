@@ -135,13 +135,7 @@ class PublicCourseDetailsApiIt extends AbstractPublicApiIntegrationTest {
     section.setTitleEn("English Section");
     courseSectionRepository.saveAndFlush(section);
     Lesson lesson =
-        lesson(
-            course,
-            section,
-            uniqueSlug("localized-lesson"),
-            1,
-            PublishStatus.PUBLISHED,
-            true);
+        lesson(course, section, uniqueSlug("localized-lesson"), 1, PublishStatus.PUBLISHED, true);
     lesson.setTitle("বাংলা পাঠ");
     lesson.setTitleEn("English Lesson");
     lessonRepository.saveAndFlush(lesson);

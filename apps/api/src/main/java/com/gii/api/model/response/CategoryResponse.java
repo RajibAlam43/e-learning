@@ -4,4 +4,4 @@ import java.util.UUID;
 import lombok.Builder;
 
 @Builder
-public record CategoryResponse(UUID id, String name, String slug) {}
+public record CategoryResponse(UUID id, String name, String slug, UUID parentId) {}

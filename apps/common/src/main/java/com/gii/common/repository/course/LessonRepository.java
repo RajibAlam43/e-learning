@@ -37,4 +37,16 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID> {
       """)
   List<Object[]> countByCourseIdsAndStatus(
       @Param("courseIds") List<UUID> courseIds, @Param("status") PublishStatus status);
+
+  @Query(
+      """
+        SELECT l.course.id, COUNT(l)
+        FROM Lesson l
+        WHERE l.course.id IN :courseIds
+        AND l.status = :status
+        AND l.section.status = :status
+        GROUP BY l.course.id
+      """)
+  List<Object[]> countCompletableByCourseIdsAndStatus(
+      @Param("courseIds") List<UUID> courseIds, @Param("status") PublishStatus status);
 }

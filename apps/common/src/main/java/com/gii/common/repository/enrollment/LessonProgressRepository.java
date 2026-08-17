@@ -2,6 +2,7 @@ package com.gii.common.repository.enrollment;
 
 import com.gii.common.entity.enrollment.LessonProgress;
 import com.gii.common.entity.enrollment.LessonProgressId;
+import com.gii.common.enums.PublishStatus;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -26,6 +27,22 @@ public interface LessonProgressRepository extends JpaRepository<LessonProgress, 
       """)
   List<Object[]> countCompletedByUserIdAndCourseIds(
       @Param("userId") UUID userId, @Param("courseIds") List<UUID> courseIds);
+
+  @Query(
+      """
+        SELECT lp.lesson.course.id, COUNT(lp)
+        FROM LessonProgress lp
+        WHERE lp.user.id = :userId
+        AND lp.lesson.course.id IN :courseIds
+        AND lp.lesson.status = :status
+        AND lp.lesson.section.status = :status
+        AND lp.completedAt IS NOT NULL
+        GROUP BY lp.lesson.course.id
+      """)
+  List<Object[]> countCompletedPublishedByUserIdAndCourseIds(
+      @Param("userId") UUID userId,
+      @Param("courseIds") List<UUID> courseIds,
+      @Param("status") PublishStatus status);
 
   @Query(
       """

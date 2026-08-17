@@ -13,6 +13,8 @@ public record SectionProgressResponse(
     // Completion metrics for section
     Integer totalLessons,
     Integer completedLessons,
+    Integer totalItems,
+    Integer completedItems,
     Double completionPercentage, // 0-100
 
     // Lesson-level progress

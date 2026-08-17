@@ -1,7 +1,7 @@
 package com.gii.api.model.response.instructor;
 
-import com.gii.common.enums.LiveClassStatus;
 import com.gii.common.enums.LiveClassProvider;
+import com.gii.common.enums.LiveClassStatus;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;

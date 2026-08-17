@@ -53,7 +53,8 @@ class BkashCheckoutServiceTest {
         "/checkout/payment/create",
         exchange -> {
           createCalls.incrementAndGet();
-          createRequestBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+          createRequestBody.set(
+              new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
           String auth = exchange.getRequestHeaders().getFirst("Authorization");
           if (!"token-1".equals(auth)) {
             writeJson(exchange, 401, "{\"statusCode\":\"401\"}");
@@ -79,11 +80,20 @@ class BkashCheckoutServiceTest {
     Map<?, ?> payload = new ObjectMapper().readValue(createRequestBody.get(), Map.class);
     assertThat(payload.get("mode")).isEqualTo("0011");
     assertThat(payload.get("successCallbackURL"))
-        .isEqualTo("https://stage-api.globalislamicinstitute.com/payments/bkash/" + sampleOrderId() + "/success");
+        .isEqualTo(
+            "https://stage-api.globalislamicinstitute.com/payments/bkash/"
+                + sampleOrderId()
+                + "/success");
     assertThat(payload.get("failureCallbackURL"))
-        .isEqualTo("https://stage-api.globalislamicinstitute.com/payments/bkash/" + sampleOrderId() + "/failed");
+        .isEqualTo(
+            "https://stage-api.globalislamicinstitute.com/payments/bkash/"
+                + sampleOrderId()
+                + "/failed");
     assertThat(payload.get("cancelledCallbackURL"))
-        .isEqualTo("https://stage-api.globalislamicinstitute.com/payments/bkash/" + sampleOrderId() + "/cancelled");
+        .isEqualTo(
+            "https://stage-api.globalislamicinstitute.com/payments/bkash/"
+                + sampleOrderId()
+                + "/cancelled");
   }
 
   @Test
@@ -152,7 +162,7 @@ class BkashCheckoutServiceTest {
     ReflectionTestUtils.setField(service, "password", "p");
     ReflectionTestUtils.setField(service, "appKey", "app-key");
     ReflectionTestUtils.setField(service, "appSecret", "app-secret");
-    ReflectionTestUtils.setField(service, "timeoutMs", 3000L);
+    ReflectionTestUtils.setField(service, "timeoutMs", 10000L);
     ReflectionTestUtils.setField(service, "redirectSubdomain", "stage-api");
     return service;
   }

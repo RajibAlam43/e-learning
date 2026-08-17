@@ -70,9 +70,12 @@ public class GoogleMeetLiveMeetingProvider implements LiveMeetingProvider {
                 new GoogleCalendarEventRequest(
                     request.title(),
                     request.description(),
-                    new DateTimeValue(request.startsAt().atOffset(ZoneOffset.UTC).toString(), "UTC"),
+                    new DateTimeValue(
+                        request.startsAt().atOffset(ZoneOffset.UTC).toString(), "UTC"),
                     new DateTimeValue(request.endsAt().atOffset(ZoneOffset.UTC).toString(), "UTC"),
-                    new ConferenceData(new CreateConferenceRequest(requestId, new ConferenceSolutionKey("hangoutsMeet")))))
+                    new ConferenceData(
+                        new CreateConferenceRequest(
+                            requestId, new ConferenceSolutionKey("hangoutsMeet")))))
             .retrieve()
             .bodyToMono(GoogleCalendarEventResponse.class)
             .block();
@@ -150,7 +153,8 @@ public class GoogleMeetLiveMeetingProvider implements LiveMeetingProvider {
 
   private record ConferenceData(CreateConferenceRequest createRequest) {}
 
-  private record CreateConferenceRequest(String requestId, ConferenceSolutionKey conferenceSolutionKey) {}
+  private record CreateConferenceRequest(
+      String requestId, ConferenceSolutionKey conferenceSolutionKey) {}
 
   private record ConferenceSolutionKey(String type) {}
 

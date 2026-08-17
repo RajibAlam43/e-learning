@@ -4,9 +4,11 @@ import com.gii.api.model.response.student.StudentCourseHomeResponse;
 import com.gii.api.model.response.student.StudentLessonHomeResponse;
 import com.gii.api.model.response.student.StudentQuizHomeResponse;
 import com.gii.api.model.response.student.StudentSectionHomeResponse;
-import com.gii.api.service.storage.AssetUrlService;
-import com.gii.api.service.localization.LocalizedContentService;
 import com.gii.api.service.enrollment.CurrentUserService;
+import com.gii.api.service.localization.LocalizedContentService;
+import com.gii.api.service.progress.CourseCompletionService;
+import com.gii.api.service.progress.CourseCompletionService.CourseCompletion;
+import com.gii.api.service.storage.AssetUrlService;
 import com.gii.common.entity.certificate.Certificate;
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.course.CourseInstructor;
@@ -30,6 +32,7 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -51,6 +54,7 @@ public class EnrolledCourseDetailsService {
   private final CourseInstructorRepository courseInstructorRepository;
   private final CertificateRepository certificateRepository;
   private final QuizRepository quizRepository;
+  private final CourseCompletionService courseCompletionService;
   private final AssetUrlService assetUrlService;
   private final LocalizedContentService localizedContentService;
 
@@ -83,11 +87,8 @@ public class EnrolledCourseDetailsService {
     }
 
     String instructorName = resolveInstructorName(courseId);
-    int totalLessons = lessons.size();
-    int completedLessons =
-        (int) progresses.stream().filter(p -> p.getCompletedAt() != null).count();
-    double completionPercentage =
-        totalLessons == 0 ? 0.0 : (completedLessons * 100.0) / totalLessons;
+    CourseCompletion courseCompletion = courseCompletionService.get(userId, courseId);
+    Set<UUID> passedQuizIds = courseCompletionService.getPassedQuizIds(userId, courseId);
 
     Map<UUID, List<Lesson>> lessonsBySectionId =
         lessons.stream()
@@ -104,7 +105,8 @@ public class EnrolledCourseDetailsService {
                         section,
                         lessonsBySectionId.getOrDefault(section.getId(), List.of()),
                         quizzesBySectionId.getOrDefault(section.getId(), List.of()),
-                        progressByLessonId))
+                        progressByLessonId,
+                        passedQuizIds))
             .toList();
 
     java.util.Optional<Certificate> cert =
@@ -126,9 +128,11 @@ public class EnrolledCourseDetailsService {
         .expiresAt(enrollment.getExpiresAt())
         .isExpired(
             enrollment.getExpiresAt() != null && enrollment.getExpiresAt().isBefore(Instant.now()))
-        .completionPercentage(round2(completionPercentage))
-        .completedLessons(completedLessons)
-        .totalLessons(totalLessons)
+        .completionPercentage(courseCompletion.completionPercentage())
+        .completedLessons(courseCompletion.completedLessons())
+        .totalLessons(courseCompletion.totalLessons())
+        .completedItems(courseCompletion.completedItems())
+        .totalItems(courseCompletion.totalItems())
         .sections(sectionResponses)
         .liveSessions(course.getLiveSessionCount())
         .quizzes(course.getQuizCount())
@@ -142,7 +146,8 @@ public class EnrolledCourseDetailsService {
       CourseSection section,
       List<Lesson> lessons,
       List<Quiz> quizzes,
-      Map<UUID, LessonProgress> progressByLessonId) {
+      Map<UUID, LessonProgress> progressByLessonId,
+      Set<UUID> passedQuizIds) {
     int totalLessons = lessons.size();
     int completedLessons =
         (int)
@@ -151,7 +156,11 @@ public class EnrolledCourseDetailsService {
                 .map(progressByLessonId::get)
                 .filter(p -> p != null && p.getCompletedAt() != null)
                 .count();
-    double completion = totalLessons == 0 ? 0.0 : (completedLessons * 100.0) / totalLessons;
+    int completedQuizzes =
+        (int) quizzes.stream().map(Quiz::getId).filter(passedQuizIds::contains).count();
+    int totalItems = totalLessons + quizzes.size();
+    int completedItems = completedLessons + completedQuizzes;
+    double completion = totalItems == 0 ? 0.0 : (completedItems * 100.0) / totalItems;
 
     List<StudentLessonHomeResponse> lessonResponses = new java.util.ArrayList<>();
     for (int i = 0; i < lessons.size(); i++) {
@@ -179,14 +188,15 @@ public class EnrolledCourseDetailsService {
 
     return StudentSectionHomeResponse.builder()
         .sectionId(section.getId())
-        .sectionTitle(
-            localizedContentService.text(section.getTitle(), section.getTitleEn()))
+        .sectionTitle(localizedContentService.text(section.getTitle(), section.getTitleEn()))
         .position(section.getPosition())
         .description(
             localizedContentService.text(section.getDescription(), section.getDescriptionEn()))
         .completionPercentage(round2(completion))
         .completedLessons(completedLessons)
         .totalLessons(totalLessons)
+        .completedItems(completedItems)
+        .totalItems(totalItems)
         .isAccessible(true)
         .accessReason("AVAILABLE")
         .lessons(lessonResponses)
@@ -197,14 +207,14 @@ public class EnrolledCourseDetailsService {
                         StudentQuizHomeResponse.builder()
                             .quizId(quiz.getId())
                             .quizTitle(
-                                localizedContentService.text(
-                                    quiz.getTitle(), quiz.getTitleEn()))
+                                localizedContentService.text(quiz.getTitle(), quiz.getTitleEn()))
                             .position(quiz.getPosition())
                             .isAccessible(true)
                             .accessReason("AVAILABLE")
                             .passingScorePct(quiz.getPassingScorePct())
                             .maxAttempts(quiz.getMaxAttempts())
                             .timeLimitSec(quiz.getTimeLimitSec())
+                            .completed(passedQuizIds.contains(quiz.getId()))
                             .build())
                 .toList())
         .build();
