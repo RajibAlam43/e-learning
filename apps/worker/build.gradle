@@ -19,6 +19,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-security'
 
     // SQS
+    implementation enforcedPlatform("software.amazon.awssdk:bom:${rootProject.awsSdkVersion}")
     implementation 'io.awspring.cloud:spring-cloud-aws-starter-sqs:4.1.0'
     implementation 'io.awspring.cloud:spring-cloud-aws-starter:4.1.0'
 
@@ -31,7 +32,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-cache'
 
     // EMAIL (SES)
-    implementation 'software.amazon.awssdk:ses:2.53.0'
+    implementation 'software.amazon.awssdk:ses'
 
     // OTHERS
     implementation 'org.projectlombok:lombok:1.18.46'
