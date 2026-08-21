@@ -3,6 +3,10 @@ plugins {
 	id 'org.sonarqube' version '7.4.0.8496'
 }
 
+ext {
+	awsSdkVersion = '2.53.0'
+}
+
 allprojects {
 	group = 'com.gii'
 	version = '0.0.1-SNAPSHOT'
@@ -63,6 +67,51 @@ subprojects {
 	tasks.matching { it.name == 'test' }.configureEach {
 		finalizedBy tasks.withType(JacocoReport)
 	}
+
+	def verifyAwsSdkVersionAlignment = tasks.register('verifyAwsSdkVersionAlignment') {
+		group = 'verification'
+		description = 'Fails when AWS SDK modules resolve to different versions.'
+
+		doLast {
+			def runtimeClasspath = configurations.findByName('runtimeClasspath')
+			if (runtimeClasspath == null) {
+				return
+			}
+
+			def awsSdkModules = runtimeClasspath.incoming.resolutionResult.allComponents
+					.collect { it.moduleVersion }
+					.findAll { it != null && it.group == 'software.amazon.awssdk' }
+			def resolvedVersions = awsSdkModules.collect { it.version }.toSet()
+			def expectedVersion = rootProject.awsSdkVersion
+
+			if (!resolvedVersions.isEmpty()
+					&& (resolvedVersions.size() != 1 || !resolvedVersions.contains(expectedVersion))) {
+				def dependencyList = awsSdkModules
+						.collect { "${it.group}:${it.name}:${it.version}" }
+						.toSet()
+						.sort()
+						.join('\n  ')
+				throw new GradleException(
+						"AWS SDK modules must all use ${expectedVersion}. Resolved:\n  ${dependencyList}")
+			}
+		}
+	}
+
+	tasks.named('check') {
+		dependsOn verifyAwsSdkVersionAlignment
+	}
+
+	plugins.withId('org.springframework.boot') {
+		tasks.named('bootJar') {
+			dependsOn verifyAwsSdkVersionAlignment
+		}
+	}
+}
+
+tasks.register('verifyAwsSdkVersionAlignment') {
+	group = 'verification'
+	description = 'Verifies AWS SDK version alignment in every application module.'
+	dependsOn subprojects.collect { "${it.path}:verifyAwsSdkVersionAlignment" }
 }
 
 sonar {

@@ -37,7 +37,7 @@ jobs:
           cache: gradle
 
       - name: Build
-        run: ./gradlew clean test :api:integrationTest bootJar
+        run: ./gradlew clean verifyAwsSdkVersionAlignment test :api:integrationTest bootJar
 
       - name: Upload test reports
         if: always()
