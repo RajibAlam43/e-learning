@@ -1,10 +1,12 @@
 package com.gii.api.instructorapi;
 
 import com.gii.common.entity.course.Course;
+import com.gii.common.entity.course.CourseAnnouncement;
 import com.gii.common.entity.course.CourseInstructor;
 import com.gii.common.entity.course.CourseInstructorId;
 import com.gii.common.entity.course.CourseSection;
 import com.gii.common.entity.course.Lesson;
+import com.gii.common.entity.course.SectionItem;
 import com.gii.common.entity.enrollment.Enrollment;
 import com.gii.common.entity.live.LiveClass;
 import com.gii.common.entity.live.LiveClassAttendance;
@@ -20,12 +22,15 @@ import com.gii.common.enums.LiveClassProvider;
 import com.gii.common.enums.LiveClassRegistrantStatus;
 import com.gii.common.enums.LiveClassStatus;
 import com.gii.common.enums.PublishStatus;
+import com.gii.common.enums.SectionItemType;
 import com.gii.common.enums.StudyMode;
 import com.gii.common.enums.UserStatus;
+import com.gii.common.repository.course.CourseAnnouncementRepository;
 import com.gii.common.repository.course.CourseInstructorRepository;
 import com.gii.common.repository.course.CourseRepository;
 import com.gii.common.repository.course.CourseSectionRepository;
 import com.gii.common.repository.course.LessonRepository;
+import com.gii.common.repository.course.SectionItemRepository;
 import com.gii.common.repository.enrollment.EnrollmentRepository;
 import com.gii.common.repository.live.LiveClassAttendanceRepository;
 import com.gii.common.repository.live.LiveClassRegistrantRepository;
@@ -45,9 +50,11 @@ abstract class InstructorApiTestSupport {
   @Autowired protected UserRepository userRepository;
   @Autowired protected InstructorProfileRepository instructorProfileRepository;
   @Autowired protected CourseRepository courseRepository;
+  @Autowired protected CourseAnnouncementRepository courseAnnouncementRepository;
   @Autowired protected CourseInstructorRepository courseInstructorRepository;
   @Autowired protected CourseSectionRepository courseSectionRepository;
   @Autowired protected LessonRepository lessonRepository;
+  @Autowired protected SectionItemRepository sectionItemRepository;
   @Autowired protected EnrollmentRepository enrollmentRepository;
   @Autowired protected LiveClassRepository liveClassRepository;
   @Autowired protected LiveClassRegistrantRepository liveClassRegistrantRepository;
@@ -56,8 +63,10 @@ abstract class InstructorApiTestSupport {
   protected void cleanupInstructorData() {
     liveClassAttendanceRepository.deleteAll();
     liveClassRegistrantRepository.deleteAll();
+    sectionItemRepository.deleteAll();
     liveClassRepository.deleteAll();
     enrollmentRepository.deleteAll();
+    courseAnnouncementRepository.deleteAll();
     courseInstructorRepository.deleteAll();
     lessonRepository.deleteAll();
     courseSectionRepository.deleteAll();
@@ -69,6 +78,22 @@ abstract class InstructorApiTestSupport {
   protected Authentication instructorAuth(UUID userId) {
     return new UsernamePasswordAuthenticationToken(
         userId, null, java.util.List.of(new SimpleGrantedAuthority("ROLE_INSTRUCTOR")));
+  }
+
+  protected Authentication adminAuth(UUID userId) {
+    return new UsernamePasswordAuthenticationToken(
+        userId, null, java.util.List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
+  }
+
+  protected CourseAnnouncement announcement(
+      Course course, User author, String title, String content) {
+    return courseAnnouncementRepository.save(
+        CourseAnnouncement.builder()
+            .course(course)
+            .createdBy(author)
+            .title(title)
+            .content(content)
+            .build());
   }
 
   protected User user(String fullName, String email) {
@@ -139,17 +164,26 @@ abstract class InstructorApiTestSupport {
 
   protected Lesson lesson(
       Course course, CourseSection section, int position, PublishStatus status) {
-    return lessonRepository.save(
-        Lesson.builder()
-            .course(course)
+    Lesson lesson =
+        lessonRepository.save(
+            Lesson.builder()
+                .course(course)
+                .section(section)
+                .title("Lesson " + position)
+                .slug("lesson-" + position + "-" + UUID.randomUUID().toString().substring(0, 6))
+                .position(position)
+                .lessonType(LessonType.VIDEO)
+                .status(status)
+                .isFree(false)
+                .build());
+    sectionItemRepository.save(
+        SectionItem.builder()
             .section(section)
-            .title("Lesson " + position)
-            .slug("lesson-" + position + "-" + UUID.randomUUID().toString().substring(0, 6))
+            .itemType(SectionItemType.LESSON)
+            .itemId(lesson.getId())
             .position(position)
-            .lessonType(LessonType.VIDEO)
-            .status(status)
-            .isFree(false)
             .build());
+    return lesson;
   }
 
   protected Enrollment enrollment(

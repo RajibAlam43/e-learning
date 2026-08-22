@@ -180,7 +180,8 @@ public class ProfileService {
         enrollmentRepository.countByUserIdAndStatusAndCompletedAtIsNotNull(
             user.getId(), EnrollmentStatus.ACTIVE);
     long earnedCertificates = certificateRepository.countByUserIdAndRevokedAtIsNull(user.getId());
-    long attended = liveClassAttendanceRepository.countByUserId(user.getId());
+    long attended =
+        liveClassAttendanceRepository.countDistinctAttendedLiveClassesByUserId(user.getId());
 
     return MeResponse.builder()
         .userId(user.getId())

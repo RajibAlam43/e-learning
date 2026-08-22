@@ -15,4 +15,6 @@ public interface CourseRepository
   Optional<Course> findBySlugAndStatus(String slug, PublishStatus status);
 
   Page<Course> findByStatusAndIsFeaturedTrue(PublishStatus status, Pageable pageable);
+
+  long countByStatus(PublishStatus status);
 }

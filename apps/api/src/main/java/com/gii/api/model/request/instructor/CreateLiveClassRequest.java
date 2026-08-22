@@ -12,6 +12,7 @@ import lombok.Builder;
 @Builder
 public record CreateLiveClassRequest(
     @NotNull UUID sectionId, // Section this live class belongs to
+    @Positive Integer position, // Optional; appends to the section when omitted
     @NotBlank String title,
     String titleEn,
     String description, // Optional

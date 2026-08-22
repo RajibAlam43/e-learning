@@ -12,6 +12,7 @@ import lombok.Builder;
 @Builder
 public record CreateLiveClassRequest(
     @NotNull UUID sectionId,
+    @Positive Integer position,
     @NotBlank String title,
     String titleEn,
     String description,

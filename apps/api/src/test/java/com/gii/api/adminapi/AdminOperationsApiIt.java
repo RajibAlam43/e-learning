@@ -259,7 +259,7 @@ class AdminOperationsApiIt extends AbstractAdminApiIntegrationTest {
                     """
                     {
                       "sectionId":"%s",
-                      "position":2,
+                      "position":4,
                       "title":"Quiz 1",
                       "passingScorePct":70,
                       "maxAttempts":2,

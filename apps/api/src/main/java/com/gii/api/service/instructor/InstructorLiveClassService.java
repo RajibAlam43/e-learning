@@ -13,6 +13,7 @@ import com.gii.api.service.live.LiveMeetingProvisioningService;
 import com.gii.api.service.live.LiveMeetingUpdateRequest;
 import com.gii.api.service.localization.LocalizedContentService;
 import com.gii.common.entity.course.CourseSection;
+import com.gii.common.entity.course.SectionItem;
 import com.gii.common.entity.live.LiveClass;
 import com.gii.common.entity.live.LiveClassAttendance;
 import com.gii.common.entity.live.LiveClassRegistrant;
@@ -20,7 +21,9 @@ import com.gii.common.entity.user.User;
 import com.gii.common.enums.LiveClassProvider;
 import com.gii.common.enums.LiveClassRegistrantStatus;
 import com.gii.common.enums.LiveClassStatus;
+import com.gii.common.enums.SectionItemType;
 import com.gii.common.repository.course.CourseSectionRepository;
+import com.gii.common.repository.course.SectionItemRepository;
 import com.gii.common.repository.live.LiveClassAttendanceRepository;
 import com.gii.common.repository.live.LiveClassRegistrantRepository;
 import com.gii.common.repository.live.LiveClassRepository;
@@ -47,6 +50,7 @@ public class InstructorLiveClassService {
 
   private final CurrentUserService currentUserService;
   private final CourseSectionRepository courseSectionRepository;
+  private final SectionItemRepository sectionItemRepository;
   private final LiveClassRepository liveClassRepository;
   private final LiveClassRegistrantRepository liveClassRegistrantRepository;
   private final LiveClassAttendanceRepository liveClassAttendanceRepository;
@@ -56,7 +60,7 @@ public class InstructorLiveClassService {
   public InstructorLiveClassResponse create(
       UUID courseId, CreateLiveClassRequest request, Authentication authentication) {
     User instructor = currentUserService.getCurrentUser(authentication);
-    CourseSection section =
+    final CourseSection section =
         courseSectionRepository
             .findAssignedSectionForInstructor(courseId, request.sectionId(), instructor.getId())
             .orElseThrow(
@@ -67,6 +71,7 @@ public class InstructorLiveClassService {
     validateSchedule(request.startsAt(), request.endsAt());
     validateCapacity(request.maxCapacity());
     ensureNoProviderOverlap(request.provider(), request.startsAt(), request.endsAt());
+    int position = resolveCreatePosition(section.getId(), request.position());
 
     LiveMeetingCreateResult meeting =
         liveMeetingProvisioningService.createMeeting(
@@ -99,6 +104,13 @@ public class InstructorLiveClassService {
             .build();
 
     LiveClass saved = liveClassRepository.save(liveClass);
+    sectionItemRepository.save(
+        SectionItem.builder()
+            .section(section)
+            .itemType(SectionItemType.LIVE_CLASS)
+            .itemId(saved.getId())
+            .position(position)
+            .build());
     return toLiveClassResponse(saved);
   }
 
@@ -212,6 +224,10 @@ public class InstructorLiveClassService {
     if (request.status() != null) {
       validateStatusTransitionForUpdate(liveClass.getStatus(), request.status());
       liveClass.setStatus(request.status());
+    }
+
+    if (request.position() != null) {
+      updatePosition(liveClass, request.position());
     }
 
     LiveClass updated = liveClassRepository.save(liveClass);
@@ -342,13 +358,13 @@ public class InstructorLiveClassService {
         liveClassRegistrantRepository.findByLiveClassIdOrderByCreatedAtAsc(liveClass.getId());
     List<LiveClassAttendance> attendanceRows =
         liveClassAttendanceRepository.findByLiveClassId(liveClass.getId());
-    Map<UUID, LiveClassAttendance> attendanceByUserId = mapAttendanceByUserId(attendanceRows);
+    Map<UUID, AttendanceSummary> attendanceByUserId = mapAttendanceByUserId(attendanceRows);
 
     List<LiveClassRegistrantSummaryResponse> registrantSummaries =
         registrants.stream()
             .map(
                 registrant -> {
-                  LiveClassAttendance attendance =
+                  AttendanceSummary attendance =
                       attendanceByUserId.get(registrant.getUser().getId());
 
                   return LiveClassRegistrantSummaryResponse.builder()
@@ -359,15 +375,15 @@ public class InstructorLiveClassService {
                       .status(registrant.getStatus())
                       .providerRegistrantId(registrant.getProviderRegistrantId())
                       .attended(attendance != null)
-                      .joinedAt(attendance != null ? attendance.getJoinedAt() : null)
-                      .leftAt(attendance != null ? attendance.getLeftAt() : null)
-                      .durationSeconds(attendance != null ? attendance.getDurationSec() : null)
+                      .joinedAt(attendance != null ? attendance.joinedAt() : null)
+                      .leftAt(attendance != null ? attendance.leftAt() : null)
+                      .durationSeconds(attendance != null ? attendance.durationSeconds() : null)
                       .registeredAt(registrant.getCreatedAt())
                       .build();
                 })
             .toList();
 
-    int attendedStudents = (int) attendanceRows.stream().filter(a -> a.getUser() != null).count();
+    int attendedStudents = attendanceByUserId.size();
 
     return InstructorLiveClassResponse.builder()
         .liveClassId(liveClass.getId())
@@ -382,6 +398,7 @@ public class InstructorLiveClassService {
         .sectionTitle(
             localizedContentService.text(
                 liveClass.getSection().getTitle(), liveClass.getSection().getTitleEn()))
+        .position(positionOf(liveClass.getId()))
         .instructorName(
             liveClass.getInstructor() != null ? liveClass.getInstructor().getFullName() : null)
         .instructorEmail(
@@ -407,17 +424,103 @@ public class InstructorLiveClassService {
         .build();
   }
 
-  private Map<UUID, LiveClassAttendance> mapAttendanceByUserId(List<LiveClassAttendance> rows) {
-    Map<UUID, LiveClassAttendance> result = new HashMap<>();
+  private Map<UUID, AttendanceSummary> mapAttendanceByUserId(List<LiveClassAttendance> rows) {
+    Map<UUID, AttendanceSummary> result = new HashMap<>();
     for (LiveClassAttendance row : rows) {
-      if (row.getUser() != null) {
-        result.putIfAbsent(row.getUser().getId(), row);
+      if (row.getUser() != null && row.getJoinedAt() != null) {
+        result.merge(
+            row.getUser().getId(), AttendanceSummary.from(row), AttendanceSummary::combine);
       }
     }
     return result;
   }
 
+  private record AttendanceSummary(Instant joinedAt, Instant leftAt, Integer durationSeconds) {
+
+    private static AttendanceSummary from(LiveClassAttendance attendance) {
+      return new AttendanceSummary(
+          attendance.getJoinedAt(), attendance.getLeftAt(), attendance.getDurationSec());
+    }
+
+    private static AttendanceSummary combine(AttendanceSummary first, AttendanceSummary second) {
+      Instant joinedAt =
+          first.joinedAt().isBefore(second.joinedAt()) ? first.joinedAt() : second.joinedAt();
+      Instant leftAt = latest(first.leftAt(), second.leftAt());
+      Integer durationSeconds = sum(first.durationSeconds(), second.durationSeconds());
+      return new AttendanceSummary(joinedAt, leftAt, durationSeconds);
+    }
+
+    private static Instant latest(Instant first, Instant second) {
+      if (first == null) {
+        return second;
+      }
+      if (second == null) {
+        return first;
+      }
+      return first.isAfter(second) ? first : second;
+    }
+
+    private static Integer sum(Integer first, Integer second) {
+      if (first == null) {
+        return second;
+      }
+      if (second == null) {
+        return first;
+      }
+      return first + second;
+    }
+  }
+
   private boolean isBlank(String value) {
     return value == null || value.isBlank();
+  }
+
+  private int resolveCreatePosition(UUID sectionId, Integer requestedPosition) {
+    int position =
+        requestedPosition != null
+            ? requestedPosition
+            : sectionItemRepository.findMaxPositionBySectionId(sectionId) + 1;
+    ensurePositionAvailable(sectionId, position, null);
+    return position;
+  }
+
+  private void updatePosition(LiveClass liveClass, Integer requestedPosition) {
+    ensurePositionAvailable(liveClass.getSection().getId(), requestedPosition, liveClass.getId());
+    SectionItem item =
+        sectionItemRepository
+            .findByItemTypeAndItemId(SectionItemType.LIVE_CLASS, liveClass.getId())
+            .orElseThrow(
+                () ->
+                    new ResponseStatusException(
+                        HttpStatus.INTERNAL_SERVER_ERROR, "Section item missing"));
+    item.setPosition(requestedPosition);
+    sectionItemRepository.save(item);
+  }
+
+  private void ensurePositionAvailable(
+      UUID sectionId, Integer requestedPosition, UUID currentLiveClassId) {
+    if (requestedPosition == null || requestedPosition <= 0) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "position must be positive");
+    }
+    sectionItemRepository
+        .findBySectionIdAndPosition(sectionId, requestedPosition)
+        .ifPresent(
+            item -> {
+              boolean sameLiveClass =
+                  item.getItemType() == SectionItemType.LIVE_CLASS
+                      && currentLiveClassId != null
+                      && currentLiveClassId.equals(item.getItemId());
+              if (!sameLiveClass) {
+                throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Position is already used in this section");
+              }
+            });
+  }
+
+  private Integer positionOf(UUID liveClassId) {
+    return sectionItemRepository
+        .findByItemTypeAndItemId(SectionItemType.LIVE_CLASS, liveClassId)
+        .map(SectionItem::getPosition)
+        .orElse(null);
   }
 }

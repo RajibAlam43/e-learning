@@ -6,12 +6,15 @@ import com.gii.common.entity.collection.CollectionCourse;
 import com.gii.common.entity.collection.CollectionCourseId;
 import com.gii.common.entity.collection.CollectionEnrollment;
 import com.gii.common.entity.course.Course;
+import com.gii.common.entity.course.CourseAnnouncement;
 import com.gii.common.entity.course.CourseSection;
 import com.gii.common.entity.course.Lesson;
+import com.gii.common.entity.course.SectionItem;
 import com.gii.common.entity.enrollment.Enrollment;
 import com.gii.common.entity.enrollment.LessonProgress;
 import com.gii.common.entity.enrollment.LessonProgressId;
 import com.gii.common.entity.live.LiveClass;
+import com.gii.common.entity.live.LiveClassAttendance;
 import com.gii.common.entity.live.LiveClassRegistrant;
 import com.gii.common.entity.order.Order;
 import com.gii.common.entity.order.OrderItem;
@@ -31,18 +34,23 @@ import com.gii.common.enums.OrderItemType;
 import com.gii.common.enums.OrderProvider;
 import com.gii.common.enums.OrderStatus;
 import com.gii.common.enums.PublishStatus;
+import com.gii.common.enums.SectionItemType;
 import com.gii.common.enums.StudyMode;
 import com.gii.common.enums.UserStatus;
 import com.gii.common.repository.certificate.CertificateRepository;
 import com.gii.common.repository.collection.CollectionCourseRepository;
 import com.gii.common.repository.collection.CollectionEnrollmentRepository;
 import com.gii.common.repository.collection.CollectionRepository;
+import com.gii.common.repository.course.CourseAnnouncementRepository;
 import com.gii.common.repository.course.CourseRepository;
 import com.gii.common.repository.course.CourseReviewRepository;
 import com.gii.common.repository.course.CourseSectionRepository;
 import com.gii.common.repository.course.LessonRepository;
+import com.gii.common.repository.course.SectionItemRepository;
 import com.gii.common.repository.enrollment.EnrollmentRepository;
 import com.gii.common.repository.enrollment.LessonProgressRepository;
+import com.gii.common.repository.enrollment.StudentLearningStreakRepository;
+import com.gii.common.repository.live.LiveClassAttendanceRepository;
 import com.gii.common.repository.live.LiveClassRegistrantRepository;
 import com.gii.common.repository.live.LiveClassRepository;
 import com.gii.common.repository.order.OrderItemRepository;
@@ -64,14 +72,17 @@ abstract class StudentApiTestSupport {
   @Autowired protected UserRepository userRepository;
   @Autowired protected UserProfileRepository userProfileRepository;
   @Autowired protected CourseRepository courseRepository;
+  @Autowired protected CourseAnnouncementRepository courseAnnouncementRepository;
   @Autowired protected CourseReviewRepository courseReviewRepository;
   @Autowired protected CollectionRepository collectionRepository;
   @Autowired protected CollectionCourseRepository collectionCourseRepository;
   @Autowired protected CollectionEnrollmentRepository collectionEnrollmentRepository;
   @Autowired protected CourseSectionRepository courseSectionRepository;
   @Autowired protected LessonRepository lessonRepository;
+  @Autowired protected SectionItemRepository sectionItemRepository;
   @Autowired protected EnrollmentRepository enrollmentRepository;
   @Autowired protected LessonProgressRepository lessonProgressRepository;
+  @Autowired protected StudentLearningStreakRepository studentLearningStreakRepository;
   @Autowired protected OrderRepository orderRepository;
   @Autowired protected OrderItemRepository orderItemRepository;
   @Autowired protected CertificateRepository certificateRepository;
@@ -79,14 +90,19 @@ abstract class StudentApiTestSupport {
   @Autowired protected QuizAttemptRepository quizAttemptRepository;
   @Autowired protected LiveClassRepository liveClassRepository;
   @Autowired protected LiveClassRegistrantRepository liveClassRegistrantRepository;
+  @Autowired protected LiveClassAttendanceRepository liveClassAttendanceRepository;
 
   protected void cleanupStudentData() {
+    studentLearningStreakRepository.deleteAll();
+    courseAnnouncementRepository.deleteAll();
     courseReviewRepository.deleteAll();
     certificateRepository.deleteAll();
     collectionEnrollmentRepository.deleteAll();
     collectionCourseRepository.deleteAll();
     collectionRepository.deleteAll();
+    liveClassAttendanceRepository.deleteAll();
     liveClassRegistrantRepository.deleteAll();
+    sectionItemRepository.deleteAll();
     liveClassRepository.deleteAll();
     lessonProgressRepository.deleteAll();
     enrollmentRepository.deleteAll();
@@ -99,6 +115,17 @@ abstract class StudentApiTestSupport {
     courseRepository.deleteAll();
     userProfileRepository.deleteAll();
     userRepository.deleteAll();
+  }
+
+  protected CourseAnnouncement announcement(
+      Course course, User author, String title, String content) {
+    return courseAnnouncementRepository.save(
+        CourseAnnouncement.builder()
+            .course(course)
+            .createdBy(author)
+            .title(title)
+            .content(content)
+            .build());
   }
 
   protected Collection collection(
@@ -196,32 +223,50 @@ abstract class StudentApiTestSupport {
 
   protected Lesson lesson(
       Course course, CourseSection section, int position, PublishStatus status, boolean isFree) {
-    return lessonRepository.save(
-        Lesson.builder()
-            .course(course)
+    Lesson lesson =
+        lessonRepository.save(
+            Lesson.builder()
+                .course(course)
+                .section(section)
+                .title("Lesson " + position)
+                .slug("lesson-" + position + "-" + UUID.randomUUID().toString().substring(0, 6))
+                .position(position)
+                .lessonType(LessonType.VIDEO)
+                .status(status)
+                .isFree(isFree)
+                .build());
+    sectionItemRepository.save(
+        SectionItem.builder()
             .section(section)
-            .title("Lesson " + position)
-            .slug("lesson-" + position + "-" + UUID.randomUUID().toString().substring(0, 6))
+            .itemType(SectionItemType.LESSON)
+            .itemId(lesson.getId())
             .position(position)
-            .lessonType(LessonType.VIDEO)
-            .status(status)
-            .isFree(isFree)
             .build());
+    return lesson;
   }
 
   protected Quiz quiz(
       Course course, CourseSection section, int position, PublishStatus status, String title) {
-    return quizRepository.save(
-        Quiz.builder()
-            .course(course)
+    Quiz quiz =
+        quizRepository.save(
+            Quiz.builder()
+                .course(course)
+                .section(section)
+                .position(position)
+                .title(title)
+                .status(status)
+                .passingScorePct(60)
+                .maxAttempts(3)
+                .timeLimitSec(600)
+                .build());
+    sectionItemRepository.save(
+        SectionItem.builder()
             .section(section)
+            .itemType(SectionItemType.QUIZ)
+            .itemId(quiz.getId())
             .position(position)
-            .title(title)
-            .status(status)
-            .passingScorePct(60)
-            .maxAttempts(3)
-            .timeLimitSec(600)
             .build());
+    return quiz;
   }
 
   protected Enrollment enrollment(
@@ -297,19 +342,29 @@ abstract class StudentApiTestSupport {
       Instant startsAt,
       Instant endsAt,
       String joinUrl) {
-    return liveClassRepository.save(
-        LiveClass.builder()
-            .course(course)
+    LiveClass liveClass =
+        liveClassRepository.save(
+            LiveClass.builder()
+                .course(course)
+                .section(section)
+                .instructor(instructor)
+                .title("Live Session")
+                .provider(LiveClassProvider.ZOOM)
+                .status(status)
+                .startsAt(startsAt)
+                .endsAt(endsAt)
+                .participantJoinUrl(joinUrl)
+                .providerMeetingId("m-" + UUID.randomUUID())
+                .build());
+    int position = sectionItemRepository.findMaxPositionBySectionId(section.getId()) + 1;
+    sectionItemRepository.save(
+        SectionItem.builder()
             .section(section)
-            .instructor(instructor)
-            .title("Live Session")
-            .provider(LiveClassProvider.ZOOM)
-            .status(status)
-            .startsAt(startsAt)
-            .endsAt(endsAt)
-            .participantJoinUrl(joinUrl)
-            .providerMeetingId("m-" + UUID.randomUUID())
+            .itemType(SectionItemType.LIVE_CLASS)
+            .itemId(liveClass.getId())
+            .position(position)
             .build());
+    return liveClass;
   }
 
   protected LiveClassRegistrant registrant(
@@ -321,6 +376,18 @@ abstract class StudentApiTestSupport {
             .status(status)
             .participantJoinUrl("https://zoom.test/join/" + liveClass.getId())
             .providerRegistrantId("r-" + UUID.randomUUID())
+            .build());
+  }
+
+  protected LiveClassAttendance attendance(User user, LiveClass liveClass) {
+    return liveClassAttendanceRepository.save(
+        LiveClassAttendance.builder()
+            .user(user)
+            .liveClass(liveClass)
+            .participantEmail(user.getEmail())
+            .joinedAt(Instant.now().minusSeconds(1800))
+            .leftAt(Instant.now().minusSeconds(900))
+            .durationSec(900)
             .build());
   }
 }

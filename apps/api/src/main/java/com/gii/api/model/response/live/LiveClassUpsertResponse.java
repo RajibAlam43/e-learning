@@ -15,6 +15,7 @@ public record LiveClassUpsertResponse(
     String courseName,
     UUID sectionId,
     String sectionTitle,
+    Integer position,
     Instant startsAt,
     Instant endsAt,
     LiveClassProvider provider,

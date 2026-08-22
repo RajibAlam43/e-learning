@@ -51,6 +51,7 @@ class InstructorLiveClassesApiIt extends AbstractInstructorApiIntegrationTest {
         """
         {
           "sectionId":"%s",
+          "position":1,
           "title":" Weekly Session ",
           "description":"Live review",
           "startsAt":"%s",
@@ -69,10 +70,19 @@ class InstructorLiveClassesApiIt extends AbstractInstructorApiIntegrationTest {
                 .content(createBody))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.title").value("Weekly Session"))
+        .andExpect(jsonPath("$.position").value(1))
         .andExpect(jsonPath("$.status").value("SCHEDULED"))
         .andExpect(jsonPath("$.provider").value("ZOOM"));
 
     String liveClassId = liveClassRepository.findAll().get(0).getId().toString();
+    org.assertj.core.api.Assertions.assertThat(
+            sectionItemRepository
+                .findByItemTypeAndItemId(
+                    com.gii.common.enums.SectionItemType.LIVE_CLASS,
+                    java.util.UUID.fromString(liveClassId))
+                .orElseThrow()
+                .getPosition())
+        .isEqualTo(1);
     clearInvocations(liveMeetingProvisioningService);
 
     Instant updatedEndsAt = Instant.now().plusSeconds(7200);
@@ -111,6 +121,39 @@ class InstructorLiveClassesApiIt extends AbstractInstructorApiIntegrationTest {
         .perform(
             delete("/live-classes/{liveClassId}", liveClassId)
                 .with(authentication(instructorAuth(instructor.getId()))))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void createRejectsPositionAlreadyUsedByAnotherSectionItem() throws Exception {
+    var creator = user("Creator Position", "creator-position@example.com");
+    var instructor = user("Instructor Position", "instructor-position@example.com");
+    var course = course("Position Course", "position-course", creator, PublishStatus.PUBLISHED);
+    assignment(course, instructor, InstructorRole.PRIMARY);
+    var section = section(course, 1, PublishStatus.PUBLISHED);
+    lesson(course, section, 1, PublishStatus.PUBLISHED);
+
+    mockMvc
+        .perform(
+            post("/live-classes/courses/{courseId}", course.getId())
+                .with(authentication(instructorAuth(instructor.getId())))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "sectionId":"%s",
+                      "position":1,
+                      "title":"Conflicting Live Class",
+                      "startsAt":"%s",
+                      "endsAt":"%s",
+                      "provider":"ZOOM",
+                      "maxCapacity":100
+                    }
+                    """
+                        .formatted(
+                            section.getId(),
+                            Instant.now().plusSeconds(3600),
+                            Instant.now().plusSeconds(7200))))
         .andExpect(status().isBadRequest());
   }
 
