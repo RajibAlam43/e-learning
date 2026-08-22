@@ -224,6 +224,10 @@ abstract class AdminApiTestSupport {
   }
 
   protected Lesson lesson(Course course, CourseSection section, int position) {
+    int itemPosition =
+        sectionItemRepository.existsBySectionIdAndPosition(section.getId(), position)
+            ? sectionItemRepository.findMaxPositionBySectionId(section.getId()) + 1
+            : position;
     Lesson lesson =
         lessonRepository.save(
             Lesson.builder()
@@ -231,7 +235,7 @@ abstract class AdminApiTestSupport {
                 .section(section)
                 .title("Lesson " + position)
                 .slug("lesson-" + position + "-" + UUID.randomUUID().toString().substring(0, 6))
-                .position(position)
+                .position(itemPosition)
                 .lessonType(LessonType.VIDEO)
                 .status(PublishStatus.DRAFT)
                 .isFree(false)
@@ -242,7 +246,7 @@ abstract class AdminApiTestSupport {
             .section(section)
             .itemType(SectionItemType.LESSON)
             .itemId(lesson.getId())
-            .position(position)
+            .position(itemPosition)
             .build());
     return lesson;
   }
@@ -289,19 +293,29 @@ abstract class AdminApiTestSupport {
   }
 
   protected LiveClass liveClass(Course course, CourseSection section, Lesson lesson) {
-    return liveClassRepository.save(
-        LiveClass.builder()
-            .course(course)
+    LiveClass liveClass =
+        liveClassRepository.save(
+            LiveClass.builder()
+                .course(course)
+                .section(section)
+                .title("Live Session")
+                .provider(LiveClassProvider.ZOOM)
+                .providerMeetingId("m-" + UUID.randomUUID())
+                .hostStartUrl("https://zoom.test/start")
+                .participantJoinUrl("https://zoom.test/join")
+                .status(LiveClassStatus.SCHEDULED)
+                .startsAt(Instant.now().plusSeconds(1800))
+                .endsAt(Instant.now().plusSeconds(3600))
+                .build());
+    int position = sectionItemRepository.findMaxPositionBySectionId(section.getId()) + 1;
+    sectionItemRepository.save(
+        SectionItem.builder()
             .section(section)
-            .title("Live Session")
-            .provider(LiveClassProvider.ZOOM)
-            .providerMeetingId("m-" + UUID.randomUUID())
-            .hostStartUrl("https://zoom.test/start")
-            .participantJoinUrl("https://zoom.test/join")
-            .status(LiveClassStatus.SCHEDULED)
-            .startsAt(Instant.now().plusSeconds(1800))
-            .endsAt(Instant.now().plusSeconds(3600))
+            .itemType(SectionItemType.LIVE_CLASS)
+            .itemId(liveClass.getId())
+            .position(position)
             .build());
+    return liveClass;
   }
 
   protected com.gii.common.entity.enrollment.Enrollment enrollment(

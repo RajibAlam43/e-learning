@@ -23,7 +23,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
+@Transactional
 public class StudentJoinLiveClassesService {
 
   private final CurrentUserService currentUserService;
@@ -31,6 +31,7 @@ public class StudentJoinLiveClassesService {
   private final LiveClassRegistrantRepository registrantRepository;
   private final EnrollmentRepository enrollmentRepository;
   private final LocalizedContentService localizedContentService;
+  private final StudentLearningStreakTrackerService studentLearningStreakTrackerService;
 
   public StudentLiveClassJoinResponse execute(UUID liveClassId, Authentication authentication) {
     UUID userId = currentUserService.getCurrentUserId(authentication);
@@ -75,6 +76,7 @@ public class StudentJoinLiveClassesService {
     if (joinUrl == null) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Join link is unavailable");
     }
+    studentLearningStreakTrackerService.recordActivity(userId, now);
 
     return StudentLiveClassJoinResponse.builder()
         .liveClassId(liveClass.getId())

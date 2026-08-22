@@ -13,13 +13,16 @@ import com.gii.api.service.live.LiveMeetingProvisioningService;
 import com.gii.api.service.live.LiveMeetingUpdateRequest;
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.course.CourseSection;
+import com.gii.common.entity.course.SectionItem;
 import com.gii.common.entity.live.LiveClass;
 import com.gii.common.entity.live.LiveClassRegistrant;
 import com.gii.common.enums.LiveClassProvider;
 import com.gii.common.enums.LiveClassRegistrantStatus;
 import com.gii.common.enums.LiveClassStatus;
+import com.gii.common.enums.SectionItemType;
 import com.gii.common.repository.course.CourseRepository;
 import com.gii.common.repository.course.CourseSectionRepository;
+import com.gii.common.repository.course.SectionItemRepository;
 import com.gii.common.repository.live.LiveClassRegistrantRepository;
 import com.gii.common.repository.live.LiveClassRepository;
 import java.time.Duration;
@@ -48,6 +51,7 @@ public class AdminLiveClassManagementService {
   private final LiveClassRegistrantRepository registrantRepository;
   private final CourseRepository courseRepository;
   private final CourseSectionRepository sectionRepository;
+  private final SectionItemRepository sectionItemRepository;
   private final LiveMeetingProvisioningService liveMeetingProvisioningService;
 
   @Transactional(readOnly = true)
@@ -93,6 +97,7 @@ public class AdminLiveClassManagementService {
     validateTimeRange(request.startsAt(), request.endsAt());
     validateCapacity(request.maxCapacity());
     ensureNoProviderOverlap(request.provider(), request.startsAt(), request.endsAt());
+    int position = resolveCreatePosition(section.getId(), request.position());
 
     LiveMeetingCreateResult meeting =
         liveMeetingProvisioningService.createMeeting(
@@ -123,7 +128,15 @@ public class AdminLiveClassManagementService {
             .startsAt(request.startsAt())
             .endsAt(request.endsAt())
             .build();
-    return toDetail(liveClassRepository.save(liveClass));
+    LiveClass saved = liveClassRepository.save(liveClass);
+    sectionItemRepository.save(
+        SectionItem.builder()
+            .section(section)
+            .itemType(SectionItemType.LIVE_CLASS)
+            .itemId(saved.getId())
+            .position(position)
+            .build());
+    return toDetail(saved);
   }
 
   public AdminLiveClassDetailResponse update(UUID liveClassId, UpdateLiveClassRequest request) {
@@ -188,6 +201,9 @@ public class AdminLiveClassManagementService {
       LiveClassStatus nextStatus = parseStatus(request.status());
       validateStatusTransitionForUpdate(liveClass.getStatus(), nextStatus);
       liveClass.setStatus(nextStatus);
+    }
+    if (request.position() != null) {
+      updatePosition(liveClass, request.position());
     }
     return toDetail(liveClassRepository.save(liveClass));
   }
@@ -305,6 +321,7 @@ public class AdminLiveClassManagementService {
         .sectionId(liveClass.getSection().getId())
         .sectionTitle(liveClass.getSection().getTitle())
         .sectionTitleEn(liveClass.getSection().getTitleEn())
+        .position(positionOf(liveClass.getId()))
         .instructorId(liveClass.getInstructor() != null ? liveClass.getInstructor().getId() : null)
         .instructorName(
             liveClass.getInstructor() != null ? liveClass.getInstructor().getFullName() : null)
@@ -341,6 +358,55 @@ public class AdminLiveClassManagementService {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "Section does not belong to course");
     }
+  }
+
+  private int resolveCreatePosition(UUID sectionId, Integer requestedPosition) {
+    int position =
+        requestedPosition != null
+            ? requestedPosition
+            : sectionItemRepository.findMaxPositionBySectionId(sectionId) + 1;
+    ensurePositionAvailable(sectionId, position, null);
+    return position;
+  }
+
+  private void updatePosition(LiveClass liveClass, Integer requestedPosition) {
+    ensurePositionAvailable(liveClass.getSection().getId(), requestedPosition, liveClass.getId());
+    SectionItem item =
+        sectionItemRepository
+            .findByItemTypeAndItemId(SectionItemType.LIVE_CLASS, liveClass.getId())
+            .orElseThrow(
+                () ->
+                    new ResponseStatusException(
+                        HttpStatus.INTERNAL_SERVER_ERROR, "Section item missing"));
+    item.setPosition(requestedPosition);
+    sectionItemRepository.save(item);
+  }
+
+  private void ensurePositionAvailable(
+      UUID sectionId, Integer requestedPosition, UUID currentLiveClassId) {
+    if (requestedPosition == null || requestedPosition <= 0) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "position must be positive");
+    }
+    sectionItemRepository
+        .findBySectionIdAndPosition(sectionId, requestedPosition)
+        .ifPresent(
+            item -> {
+              boolean sameLiveClass =
+                  item.getItemType() == SectionItemType.LIVE_CLASS
+                      && currentLiveClassId != null
+                      && currentLiveClassId.equals(item.getItemId());
+              if (!sameLiveClass) {
+                throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Position is already used in this section");
+              }
+            });
+  }
+
+  private Integer positionOf(UUID liveClassId) {
+    return sectionItemRepository
+        .findByItemTypeAndItemId(SectionItemType.LIVE_CLASS, liveClassId)
+        .map(SectionItem::getPosition)
+        .orElse(null);
   }
 
   private void validateTimeRange(Instant startsAt, Instant endsAt) {

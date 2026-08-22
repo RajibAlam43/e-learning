@@ -18,6 +18,7 @@ public record InstructorLiveClassResponse(
     String courseName,
     UUID sectionId,
     String sectionTitle,
+    Integer position,
 
     // Instructor info
     String instructorName,

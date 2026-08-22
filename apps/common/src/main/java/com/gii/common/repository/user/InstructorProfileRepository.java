@@ -35,4 +35,13 @@ public interface InstructorProfileRepository extends JpaRepository<InstructorPro
       """)
   Optional<InstructorProfile> findPublicByUserIdAndStatus(
       @Param("userId") UUID userId, @Param("status") UserStatus status);
+
+  @Query(
+      """
+        SELECT COUNT(ip)
+        FROM InstructorProfile ip
+        WHERE ip.isPublic = true
+          AND ip.user.status = :status
+      """)
+  long countPublicByUserStatus(@Param("status") UserStatus status);
 }

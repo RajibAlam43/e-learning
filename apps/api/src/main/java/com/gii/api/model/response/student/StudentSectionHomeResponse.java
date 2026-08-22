@@ -15,12 +15,17 @@ public record StudentSectionHomeResponse(
     Double completionPercentage,
     Integer completedLessons,
     Integer totalLessons,
+    Integer completedLiveClasses,
+    Integer totalLiveClasses,
     Integer completedItems,
     Integer totalItems,
 
     // Access status
     Boolean isAccessible, // Based on release type/drip content
     String accessReason, // e.g., "AVAILABLE", "PENDING_RELEASE", "LOCKED"
+
+    // Canonical mixed ordering for lessons, quizzes, and live classes
+    List<StudentSectionItemResponse> items,
 
     // Lessons in section
     List<StudentLessonHomeResponse> lessons,

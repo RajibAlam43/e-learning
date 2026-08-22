@@ -27,6 +27,8 @@ public record StudentCourseHomeResponse(
     Double completionPercentage,
     Integer completedLessons,
     Integer totalLessons,
+    Integer completedLiveClasses,
+    Integer totalLiveClasses,
     Integer completedItems,
     Integer totalItems,
 

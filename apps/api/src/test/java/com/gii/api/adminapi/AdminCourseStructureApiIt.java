@@ -167,7 +167,7 @@ class AdminCourseStructureApiIt extends AbstractAdminApiIntegrationTest {
   }
 
   @Test
-  void sectionItemsShouldReturnMixedOrderedLessonsAndQuizzes() throws Exception {
+  void sectionItemsShouldReturnMixedOrderedLessonsQuizzesAndLiveClasses() throws Exception {
     var admin = user("Admin Three", "admin-items@example.com");
     var creator = user("Creator Three", "creator-items@example.com");
     var course = course("Course Items", "course-items", creator);
@@ -200,6 +200,30 @@ class AdminCourseStructureApiIt extends AbstractAdminApiIntegrationTest {
 
     mockMvc
         .perform(
+            post("/live-classes/courses/{courseId}", course.getId())
+                .with(authentication(adminAuth(admin.getId())))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "sectionId":"%s",
+                      "position":3,
+                      "title":"Live Workshop",
+                      "startsAt":"%s",
+                      "endsAt":"%s",
+                      "provider":"ZOOM",
+                      "maxCapacity":100
+                    }
+                    """
+                        .formatted(
+                            section.getId(),
+                            java.time.Instant.now().plusSeconds(3600),
+                            java.time.Instant.now().plusSeconds(7200))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.position").value(3));
+
+    mockMvc
+        .perform(
             get("/admin/courses/{courseId}", course.getId())
                 .with(authentication(adminAuth(admin.getId()))))
         .andExpect(status().isOk())
@@ -207,8 +231,11 @@ class AdminCourseStructureApiIt extends AbstractAdminApiIntegrationTest {
         .andExpect(jsonPath("$.sections[0].items[0].position").value(1))
         .andExpect(jsonPath("$.sections[0].items[1].itemType").value("QUIZ"))
         .andExpect(jsonPath("$.sections[0].items[1].position").value(2))
+        .andExpect(jsonPath("$.sections[0].items[2].itemType").value("LIVE_CLASS"))
+        .andExpect(jsonPath("$.sections[0].items[2].position").value(3))
         .andExpect(jsonPath("$.sections[0].items[0].lesson.title").value(lesson.getTitle()))
-        .andExpect(jsonPath("$.sections[0].items[1].quiz.title").value("Quiz Mixed"));
+        .andExpect(jsonPath("$.sections[0].items[1].quiz.title").value("Quiz Mixed"))
+        .andExpect(jsonPath("$.sections[0].items[2].liveClass.title").value("Live Workshop"));
   }
 
   @Test
@@ -252,6 +279,7 @@ class AdminCourseStructureApiIt extends AbstractAdminApiIntegrationTest {
     var section = section(course, 1);
     var lesson = lesson(course, section, 1);
     var quiz = quiz(course, "Quiz Mixed Reorder");
+    var liveClass = liveClass(course, section, lesson);
 
     mockMvc
         .perform(
@@ -266,14 +294,16 @@ class AdminCourseStructureApiIt extends AbstractAdminApiIntegrationTest {
                           "sectionId":"%s",
                           "newPosition":1,
                           "items":[
-                            {"itemId":"%s","itemType":"LESSON","newPosition":2},
-                            {"itemId":"%s","itemType":"QUIZ","newPosition":1}
+                            {"itemId":"%s","itemType":"LESSON","newPosition":3},
+                            {"itemId":"%s","itemType":"QUIZ","newPosition":2},
+                            {"itemId":"%s","itemType":"LIVE_CLASS","newPosition":1}
                           ]
                         }
                       ]
                     }
                     """
-                        .formatted(section.getId(), lesson.getId(), quiz.getId())))
+                        .formatted(
+                            section.getId(), lesson.getId(), quiz.getId(), liveClass.getId())))
         .andExpect(status().isOk());
 
     mockMvc
@@ -281,9 +311,11 @@ class AdminCourseStructureApiIt extends AbstractAdminApiIntegrationTest {
             get("/admin/courses/{courseId}", course.getId())
                 .with(authentication(adminAuth(admin.getId()))))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.sections[0].items[0].itemType").value("QUIZ"))
+        .andExpect(jsonPath("$.sections[0].items[0].itemType").value("LIVE_CLASS"))
         .andExpect(jsonPath("$.sections[0].items[0].position").value(1))
-        .andExpect(jsonPath("$.sections[0].items[1].itemType").value("LESSON"))
-        .andExpect(jsonPath("$.sections[0].items[1].position").value(2));
+        .andExpect(jsonPath("$.sections[0].items[1].itemType").value("QUIZ"))
+        .andExpect(jsonPath("$.sections[0].items[1].position").value(2))
+        .andExpect(jsonPath("$.sections[0].items[2].itemType").value("LESSON"))
+        .andExpect(jsonPath("$.sections[0].items[2].position").value(3));
   }
 }

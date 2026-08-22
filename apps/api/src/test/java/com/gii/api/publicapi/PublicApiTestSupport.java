@@ -14,6 +14,8 @@ import com.gii.common.entity.course.MediaAsset;
 import com.gii.common.entity.support.SupportTicket;
 import com.gii.common.entity.user.InstructorProfile;
 import com.gii.common.entity.user.User;
+import com.gii.common.entity.user.UserRole;
+import com.gii.common.entity.user.UserRoleId;
 import com.gii.common.enums.CollectionType;
 import com.gii.common.enums.CourseLanguage;
 import com.gii.common.enums.CourseLevel;
@@ -36,7 +38,9 @@ import com.gii.common.repository.course.LessonRepository;
 import com.gii.common.repository.course.MediaAssetRepository;
 import com.gii.common.repository.support.SupportTicketRepository;
 import com.gii.common.repository.user.InstructorProfileRepository;
+import com.gii.common.repository.user.RoleRepository;
 import com.gii.common.repository.user.UserRepository;
+import com.gii.common.repository.user.UserRoleRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
@@ -47,6 +51,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 abstract class PublicApiTestSupport {
 
   @Autowired protected UserRepository userRepository;
+  @Autowired protected RoleRepository roleRepository;
+  @Autowired protected UserRoleRepository userRoleRepository;
   @Autowired protected CourseRepository courseRepository;
   @Autowired protected CourseReviewRepository courseReviewRepository;
   @Autowired protected CourseSectionRepository courseSectionRepository;
@@ -74,6 +80,7 @@ abstract class PublicApiTestSupport {
     categoryRepository.deleteAll();
     instructorProfileRepository.deleteAll();
     supportTicketRepository.deleteAll();
+    userRoleRepository.deleteAll();
     userRepository.deleteAll();
   }
 
@@ -115,6 +122,16 @@ abstract class PublicApiTestSupport {
   protected User user(String name, String email, UserStatus status) {
     return userRepository.save(
         User.builder().fullName(name).email(email).passwordHash("x").status(status).build());
+  }
+
+  protected void assignRole(User user, String roleName) {
+    var role = roleRepository.findByName(roleName).orElseThrow();
+    userRoleRepository.save(
+        UserRole.builder()
+            .id(UserRoleId.builder().userId(user.getId()).roleId(role.getId()).build())
+            .user(user)
+            .role(role)
+            .build());
   }
 
   protected Course course(

@@ -3,6 +3,7 @@ package com.gii.common.repository.live;
 import com.gii.common.entity.live.LiveClass;
 import com.gii.common.enums.LiveClassProvider;
 import com.gii.common.enums.LiveClassStatus;
+import com.gii.common.enums.PublishStatus;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -62,6 +63,8 @@ public interface LiveClassRepository extends JpaRepository<LiveClass, UUID> {
       """)
   List<LiveClass> findByCourseIdOrderByStartsAtAsc(@Param("courseId") UUID courseId);
 
+  List<LiveClass> findBySectionIdOrderByStartsAtAsc(UUID sectionId);
+
   @Query(
       """
         SELECT lc.course.id, COUNT(lc)
@@ -70,6 +73,34 @@ public interface LiveClassRepository extends JpaRepository<LiveClass, UUID> {
         GROUP BY lc.course.id
       """)
   List<Object[]> countByCourseIds(@Param("courseIds") List<UUID> courseIds);
+
+  @Query(
+      """
+        SELECT lc.course.id, COUNT(lc)
+        FROM LiveClass lc
+        WHERE lc.course.id IN :courseIds
+        AND lc.section.status = :sectionStatus
+        AND lc.status IN :statuses
+        GROUP BY lc.course.id
+      """)
+  List<Object[]> countCompletableByCourseIdsAndStatuses(
+      @Param("courseIds") List<UUID> courseIds,
+      @Param("sectionStatus") PublishStatus sectionStatus,
+      @Param("statuses") List<LiveClassStatus> statuses);
+
+  @Query(
+      """
+        SELECT lc.course.id, COUNT(lc)
+        FROM LiveClass lc
+        WHERE lc.course.id IN :courseIds
+        AND lc.section.status = :sectionStatus
+        AND lc.status = :liveClassStatus
+        GROUP BY lc.course.id
+      """)
+  List<Object[]> countByCourseIdsAndSectionStatusAndLiveClassStatus(
+      @Param("courseIds") List<UUID> courseIds,
+      @Param("sectionStatus") PublishStatus sectionStatus,
+      @Param("liveClassStatus") LiveClassStatus liveClassStatus);
 
   @Query(
       """

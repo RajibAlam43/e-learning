@@ -14,4 +14,6 @@ public interface CollectionRepository
   Optional<Collection> findBySlugAndStatus(String slug, PublishStatus status);
 
   List<Collection> findByIdInAndStatus(List<UUID> ids, PublishStatus status);
+
+  long countByStatus(PublishStatus status);
 }
