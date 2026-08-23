@@ -23,6 +23,7 @@ import com.gii.common.repository.course.CourseRepository;
 import com.gii.common.repository.course.CourseSectionRepository;
 import com.gii.common.repository.course.LessonRepository;
 import com.gii.common.repository.enrollment.EnrollmentRepository;
+import com.gii.common.repository.enrollment.StudentLearningStreakRepository;
 import com.gii.common.repository.quiz.QuizAttemptAnswerRepository;
 import com.gii.common.repository.quiz.QuizAttemptRepository;
 import com.gii.common.repository.quiz.QuizChoiceRepository;
@@ -49,8 +50,10 @@ abstract class QuizApiTestSupport {
   @Autowired protected QuizChoiceRepository quizChoiceRepository;
   @Autowired protected QuizAttemptRepository quizAttemptRepository;
   @Autowired protected QuizAttemptAnswerRepository quizAttemptAnswerRepository;
+  @Autowired protected StudentLearningStreakRepository studentLearningStreakRepository;
 
   protected void cleanupQuizData() {
+    studentLearningStreakRepository.deleteAll();
     quizAttemptAnswerRepository.deleteAll();
     quizAttemptRepository.deleteAll();
     quizChoiceRepository.deleteAll();

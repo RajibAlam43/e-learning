@@ -1,5 +1,6 @@
 package com.gii.api.studentapi;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -107,6 +108,11 @@ class StudentLiveClassesApiIt extends AbstractStudentApiIntegrationTest {
                 .with(authentication(studentAuth(student.getId()))))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.joinUrl").value("https://zoom.test/join/" + live.getId()));
+
+    assertThat(studentLearningStreakRepository.findById(student.getId()))
+        .get()
+        .extracting("currentStreak", "maxStreak")
+        .containsExactly(1, 1);
 
     mockMvc
         .perform(

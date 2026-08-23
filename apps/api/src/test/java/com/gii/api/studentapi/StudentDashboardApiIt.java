@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.gii.api.service.student.StudentLearningStreakTrackerService;
 import com.gii.common.enums.EnrollmentStatus;
 import com.gii.common.enums.PublishStatus;
 import java.math.BigDecimal;
@@ -18,6 +19,7 @@ import org.springframework.test.web.servlet.MockMvc;
 class StudentDashboardApiIt extends AbstractStudentApiIntegrationTest {
 
   @Autowired private MockMvc mockMvc;
+  @Autowired private StudentLearningStreakTrackerService learningStreakTrackerService;
 
   @AfterEach
   void cleanup() {
@@ -35,6 +37,7 @@ class StudentDashboardApiIt extends AbstractStudentApiIntegrationTest {
     var l2 = lesson(course, sec, 2, PublishStatus.PUBLISHED, false);
     enrollment(student, course, EnrollmentStatus.ACTIVE, null);
     var progress = completedProgress(student, l1);
+    learningStreakTrackerService.recordActivity(student.getId(), progress.getCompletedAt());
     orderItem(
         order(student, com.gii.common.enums.OrderStatus.PAID, BigDecimal.valueOf(1200)),
         course,
@@ -43,7 +46,7 @@ class StudentDashboardApiIt extends AbstractStudentApiIntegrationTest {
     certificate(student, course, "CERT-001", false);
 
     var expectedPrefix =
-        progress.getUpdatedAt().truncatedTo(ChronoUnit.MILLIS).toString().replace("Z", "");
+        progress.getCompletedAt().truncatedTo(ChronoUnit.MILLIS).toString().replace("Z", "");
 
     mockMvc
         .perform(get("/student/dashboard").with(authentication(studentAuth(student.getId()))))

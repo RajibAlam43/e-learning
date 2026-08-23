@@ -35,6 +35,7 @@ public class LiveClassApiController implements LiveClassApi {
       CreateLiveClassRequest adminRequest =
           CreateLiveClassRequest.builder()
               .sectionId(request.sectionId())
+              .position(request.position())
               .title(request.title())
               .titleEn(request.titleEn())
               .description(request.description())
@@ -62,6 +63,7 @@ public class LiveClassApiController implements LiveClassApi {
     if (hasRole(authentication, "ROLE_ADMIN")) {
       UpdateLiveClassRequest adminRequest =
           UpdateLiveClassRequest.builder()
+              .position(request.position())
               .title(request.title())
               .titleEn(request.titleEn())
               .description(request.description())
@@ -127,6 +129,7 @@ public class LiveClassApiController implements LiveClassApi {
         .courseName(response.courseName())
         .sectionId(response.sectionId())
         .sectionTitle(response.sectionTitle())
+        .position(response.position())
         .startsAt(response.startsAt())
         .endsAt(response.endsAt())
         .provider(response.provider())
@@ -148,6 +151,7 @@ public class LiveClassApiController implements LiveClassApi {
         .courseName(response.courseName())
         .sectionId(response.sectionId())
         .sectionTitle(response.sectionTitle())
+        .position(response.position())
         .startsAt(response.startsAt())
         .endsAt(response.endsAt())
         .provider(response.provider())

@@ -50,6 +50,19 @@ class LessonProgressApiIt extends AbstractLessonApiIntegrationTest {
             .orElseThrow();
     assertThat(saved.getLastPositionSec()).isEqualTo(95);
     assertThat(saved.getCompletedAt()).isNull();
+
+    mockMvc
+        .perform(
+            post("/learn/lessons/{lessonId}/progress", lesson.getId())
+                .with(authentication(studentAuth(student.getId())))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"completed\":true,\"lastPositionSec\":120}"))
+        .andExpect(status().isOk());
+
+    assertThat(studentLearningStreakRepository.findById(student.getId()))
+        .get()
+        .extracting("currentStreak", "maxStreak")
+        .containsExactly(1, 1);
   }
 
   @Test
@@ -74,5 +87,9 @@ class LessonProgressApiIt extends AbstractLessonApiIntegrationTest {
                 LessonProgressId.builder().userId(student.getId()).lessonId(lesson.getId()).build())
             .orElseThrow();
     assertThat(saved.getCompletedAt()).isNotNull();
+    assertThat(studentLearningStreakRepository.findById(student.getId()))
+        .get()
+        .extracting("currentStreak", "maxStreak")
+        .containsExactly(1, 1);
   }
 }

@@ -11,6 +11,7 @@ import com.gii.api.model.response.InstructorDetailsResponse;
 import com.gii.api.model.response.InstructorSummaryResponse;
 import com.gii.api.model.response.PageResponse;
 import com.gii.api.model.response.PublicAppSettingResponse;
+import com.gii.api.model.response.PublicPlatformStatsResponse;
 import com.gii.api.model.response.SupportTicketCreatedResponse;
 import com.gii.api.service.pub.AllCategoriesService;
 import com.gii.api.service.pub.AllCollectionsService;
@@ -21,6 +22,7 @@ import com.gii.api.service.pub.CourseDetailsService;
 import com.gii.api.service.pub.CourseReviewsService;
 import com.gii.api.service.pub.InstructorDetailsService;
 import com.gii.api.service.pub.PublicAppSettingsService;
+import com.gii.api.service.pub.PublicPlatformStatsService;
 import com.gii.api.service.pub.SupportTicketService;
 import com.gii.common.enums.CollectionType;
 import com.gii.common.enums.CourseLanguage;
@@ -47,6 +49,7 @@ public class PublicApiController implements PublicApi {
   private final InstructorDetailsService instructorDetailsService;
   private final SupportTicketService supportTicketService;
   private final PublicAppSettingsService publicAppSettingsService;
+  private final PublicPlatformStatsService publicPlatformStatsService;
 
   @Override
   public ResponseEntity<List<CategoryResponse>> getAllCategories() {
@@ -67,6 +70,11 @@ public class PublicApiController implements PublicApi {
   @Override
   public ResponseEntity<List<PublicAppSettingResponse>> getPublicSettings() {
     return ResponseEntity.ok(publicAppSettingsService.execute());
+  }
+
+  @Override
+  public ResponseEntity<PublicPlatformStatsResponse> getPlatformStats() {
+    return ResponseEntity.ok(publicPlatformStatsService.execute());
   }
 
   @Override

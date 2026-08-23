@@ -2,13 +2,17 @@ package com.gii.api.controller;
 
 import com.gii.api.model.request.student.CreateCourseReviewRequest;
 import com.gii.api.model.request.student.UpdateCourseReviewRequest;
+import com.gii.api.model.response.CourseAnnouncementResponse;
 import com.gii.api.model.response.CourseReviewResponse;
+import com.gii.api.model.response.PageResponse;
 import com.gii.api.model.response.student.StudentCertificateSummaryResponse;
 import com.gii.api.model.response.student.StudentCollectionDetailsResponse;
 import com.gii.api.model.response.student.StudentCollectionSummaryResponse;
+import com.gii.api.model.response.student.StudentCompletedLessonsResponse;
 import com.gii.api.model.response.student.StudentCourseHomeResponse;
 import com.gii.api.model.response.student.StudentCourseSummaryResponse;
 import com.gii.api.model.response.student.StudentDashboardResponse;
+import com.gii.api.model.response.student.StudentLearningStreakResponse;
 import com.gii.api.model.response.student.StudentLiveClassSummaryResponse;
 import com.gii.api.model.response.student.StudentOrderSummaryResponse;
 import com.gii.api.service.student.CourseLiveClassesService;
@@ -18,12 +22,16 @@ import com.gii.api.service.student.EnrolledCoursesService;
 import com.gii.api.service.student.StudentCertificatesService;
 import com.gii.api.service.student.StudentCollectionDetailsService;
 import com.gii.api.service.student.StudentCollectionsService;
+import com.gii.api.service.student.StudentCompletedLessonsService;
+import com.gii.api.service.student.StudentCourseAnnouncementsService;
 import com.gii.api.service.student.StudentDashboardService;
+import com.gii.api.service.student.StudentLearningStreakService;
 import com.gii.api.service.student.StudentOrdersService;
 import com.gii.api.service.student.StudentUpcomingLiveClasses;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.RestController;
@@ -33,6 +41,9 @@ import org.springframework.web.bind.annotation.RestController;
 public class StudentApiController implements StudentApi {
 
   private final StudentDashboardService studentDashboardService;
+  private final StudentCompletedLessonsService studentCompletedLessonsService;
+  private final StudentLearningStreakService studentLearningStreakService;
+  private final StudentCourseAnnouncementsService studentCourseAnnouncementsService;
   private final CourseReviewSubmissionService courseReviewSubmissionService;
   private final EnrolledCoursesService enrolledCoursesService;
   private final StudentCollectionsService studentCollectionsService;
@@ -46,6 +57,24 @@ public class StudentApiController implements StudentApi {
   @Override
   public ResponseEntity<StudentDashboardResponse> getDashboard(Authentication authentication) {
     return ResponseEntity.ok(studentDashboardService.execute(authentication));
+  }
+
+  @Override
+  public ResponseEntity<StudentCompletedLessonsResponse> getCompletedLessons(
+      Authentication authentication) {
+    return ResponseEntity.ok(studentCompletedLessonsService.execute(authentication));
+  }
+
+  @Override
+  public ResponseEntity<StudentLearningStreakResponse> getLearningStreak(
+      Authentication authentication) {
+    return ResponseEntity.ok(studentLearningStreakService.execute(authentication));
+  }
+
+  @Override
+  public ResponseEntity<PageResponse<CourseAnnouncementResponse>> getCourseAnnouncements(
+      Pageable pageable, Authentication authentication) {
+    return ResponseEntity.ok(studentCourseAnnouncementsService.execute(pageable, authentication));
   }
 
   @Override

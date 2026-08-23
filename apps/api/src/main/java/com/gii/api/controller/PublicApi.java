@@ -11,6 +11,7 @@ import com.gii.api.model.response.InstructorDetailsResponse;
 import com.gii.api.model.response.InstructorSummaryResponse;
 import com.gii.api.model.response.PageResponse;
 import com.gii.api.model.response.PublicAppSettingResponse;
+import com.gii.api.model.response.PublicPlatformStatsResponse;
 import com.gii.api.model.response.SupportTicketCreatedResponse;
 import com.gii.common.enums.CollectionType;
 import com.gii.common.enums.CourseLanguage;
@@ -74,6 +75,21 @@ public interface PublicApi {
   @GetMapping("/settings")
   @Operation(summary = "List settings explicitly marked public")
   ResponseEntity<List<PublicAppSettingResponse>> getPublicSettings();
+
+  @GetMapping("/stats")
+  @Operation(
+      summary = "Get public platform counts",
+      description =
+          "Get active student, published course, published program, and public instructor counts.")
+  @ApiResponses(
+      value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Platform counts retrieved",
+            content =
+                @Content(schema = @Schema(implementation = PublicPlatformStatsResponse.class)))
+      })
+  ResponseEntity<PublicPlatformStatsResponse> getPlatformStats();
 
   @GetMapping("/courses/{slug}")
   @Operation(

@@ -3,12 +3,12 @@ package com.gii.api.service.student;
 import com.gii.api.model.response.student.StudentCertificateSummaryResponse;
 import com.gii.api.model.response.student.StudentCourseSummaryResponse;
 import com.gii.api.model.response.student.StudentDashboardResponse;
+import com.gii.api.model.response.student.StudentLearningStreakResponse;
 import com.gii.api.model.response.student.StudentLiveClassSummaryResponse;
 import com.gii.api.model.response.student.StudentOngoingCourseSnapshot;
 import com.gii.api.service.enrollment.CurrentUserService;
 import com.gii.common.entity.user.User;
 import com.gii.common.entity.user.UserProfile;
-import com.gii.common.repository.enrollment.LessonProgressRepository;
 import com.gii.common.repository.user.UserProfileRepository;
 import java.time.Instant;
 import java.util.Comparator;
@@ -25,10 +25,10 @@ public class StudentDashboardService {
 
   private final CurrentUserService currentUserService;
   private final UserProfileRepository userProfileRepository;
-  private final LessonProgressRepository lessonProgressRepository;
   private final EnrolledCoursesService enrolledCoursesService;
   private final StudentCertificatesService studentCertificatesService;
   private final StudentUpcomingLiveClasses studentUpcomingLiveClasses;
+  private final StudentLearningStreakService studentLearningStreakService;
 
   public StudentDashboardResponse execute(Authentication authentication) {
     User user = currentUserService.getCurrentUser(authentication);
@@ -39,6 +39,8 @@ public class StudentDashboardService {
         studentCertificatesService.execute(authentication);
     List<StudentLiveClassSummaryResponse> upcoming =
         studentUpcomingLiveClasses.execute(authentication);
+    StudentLearningStreakResponse learningStreak =
+        studentLearningStreakService.execute(authentication);
 
     List<StudentOngoingCourseSnapshot> ongoing =
         courses.stream()
@@ -57,9 +59,6 @@ public class StudentDashboardService {
                 .filter(c -> c.completionPercentage() != null && c.completionPercentage() >= 100.0)
                 .count();
 
-    Instant lastLearningActivityAt =
-        lessonProgressRepository.findLatestActivityAtByUserId(user.getId());
-
     return StudentDashboardResponse.builder()
         .fullName(user.getFullName())
         .email(user.getEmail())
@@ -71,9 +70,11 @@ public class StudentDashboardService {
         .ongoingCourses(ongoing)
         .recentCertificates(certificates.stream().limit(5).toList())
         .upcomingLiveClasses(upcoming.stream().limit(5).toList())
-        .learningStreak(null)
+        .learningStreak(learningStreak.currentStreak())
         .lastLearningActivityAt(
-            lastLearningActivityAt != null ? lastLearningActivityAt.toString() : null)
+            learningStreak.lastActivityAt() != null
+                ? learningStreak.lastActivityAt().toString()
+                : null)
         .build();
   }
 

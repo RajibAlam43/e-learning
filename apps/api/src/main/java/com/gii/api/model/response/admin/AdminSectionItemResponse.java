@@ -9,4 +9,5 @@ public record AdminSectionItemResponse(
     String itemType,
     Integer position,
     AdminLessonSummaryResponse lesson,
-    AdminQuizSummaryResponse quiz) {}
+    AdminQuizSummaryResponse quiz,
+    AdminLiveClassSectionItemResponse liveClass) {}

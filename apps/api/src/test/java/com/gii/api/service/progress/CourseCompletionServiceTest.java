@@ -3,9 +3,12 @@ package com.gii.api.service.progress;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
+import com.gii.common.enums.LiveClassStatus;
 import com.gii.common.enums.PublishStatus;
 import com.gii.common.repository.course.LessonRepository;
 import com.gii.common.repository.enrollment.LessonProgressRepository;
+import com.gii.common.repository.live.LiveClassAttendanceRepository;
+import com.gii.common.repository.live.LiveClassRepository;
 import com.gii.common.repository.quiz.QuizAttemptRepository;
 import com.gii.common.repository.quiz.QuizRepository;
 import java.util.List;
@@ -24,11 +27,13 @@ class CourseCompletionServiceTest {
   @Mock private LessonProgressRepository lessonProgressRepository;
   @Mock private QuizRepository quizRepository;
   @Mock private QuizAttemptRepository quizAttemptRepository;
+  @Mock private LiveClassRepository liveClassRepository;
+  @Mock private LiveClassAttendanceRepository liveClassAttendanceRepository;
 
   @InjectMocks private CourseCompletionService service;
 
   @Test
-  void combinesCompletedLessonsAndPassedQuizzesIntoOnePercentage() {
+  void combinesLessonsQuizzesAndCompletedLiveClassesIntoOnePercentage() {
     UUID userId = UUID.randomUUID();
     UUID courseId = UUID.randomUUID();
     List<UUID> courseIds = List.of(courseId);
@@ -43,6 +48,14 @@ class CourseCompletionServiceTest {
     when(quizAttemptRepository.countPassedQuizzesByUserIdAndCourseIds(
             userId, courseIds, PublishStatus.PUBLISHED))
         .thenReturn(List.<Object[]>of(new Object[] {courseId, 1L}));
+    List<LiveClassStatus> liveStatuses =
+        List.of(LiveClassStatus.SCHEDULED, LiveClassStatus.LIVE, LiveClassStatus.COMPLETED);
+    when(liveClassRepository.countCompletableByCourseIdsAndStatuses(
+            courseIds, PublishStatus.PUBLISHED, liveStatuses))
+        .thenReturn(List.<Object[]>of(new Object[] {courseId, 2L}));
+    when(liveClassRepository.countByCourseIdsAndSectionStatusAndLiveClassStatus(
+            courseIds, PublishStatus.PUBLISHED, LiveClassStatus.COMPLETED))
+        .thenReturn(List.<Object[]>of(new Object[] {courseId, 1L}));
 
     var completion = service.get(userId, courseId);
 
@@ -50,9 +63,11 @@ class CourseCompletionServiceTest {
     assertThat(completion.completedLessons()).isEqualTo(2);
     assertThat(completion.totalQuizzes()).isEqualTo(2);
     assertThat(completion.completedQuizzes()).isEqualTo(1);
-    assertThat(completion.totalItems()).isEqualTo(5);
-    assertThat(completion.completedItems()).isEqualTo(3);
-    assertThat(completion.completionPercentage()).isEqualTo(60.0);
+    assertThat(completion.totalLiveClasses()).isEqualTo(2);
+    assertThat(completion.completedLiveClasses()).isEqualTo(1);
+    assertThat(completion.totalItems()).isEqualTo(7);
+    assertThat(completion.completedItems()).isEqualTo(4);
+    assertThat(completion.completionPercentage()).isEqualTo(57.14);
   }
 
   @Test
@@ -69,6 +84,14 @@ class CourseCompletionServiceTest {
         .thenReturn(List.of());
     when(quizAttemptRepository.countPassedQuizzesByUserIdAndCourseIds(
             userId, courseIds, PublishStatus.PUBLISHED))
+        .thenReturn(List.of());
+    List<LiveClassStatus> liveStatuses =
+        List.of(LiveClassStatus.SCHEDULED, LiveClassStatus.LIVE, LiveClassStatus.COMPLETED);
+    when(liveClassRepository.countCompletableByCourseIdsAndStatuses(
+            courseIds, PublishStatus.PUBLISHED, liveStatuses))
+        .thenReturn(List.of());
+    when(liveClassRepository.countByCourseIdsAndSectionStatusAndLiveClassStatus(
+            courseIds, PublishStatus.PUBLISHED, LiveClassStatus.COMPLETED))
         .thenReturn(List.of());
 
     Map<UUID, CourseCompletionService.CourseCompletion> result =

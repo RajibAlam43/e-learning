@@ -6,7 +6,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.gii.common.enums.EnrollmentStatus;
+import com.gii.common.enums.LiveClassStatus;
 import com.gii.common.enums.PublishStatus;
+import java.time.Instant;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -57,7 +59,7 @@ class StudentCoursesApiIt extends AbstractStudentApiIntegrationTest {
   }
 
   @Test
-  void getMyCourseDetailsReturnsPublishedSectionsAndLessons() throws Exception {
+  void getMyCourseDetailsReturnsCanonicalMixedSectionItems() throws Exception {
     var student = user("Student Four", "student4@example.com");
     var creator = user("Creator", "creator-stu4@example.com");
     var course = course("Course Home", "course-home", creator, PublishStatus.PUBLISHED);
@@ -65,6 +67,16 @@ class StudentCoursesApiIt extends AbstractStudentApiIntegrationTest {
     var l1 = lesson(course, sec, 1, PublishStatus.PUBLISHED, true);
     lesson(course, sec, 2, PublishStatus.PUBLISHED, false);
     var quiz = quiz(course, sec, 3, PublishStatus.PUBLISHED, "Section Quiz");
+    var liveClass =
+        liveClass(
+            course,
+            sec,
+            l1,
+            creator,
+            LiveClassStatus.SCHEDULED,
+            Instant.now().plusSeconds(3600),
+            Instant.now().plusSeconds(7200),
+            "https://live.test/join");
     enrollment(student, course, EnrollmentStatus.ACTIVE, null);
     completedProgress(student, l1);
 
@@ -79,6 +91,15 @@ class StudentCoursesApiIt extends AbstractStudentApiIntegrationTest {
         .andExpect(jsonPath("$.sections[0].quizzes.length()").value(1))
         .andExpect(jsonPath("$.sections[0].quizzes[0].quizId").value(quiz.getId().toString()))
         .andExpect(jsonPath("$.sections[0].quizzes[0].quizTitle").value("Section Quiz"))
+        .andExpect(jsonPath("$.sections[0].items.length()").value(4))
+        .andExpect(jsonPath("$.sections[0].items[0].itemType").value("LESSON"))
+        .andExpect(jsonPath("$.sections[0].items[1].itemType").value("LESSON"))
+        .andExpect(jsonPath("$.sections[0].items[2].itemType").value("QUIZ"))
+        .andExpect(jsonPath("$.sections[0].items[3].itemType").value("LIVE_CLASS"))
+        .andExpect(jsonPath("$.sections[0].items[3].position").value(4))
+        .andExpect(
+            jsonPath("$.sections[0].items[3].liveClass.liveClassId")
+                .value(liveClass.getId().toString()))
         .andExpect(jsonPath("$.sections[0].completedLessons").value(1));
   }
 }

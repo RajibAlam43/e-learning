@@ -2,11 +2,13 @@ package com.gii.api.model.request.instructor;
 
 import com.gii.common.enums.LiveClassStatus;
 import jakarta.validation.constraints.Future;
+import jakarta.validation.constraints.Positive;
 import java.time.Instant;
 import lombok.Builder;
 
 @Builder
 public record UpdateLiveClassRequest(
+    @Positive Integer position,
     String title, // Optional: update title
     String titleEn,
     String description, // Optional: update description

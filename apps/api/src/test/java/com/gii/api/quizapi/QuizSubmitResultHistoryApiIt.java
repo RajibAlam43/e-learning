@@ -69,6 +69,10 @@ class QuizSubmitResultHistoryApiIt extends AbstractQuizApiIntegrationTest {
     assertThat(saved.getSubmittedAt()).isNotNull();
     assertThat(saved.getScorePct()).isEqualTo(50);
     assertThat(quizAttemptAnswerRepository.findByAttemptId(attempt.getId())).hasSize(2);
+    assertThat(studentLearningStreakRepository.findById(student.getId()))
+        .get()
+        .extracting("currentStreak", "maxStreak")
+        .containsExactly(1, 1);
 
     mockMvc
         .perform(

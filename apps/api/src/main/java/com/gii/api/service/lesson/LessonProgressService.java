@@ -1,6 +1,7 @@
 package com.gii.api.service.lesson;
 
 import com.gii.api.model.request.lesson.SaveLessonProgressRequest;
+import com.gii.api.service.student.StudentLearningStreakTrackerService;
 import com.gii.common.entity.course.Lesson;
 import com.gii.common.entity.enrollment.Enrollment;
 import com.gii.common.entity.enrollment.LessonProgress;
@@ -23,6 +24,7 @@ public class LessonProgressService {
 
   private final LessonAccessService lessonAccessService;
   private final LessonProgressRepository lessonProgressRepository;
+  private final StudentLearningStreakTrackerService studentLearningStreakTrackerService;
 
   public void execute(
       UUID lessonId, SaveLessonProgressRequest request, Authentication authentication) {
@@ -53,10 +55,15 @@ public class LessonProgressService {
       progress.setLastPositionSec(request.lastPositionSec());
     }
 
-    if (Boolean.TRUE.equals(request.completed())) {
-      progress.setCompletedAt(Instant.now());
+    Instant completedAt = null;
+    if (Boolean.TRUE.equals(request.completed()) && progress.getCompletedAt() == null) {
+      completedAt = Instant.now();
+      progress.setCompletedAt(completedAt);
     }
 
     lessonProgressRepository.save(progress);
+    if (completedAt != null) {
+      studentLearningStreakTrackerService.recordActivity(user.getId(), completedAt);
+    }
   }
 }

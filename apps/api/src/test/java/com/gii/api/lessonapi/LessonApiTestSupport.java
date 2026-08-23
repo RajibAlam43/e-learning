@@ -29,6 +29,7 @@ import com.gii.common.repository.course.LessonResourceRepository;
 import com.gii.common.repository.course.MediaAssetRepository;
 import com.gii.common.repository.enrollment.EnrollmentRepository;
 import com.gii.common.repository.enrollment.LessonProgressRepository;
+import com.gii.common.repository.enrollment.StudentLearningStreakRepository;
 import com.gii.common.repository.user.UserRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -46,10 +47,12 @@ abstract class LessonApiTestSupport {
   @Autowired protected LessonRepository lessonRepository;
   @Autowired protected EnrollmentRepository enrollmentRepository;
   @Autowired protected LessonProgressRepository lessonProgressRepository;
+  @Autowired protected StudentLearningStreakRepository studentLearningStreakRepository;
   @Autowired protected MediaAssetRepository mediaAssetRepository;
   @Autowired protected LessonResourceRepository lessonResourceRepository;
 
   protected void cleanupLessonData() {
+    studentLearningStreakRepository.deleteAll();
     lessonProgressRepository.deleteAll();
     lessonResourceRepository.deleteAll();
     mediaAssetRepository.deleteAll();

@@ -1,5 +1,6 @@
 package com.gii.api.service.lesson;
 
+import com.gii.api.service.student.StudentLearningStreakTrackerService;
 import com.gii.common.entity.course.Lesson;
 import com.gii.common.entity.enrollment.Enrollment;
 import com.gii.common.entity.enrollment.LessonProgress;
@@ -22,6 +23,7 @@ public class LessonCompleteService {
 
   private final LessonAccessService lessonAccessService;
   private final LessonProgressRepository lessonProgressRepository;
+  private final StudentLearningStreakTrackerService studentLearningStreakTrackerService;
 
   public void execute(UUID lessonId, Authentication authentication) {
     User user = lessonAccessService.requireCurrentUser(authentication);
@@ -43,7 +45,12 @@ public class LessonCompleteService {
                     .lesson(lesson)
                     .updatedAt(Instant.now())
                     .build());
-    progress.setCompletedAt(Instant.now());
+    if (progress.getCompletedAt() != null) {
+      return;
+    }
+    Instant completedAt = Instant.now();
+    progress.setCompletedAt(completedAt);
     lessonProgressRepository.save(progress);
+    studentLearningStreakTrackerService.recordActivity(user.getId(), completedAt);
   }
 }

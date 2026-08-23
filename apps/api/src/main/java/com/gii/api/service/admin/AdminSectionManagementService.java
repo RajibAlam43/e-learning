@@ -4,12 +4,14 @@ import com.gii.api.model.request.admin.CreateSectionRequest;
 import com.gii.api.model.request.admin.UpdateSectionRequest;
 import com.gii.api.model.response.admin.AdminCourseSectionResponse;
 import com.gii.api.model.response.admin.AdminLessonSummaryResponse;
+import com.gii.api.model.response.admin.AdminLiveClassSectionItemResponse;
 import com.gii.api.model.response.admin.AdminQuizSummaryResponse;
 import com.gii.api.model.response.admin.AdminSectionItemResponse;
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.course.CourseSection;
 import com.gii.common.entity.course.Lesson;
 import com.gii.common.entity.course.SectionItem;
+import com.gii.common.entity.live.LiveClass;
 import com.gii.common.entity.quiz.Quiz;
 import com.gii.common.enums.PublishStatus;
 import com.gii.common.enums.ReleaseType;
@@ -18,6 +20,7 @@ import com.gii.common.repository.course.CourseRepository;
 import com.gii.common.repository.course.CourseSectionRepository;
 import com.gii.common.repository.course.LessonRepository;
 import com.gii.common.repository.course.SectionItemRepository;
+import com.gii.common.repository.live.LiveClassRepository;
 import com.gii.common.repository.quiz.QuizRepository;
 import java.time.Instant;
 import java.util.List;
@@ -41,6 +44,7 @@ public class AdminSectionManagementService {
   private final LessonRepository lessonRepository;
   private final QuizRepository quizRepository;
   private final SectionItemRepository sectionItemRepository;
+  private final LiveClassRepository liveClassRepository;
 
   public AdminCourseSectionResponse create(UUID courseId, CreateSectionRequest request) {
     Course course =
@@ -150,15 +154,19 @@ public class AdminSectionManagementService {
         quizRepository.findBySectionIdOrderByPositionAsc(section.getId()).stream()
             .map(this::toQuizSummary)
             .toList();
+    List<LiveClass> liveClasses =
+        liveClassRepository.findBySectionIdOrderByStartsAtAsc(section.getId());
     Map<UUID, AdminLessonSummaryResponse> lessonById =
         lessons.stream()
             .collect(Collectors.toMap(AdminLessonSummaryResponse::lessonId, Function.identity()));
     Map<UUID, AdminQuizSummaryResponse> quizById =
         quizzes.stream()
             .collect(Collectors.toMap(AdminQuizSummaryResponse::quizId, Function.identity()));
+    Map<UUID, LiveClass> liveClassById =
+        liveClasses.stream().collect(Collectors.toMap(LiveClass::getId, Function.identity()));
     List<AdminSectionItemResponse> items =
         sectionItemRepository.findBySectionIdOrderByPositionAsc(section.getId()).stream()
-            .map(item -> toSectionItemResponse(item, lessonById, quizById))
+            .map(item -> toSectionItemResponse(item, lessonById, quizById, liveClassById))
             .toList();
 
     return AdminCourseSectionResponse.builder()
@@ -215,13 +223,29 @@ public class AdminSectionManagementService {
   private AdminSectionItemResponse toSectionItemResponse(
       SectionItem item,
       Map<UUID, AdminLessonSummaryResponse> lessonById,
-      Map<UUID, AdminQuizSummaryResponse> quizById) {
+      Map<UUID, AdminQuizSummaryResponse> quizById,
+      Map<UUID, LiveClass> liveClassById) {
     AdminLessonSummaryResponse lesson = null;
     AdminQuizSummaryResponse quiz = null;
+    AdminLiveClassSectionItemResponse liveClass = null;
     if (item.getItemType() == SectionItemType.LESSON) {
       lesson = lessonById.get(item.getItemId());
     } else if (item.getItemType() == SectionItemType.QUIZ) {
       quiz = quizById.get(item.getItemId());
+    } else if (item.getItemType() == SectionItemType.LIVE_CLASS) {
+      LiveClass value = liveClassById.get(item.getItemId());
+      if (value != null) {
+        liveClass =
+            AdminLiveClassSectionItemResponse.builder()
+                .liveClassId(value.getId())
+                .title(value.getTitle())
+                .titleEn(value.getTitleEn())
+                .startsAt(value.getStartsAt())
+                .endsAt(value.getEndsAt())
+                .provider(value.getProvider())
+                .status(value.getStatus())
+                .build();
+      }
     }
     return AdminSectionItemResponse.builder()
         .itemId(item.getItemId())
@@ -229,6 +253,7 @@ public class AdminSectionManagementService {
         .position(item.getPosition())
         .lesson(lesson)
         .quiz(quiz)
+        .liveClass(liveClass)
         .build();
   }
 

@@ -27,6 +27,7 @@ class MeStatsRepositoriesDataJpaTest extends AbstractMeDataJpaTest {
     var les = lesson(course1, sec, 1);
     var lc = liveClass(course1, sec, les, creator);
     attendance(user, lc);
+    attendance(user, lc);
 
     assertThat(enrollmentRepository.countByUserIdAndStatus(user.getId(), EnrollmentStatus.ACTIVE))
         .isEqualTo(2);
@@ -35,6 +36,7 @@ class MeStatsRepositoriesDataJpaTest extends AbstractMeDataJpaTest {
                 user.getId(), EnrollmentStatus.ACTIVE))
         .isEqualTo(1);
     assertThat(certificateRepository.countByUserIdAndRevokedAtIsNull(user.getId())).isEqualTo(1);
-    assertThat(liveClassAttendanceRepository.countByUserId(user.getId())).isEqualTo(1);
+    assertThat(liveClassAttendanceRepository.countDistinctAttendedLiveClassesByUserId(user.getId()))
+        .isEqualTo(1);
   }
 }

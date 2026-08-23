@@ -6,8 +6,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.gii.common.entity.live.LiveClassAttendance;
 import com.gii.common.entity.quiz.QuizAttempt;
 import com.gii.common.enums.EnrollmentStatus;
+import com.gii.common.enums.LiveClassStatus;
 import com.gii.common.enums.PublishStatus;
 import java.time.Instant;
 import org.junit.jupiter.api.AfterEach;
@@ -25,17 +27,28 @@ class StudentUnifiedCompletionApiIt extends AbstractStudentApiIntegrationTest {
   }
 
   @Test
-  void allProgressViewsCountPublishedLessonsAndPassedQuizzesConsistently() throws Exception {
+  void allProgressViewsCountLessonsQuizzesAndCompletedLiveClassesConsistently() throws Exception {
     var creator = user("Creator", "completion-creator@example.com");
     var student = user("Student", "completion-student@example.com");
     var course = course("Completion Course", "completion-course", creator, PublishStatus.PUBLISHED);
     var section = section(course, 1, PublishStatus.PUBLISHED);
     var completedLesson = lesson(course, section, 1, PublishStatus.PUBLISHED, false);
     final var pendingLesson = lesson(course, section, 2, PublishStatus.PUBLISHED, false);
-    var passedQuiz = quiz(course, section, 3, PublishStatus.PUBLISHED, "Passed Quiz");
+    final var passedQuiz = quiz(course, section, 3, PublishStatus.PUBLISHED, "Passed Quiz");
     final var failedQuiz = quiz(course, section, 4, PublishStatus.PUBLISHED, "Failed Quiz");
+    var attendedLiveClass =
+        liveClass(
+            course,
+            section,
+            completedLesson,
+            creator,
+            LiveClassStatus.COMPLETED,
+            Instant.now().minusSeconds(7200),
+            Instant.now().minusSeconds(3600),
+            "https://live.test/completed");
     enrollment(student, course, EnrollmentStatus.ACTIVE, null);
     completedProgress(student, completedLesson);
+    attendance(student, attendedLiveClass);
     Instant attemptStartedAt = Instant.now().minusSeconds(1);
     quizAttemptRepository.save(
         QuizAttempt.builder()
@@ -63,21 +76,28 @@ class StudentUnifiedCompletionApiIt extends AbstractStudentApiIntegrationTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$[0].completedLessons").value(1))
         .andExpect(jsonPath("$[0].totalLessons").value(2))
-        .andExpect(jsonPath("$[0].completedItems").value(2))
-        .andExpect(jsonPath("$[0].totalItems").value(4))
-        .andExpect(jsonPath("$[0].completionPercentage").value(50.0));
+        .andExpect(jsonPath("$[0].completedItems").value(3))
+        .andExpect(jsonPath("$[0].totalItems").value(5))
+        .andExpect(jsonPath("$[0].completionPercentage").value(60.0));
 
     mockMvc
         .perform(
             get("/student/courses/{courseId}", course.getId())
                 .with(authentication(studentAuth(student.getId()))))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.completedItems").value(2))
-        .andExpect(jsonPath("$.totalItems").value(4))
-        .andExpect(jsonPath("$.sections[0].completedItems").value(2))
-        .andExpect(jsonPath("$.sections[0].totalItems").value(4))
+        .andExpect(jsonPath("$.completedLiveClasses").value(1))
+        .andExpect(jsonPath("$.totalLiveClasses").value(1))
+        .andExpect(jsonPath("$.completedItems").value(3))
+        .andExpect(jsonPath("$.totalItems").value(5))
+        .andExpect(jsonPath("$.sections[0].completedLiveClasses").value(1))
+        .andExpect(jsonPath("$.sections[0].totalLiveClasses").value(1))
+        .andExpect(jsonPath("$.sections[0].completedItems").value(3))
+        .andExpect(jsonPath("$.sections[0].totalItems").value(5))
         .andExpect(jsonPath("$.sections[0].quizzes[0].completed").value(true))
-        .andExpect(jsonPath("$.sections[0].quizzes[1].completed").value(false));
+        .andExpect(jsonPath("$.sections[0].quizzes[1].completed").value(false))
+        .andExpect(jsonPath("$.sections[0].items[4].itemType").value("LIVE_CLASS"))
+        .andExpect(jsonPath("$.sections[0].items[4].liveClass.attended").value(true))
+        .andExpect(jsonPath("$.sections[0].items[4].liveClass.completed").value(true));
 
     mockMvc
         .perform(
@@ -85,7 +105,7 @@ class StudentUnifiedCompletionApiIt extends AbstractStudentApiIntegrationTest {
                 .with(authentication(studentAuth(student.getId()))))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.courseId").value(course.getId().toString()))
-        .andExpect(jsonPath("$.completionPercentage").value(50.0));
+        .andExpect(jsonPath("$.completionPercentage").value(60.0));
 
     mockMvc
         .perform(
@@ -111,6 +131,67 @@ class StudentUnifiedCompletionApiIt extends AbstractStudentApiIntegrationTest {
                 .with(authentication(studentAuth(student.getId()))))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.wasEligible").value(true));
+  }
+
+  @Test
+  void completedLiveClassDoesNotRequireAttendanceAndCancelledSessionsAreIgnored() throws Exception {
+    var creator = user("Creator", "live-completion-creator@example.com");
+    var student = user("Student", "live-completion-student@example.com");
+    var course = course("Live Completion", "live-completion", creator, PublishStatus.PUBLISHED);
+    var section = section(course, 1, PublishStatus.PUBLISHED);
+    var attended =
+        liveClass(
+            course,
+            section,
+            null,
+            creator,
+            LiveClassStatus.COMPLETED,
+            Instant.now().minusSeconds(7200),
+            Instant.now().minusSeconds(3600),
+            "https://live.test/attended");
+    final var neverJoined =
+        liveClass(
+            course,
+            section,
+            null,
+            creator,
+            LiveClassStatus.COMPLETED,
+            Instant.now().minusSeconds(7200),
+            Instant.now().minusSeconds(3600),
+            "https://live.test/not-attended");
+    final var cancelled =
+        liveClass(
+            course,
+            section,
+            null,
+            creator,
+            LiveClassStatus.CANCELLED,
+            Instant.now().minusSeconds(7200),
+            Instant.now().minusSeconds(3600),
+            "https://live.test/cancelled");
+    enrollment(student, course, EnrollmentStatus.ACTIVE, null);
+    attendance(student, attended);
+    attendance(student, attended);
+    liveClassAttendanceRepository.save(
+        LiveClassAttendance.builder().user(student).liveClass(neverJoined).build());
+    attendance(student, cancelled);
+
+    mockMvc
+        .perform(
+            get("/student/courses/{courseId}", course.getId())
+                .with(authentication(studentAuth(student.getId()))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.completedLiveClasses").value(2))
+        .andExpect(jsonPath("$.totalLiveClasses").value(2))
+        .andExpect(jsonPath("$.completedItems").value(2))
+        .andExpect(jsonPath("$.totalItems").value(2))
+        .andExpect(jsonPath("$.completionPercentage").value(100.0))
+        .andExpect(jsonPath("$.sections[0].items[0].liveClass.attended").value(true))
+        .andExpect(jsonPath("$.sections[0].items[0].liveClass.completed").value(true))
+        .andExpect(jsonPath("$.sections[0].items[1].liveClass.attended").value(false))
+        .andExpect(jsonPath("$.sections[0].items[1].liveClass.completed").value(true))
+        .andExpect(jsonPath("$.sections[0].items[2].liveClass.attended").value(false))
+        .andExpect(jsonPath("$.sections[0].items[2].liveClass.completed").value(false));
   }
 
   @Test

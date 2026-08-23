@@ -19,6 +19,7 @@ public record AdminLiveClassDetailResponse(
     UUID sectionId,
     String sectionTitle,
     String sectionTitleEn,
+    Integer position,
     UUID instructorId,
     String instructorName,
     Instant startsAt,

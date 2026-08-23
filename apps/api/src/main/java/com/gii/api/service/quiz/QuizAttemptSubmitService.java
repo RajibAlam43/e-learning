@@ -3,6 +3,7 @@ package com.gii.api.service.quiz;
 import com.gii.api.model.request.quiz.QuizAnswerSubmissionRequest;
 import com.gii.api.model.request.quiz.SubmitQuizAttemptRequest;
 import com.gii.api.model.response.quiz.QuizAttemptResultResponse;
+import com.gii.api.service.student.StudentLearningStreakTrackerService;
 import com.gii.common.entity.quiz.Quiz;
 import com.gii.common.entity.quiz.QuizAttempt;
 import com.gii.common.entity.quiz.QuizAttemptAnswer;
@@ -40,6 +41,7 @@ public class QuizAttemptSubmitService {
   private final QuizChoiceRepository choiceRepository;
   private final QuizAttemptAnswerRepository attemptAnswerRepository;
   private final QuizAttemptResultService attemptResultService;
+  private final StudentLearningStreakTrackerService studentLearningStreakTrackerService;
 
   public QuizAttemptResultResponse execute(
       UUID attemptId, SubmitQuizAttemptRequest request, Authentication authentication) {
@@ -125,8 +127,10 @@ public class QuizAttemptSubmitService {
 
     attempt.setScorePct(scorePct);
     attempt.setPassed(passed);
-    attempt.setSubmittedAt(Instant.now());
+    Instant submittedAt = Instant.now();
+    attempt.setSubmittedAt(submittedAt);
     attemptRepository.save(attempt);
+    studentLearningStreakTrackerService.recordActivity(userId, submittedAt);
 
     return attemptResultService.execute(attempt.getId(), authentication);
   }
