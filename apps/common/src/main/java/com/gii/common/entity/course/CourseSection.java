@@ -72,7 +72,7 @@ public class CourseSection extends BaseUuidEntity {
   // Drip Content Fields
   @Column(name = "is_mandatory", nullable = false)
   @Builder.Default
-  private Boolean isMandatory = false;
+  private Boolean isMandatory = true;
 
   @Column(name = "is_free", nullable = false)
   @Builder.Default

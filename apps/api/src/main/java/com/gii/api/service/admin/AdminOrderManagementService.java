@@ -10,6 +10,7 @@ import com.gii.common.enums.OrderStatus;
 import com.gii.common.repository.order.OrderItemRepository;
 import com.gii.common.repository.order.OrderRepository;
 import com.gii.common.service.payment.PaidOrderEnrollmentService;
+import com.gii.common.service.payment.RefundedOrderEnrollmentService;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -27,6 +28,7 @@ public class AdminOrderManagementService {
   private final OrderRepository orderRepository;
   private final OrderItemRepository orderItemRepository;
   private final PaidOrderEnrollmentService paidOrderEnrollmentService;
+  private final RefundedOrderEnrollmentService refundedOrderEnrollmentService;
 
   @Transactional(readOnly = true)
   public List<AdminOrderSummaryResponse> list() {
@@ -64,6 +66,8 @@ public class AdminOrderManagementService {
     Order saved = orderRepository.save(order);
     if (saved.getStatus() == OrderStatus.PAID) {
       paidOrderEnrollmentService.grant(saved.getId());
+    } else if (saved.getStatus() == OrderStatus.REFUNDED) {
+      refundedOrderEnrollmentService.revoke(saved.getId());
     }
     return toDetail(saved, request.adminNote());
   }

@@ -2,6 +2,7 @@ package com.gii.api.service.student;
 
 import com.gii.api.model.response.student.StudentCollectionSummaryResponse;
 import com.gii.api.service.collection.PurchasedCollectionCoursesService;
+import com.gii.api.service.collection.PurchasedCollectionCoursesService.PurchasedCourse;
 import com.gii.api.service.enrollment.CurrentUserService;
 import com.gii.api.service.localization.LocalizedContentService;
 import com.gii.api.service.progress.CourseCompletionService;
@@ -44,19 +45,19 @@ public class StudentCollectionsService {
       return List.of();
     }
 
-    Map<UUID, List<Course>> coursesByCollectionId = new HashMap<>();
+    Map<UUID, List<PurchasedCourse>> coursesByCollectionId = new HashMap<>();
     for (CollectionEnrollment enrollment : enrollments) {
       coursesByCollectionId.put(
           enrollment.getCollection().getId(),
-          purchasedCollectionCoursesService.resolve(enrollment).stream()
-              .filter(course -> course.getStatus() == PublishStatus.PUBLISHED)
+          purchasedCollectionCoursesService.resolveItems(enrollment).stream()
+              .filter(item -> item.course().getStatus() == PublishStatus.PUBLISHED)
               .toList());
     }
 
     List<UUID> allCourseIds =
         coursesByCollectionId.values().stream()
             .flatMap(List::stream)
-            .map(Course::getId)
+            .map(item -> item.course().getId())
             .distinct()
             .toList();
     Map<UUID, CourseCompletion> completionByCourseId =
@@ -66,19 +67,22 @@ public class StudentCollectionsService {
         .map(
             enrollment -> {
               Collection collection = enrollment.getCollection();
-              List<Course> collectionCourses =
+              List<PurchasedCourse> collectionCourses =
                   coursesByCollectionId.getOrDefault(collection.getId(), List.of());
               int totalLessons = 0;
               int completedLessons = 0;
               int totalItems = 0;
               int completedItems = 0;
-              for (Course course : collectionCourses) {
+              for (PurchasedCourse item : collectionCourses) {
+                Course course = item.course();
                 UUID courseId = course.getId();
                 CourseCompletion courseCompletion = completionByCourseId.get(courseId);
-                totalLessons += courseCompletion.totalLessons();
-                completedLessons += courseCompletion.completedLessons();
-                totalItems += courseCompletion.totalItems();
-                completedItems += courseCompletion.completedItems();
+                if (item.mandatory()) {
+                  totalLessons += courseCompletion.totalLessons();
+                  completedLessons += courseCompletion.completedLessons();
+                  totalItems += courseCompletion.totalItems();
+                  completedItems += courseCompletion.completedItems();
+                }
               }
               double progress =
                   totalItems == 0 ? 0.0 : Math.round(completedItems * 10000.0 / totalItems) / 100.0;

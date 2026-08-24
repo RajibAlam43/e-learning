@@ -29,6 +29,10 @@ public interface CollectionEnrollmentRepository extends JpaRepository<Collection
   Optional<CollectionEnrollment> findByUserIdAndCollectionIdAndStatus(
       UUID userId, UUID collectionId, EnrollmentStatus status);
 
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
+  @Query("SELECT ce FROM CollectionEnrollment ce WHERE ce.sourceOrderItem.order.id = :orderId")
+  List<CollectionEnrollment> findBySourceOrderIdForUpdate(@Param("orderId") UUID orderId);
+
   boolean existsByUserIdAndCollectionIdAndStatus(
       UUID userId, UUID collectionId, EnrollmentStatus status);
 

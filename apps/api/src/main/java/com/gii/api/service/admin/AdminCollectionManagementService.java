@@ -232,7 +232,7 @@ public class AdminCollectionManagementService {
                         .collection(collection)
                         .course(courseById.get(item.courseId()))
                         .position(item.position())
-                        .isMandatory(Boolean.TRUE.equals(item.isMandatory()))
+                        .isMandatory(!Boolean.FALSE.equals(item.isMandatory()))
                         .build())
             .toList();
     collectionCourseRepository.saveAll(newRows);

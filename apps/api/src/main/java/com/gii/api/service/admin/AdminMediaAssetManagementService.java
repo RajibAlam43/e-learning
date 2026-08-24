@@ -92,6 +92,7 @@ public class AdminMediaAssetManagementService {
             .findById(mediaAssetId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Media asset not found"));
+    templateMutationGuard.requireDraft(asset.getLesson().getSection().getTemplateVersion());
     if (request.title() != null) {
       asset.setTitle(request.title());
     }

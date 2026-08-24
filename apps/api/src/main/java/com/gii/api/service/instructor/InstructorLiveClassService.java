@@ -96,7 +96,7 @@ public class InstructorLiveClassService {
                         HttpStatus.FORBIDDEN, "Not assigned to this course section"));
     final Course course =
         courseRepository
-            .findById(courseId)
+            .findByIdForUpdate(courseId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found"));
     if (liveClassRepository.existsByCourseIdAndSlotId(courseId, slot.getId())) {
@@ -105,6 +105,7 @@ public class InstructorLiveClassService {
     }
     validateSupportedProvider(request.provider());
     validateSchedule(request.startsAt(), request.endsAt());
+    validateOfferingWindow(course, request.startsAt(), request.endsAt());
     validateCapacity(request.maxCapacity());
     ensureNoProviderOverlap(request.provider(), request.startsAt(), request.endsAt());
 
@@ -198,6 +199,8 @@ public class InstructorLiveClassService {
       UUID liveClassId, UpdateLiveClassRequest request, Authentication authentication) {
     UUID instructorId = currentUserService.getCurrentUserId(authentication);
     LiveClass liveClass = requireOwnedLiveClass(liveClassId, instructorId);
+    final Course course =
+        courseRepository.findByIdForUpdate(liveClass.getCourse().getId()).orElseThrow();
     boolean mutatingMetadata =
         request.title() != null
             || request.titleEn() != null
@@ -227,6 +230,7 @@ public class InstructorLiveClassService {
       Instant startsAt = request.startsAt() != null ? request.startsAt() : liveClass.getStartsAt();
       Instant endsAt = request.endsAt() != null ? request.endsAt() : liveClass.getEndsAt();
       validateSchedule(startsAt, endsAt);
+      validateOfferingWindow(course, startsAt, endsAt);
       if (isApiProvisioned(liveClass)) {
         ensureNoProviderOverlap(liveClass.getProvider(), startsAt, endsAt, liveClass.getId());
       }
@@ -340,6 +344,17 @@ public class InstructorLiveClassService {
     if (startsAt.isBefore(Instant.now().plus(CREATE_LEAD_TIME))) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "Start time must be at least 2 minutes in the future");
+    }
+  }
+
+  private void validateOfferingWindow(Course course, Instant startsAt, Instant endsAt) {
+    if (course.getStartsAt() != null && startsAt.isBefore(course.getStartsAt())) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Live class cannot start before the course offering");
+    }
+    if (course.getEndsAt() != null && endsAt.isAfter(course.getEndsAt())) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Live class cannot end after the course offering");
     }
   }
 

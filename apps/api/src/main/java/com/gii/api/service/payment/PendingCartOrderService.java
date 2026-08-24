@@ -311,6 +311,7 @@ public class PendingCartOrderService {
                 .orderItem(item)
                 .course(included.getCourse())
                 .position(included.getPosition())
+                .isMandatory(included.getIsMandatory())
                 .build());
       }
     }

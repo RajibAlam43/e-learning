@@ -27,6 +27,7 @@ public interface QuizAttemptRepository extends JpaRepository<QuizAttempt, UUID> 
         AND qa.enrollment.course.id IN :courseIds
         AND qa.quiz.status = :status
         AND qa.quiz.section.status = :status
+        AND qa.quiz.section.isMandatory = true
         AND qa.passed = true
         GROUP BY qa.enrollment.course.id
       """)

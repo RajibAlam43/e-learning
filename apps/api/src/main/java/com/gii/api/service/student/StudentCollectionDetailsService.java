@@ -3,6 +3,7 @@ package com.gii.api.service.student;
 import com.gii.api.model.response.student.StudentCollectionCourseProgressResponse;
 import com.gii.api.model.response.student.StudentCollectionDetailsResponse;
 import com.gii.api.service.collection.PurchasedCollectionCoursesService;
+import com.gii.api.service.collection.PurchasedCollectionCoursesService.PurchasedCourse;
 import com.gii.api.service.enrollment.CurrentUserService;
 import com.gii.api.service.localization.LocalizedContentService;
 import com.gii.api.service.progress.CourseCompletionService;
@@ -50,12 +51,12 @@ public class StudentCollectionDetailsService {
                         HttpStatus.NOT_FOUND, "Collection not found or not enrolled"));
 
     Collection collection = enrollment.getCollection();
-    List<Course> collectionCourses =
-        purchasedCollectionCoursesService.resolve(enrollment).stream()
-            .filter(course -> course.getStatus() == PublishStatus.PUBLISHED)
+    List<PurchasedCourse> collectionCourses =
+        purchasedCollectionCoursesService.resolveItems(enrollment).stream()
+            .filter(item -> item.course().getStatus() == PublishStatus.PUBLISHED)
             .toList();
 
-    List<UUID> courseIds = collectionCourses.stream().map(Course::getId).toList();
+    List<UUID> courseIds = collectionCourses.stream().map(item -> item.course().getId()).toList();
     Map<UUID, CourseCompletion> completionByCourseId =
         courseCompletionService.getByCourseIds(userId, courseIds);
 
@@ -64,7 +65,8 @@ public class StudentCollectionDetailsService {
     List<StudentCollectionCourseProgressResponse> courses =
         collectionCourses.stream()
             .map(
-                course -> {
+                item -> {
+                  Course course = item.course();
                   UUID courseId = course.getId();
                   CourseCompletion completion = completionByCourseId.get(courseId);
                   return StudentCollectionCourseProgressResponse.builder()
@@ -82,14 +84,25 @@ public class StudentCollectionDetailsService {
                 })
             .toList();
 
-    for (StudentCollectionCourseProgressResponse item : courses) {
-      totalLessons += item.totalLessons();
-      completedLessons += item.completedLessons();
+    for (PurchasedCourse item : collectionCourses) {
+      if (item.mandatory()) {
+        CourseCompletion completion = completionByCourseId.get(item.course().getId());
+        totalLessons += completion.totalLessons();
+        completedLessons += completion.completedLessons();
+      }
     }
     int totalItems =
-        courses.stream().mapToInt(StudentCollectionCourseProgressResponse::totalItems).sum();
+        collectionCourses.stream()
+            .filter(PurchasedCourse::mandatory)
+            .map(PurchasedCourse::course)
+            .mapToInt(course -> completionByCourseId.get(course.getId()).totalItems())
+            .sum();
     int completedItems =
-        courses.stream().mapToInt(StudentCollectionCourseProgressResponse::completedItems).sum();
+        collectionCourses.stream()
+            .filter(PurchasedCourse::mandatory)
+            .map(PurchasedCourse::course)
+            .mapToInt(course -> completionByCourseId.get(course.getId()).completedItems())
+            .sum();
     double progress =
         totalItems == 0 ? 0.0 : Math.round(completedItems * 10000.0 / totalItems) / 100.0;
 

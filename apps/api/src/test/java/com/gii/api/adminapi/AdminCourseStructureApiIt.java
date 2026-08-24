@@ -12,6 +12,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.gii.common.enums.LiveClassProvisioningMode;
 import com.gii.common.enums.PublishStatus;
+import com.gii.common.enums.ReleaseType;
+import java.time.Instant;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -284,6 +286,13 @@ class AdminCourseStructureApiIt extends AbstractAdminApiIntegrationTest {
     var source = course("Repeatable Course", "repeatable-spring", admin);
     var sourceSection = section(source, 1);
     var sourceLesson = lesson(source, sourceSection, 1);
+    sourceSection.setReleaseType(ReleaseType.FIXED_DATE);
+    sourceSection.setReleaseAt(Instant.parse("2030-01-01T00:00:00Z"));
+    courseSectionRepository.saveAndFlush(sourceSection);
+    sourceLesson.setReleaseType(ReleaseType.FIXED_DATE);
+    sourceLesson.setReleaseAt(Instant.parse("2030-01-02T00:00:00Z"));
+    lessonRepository.saveAndFlush(sourceLesson);
+    var sourceMedia = mediaAsset(sourceLesson, "repeat-shared-playback");
     var sourceQuiz = quiz(source, "Versioned quiz");
     var sourceLiveClass = liveClass(source, sourceSection, sourceLesson);
 
@@ -326,14 +335,27 @@ class AdminCourseStructureApiIt extends AbstractAdminApiIntegrationTest {
                 .asText());
     assertThat(courseRepository.findById(repeatedId).orElseThrow().getTemplateVersion().getId())
         .isNotEqualTo(source.getTemplateVersion().getId());
+    var repeatedSection =
+        courseSectionRepository.findByCourseIdOrderByPositionAsc(repeatedId).getFirst();
     assertThat(courseSectionRepository.findByCourseIdOrderByPositionAsc(repeatedId))
         .hasSize(1)
         .extracting("id")
         .doesNotContain(sourceSection.getId());
+    var repeatedLesson = lessonRepository.findByCourseIdOrderByPositionAsc(repeatedId).getFirst();
     assertThat(lessonRepository.findByCourseIdOrderByPositionAsc(repeatedId))
         .hasSize(1)
         .extracting("id")
         .doesNotContain(sourceLesson.getId());
+    assertThat(repeatedSection.getReleaseType()).isEqualTo(ReleaseType.IMMEDIATE);
+    assertThat(repeatedSection.getReleaseAt()).isNull();
+    assertThat(repeatedLesson.getReleaseType()).isEqualTo(ReleaseType.IMMEDIATE);
+    assertThat(repeatedLesson.getReleaseAt()).isNull();
+    assertThat(mediaAssetRepository.findByLessonId(repeatedLesson.getId()).orElseThrow())
+        .satisfies(
+            media -> {
+              assertThat(media.getProviderAssetId()).isEqualTo(sourceMedia.getProviderAssetId());
+              assertThat(media.getPlaybackId()).isEqualTo(sourceMedia.getPlaybackId());
+            });
     assertThat(
             quizRepository.findBySectionIdOrderByPositionAsc(
                 courseSectionRepository

@@ -24,6 +24,7 @@ public interface LiveClassSlotRepository extends JpaRepository<LiveClassSlot, UU
         WHERE c.id IN :courseIds
         AND slot.section.templateVersion.id = c.templateVersion.id
         AND slot.section.status = :sectionStatus
+        AND slot.section.isMandatory = true
         AND slot.isMandatory = true
         AND NOT EXISTS (
           SELECT lc.id FROM LiveClass lc

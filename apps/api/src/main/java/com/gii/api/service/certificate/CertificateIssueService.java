@@ -169,8 +169,11 @@ public class CertificateIssueService {
     }
 
     var courseIds =
-        purchasedCollectionCoursesService.resolve(enrollment).stream()
-            .map(course -> course.getId())
+        purchasedCollectionCoursesService.resolveItems(enrollment).stream()
+            .filter(
+                com.gii.api.service.collection.PurchasedCollectionCoursesService.PurchasedCourse
+                    ::mandatory)
+            .map(item -> item.course().getId())
             .distinct()
             .toList();
     if (courseIds.isEmpty()) {

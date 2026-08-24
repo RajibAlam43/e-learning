@@ -328,6 +328,21 @@ class AdminOperationsApiIt extends AbstractAdminApiIntegrationTest {
     org.assertj.core.api.Assertions.assertThat(
             enrollmentRepository.findByUserIdAndCourseId(buyer.getId(), course.getId()))
         .isPresent();
+
+    mockMvc
+        .perform(
+            patch("/admin/orders/{orderId}", order.getId())
+                .with(authentication(adminAuth(admin.getId())))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"status\":\"REFUNDED\"}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.status").value("REFUNDED"));
+
+    var refundedEnrollment =
+        enrollmentRepository.findByUserIdAndCourseId(buyer.getId(), course.getId()).orElseThrow();
+    org.assertj.core.api.Assertions.assertThat(refundedEnrollment.getStatus())
+        .isEqualTo(com.gii.common.enums.EnrollmentStatus.REFUNDED);
+    org.assertj.core.api.Assertions.assertThat(refundedEnrollment.getRevokedAt()).isNotNull();
   }
 
   @Test

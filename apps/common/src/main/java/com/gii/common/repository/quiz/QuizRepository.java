@@ -49,6 +49,7 @@ public interface QuizRepository extends JpaRepository<Quiz, UUID> {
         AND q.section.templateVersion.id = c.templateVersion.id
         AND q.status = :status
         AND q.section.status = :status
+        AND q.section.isMandatory = true
         GROUP BY c.id
       """)
   List<Object[]> countByCourseIdsAndStatus(

@@ -101,7 +101,7 @@ public class AdminLiveClassManagementService {
   public AdminLiveClassDetailResponse create(UUID courseId, CreateLiveClassRequest request) {
     Course course =
         courseRepository
-            .findById(courseId)
+            .findByIdForUpdate(courseId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found"));
     CourseSection section =
@@ -113,6 +113,7 @@ public class AdminLiveClassManagementService {
     templateMutationGuard.requireDraft(course.getTemplateVersion());
     validateSupportedProvider(request.provider());
     validateTimeRange(request.startsAt(), request.endsAt());
+    validateOfferingWindow(course, request.startsAt(), request.endsAt());
     validateCapacity(request.maxCapacity());
     ensureNoProviderOverlap(request.provider(), request.startsAt(), request.endsAt());
     int position = resolveCreatePosition(section.getId(), request.position());
@@ -204,6 +205,7 @@ public class AdminLiveClassManagementService {
     final LiveClassSlot slot = requireSchedulableSlot(course, courseId, liveClassItemId);
     validateSupportedProvider(request.provider());
     validateTimeRange(request.startsAt(), request.endsAt());
+    validateOfferingWindow(course, request.startsAt(), request.endsAt());
     validateCapacity(request.maxCapacity());
     ensureNoProviderOverlap(request.provider(), request.startsAt(), request.endsAt());
     LiveMeetingCreateResult meeting =
@@ -244,6 +246,7 @@ public class AdminLiveClassManagementService {
     Course course = requireCourse(courseId);
     final LiveClassSlot slot = requireSchedulableSlot(course, courseId, liveClassItemId);
     validateTimeRange(request.startsAt(), request.endsAt());
+    validateOfferingWindow(course, request.startsAt(), request.endsAt());
     validateCapacity(request.maxCapacity());
     if (request.provider() == null) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Provider is required");
@@ -291,7 +294,7 @@ public class AdminLiveClassManagementService {
 
   private Course requireCourse(UUID courseId) {
     return courseRepository
-        .findById(courseId)
+        .findByIdForUpdate(courseId)
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found"));
   }
 
@@ -324,6 +327,8 @@ public class AdminLiveClassManagementService {
             .findById(liveClassId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Live class not found"));
+    final Course course =
+        courseRepository.findByIdForUpdate(liveClass.getCourse().getId()).orElseThrow();
     boolean mutatingMetadata =
         request.title() != null
             || request.titleEn() != null
@@ -355,6 +360,7 @@ public class AdminLiveClassManagementService {
       Instant startsAt = request.startsAt() != null ? request.startsAt() : liveClass.getStartsAt();
       Instant endsAt = request.endsAt() != null ? request.endsAt() : liveClass.getEndsAt();
       validateTimeRange(startsAt, endsAt);
+      validateOfferingWindow(course, startsAt, endsAt);
       if (isApiProvisioned(liveClass)) {
         ensureNoProviderOverlap(liveClass.getProvider(), startsAt, endsAt, liveClass.getId());
       }
@@ -652,6 +658,17 @@ public class AdminLiveClassManagementService {
     if (startsAt.isBefore(Instant.now().plus(CREATE_LEAD_TIME))) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "Start time must be at least 2 minutes in the future");
+    }
+  }
+
+  private void validateOfferingWindow(Course course, Instant startsAt, Instant endsAt) {
+    if (course.getStartsAt() != null && startsAt.isBefore(course.getStartsAt())) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Live class cannot start before the course offering");
+    }
+    if (course.getEndsAt() != null && endsAt.isAfter(course.getEndsAt())) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Live class cannot end after the course offering");
     }
   }
 

@@ -13,7 +13,9 @@ import com.gii.common.entity.live.LiveClassSlot;
 import com.gii.common.entity.quiz.Quiz;
 import com.gii.common.entity.quiz.QuizChoice;
 import com.gii.common.entity.quiz.QuizQuestion;
+import com.gii.common.enums.MediaStatus;
 import com.gii.common.enums.PublishStatus;
+import com.gii.common.enums.ReleaseType;
 import com.gii.common.repository.course.CourseCategoryRepository;
 import com.gii.common.repository.course.CourseSectionRepository;
 import com.gii.common.repository.course.CourseTemplateRepository;
@@ -56,10 +58,14 @@ public class CourseTemplateVersionCloneService {
   private final SectionItemRepository sectionItemRepository;
 
   public CourseTemplateVersion cloneForEditing(Course sourceCourse) {
-    return cloneForEditingWithSlotMapping(sourceCourse).version();
+    return clone(sourceCourse, false).version();
   }
 
   public CloneResult cloneForEditingWithSlotMapping(Course sourceCourse) {
+    return clone(sourceCourse, true);
+  }
+
+  private CloneResult clone(Course sourceCourse, boolean preserveFixedReleaseDates) {
     CourseTemplateVersion source = sourceCourse.getTemplateVersion();
     CourseTemplate template =
         templateRepository
@@ -82,8 +88,9 @@ public class CourseTemplateVersionCloneService {
     Map<UUID, Lesson> lessons = new HashMap<>();
     for (CourseSection sourceSection :
         sectionRepository.findByCourseIdOrderByPositionAsc(sourceCourse.getId())) {
-      CourseSection targetSection = sectionRepository.save(copySection(sourceSection, target));
-      copyLessons(sourceSection, targetSection, itemIds, lessons);
+      CourseSection targetSection =
+          sectionRepository.save(copySection(sourceSection, target, preserveFixedReleaseDates));
+      copyLessons(sourceSection, targetSection, itemIds, lessons, preserveFixedReleaseDates);
       copyQuizzes(sourceSection, targetSection, itemIds);
       copyLiveClassSlots(sourceSection, targetSection, itemIds);
       copySectionItems(sourceSection, targetSection, itemIds);
@@ -151,7 +158,10 @@ public class CourseTemplateVersionCloneService {
             .toList());
   }
 
-  private CourseSection copySection(CourseSection source, CourseTemplateVersion templateVersion) {
+  private CourseSection copySection(
+      CourseSection source,
+      CourseTemplateVersion templateVersion,
+      boolean preserveFixedReleaseDates) {
     return CourseSection.builder()
         .templateVersion(templateVersion)
         .title(source.getTitle())
@@ -164,9 +174,13 @@ public class CourseTemplateVersionCloneService {
         .publishedAt(source.getPublishedAt())
         .isMandatory(source.getIsMandatory())
         .isFree(source.getIsFree())
-        .releaseType(source.getReleaseType())
-        .releaseAt(source.getReleaseAt())
-        .unlockAfterDays(source.getUnlockAfterDays())
+        .releaseType(copiedReleaseType(source.getReleaseType(), preserveFixedReleaseDates))
+        .releaseAt(
+            copiedReleaseAt(
+                source.getReleaseType(), source.getReleaseAt(), preserveFixedReleaseDates))
+        .unlockAfterDays(
+            copiedUnlockAfterDays(
+                source.getReleaseType(), source.getUnlockAfterDays(), preserveFixedReleaseDates))
         .build();
   }
 
@@ -174,7 +188,8 @@ public class CourseTemplateVersionCloneService {
       CourseSection sourceSection,
       CourseSection targetSection,
       Map<UUID, UUID> itemIds,
-      Map<UUID, Lesson> lessons) {
+      Map<UUID, Lesson> lessons,
+      boolean preserveFixedReleaseDates) {
     for (Lesson source :
         lessonRepository.findBySectionIdOrderByPositionAsc(sourceSection.getId())) {
       Lesson target =
@@ -191,9 +206,18 @@ public class CourseTemplateVersionCloneService {
                   .transcriptUrl(source.getTranscriptUrl())
                   .isFree(source.getIsFree())
                   .isMandatory(source.getIsMandatory())
-                  .releaseType(source.getReleaseType())
-                  .releaseAt(source.getReleaseAt())
-                  .unlockAfterDays(source.getUnlockAfterDays())
+                  .releaseType(
+                      copiedReleaseType(source.getReleaseType(), preserveFixedReleaseDates))
+                  .releaseAt(
+                      copiedReleaseAt(
+                          source.getReleaseType(),
+                          source.getReleaseAt(),
+                          preserveFixedReleaseDates))
+                  .unlockAfterDays(
+                      copiedUnlockAfterDays(
+                          source.getReleaseType(),
+                          source.getUnlockAfterDays(),
+                          preserveFixedReleaseDates))
                   .build());
       lessons.put(source.getId(), target);
       itemIds.put(source.getId(), target.getId());
@@ -225,26 +249,32 @@ public class CourseTemplateVersionCloneService {
     mediaAssetRepository
         .findByLessonId(source.getId())
         .ifPresent(
-            media ->
-                mediaAssetRepository.save(
-                    MediaAsset.builder()
-                        .lesson(target)
-                        .provider(media.getProvider())
-                        .assetType(media.getAssetType())
-                        .providerAssetId(media.getProviderAssetId())
-                        .providerLibraryId(media.getProviderLibraryId())
-                        .playbackId(media.getPlaybackId())
-                        .playbackPolicy(media.getPlaybackPolicy())
-                        .fileUrl(media.getFileUrl())
-                        .title(media.getTitle())
-                        .titleEn(media.getTitleEn())
-                        .thumbnailObjectKey(media.getThumbnailObjectKey())
-                        .maxResolution(media.getMaxResolution())
-                        .durationSec(media.getDurationSec())
-                        .status(media.getStatus())
-                        .createdBy(media.getCreatedBy())
-                        .preferredPlaybackMode(media.getPreferredPlaybackMode())
-                        .build()));
+            media -> {
+              if (media.getStatus() != MediaStatus.READY) {
+                throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Course cannot be copied while a lesson media asset is still processing");
+              }
+              mediaAssetRepository.save(
+                  MediaAsset.builder()
+                      .lesson(target)
+                      .provider(media.getProvider())
+                      .assetType(media.getAssetType())
+                      .providerAssetId(media.getProviderAssetId())
+                      .providerLibraryId(media.getProviderLibraryId())
+                      .playbackId(media.getPlaybackId())
+                      .playbackPolicy(media.getPlaybackPolicy())
+                      .fileUrl(media.getFileUrl())
+                      .title(media.getTitle())
+                      .titleEn(media.getTitleEn())
+                      .thumbnailObjectKey(media.getThumbnailObjectKey())
+                      .maxResolution(media.getMaxResolution())
+                      .durationSec(media.getDurationSec())
+                      .status(media.getStatus())
+                      .createdBy(media.getCreatedBy())
+                      .preferredPlaybackMode(media.getPreferredPlaybackMode())
+                      .build());
+            });
   }
 
   private void copyQuizzes(
@@ -342,6 +372,26 @@ public class CourseTemplateVersionCloneService {
 
   private List<String> copyList(List<String> values) {
     return values == null ? null : new ArrayList<>(values);
+  }
+
+  private ReleaseType copiedReleaseType(
+      ReleaseType releaseType, boolean preserveFixedReleaseDates) {
+    if (!preserveFixedReleaseDates && releaseType == ReleaseType.FIXED_DATE) {
+      return ReleaseType.IMMEDIATE;
+    }
+    return releaseType;
+  }
+
+  private java.time.Instant copiedReleaseAt(
+      ReleaseType releaseType, java.time.Instant releaseAt, boolean preserveFixedReleaseDates) {
+    return preserveFixedReleaseDates || releaseType != ReleaseType.FIXED_DATE ? releaseAt : null;
+  }
+
+  private Integer copiedUnlockAfterDays(
+      ReleaseType releaseType, Integer unlockAfterDays, boolean preserveFixedReleaseDates) {
+    return !preserveFixedReleaseDates && releaseType == ReleaseType.FIXED_DATE
+        ? null
+        : unlockAfterDays;
   }
 
   public record CloneResult(CourseTemplateVersion version, Map<UUID, UUID> liveClassSlotIds) {}

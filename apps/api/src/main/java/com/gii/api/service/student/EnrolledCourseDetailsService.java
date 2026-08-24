@@ -208,16 +208,25 @@ public class EnrolledCourseDetailsService {
                     SectionItem::getItemId, SectionItem::getPosition));
     boolean sectionAccessible =
         curriculumAccessService.isSectionAccessible(section, enrollment, now);
-    int totalLessons = lessons.size();
+    boolean sectionMandatory = Boolean.TRUE.equals(section.getIsMandatory());
+    int totalLessons =
+        sectionMandatory
+            ? (int) lessons.stream().filter(l -> Boolean.TRUE.equals(l.getIsMandatory())).count()
+            : 0;
     int completedLessons =
-        (int)
-            lessons.stream()
-                .map(Lesson::getId)
-                .map(progressByLessonId::get)
-                .filter(p -> p != null && p.getCompletedAt() != null)
-                .count();
+        sectionMandatory
+            ? (int)
+                lessons.stream()
+                    .filter(lesson -> Boolean.TRUE.equals(lesson.getIsMandatory()))
+                    .map(Lesson::getId)
+                    .map(progressByLessonId::get)
+                    .filter(p -> p != null && p.getCompletedAt() != null)
+                    .count()
+            : 0;
     int completedQuizzes =
-        (int) quizzes.stream().map(Quiz::getId).filter(passedQuizIds::contains).count();
+        sectionMandatory
+            ? (int) quizzes.stream().map(Quiz::getId).filter(passedQuizIds::contains).count()
+            : 0;
     Set<UUID> completableLiveClassIds =
         sectionItems.stream()
             .filter(item -> item.getItemType() == SectionItemType.LIVE_CLASS)
@@ -227,6 +236,7 @@ public class EnrolledCourseDetailsService {
                   LiveClassSlot slot = liveClassSlotById.get(id);
                   LiveClass scheduled = liveClassBySlotId.get(id);
                   return slot != null
+                      && sectionMandatory
                       && Boolean.TRUE.equals(slot.getIsMandatory())
                       && (scheduled == null
                           || (scheduled.getStatus() != LiveClassStatus.CANCELLED
@@ -241,7 +251,7 @@ public class EnrolledCourseDetailsService {
                 .filter(java.util.Objects::nonNull)
                 .filter(liveClass -> liveClass.getStatus() == LiveClassStatus.COMPLETED)
                 .count();
-    int totalItems = totalLessons + quizzes.size() + totalLiveClasses;
+    int totalItems = totalLessons + (sectionMandatory ? quizzes.size() : 0) + totalLiveClasses;
     int completedItems = completedLessons + completedQuizzes + completedLiveClasses;
     double completion = totalItems == 0 ? 0.0 : (completedItems * 100.0) / totalItems;
 

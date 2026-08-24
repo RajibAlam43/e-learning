@@ -218,7 +218,7 @@ public class AdminCourseManagementService {
   public AdminCourseDetailResponse update(UUID courseId, UpdateCourseRequest request) {
     Course course =
         courseRepository
-            .findById(courseId)
+            .findByIdForUpdate(courseId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found"));
     if (hasTemplateUpdates(request)) {
@@ -322,6 +322,7 @@ public class AdminCourseManagementService {
       course.setAccessDurationDays(request.getAccessDurationDays());
     }
     validateOfferingWindow(course);
+    validateScheduledLiveClassesWithinOffering(course);
     return getResponse(courseRepository.save(course));
   }
 
@@ -621,6 +622,19 @@ public class AdminCourseManagementService {
         && course.getEndsAt() != null
         && !course.getEndsAt().isAfter(course.getStartsAt())) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Course end must be after start");
+    }
+  }
+
+  private void validateScheduledLiveClassesWithinOffering(Course course) {
+    for (var liveClass : liveClassRepository.findByCourseId(course.getId())) {
+      if (course.getStartsAt() != null && liveClass.getStartsAt().isBefore(course.getStartsAt())) {
+        throw new ResponseStatusException(
+            HttpStatus.BAD_REQUEST, "Course start cannot be after an existing live class start");
+      }
+      if (course.getEndsAt() != null && liveClass.getEndsAt().isAfter(course.getEndsAt())) {
+        throw new ResponseStatusException(
+            HttpStatus.BAD_REQUEST, "Course end cannot be before an existing live class end");
+      }
     }
   }
 

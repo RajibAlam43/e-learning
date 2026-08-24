@@ -2,6 +2,7 @@ package com.gii.api.studentapi;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -101,5 +102,40 @@ class StudentCoursesApiIt extends AbstractStudentApiIntegrationTest {
             jsonPath("$.sections[0].items[3].liveClass.liveClassId")
                 .value(liveClass.getId().toString()))
         .andExpect(jsonPath("$.sections[0].completedLessons").value(1));
+  }
+
+  @Test
+  void enrollFreeCourseCreatesActiveEnrollment() throws Exception {
+    var student = user("Free Student", "free-student@example.com");
+    var creator = user("Creator", "creator-free@example.com");
+    var course = course("Free Course", "free-course", creator, PublishStatus.PUBLISHED);
+    course.setIsFree(true);
+    course.setPriceBdt(java.math.BigDecimal.ZERO);
+    courseRepository.saveAndFlush(course);
+
+    mockMvc
+        .perform(
+            post("/student/courses/{courseId}/enroll", course.getId())
+                .with(authentication(studentAuth(student.getId()))))
+        .andExpect(status().isNoContent());
+
+    var enrollment =
+        enrollmentRepository.findByUserIdAndCourseId(student.getId(), course.getId()).orElseThrow();
+    org.assertj.core.api.Assertions.assertThat(enrollment.getStatus())
+        .isEqualTo(EnrollmentStatus.ACTIVE);
+    org.assertj.core.api.Assertions.assertThat(enrollment.getSourceOrderItem()).isNull();
+  }
+
+  @Test
+  void enrollFreeCourseRejectsPaidCourse() throws Exception {
+    var student = user("Paid Student", "paid-student@example.com");
+    var creator = user("Creator", "creator-paid@example.com");
+    var course = course("Paid Course", "paid-course", creator, PublishStatus.PUBLISHED);
+
+    mockMvc
+        .perform(
+            post("/student/courses/{courseId}/enroll", course.getId())
+                .with(authentication(studentAuth(student.getId()))))
+        .andExpect(status().isConflict());
   }
 }

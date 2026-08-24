@@ -67,7 +67,7 @@ public class AdminSectionManagementService {
             .position(request.position())
             .description(request.description())
             .descriptionEn(request.descriptionEn())
-            .isMandatory(Boolean.TRUE.equals(request.isMandatory()))
+            .isMandatory(!Boolean.FALSE.equals(request.isMandatory()))
             .isFree(Boolean.TRUE.equals(request.isFree()))
             .releaseType(parseReleaseType(request.releaseType()))
             .releaseAt(request.releaseAt())

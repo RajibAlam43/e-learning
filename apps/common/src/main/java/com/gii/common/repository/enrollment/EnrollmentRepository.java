@@ -29,6 +29,10 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, UUID> {
   Optional<Enrollment> findByUserIdAndCourseIdAndStatus(
       UUID userId, UUID courseId, EnrollmentStatus status);
 
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
+  @Query("SELECT e FROM Enrollment e WHERE e.sourceOrderItem.order.id = :orderId")
+  List<Enrollment> findBySourceOrderIdForUpdate(@Param("orderId") UUID orderId);
+
   @Query(
       """
         SELECT e

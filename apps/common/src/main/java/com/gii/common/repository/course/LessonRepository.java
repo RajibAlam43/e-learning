@@ -81,6 +81,8 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID> {
         AND l.section.templateVersion.id = c.templateVersion.id
         AND l.status = :status
         AND l.section.status = :status
+        AND l.isMandatory = true
+        AND l.section.isMandatory = true
         GROUP BY c.id
       """)
   List<Object[]> countCompletableByCourseIdsAndStatus(

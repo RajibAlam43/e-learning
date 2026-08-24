@@ -71,7 +71,7 @@ public class AdminLessonManagementService {
             .slug(request.slug().trim())
             .position(request.position())
             .lessonType(parseLessonType(request.lessonType()))
-            .isMandatory(Boolean.TRUE.equals(request.isMandatory()))
+            .isMandatory(!Boolean.FALSE.equals(request.isMandatory()))
             .isFree(Boolean.TRUE.equals(request.isFree()))
             .durationSeconds(request.durationSeconds())
             .transcriptUrl(request.transcriptUrl())
