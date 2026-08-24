@@ -2,6 +2,7 @@ package com.gii.common.entity.certificate;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.gii.common.entity.collection.Collection;
+import com.gii.common.entity.collection.CollectionEnrollment;
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.user.User;
 import com.gii.common.enums.CertificateTargetType;
@@ -63,6 +64,11 @@ public class Certificate {
 
   @JsonIgnore
   @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "collection_enrollment_id")
+  private CollectionEnrollment collectionEnrollment;
+
+  @JsonIgnore
+  @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "collection_id")
   private Collection collection;
 
@@ -87,6 +93,9 @@ public class Certificate {
   @Column(name = "pdf_url")
   private String pdfUrl;
 
+  @Column(name = "pdf_object_key")
+  private String pdfObjectKey;
+
   @JsonIgnore
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "issued_by")
@@ -100,6 +109,9 @@ public class Certificate {
 
   @Column(name = "target_slug", nullable = false)
   private String targetSlug;
+
+  @Column(name = "instructor_name")
+  private String instructorName;
 
   @PrePersist
   protected void onCreate() {

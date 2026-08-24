@@ -39,19 +39,22 @@ public class CertificateVerificationService {
 
     if (certificate.getTargetType() == CertificateTargetType.COURSE
         && certificate.getCourse() != null) {
-      instructorName =
-          courseInstructorRepository.findByCourseId(certificate.getCourse().getId()).stream()
-              .filter(ci -> ci.getRole() == InstructorRole.PRIMARY)
-              .findFirst()
-              .or(
-                  () ->
-                      courseInstructorRepository
-                          .findByCourseId(certificate.getCourse().getId())
-                          .stream()
-                          .findFirst())
-              .map(CourseInstructor::getInstructor)
-              .map(instructor -> instructor.getFullName())
-              .orElse("Instructor");
+      instructorName = certificate.getInstructorName();
+      if (instructorName == null || instructorName.isBlank()) {
+        instructorName =
+            courseInstructorRepository.findByCourseId(certificate.getCourse().getId()).stream()
+                .filter(ci -> ci.getRole() == InstructorRole.PRIMARY)
+                .findFirst()
+                .or(
+                    () ->
+                        courseInstructorRepository
+                            .findByCourseId(certificate.getCourse().getId())
+                            .stream()
+                            .findFirst())
+                .map(CourseInstructor::getInstructor)
+                .map(instructor -> instructor.getFullName())
+                .orElse("Instructor");
+      }
       CourseCompletion completion =
           courseCompletionService.get(
               certificate.getUser().getId(), certificate.getCourse().getId());

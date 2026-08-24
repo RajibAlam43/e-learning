@@ -20,6 +20,16 @@ public interface UserRepository extends JpaRepository<User, UUID> {
       FROM User u
       LEFT JOIN FETCH u.userRoles ur
       LEFT JOIN FETCH ur.role
+      WHERE u.googleSubject = :googleSubject
+      """)
+  Optional<User> findByGoogleSubjectWithRoles(@Param("googleSubject") String googleSubject);
+
+  @Query(
+      """
+      SELECT DISTINCT u
+      FROM User u
+      LEFT JOIN FETCH u.userRoles ur
+      LEFT JOIN FETCH ur.role
       WHERE u.email = :email
       """)
   Optional<User> findByEmailWithRoles(@Param("email") String email);

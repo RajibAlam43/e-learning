@@ -72,6 +72,34 @@ class CertificateDownloadAndVerifyApiIt extends AbstractCertificateApiIntegratio
   }
 
   @Test
+  void retrieveReportsPersistedR2KeyAndKeepsDownloadSeparate() throws Exception {
+    var creator = user("Creator", "creator-cert-retrieve@example.com");
+    var student = user("Student", "student-cert-retrieve@example.com");
+    var course =
+        course("Stored Certificate", "stored-certificate", creator, PublishStatus.PUBLISHED);
+    var certificate = certificate(student, course, "GII-CERT-STORED001", false, null, creator);
+    certificate.setPdfObjectKey(
+        "certificates/" + student.getId() + "/" + certificate.getId() + ".pdf");
+    certificateRepository.saveAndFlush(certificate);
+
+    mockMvc
+        .perform(
+            get("/student/certificates/{certificateId}", certificate.getId())
+                .with(authentication(studentAuth(student.getId()))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.storageProvider").value("R2"))
+        .andExpect(jsonPath("$.storageBucket").value("<R2_BUCKET>"))
+        .andExpect(jsonPath("$.objectKey").value(certificate.getPdfObjectKey()))
+        .andExpect(
+            jsonPath("$.storageLocation")
+                .value("r2://<R2_BUCKET>/" + certificate.getPdfObjectKey()))
+        .andExpect(
+            jsonPath("$.downloadEndpoint")
+                .value("/student/certificates/" + certificate.getId() + "/download"))
+        .andExpect(jsonPath("$.legacyPdfUrl").doesNotExist());
+  }
+
+  @Test
   void verifyReturnsValidAndRevokedStates() throws Exception {
     var creator = user("Creator", "creator-cert-4@example.com");
     var instructor = user("Instructor", "instructor-cert-4@example.com");

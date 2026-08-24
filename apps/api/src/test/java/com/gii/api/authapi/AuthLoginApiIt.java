@@ -55,12 +55,10 @@ class AuthLoginApiIt extends AbstractAuthApiIntegrationTest {
         .andExpect(header().string("Set-Cookie", org.hamcrest.Matchers.containsString("HttpOnly")))
         .andExpect(header().string("Set-Cookie", org.hamcrest.Matchers.containsString("Secure")))
         .andExpect(
-            header().string("Set-Cookie", org.hamcrest.Matchers.containsString("SameSite=None")))
+            header().string("Set-Cookie", org.hamcrest.Matchers.containsString("SameSite=Lax")))
         .andExpect(
             header()
-                .string(
-                    "Set-Cookie",
-                    org.hamcrest.Matchers.containsString("Path=/public/auth/refresh")));
+                .string("Set-Cookie", org.hamcrest.Matchers.containsString("Path=/public/auth")));
   }
 
   @Test

@@ -24,6 +24,9 @@ public record CertificateIssueResponse(
 
     // Access
     String pdfUrl, // Direct download URL (if available)
+    String objectKey, // Persisted R2 object key
+    String storageLocation, // Canonical R2 storage location, not a public URL
+    String downloadEndpoint, // Endpoint that returns a temporary signed URL
     String downloadUrl, // Signed temporary download URL
     Instant downloadUrlExpiresAt, // When signed URL expires
 

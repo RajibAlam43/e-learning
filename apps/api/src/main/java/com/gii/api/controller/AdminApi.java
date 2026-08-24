@@ -7,6 +7,7 @@ import com.gii.api.model.request.admin.CreateCourseRequest;
 import com.gii.api.model.request.admin.CreateInstructorRequest;
 import com.gii.api.model.request.admin.CreateLessonResourceRequest;
 import com.gii.api.model.request.admin.CreateLessonResourceUploadRequest;
+import com.gii.api.model.request.admin.CreateLessonVideoUploadRequest;
 import com.gii.api.model.request.admin.CreateLiveClassItemRequest;
 import com.gii.api.model.request.admin.CreateMediaAssetRequest;
 import com.gii.api.model.request.admin.CreateQuizRequest;
@@ -53,6 +54,7 @@ import com.gii.api.model.response.admin.AdminOrderSummaryResponse;
 import com.gii.api.model.response.admin.AdminQuizDetailResponse;
 import com.gii.api.model.response.admin.AdminSupportTicketResponse;
 import com.gii.api.model.response.admin.LessonResourceUploadResponse;
+import com.gii.api.model.response.admin.LessonVideoUploadResponse;
 import com.gii.api.model.response.admin.ThumbnailUploadResponse;
 import com.gii.api.model.response.lesson.ResourceDownloadUrlResponse;
 import com.gii.common.enums.LiveClassStatus;
@@ -386,6 +388,11 @@ public interface AdminApi {
   @Operation(summary = "Create direct R2 upload URL for lesson resource")
   ResponseEntity<LessonResourceUploadResponse> createLessonResourceUpload(
       @PathVariable UUID lessonId, @Valid @RequestBody CreateLessonResourceUploadRequest request);
+
+  @PostMapping("/lessons/{lessonId}/video/upload-url")
+  @Operation(summary = "Create direct Mux upload URL for lesson video")
+  ResponseEntity<LessonVideoUploadResponse> createLessonVideoUpload(
+      @PathVariable UUID lessonId, @Valid @RequestBody CreateLessonVideoUploadRequest request);
 
   @PostMapping("/lessons/{lessonId}/resources")
   @Operation(summary = "Create lesson resource metadata")

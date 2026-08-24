@@ -51,6 +51,8 @@ import com.gii.common.repository.course.CourseTemplateVersionRepository;
 import com.gii.common.repository.course.LessonRepository;
 import com.gii.common.repository.course.LessonResourceRepository;
 import com.gii.common.repository.course.MediaAssetRepository;
+import com.gii.common.repository.course.MuxVideoUploadRepository;
+import com.gii.common.repository.course.MuxWebhookEventRepository;
 import com.gii.common.repository.course.SectionItemRepository;
 import com.gii.common.repository.enrollment.EnrollmentRepository;
 import com.gii.common.repository.live.LiveClassRegistrantRepository;
@@ -95,6 +97,8 @@ abstract class AdminApiTestSupport {
   @Autowired protected LessonRepository lessonRepository;
   @Autowired protected LessonResourceRepository lessonResourceRepository;
   @Autowired protected MediaAssetRepository mediaAssetRepository;
+  @Autowired protected MuxVideoUploadRepository muxVideoUploadRepository;
+  @Autowired protected MuxWebhookEventRepository muxWebhookEventRepository;
   @Autowired protected SectionItemRepository sectionItemRepository;
   @Autowired protected EnrollmentRepository enrollmentRepository;
   @Autowired protected LiveClassRepository liveClassRepository;
@@ -135,6 +139,8 @@ abstract class AdminApiTestSupport {
     orderItemCourseRepository.deleteAll();
     orderItemRepository.deleteAll();
     orderRepository.deleteAll();
+    muxWebhookEventRepository.deleteAll();
+    muxVideoUploadRepository.deleteAll();
     mediaAssetRepository.deleteAll();
     lessonResourceRepository.deleteAll();
     lessonRepository.deleteAll();

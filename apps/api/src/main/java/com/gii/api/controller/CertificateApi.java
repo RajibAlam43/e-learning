@@ -1,5 +1,6 @@
 package com.gii.api.controller;
 
+import com.gii.api.model.response.certificate.CertificateDetailResponse;
 import com.gii.api.model.response.certificate.CertificateDownloadUrlResponse;
 import com.gii.api.model.response.certificate.CertificateIssueResponse;
 import com.gii.api.model.response.certificate.PublicCertificateVerificationResponse;
@@ -21,7 +22,10 @@ import org.springframework.web.bind.annotation.PostMapping;
 @Tag(name = "Certificates", description = "Certificate issuance and public verification")
 public interface CertificateApi {
 
-  @PostMapping("/student/courses/{courseId}/certificate")
+  @PostMapping({
+    "/student/courses/{courseId}/certificate",
+    "/student/courses/{courseId}/certificate/generate"
+  })
   @PreAuthorize("hasRole('STUDENT')")
   @Operation(
       summary = "Issue or get certificate",
@@ -42,7 +46,10 @@ public interface CertificateApi {
   ResponseEntity<CertificateIssueResponse> issueOrGetCertificate(
       @PathVariable UUID courseId, Authentication authentication);
 
-  @PostMapping("/student/collections/{collectionId}/certificate")
+  @PostMapping({
+    "/student/collections/{collectionId}/certificate",
+    "/student/collections/{collectionId}/certificate/generate"
+  })
   @PreAuthorize("hasRole('STUDENT')")
   @Operation(
       summary = "Issue or get collection certificate",
@@ -62,6 +69,17 @@ public interface CertificateApi {
       })
   ResponseEntity<CertificateIssueResponse> issueOrGetCollectionCertificate(
       @PathVariable UUID collectionId, Authentication authentication);
+
+  @GetMapping("/student/certificates/{certificateId}")
+  @PreAuthorize("hasRole('STUDENT')")
+  @Operation(
+      summary = "Retrieve certificate",
+      description =
+          "Retrieve certificate metadata and its persisted R2 storage location. Use the download"
+              + " endpoint for a temporary signed URL.",
+      security = @SecurityRequirement(name = "bearerAuth"))
+  ResponseEntity<CertificateDetailResponse> getCertificate(
+      @PathVariable UUID certificateId, Authentication authentication);
 
   @GetMapping("/student/certificates/{certificateId}/download")
   @PreAuthorize("hasRole('STUDENT')")

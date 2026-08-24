@@ -45,6 +45,7 @@ abstract class AbstractAdminApiIntegrationTest extends AdminApiTestSupport {
     registry.add("app.jwt.access-token-expiration-ms", () -> "900000");
     registry.add("bunny.token-security-key", () -> "test-bunny-key");
     registry.add("mux.signing-key-id", () -> "test-signing-key");
+    registry.add("mux.webhook-secret", () -> "test-mux-webhook-secret");
     registry.add(
         "mux.private-key-pem",
         () ->

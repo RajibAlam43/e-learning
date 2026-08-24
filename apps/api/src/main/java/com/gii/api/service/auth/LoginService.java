@@ -106,7 +106,7 @@ public class LoginService {
   }
 
   private void verifyPassword(LoginRequest request, String passwordHash) {
-    if (!passwordEncoder.matches(request.password(), passwordHash)) {
+    if (passwordHash == null || !passwordEncoder.matches(request.password(), passwordHash)) {
       throw new UnauthorizedApiException("Invalid credentials");
     }
   }

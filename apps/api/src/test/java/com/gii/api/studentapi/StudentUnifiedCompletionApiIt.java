@@ -1,11 +1,15 @@
 package com.gii.api.studentapi;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.gii.api.service.certificate.CertificateDocumentService;
+import com.gii.api.service.certificate.CertificateDocumentService.StoredCertificateDocument;
 import com.gii.common.entity.course.SectionItem;
 import com.gii.common.entity.live.LiveClassAttendance;
 import com.gii.common.entity.live.LiveClassSlot;
@@ -16,13 +20,22 @@ import com.gii.common.enums.PublishStatus;
 import com.gii.common.enums.SectionItemType;
 import java.time.Instant;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 class StudentUnifiedCompletionApiIt extends AbstractStudentApiIntegrationTest {
 
   @Autowired private MockMvc mockMvc;
+  @MockitoBean private CertificateDocumentService certificateDocumentService;
+
+  @BeforeEach
+  void mockCertificateUpload() {
+    when(certificateDocumentService.generateAndUpload(any(), any(), any()))
+        .thenReturn(new StoredCertificateDocument(null, "certificates/test/completion.pdf", 1024));
+  }
 
   @AfterEach
   void cleanup() {

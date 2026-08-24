@@ -45,8 +45,12 @@ public class User extends BaseUuidEntity {
   private String fullName;
 
   @JsonIgnore
-  @Column(name = "password_hash", nullable = false)
+  @Column(name = "password_hash")
   private String passwordHash;
+
+  @JsonIgnore
+  @Column(name = "google_subject", unique = true, length = 255)
+  private String googleSubject;
 
   @Enumerated(EnumType.STRING)
   @Column(name = "status", nullable = false, length = 30)

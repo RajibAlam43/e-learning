@@ -17,6 +17,10 @@ public interface CertificateRepository extends JpaRepository<Certificate, UUID> 
 
   Optional<Certificate> findByUserIdAndCollectionId(UUID userId, UUID collectionId);
 
+  Optional<Certificate> findByEnrollmentId(UUID enrollmentId);
+
+  Optional<Certificate> findByCollectionEnrollmentId(UUID collectionEnrollmentId);
+
   List<Certificate> findByUserIdAndTargetTypeAndRevokedAtIsNull(
       UUID userId, CertificateTargetType targetType);
 

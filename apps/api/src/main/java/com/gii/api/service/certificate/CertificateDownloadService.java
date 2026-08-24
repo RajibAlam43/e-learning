@@ -35,15 +35,17 @@ public class CertificateDownloadService {
     if (certificate.getRevokedAt() != null) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Certificate has been revoked");
     }
-    if (certificate.getPdfUrl() == null || certificate.getPdfUrl().isBlank()) {
+    String storedObject =
+        certificate.getPdfObjectKey() == null || certificate.getPdfObjectKey().isBlank()
+            ? certificate.getPdfUrl()
+            : certificate.getPdfObjectKey();
+    if (storedObject == null || storedObject.isBlank()) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Certificate PDF is not available");
     }
 
     var signed =
         r2PresignedUrlService.generateDownloadUrl(
-            certificate.getPdfUrl(),
-            "Certificate-" + certificate.getTargetSlug() + ".pdf",
-            "application/pdf");
+            storedObject, "Certificate-" + certificate.getTargetSlug() + ".pdf", "application/pdf");
 
     return CertificateDownloadUrlResponse.builder()
         .downloadUrl(signed.downloadUrl())
