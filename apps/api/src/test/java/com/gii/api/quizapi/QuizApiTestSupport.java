@@ -4,6 +4,7 @@ import com.gii.api.testsupport.CourseTestData;
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.course.CourseSection;
 import com.gii.common.entity.course.Lesson;
+import com.gii.common.entity.course.SectionItem;
 import com.gii.common.entity.enrollment.Enrollment;
 import com.gii.common.entity.quiz.Quiz;
 import com.gii.common.entity.quiz.QuizAttempt;
@@ -16,12 +17,14 @@ import com.gii.common.enums.EnrollmentStatus;
 import com.gii.common.enums.LessonType;
 import com.gii.common.enums.PublishStatus;
 import com.gii.common.enums.QuestionType;
+import com.gii.common.enums.SectionItemType;
 import com.gii.common.enums.UserStatus;
 import com.gii.common.repository.course.CourseRepository;
 import com.gii.common.repository.course.CourseSectionRepository;
 import com.gii.common.repository.course.CourseTemplateRepository;
 import com.gii.common.repository.course.CourseTemplateVersionRepository;
 import com.gii.common.repository.course.LessonRepository;
+import com.gii.common.repository.course.SectionItemRepository;
 import com.gii.common.repository.enrollment.EnrollmentRepository;
 import com.gii.common.repository.enrollment.StudentLearningStreakRepository;
 import com.gii.common.repository.quiz.QuizAttemptAnswerRepository;
@@ -46,6 +49,7 @@ abstract class QuizApiTestSupport {
   @Autowired protected CourseTemplateRepository courseTemplateRepository;
   @Autowired protected CourseSectionRepository courseSectionRepository;
   @Autowired protected LessonRepository lessonRepository;
+  @Autowired protected SectionItemRepository sectionItemRepository;
   @Autowired protected EnrollmentRepository enrollmentRepository;
   @Autowired protected QuizRepository quizRepository;
   @Autowired protected QuizQuestionRepository quizQuestionRepository;
@@ -61,6 +65,7 @@ abstract class QuizApiTestSupport {
     quizChoiceRepository.deleteAll();
     quizQuestionRepository.deleteAll();
     quizRepository.deleteAll();
+    sectionItemRepository.deleteAll();
     enrollmentRepository.deleteAll();
     lessonRepository.deleteAll();
     courseSectionRepository.deleteAll();
@@ -156,16 +161,25 @@ abstract class QuizApiTestSupport {
       int passingScorePct,
       int maxAttempts,
       Integer timeLimitSec) {
-    return quizRepository.save(
-        Quiz.builder()
+    Quiz quiz =
+        quizRepository.save(
+            Quiz.builder()
+                .section(lesson.getSection())
+                .position(lesson.getPosition())
+                .title(title)
+                .status(status)
+                .passingScorePct(passingScorePct)
+                .maxAttempts(maxAttempts)
+                .timeLimitSec(timeLimitSec)
+                .build());
+    sectionItemRepository.save(
+        SectionItem.builder()
             .section(lesson.getSection())
+            .itemType(SectionItemType.QUIZ)
+            .itemId(quiz.getId())
             .position(lesson.getPosition())
-            .title(title)
-            .status(status)
-            .passingScorePct(passingScorePct)
-            .maxAttempts(maxAttempts)
-            .timeLimitSec(timeLimitSec)
             .build());
+    return quiz;
   }
 
   protected QuizQuestion question(Quiz quiz, int position, String text, int points) {

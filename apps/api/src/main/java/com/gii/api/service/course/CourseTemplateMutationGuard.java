@@ -6,6 +6,9 @@ import com.gii.common.enums.PublishStatus;
 import com.gii.common.repository.collection.CollectionCourseRepository;
 import com.gii.common.repository.course.CourseRepository;
 import com.gii.common.repository.enrollment.EnrollmentRepository;
+import com.gii.common.repository.live.LiveClassRepository;
+import com.gii.common.repository.live.LiveClassSlotRepository;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -18,9 +21,16 @@ public class CourseTemplateMutationGuard {
   private final CourseRepository courseRepository;
   private final EnrollmentRepository enrollmentRepository;
   private final CollectionCourseRepository collectionCourseRepository;
+  private final LiveClassRepository liveClassRepository;
+  private final LiveClassSlotRepository liveClassSlotRepository;
   private final CourseTemplateVersionCloneService cloneService;
 
   public Course prepareForTemplateUpdate(Course course) {
+    course =
+        courseRepository
+            .findByIdForUpdate(course.getId())
+            .orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found"));
     CourseTemplateVersion version = course.getTemplateVersion();
     if (isDirectlyMutable(version)) {
       return course;
@@ -35,7 +45,24 @@ public class CourseTemplateMutationGuard {
           "Course belongs to a published collection; unpublish it before editing curriculum");
     }
 
-    course.setTemplateVersion(cloneService.cloneForEditing(course));
+    var clone = cloneService.cloneForEditingWithSlotMapping(course);
+    var scheduledClasses = liveClassRepository.findByCourseId(course.getId());
+    for (var liveClass : scheduledClasses) {
+      UUID replacementSlotId = clone.liveClassSlotIds().get(liveClass.getSlot().getId());
+      if (replacementSlotId == null) {
+        throw new ResponseStatusException(
+            HttpStatus.CONFLICT, "Scheduled live class is not part of the cloned curriculum");
+      }
+      liveClass.setSlot(
+          liveClassSlotRepository
+              .findById(replacementSlotId)
+              .orElseThrow(
+                  () ->
+                      new ResponseStatusException(
+                          HttpStatus.CONFLICT, "Cloned live class item is missing")));
+    }
+    liveClassRepository.saveAll(scheduledClasses);
+    course.setTemplateVersion(clone.version());
     course.setStatus(PublishStatus.DRAFT);
     course.setPublishedAt(null);
     course.setIsFeatured(false);

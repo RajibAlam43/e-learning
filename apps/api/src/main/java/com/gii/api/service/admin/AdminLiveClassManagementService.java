@@ -304,7 +304,8 @@ public class AdminLiveClassManagementService {
   private AdminLiveClassItemResponse toItemResponse(
       LiveClassSlot slot, int position, boolean scheduled) {
     return AdminLiveClassItemResponse.builder()
-        .liveClassId(slot.getId())
+        .liveClassItemId(slot.getId())
+        .liveClassId(null)
         .sectionId(slot.getSection().getId())
         .position(position)
         .title(slot.getTitle())
@@ -330,11 +331,7 @@ public class AdminLiveClassManagementService {
             || request.descriptionEn() != null
             || request.startsAt() != null
             || request.endsAt() != null;
-    if (request.title() != null
-        || request.titleEn() != null
-        || request.description() != null
-        || request.descriptionEn() != null
-        || request.position() != null) {
+    if (request.position() != null) {
       templateMutationGuard.requireDraft(liveClass.getSection().getTemplateVersion());
     }
     if (mutatingMetadata && liveClass.getStatus() != LiveClassStatus.SCHEDULED) {
@@ -388,7 +385,9 @@ public class AdminLiveClassManagementService {
       LiveClassStatus nextStatus = parseStatus(request.status());
       validateStatusTransitionForUpdate(liveClass.getStatus(), nextStatus);
       liveClass.setStatus(nextStatus);
-      if (nextStatus == LiveClassStatus.COMPLETED) {
+      if (nextStatus == LiveClassStatus.COMPLETED
+          || nextStatus == LiveClassStatus.CANCELLED
+          || nextStatus == LiveClassStatus.FAILED) {
         liveClassRepository.saveAndFlush(liveClass);
         enrollmentCompletionService.refreshCourse(liveClass.getCourse().getId());
       }
@@ -446,7 +445,9 @@ public class AdminLiveClassManagementService {
     }
     syncProviderCancel(liveClass);
     liveClass.setStatus(LiveClassStatus.CANCELLED);
-    return toDetail(liveClassRepository.save(liveClass));
+    LiveClass cancelled = liveClassRepository.saveAndFlush(liveClass);
+    enrollmentCompletionService.refreshCourse(cancelled.getCourse().getId());
+    return toDetail(cancelled);
   }
 
   private void syncProviderUpdate(

@@ -12,8 +12,10 @@ import com.gii.common.entity.enrollment.Enrollment;
 import com.gii.common.entity.enrollment.LessonProgress;
 import com.gii.common.enums.LessonResourcePurpose;
 import com.gii.common.enums.MediaStatus;
+import com.gii.common.enums.SectionItemType;
 import com.gii.common.repository.course.LessonResourceRepository;
 import com.gii.common.repository.course.MediaAssetRepository;
+import com.gii.common.repository.course.SectionItemRepository;
 import com.gii.common.repository.enrollment.LessonProgressRepository;
 import java.time.Instant;
 import java.util.List;
@@ -36,6 +38,7 @@ public class LessonContentService {
   private final LessonResourceRepository lessonResourceRepository;
   private final AssetUrlService assetUrlService;
   private final LocalizedContentService localizedContentService;
+  private final SectionItemRepository sectionItemRepository;
 
   public LessonContentResponse execute(UUID lessonId, Authentication authentication) {
     UUID userId = lessonAccessService.requireCurrentUserId(authentication);
@@ -103,7 +106,11 @@ public class LessonContentService {
         .lessonId(lesson.getId())
         .title(localizedContentService.text(lesson.getTitle(), lesson.getTitleEn()))
         .slug(lesson.getSlug())
-        .position(lesson.getPosition())
+        .position(
+            sectionItemRepository
+                .findByItemTypeAndItemId(SectionItemType.LESSON, lesson.getId())
+                .map(com.gii.common.entity.course.SectionItem::getPosition)
+                .orElse(null))
         .lessonType(lesson.getLessonType())
         .description(null)
         .durationSeconds(lesson.getDurationSeconds())

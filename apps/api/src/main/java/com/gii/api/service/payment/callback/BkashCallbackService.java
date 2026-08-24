@@ -3,6 +3,7 @@ package com.gii.api.service.payment.callback;
 import com.gii.api.service.payment.PaymentFlowSupportService;
 import com.gii.api.service.payment.bkash.BkashCheckoutService;
 import com.gii.common.entity.order.Order;
+import com.gii.common.enums.OrderProvider;
 import com.gii.common.enums.PaymentEventStatus;
 import com.gii.common.enums.PaymentEventType;
 import java.util.Map;
@@ -32,12 +33,11 @@ public class BkashCallbackService {
           HttpStatus.BAD_REQUEST, "Missing required callback transaction identifier");
     }
     Order order = flowSupportService.requireOrder(orderId);
-    flowSupportService.validateProviderTransactionId(order, providerEventId);
+    flowSupportService.validateProviderTransactionId(order, OrderProvider.BKASH, providerEventId);
     bkashCheckoutService.validateSuccessCallback(order, queryParams);
     flowSupportService.recordCallbackEvent(
         order, PaymentEventType.CALLBACK_SUCCESS, queryParams, PaymentEventStatus.PROCESSED);
-    flowSupportService.markPaid(order);
-    flowSupportService.grantEnrollmentsForPaidOrder(order.getId());
+    flowSupportService.markPaidAndGrant(order);
   }
 
   public void failedRedirect(UUID orderId, Map<String, String> queryParams) {
@@ -51,7 +51,7 @@ public class BkashCallbackService {
           HttpStatus.BAD_REQUEST, "Missing required callback transaction identifier");
     }
     Order order = flowSupportService.requireOrder(orderId);
-    flowSupportService.validateProviderTransactionId(order, providerEventId);
+    flowSupportService.validateProviderTransactionId(order, OrderProvider.BKASH, providerEventId);
     flowSupportService.recordCallbackEvent(
         order, PaymentEventType.CALLBACK_FAILED, queryParams, PaymentEventStatus.PROCESSED);
     flowSupportService.transitionFailed(order);
@@ -68,7 +68,7 @@ public class BkashCallbackService {
           HttpStatus.BAD_REQUEST, "Missing required callback transaction identifier");
     }
     Order order = flowSupportService.requireOrder(orderId);
-    flowSupportService.validateProviderTransactionId(order, providerEventId);
+    flowSupportService.validateProviderTransactionId(order, OrderProvider.BKASH, providerEventId);
     flowSupportService.recordCallbackEvent(
         order, PaymentEventType.CALLBACK_CANCELLED, queryParams, PaymentEventStatus.PROCESSED);
     flowSupportService.transitionCancelled(order);
@@ -83,11 +83,10 @@ public class BkashCallbackService {
           HttpStatus.BAD_REQUEST, "Missing required webhook transaction identifier");
     }
     Order order = flowSupportService.requireOrder(orderId);
-    flowSupportService.validateProviderTransactionId(order, providerEventId);
+    flowSupportService.validateProviderTransactionId(order, OrderProvider.BKASH, providerEventId);
     flowSupportService.recordCallbackEvent(
         order, PaymentEventType.WEBHOOK_SUCCESS, params, PaymentEventStatus.PROCESSED);
-    flowSupportService.markPaid(order);
-    flowSupportService.grantEnrollmentsForPaidOrder(order.getId());
+    flowSupportService.markPaidAndGrant(order);
   }
 
   public void failedFromWebhook(UUID orderId, Map<String, String> params) {

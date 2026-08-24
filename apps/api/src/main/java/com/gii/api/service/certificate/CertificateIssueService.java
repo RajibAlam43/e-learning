@@ -18,7 +18,6 @@ import com.gii.common.enums.CertificateTargetType;
 import com.gii.common.enums.EnrollmentStatus;
 import com.gii.common.enums.InstructorRole;
 import com.gii.common.repository.certificate.CertificateRepository;
-import com.gii.common.repository.collection.CollectionCourseRepository;
 import com.gii.common.repository.collection.CollectionEnrollmentRepository;
 import com.gii.common.repository.collection.CollectionRepository;
 import com.gii.common.repository.course.CourseInstructorRepository;
@@ -50,7 +49,6 @@ public class CertificateIssueService {
   private final CourseRepository courseRepository;
   private final CollectionRepository collectionRepository;
   private final CollectionEnrollmentRepository collectionEnrollmentRepository;
-  private final CollectionCourseRepository collectionCourseRepository;
   private final EnrollmentRepository enrollmentRepository;
   private final CourseCompletionService courseCompletionService;
   private final CertificateRepository certificateRepository;

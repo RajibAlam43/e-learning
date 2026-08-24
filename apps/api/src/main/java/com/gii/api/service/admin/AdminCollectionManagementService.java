@@ -15,10 +15,8 @@ import com.gii.common.entity.course.Course;
 import com.gii.common.entity.user.User;
 import com.gii.common.enums.PublishStatus;
 import com.gii.common.repository.collection.CollectionCourseRepository;
-import com.gii.common.repository.collection.CollectionEnrollmentRepository;
 import com.gii.common.repository.collection.CollectionRepository;
 import com.gii.common.repository.course.CourseRepository;
-import com.gii.common.repository.order.OrderItemRepository;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -40,8 +38,6 @@ public class AdminCollectionManagementService {
   private final CollectionRepository collectionRepository;
   private final CollectionCourseRepository collectionCourseRepository;
   private final CourseRepository courseRepository;
-  private final CollectionEnrollmentRepository collectionEnrollmentRepository;
-  private final OrderItemRepository orderItemRepository;
   private final CurrentUserService currentUserService;
   private final AssetUrlService assetUrlService;
 
@@ -189,12 +185,6 @@ public class AdminCollectionManagementService {
       throw new ResponseStatusException(
           HttpStatus.CONFLICT, "Unpublish the collection before changing its courses");
     }
-    if (collectionEnrollmentRepository.existsByCollectionId(collectionId)
-        || orderItemRepository.existsByCollectionId(collectionId)) {
-      throw new ResponseStatusException(
-          HttpStatus.CONFLICT, "Purchased collection contents are immutable");
-    }
-
     HashSet<Integer> seenPositions = new HashSet<>();
     HashSet<UUID> seenCourses = new HashSet<>();
     for (SetCollectionCoursesRequest.Item item : request.items()) {

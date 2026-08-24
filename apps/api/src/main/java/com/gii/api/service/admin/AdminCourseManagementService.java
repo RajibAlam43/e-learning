@@ -404,17 +404,50 @@ public class AdminCourseManagementService {
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found"));
     templateMutationGuard.requireDraft(course.getTemplateVersion());
     try {
+      Set<UUID> seenSectionIds = new HashSet<>();
+      Set<Integer> seenSectionPositions = new HashSet<>();
+      List<CourseSection> sectionsToReposition = new java.util.ArrayList<>();
+      Map<UUID, Integer> targetSectionPositions = new LinkedHashMap<>();
       for (var secReq : request.sections()) {
+        if (secReq.sectionId() == null
+            || secReq.newPosition() == null
+            || secReq.newPosition() <= 0) {
+          throw new ResponseStatusException(
+              HttpStatus.BAD_REQUEST, "Invalid section reorder entry");
+        }
+        if (!seenSectionIds.add(secReq.sectionId())
+            || !seenSectionPositions.add(secReq.newPosition())) {
+          throw new ResponseStatusException(
+              HttpStatus.BAD_REQUEST, "Duplicate section id or position");
+        }
         CourseSection sec =
             sectionRepository
                 .findById(secReq.sectionId())
                 .orElseThrow(
                     () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Section not found"));
         if (!sec.getTemplateVersion().getId().equals(course.getTemplateVersion().getId())) {
-          continue;
+          throw new ResponseStatusException(
+              HttpStatus.BAD_REQUEST, "Section does not belong to course");
         }
-        sec.setPosition(secReq.newPosition());
-        sectionRepository.saveAndFlush(sec);
+        sectionsToReposition.add(sec);
+        targetSectionPositions.put(sec.getId(), secReq.newPosition());
+      }
+      int temporarySectionPosition = 2000000;
+      for (int i = 0; i < sectionsToReposition.size(); i++) {
+        sectionsToReposition.get(i).setPosition(temporarySectionPosition + i);
+      }
+      sectionRepository.saveAllAndFlush(sectionsToReposition);
+      for (CourseSection section : sectionsToReposition) {
+        section.setPosition(targetSectionPositions.get(section.getId()));
+      }
+      sectionRepository.saveAllAndFlush(sectionsToReposition);
+
+      for (var secReq : request.sections()) {
+        CourseSection sec =
+            sectionsToReposition.stream()
+                .filter(section -> section.getId().equals(secReq.sectionId()))
+                .findFirst()
+                .orElseThrow();
         if (secReq.items() == null || secReq.items().isEmpty()) {
           continue;
         }
@@ -475,38 +508,6 @@ public class AdminCourseManagementService {
       item.setPosition(finalPosition);
     }
     sectionItemRepository.saveAllAndFlush(itemsToReposition);
-
-    List<UUID> lessonIds =
-        itemsToReposition.stream()
-            .filter(item -> item.getItemType() == SectionItemType.LESSON)
-            .map(SectionItem::getItemId)
-            .toList();
-    if (!lessonIds.isEmpty()) {
-      List<com.gii.common.entity.course.Lesson> lessons = lessonRepository.findAllById(lessonIds);
-      for (com.gii.common.entity.course.Lesson lesson : lessons) {
-        Integer finalPosition = targetPositionByItemId.get(lesson.getId());
-        if (finalPosition != null) {
-          lesson.setPosition(finalPosition);
-        }
-      }
-      lessonRepository.saveAll(lessons);
-    }
-
-    List<UUID> quizIds =
-        itemsToReposition.stream()
-            .filter(item -> item.getItemType() == SectionItemType.QUIZ)
-            .map(SectionItem::getItemId)
-            .toList();
-    if (!quizIds.isEmpty()) {
-      List<com.gii.common.entity.quiz.Quiz> quizzes = quizRepository.findAllById(quizIds);
-      for (com.gii.common.entity.quiz.Quiz quiz : quizzes) {
-        Integer finalPosition = targetPositionByItemId.get(quiz.getId());
-        if (finalPosition != null) {
-          quiz.setPosition(finalPosition);
-        }
-      }
-      quizRepository.saveAll(quizzes);
-    }
   }
 
   private UUID resolvePersistedSectionItemId(SectionItemType itemType, UUID apiItemId) {

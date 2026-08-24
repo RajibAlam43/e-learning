@@ -96,6 +96,16 @@ class AdminNewCapabilitiesApiIt extends AbstractAdminApiIntegrationTest {
         .andExpect(status().isNoContent());
     assertThat(certificateRepository.findById(certificate.getId()).orElseThrow().getRevokedAt())
         .isEqualTo(firstRevokedAt);
+
+    mockMvc
+        .perform(
+            post("/admin/certificates/{certificateId}/reinstate", certificate.getId())
+                .with(authentication(adminAuth(admin.getId()))))
+        .andExpect(status().isNoContent());
+    Certificate reinstated = certificateRepository.findById(certificate.getId()).orElseThrow();
+    assertThat(reinstated.getRevokedAt()).isNull();
+    assertThat(reinstated.getRevokedBy()).isNull();
+    assertThat(reinstated.getRevocationReason()).isNull();
   }
 
   @Test

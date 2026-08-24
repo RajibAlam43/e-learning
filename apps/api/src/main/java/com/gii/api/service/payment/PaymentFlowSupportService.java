@@ -6,6 +6,7 @@ import com.gii.common.entity.order.OrderItem;
 import com.gii.common.entity.order.PaymentEvent;
 import com.gii.common.enums.EnrollmentStatus;
 import com.gii.common.enums.OrderItemType;
+import com.gii.common.enums.OrderProvider;
 import com.gii.common.enums.OrderStatus;
 import com.gii.common.enums.PaymentEventStatus;
 import com.gii.common.enums.PaymentEventType;
@@ -13,6 +14,7 @@ import com.gii.common.repository.collection.CollectionEnrollmentRepository;
 import com.gii.common.repository.enrollment.EnrollmentRepository;
 import com.gii.common.repository.order.OrderItemRepository;
 import com.gii.common.repository.order.OrderRepository;
+import com.gii.common.repository.order.PaymentAttemptRepository;
 import com.gii.common.repository.order.PaymentEventRepository;
 import com.gii.common.service.payment.PaidOrderEnrollmentService;
 import java.time.Instant;
@@ -35,24 +37,36 @@ public class PaymentFlowSupportService {
   private final EnrollmentRepository enrollmentRepository;
   private final CollectionEnrollmentRepository collectionEnrollmentRepository;
   private final PaymentEventRepository paymentEventRepository;
+  private final PaymentAttemptRepository paymentAttemptRepository;
   private final PaidOrderEnrollmentService paidOrderEnrollmentService;
 
   public Order requireOrder(UUID orderId) {
     return orderRepository
-        .findById(orderId)
+        .findByIdForUpdate(orderId)
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
   }
 
-  public void validateProviderTransactionId(Order order, String callbackTxnId) {
+  public void validateProviderTransactionId(
+      Order order, OrderProvider callbackProvider, String callbackTxnId) {
     if (callbackTxnId == null || callbackTxnId.isBlank()) {
-      return;
-    }
-    if (order.getProviderTxnId() == null || order.getProviderTxnId().isBlank()) {
       return;
     }
     String expected = normalizeTxn(order.getProviderTxnId());
     String actual = normalizeTxn(callbackTxnId);
-    boolean matches = expected.equals(actual);
+    boolean matches = order.getProvider() == callbackProvider && expected.equals(actual);
+    if (!matches) {
+      var attempt =
+          paymentAttemptRepository
+              .findTopByOrderIdAndProviderAndProviderTxnIdOrderByCreatedAtDesc(
+                  order.getId(), callbackProvider, callbackTxnId)
+              .orElse(null);
+      matches = attempt != null;
+      if (attempt != null) {
+        order.setProvider(attempt.getProvider());
+        order.setProviderTxnId(attempt.getProviderTxnId());
+        orderRepository.save(order);
+      }
+    }
     if (!matches) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "Callback transaction identifier does not match order");
@@ -109,6 +123,11 @@ public class PaymentFlowSupportService {
       order.setPaidAt(Instant.now());
     }
     orderRepository.save(order);
+  }
+
+  public void markPaidAndGrant(Order order) {
+    markPaid(order);
+    paidOrderEnrollmentService.grant(order.getId());
   }
 
   public void grantEnrollmentsForPaidOrder(UUID orderId) {

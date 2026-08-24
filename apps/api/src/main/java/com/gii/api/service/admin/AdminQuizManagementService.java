@@ -82,6 +82,13 @@ public class AdminQuizManagementService {
         quizRepository
             .findById(quizId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Quiz not found"));
+    SectionItem sectionItem =
+        sectionItemRepository
+            .findByItemTypeAndItemId(SectionItemType.QUIZ, quiz.getId())
+            .orElseThrow(
+                () ->
+                    new ResponseStatusException(
+                        HttpStatus.INTERNAL_SERVER_ERROR, "Section item missing"));
     templateMutationGuard.requireDraft(quiz.getSection().getTemplateVersion());
     if (request.sectionId() != null && !request.sectionId().equals(quiz.getSection().getId())) {
       CourseSection section =
@@ -100,7 +107,9 @@ public class AdminQuizManagementService {
     }
     if (request.position() != null) {
       ensurePositionAvailable(quiz.getSection().getId(), request.position(), quiz.getId());
-      quiz.setPosition(request.position());
+      sectionItem.setPosition(request.position());
+    } else if (!sectionItem.getSection().getId().equals(quiz.getSection().getId())) {
+      ensurePositionAvailable(quiz.getSection().getId(), sectionItem.getPosition(), quiz.getId());
     }
     if (request.title() != null && !request.title().isBlank()) {
       quiz.setTitle(request.title().trim());
@@ -118,15 +127,7 @@ public class AdminQuizManagementService {
       quiz.setTimeLimitSec(request.timeLimitSec());
     }
     Quiz savedQuiz = quizRepository.save(quiz);
-    SectionItem sectionItem =
-        sectionItemRepository
-            .findByItemTypeAndItemId(SectionItemType.QUIZ, savedQuiz.getId())
-            .orElseThrow(
-                () ->
-                    new ResponseStatusException(
-                        HttpStatus.INTERNAL_SERVER_ERROR, "Section item missing"));
     sectionItem.setSection(savedQuiz.getSection());
-    sectionItem.setPosition(savedQuiz.getPosition());
     sectionItemRepository.save(sectionItem);
 
     if (request.questions() != null) {
@@ -263,7 +264,14 @@ public class AdminQuizManagementService {
     return AdminQuizDetailResponse.builder()
         .quizId(quiz.getId())
         .sectionId(quiz.getSection().getId())
-        .position(quiz.getPosition())
+        .position(
+            sectionItemRepository
+                .findByItemTypeAndItemId(SectionItemType.QUIZ, quiz.getId())
+                .map(SectionItem::getPosition)
+                .orElseThrow(
+                    () ->
+                        new ResponseStatusException(
+                            HttpStatus.INTERNAL_SERVER_ERROR, "Section item missing")))
         .title(quiz.getTitle())
         .titleEn(quiz.getTitleEn())
         .passingScorePct(quiz.getPassingScorePct())

@@ -201,6 +201,11 @@ public class EnrolledCourseDetailsService {
       Set<UUID> attendedLiveClassIds,
       Enrollment enrollment) {
     Instant now = Instant.now();
+    Map<UUID, Integer> positionByItemId =
+        sectionItems.stream()
+            .collect(
+                java.util.stream.Collectors.toMap(
+                    SectionItem::getItemId, SectionItem::getPosition));
     boolean sectionAccessible =
         curriculumAccessService.isSectionAccessible(section, enrollment, now);
     int totalLessons = lessons.size();
@@ -220,7 +225,12 @@ public class EnrolledCourseDetailsService {
             .filter(
                 id -> {
                   LiveClassSlot slot = liveClassSlotById.get(id);
-                  return slot != null && Boolean.TRUE.equals(slot.getIsMandatory());
+                  LiveClass scheduled = liveClassBySlotId.get(id);
+                  return slot != null
+                      && Boolean.TRUE.equals(slot.getIsMandatory())
+                      && (scheduled == null
+                          || (scheduled.getStatus() != LiveClassStatus.CANCELLED
+                              && scheduled.getStatus() != LiveClassStatus.FAILED));
                 })
             .collect(java.util.stream.Collectors.toUnmodifiableSet());
     int totalLiveClasses = completableLiveClassIds.size();
@@ -246,7 +256,7 @@ public class EnrolledCourseDetailsService {
           StudentLessonHomeResponse.builder()
               .lessonId(lesson.getId())
               .lessonTitle(localizedContentService.text(lesson.getTitle(), lesson.getTitleEn()))
-              .position(lesson.getPosition())
+              .position(positionByItemId.get(lesson.getId()))
               .lessonType(lesson.getLessonType())
               .completed(progress != null && progress.getCompletedAt() != null)
               .completedAt(progress != null ? progress.getCompletedAt() : null)
@@ -273,7 +283,7 @@ public class EnrolledCourseDetailsService {
                     StudentQuizHomeResponse.builder()
                         .quizId(quiz.getId())
                         .quizTitle(localizedContentService.text(quiz.getTitle(), quiz.getTitleEn()))
-                        .position(quiz.getPosition())
+                        .position(positionByItemId.get(quiz.getId()))
                         .isAccessible(sectionAccessible)
                         .accessReason(sectionAccessible ? "AVAILABLE" : "SECTION_LOCKED")
                         .passingScorePct(quiz.getPassingScorePct())

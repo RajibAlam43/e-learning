@@ -162,13 +162,18 @@ public class AdminSectionManagementService {
   }
 
   AdminCourseSectionResponse toResponse(CourseSection section, UUID courseId) {
+    List<SectionItem> orderedItems =
+        sectionItemRepository.findBySectionIdOrderByPositionAsc(section.getId());
+    Map<UUID, Integer> positionByItemId =
+        orderedItems.stream()
+            .collect(Collectors.toMap(SectionItem::getItemId, SectionItem::getPosition));
     List<AdminLessonSummaryResponse> lessons =
         lessonRepository.findBySectionIdOrderByPositionAsc(section.getId()).stream()
-            .map(this::toLessonSummary)
+            .map(lesson -> toLessonSummary(lesson, positionByItemId.get(lesson.getId())))
             .toList();
     List<AdminQuizSummaryResponse> quizzes =
         quizRepository.findBySectionIdOrderByPositionAsc(section.getId()).stream()
-            .map(this::toQuizSummary)
+            .map(quiz -> toQuizSummary(quiz, positionByItemId.get(quiz.getId())))
             .toList();
     List<LiveClass> liveClasses =
         courseId == null
@@ -190,7 +195,7 @@ public class AdminSectionManagementService {
         liveClassSlotRepository.findBySectionId(section.getId()).stream()
             .collect(Collectors.toMap(LiveClassSlot::getId, Function.identity()));
     List<AdminSectionItemResponse> items =
-        sectionItemRepository.findBySectionIdOrderByPositionAsc(section.getId()).stream()
+        orderedItems.stream()
             .map(
                 item ->
                     toSectionItemResponse(
@@ -218,13 +223,13 @@ public class AdminSectionManagementService {
         .build();
   }
 
-  private AdminLessonSummaryResponse toLessonSummary(Lesson lesson) {
+  private AdminLessonSummaryResponse toLessonSummary(Lesson lesson, Integer position) {
     return AdminLessonSummaryResponse.builder()
         .lessonId(lesson.getId())
         .title(lesson.getTitle())
         .titleEn(lesson.getTitleEn())
         .slug(lesson.getSlug())
-        .position(lesson.getPosition())
+        .position(position)
         .lessonType(lesson.getLessonType().name())
         .status(lesson.getStatus().name())
         .isMandatory(lesson.getIsMandatory())
@@ -234,11 +239,11 @@ public class AdminSectionManagementService {
         .build();
   }
 
-  private AdminQuizSummaryResponse toQuizSummary(Quiz quiz) {
+  private AdminQuizSummaryResponse toQuizSummary(Quiz quiz, Integer position) {
     return AdminQuizSummaryResponse.builder()
         .quizId(quiz.getId())
         .sectionId(quiz.getSection().getId())
-        .position(quiz.getPosition())
+        .position(position)
         .title(quiz.getTitle())
         .status(quiz.getStatus().name())
         .passingScorePct(quiz.getPassingScorePct())
@@ -266,6 +271,7 @@ public class AdminSectionManagementService {
       if (value != null) {
         liveClass =
             AdminLiveClassSectionItemResponse.builder()
+                .liveClassItemId(value.getSlot().getId())
                 .liveClassId(value.getId())
                 .title(value.getTitle())
                 .titleEn(value.getTitleEn())
@@ -280,7 +286,8 @@ public class AdminSectionManagementService {
         if (slot != null) {
           liveClass =
               AdminLiveClassSectionItemResponse.builder()
-                  .liveClassId(slot.getId())
+                  .liveClassItemId(slot.getId())
+                  .liveClassId(null)
                   .title(slot.getTitle())
                   .titleEn(slot.getTitleEn())
                   .scheduled(false)

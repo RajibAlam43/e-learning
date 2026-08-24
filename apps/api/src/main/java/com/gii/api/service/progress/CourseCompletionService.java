@@ -56,7 +56,9 @@ public class CourseCompletionService {
     Map<UUID, Integer> totalLiveClasses =
         toCountMap(
             liveClassSlotRepository.countMandatoryByCourseIdsAndSectionStatus(
-                courseIds, PublishStatus.PUBLISHED));
+                courseIds,
+                PublishStatus.PUBLISHED,
+                List.of(LiveClassStatus.CANCELLED, LiveClassStatus.FAILED)));
     Map<UUID, Integer> completedLiveClasses =
         toCountMap(
             liveClassRepository.countByCourseIdsAndSectionStatusAndLiveClassStatus(

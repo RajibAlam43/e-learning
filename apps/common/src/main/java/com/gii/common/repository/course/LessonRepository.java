@@ -12,25 +12,40 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID> {
 
   @Query(
       """
-        SELECT l FROM Lesson l
+        SELECT l FROM Lesson l, SectionItem si
         WHERE l.section.templateVersion.id = (
           SELECT c.templateVersion.id FROM Course c WHERE c.id = :courseId
         )
-        ORDER BY l.position ASC
+        AND si.section.id = l.section.id
+        AND si.itemType = com.gii.common.enums.SectionItemType.LESSON
+        AND si.itemId = l.id
+        ORDER BY si.position ASC
       """)
   List<Lesson> findByCourseIdOrderByPositionAsc(@Param("courseId") UUID courseId);
 
-  List<Lesson> findBySectionIdOrderByPositionAsc(UUID sectionId);
+  @Query(
+      """
+        SELECT l FROM Lesson l, SectionItem si
+        WHERE l.section.id = :sectionId
+        AND si.section.id = l.section.id
+        AND si.itemType = com.gii.common.enums.SectionItemType.LESSON
+        AND si.itemId = l.id
+        ORDER BY si.position ASC
+      """)
+  List<Lesson> findBySectionIdOrderByPositionAsc(@Param("sectionId") UUID sectionId);
 
   @Query(
       """
-        SELECT l FROM Lesson l
+        SELECT l FROM Lesson l, SectionItem si
         LEFT JOIN FETCH l.primaryMediaAsset
         WHERE l.section.templateVersion.id = (
           SELECT c.templateVersion.id FROM Course c WHERE c.id = :courseId
         )
         AND l.status = :status
-        ORDER BY l.position ASC
+        AND si.section.id = l.section.id
+        AND si.itemType = com.gii.common.enums.SectionItemType.LESSON
+        AND si.itemId = l.id
+        ORDER BY l.section.position ASC, si.position ASC
       """)
   List<Lesson> findByCourseIdAndStatusWithMediaOrderByPositionAsc(
       @Param("courseId") UUID courseId, @Param("status") PublishStatus status);

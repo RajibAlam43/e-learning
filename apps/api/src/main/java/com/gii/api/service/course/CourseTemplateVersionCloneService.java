@@ -56,6 +56,10 @@ public class CourseTemplateVersionCloneService {
   private final SectionItemRepository sectionItemRepository;
 
   public CourseTemplateVersion cloneForEditing(Course sourceCourse) {
+    return cloneForEditingWithSlotMapping(sourceCourse).version();
+  }
+
+  public CloneResult cloneForEditingWithSlotMapping(Course sourceCourse) {
     CourseTemplateVersion source = sourceCourse.getTemplateVersion();
     CourseTemplate template =
         templateRepository
@@ -89,7 +93,18 @@ public class CourseTemplateVersionCloneService {
       target.setPreviewLesson(lessons.get(source.getPreviewLesson().getId()));
       target = versionRepository.save(target);
     }
-    return target;
+    Map<UUID, UUID> slotIds = new HashMap<>();
+    for (CourseSection sourceSection :
+        sectionRepository.findByCourseIdOrderByPositionAsc(sourceCourse.getId())) {
+      for (LiveClassSlot sourceSlot :
+          liveClassSlotRepository.findBySectionId(sourceSection.getId())) {
+        UUID targetSlotId = itemIds.get(sourceSlot.getId());
+        if (targetSlotId != null) {
+          slotIds.put(sourceSlot.getId(), targetSlotId);
+        }
+      }
+    }
+    return new CloneResult(target, Map.copyOf(slotIds));
   }
 
   private CourseTemplateVersion copyVersion(
@@ -328,4 +343,6 @@ public class CourseTemplateVersionCloneService {
   private List<String> copyList(List<String> values) {
     return values == null ? null : new ArrayList<>(values);
   }
+
+  public record CloneResult(CourseTemplateVersion version, Map<UUID, UUID> liveClassSlotIds) {}
 }

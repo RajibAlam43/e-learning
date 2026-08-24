@@ -69,8 +69,16 @@ public class R2PresignedUrlService {
   /** Builds a time-limited signed GET URL for a lesson resource stored in Cloudflare R2. */
   public PresignedDownload generateDownloadUrl(
       String fileUrlOrKey, String fileName, String mimeType) {
+    return generateDownloadUrl(
+        fileUrlOrKey, fileName, mimeType, Duration.ofSeconds(downloadTtlSeconds));
+  }
+
+  public PresignedDownload generateDownloadUrl(
+      String fileUrlOrKey, String fileName, String mimeType, Duration signatureDuration) {
     String objectKey = resolveObjectKey(fileUrlOrKey);
-    Duration signatureDuration = Duration.ofSeconds(downloadTtlSeconds);
+    if (signatureDuration == null || signatureDuration.isZero() || signatureDuration.isNegative()) {
+      throw new IllegalArgumentException("Download URL duration must be positive");
+    }
 
     GetObjectRequest.Builder getRequest =
         GetObjectRequest.builder()

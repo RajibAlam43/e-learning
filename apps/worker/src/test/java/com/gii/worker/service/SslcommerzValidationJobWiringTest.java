@@ -5,6 +5,7 @@ import static org.mockito.Mockito.mock;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gii.common.repository.order.OrderRepository;
+import com.gii.common.repository.order.PaymentAttemptRepository;
 import com.gii.common.repository.order.PaymentEventRepository;
 import com.gii.common.service.payment.PaidOrderEnrollmentService;
 import com.gii.worker.config.RedisConfig;
@@ -57,6 +58,11 @@ class SslcommerzValidationJobWiringTest {
     }
 
     @Bean
+    PaymentAttemptRepository paymentAttemptRepository() {
+      return mock(PaymentAttemptRepository.class);
+    }
+
+    @Bean
     PaidOrderEnrollmentService paidOrderEnrollmentService() {
       return mock(PaidOrderEnrollmentService.class);
     }
@@ -68,6 +74,7 @@ class SslcommerzValidationJobWiringTest {
         SqsAsyncClient sqsAsyncClient,
         OrderRepository orderRepository,
         PaymentEventRepository paymentEventRepository,
+        PaymentAttemptRepository paymentAttemptRepository,
         PaidOrderEnrollmentService paidOrderEnrollmentService) {
       return new SslcommerzValidationJobService(
           objectMapper,
@@ -75,6 +82,7 @@ class SslcommerzValidationJobWiringTest {
           sqsAsyncClient,
           orderRepository,
           paymentEventRepository,
+          paymentAttemptRepository,
           paidOrderEnrollmentService);
     }
   }

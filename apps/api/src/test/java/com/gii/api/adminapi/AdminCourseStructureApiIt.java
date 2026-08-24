@@ -51,7 +51,7 @@ class AdminCourseStructureApiIt extends AbstractAdminApiIntegrationTest {
         java.util.UUID.fromString(
             new com.fasterxml.jackson.databind.ObjectMapper()
                 .readTree(itemResponse)
-                .get("liveClassId")
+                .get("liveClassItemId")
                 .asText());
 
     assertThat(liveClassRepository.findByCourseIdOrderByStartsAtAsc(course.getId())).isEmpty();
@@ -242,7 +242,7 @@ class AdminCourseStructureApiIt extends AbstractAdminApiIntegrationTest {
     return java.util.UUID.fromString(
         new com.fasterxml.jackson.databind.ObjectMapper()
             .readTree(response)
-            .get("liveClassId")
+            .get("liveClassItemId")
             .asText());
   }
 
@@ -380,7 +380,9 @@ class AdminCourseStructureApiIt extends AbstractAdminApiIntegrationTest {
     final var student = user("Immutable Student", "immutable-curriculum-student@example.com");
     var course = course("Immutable Curriculum", "immutable-curriculum", admin);
     var section = section(course, 1);
-    lesson(course, section, 1);
+    var immutableLesson = lesson(course, section, 1);
+    var scheduledClass = liveClass(course, section, immutableLesson);
+    var publishedSlotId = scheduledClass.getSlot().getId();
 
     mockMvc
         .perform(
@@ -400,6 +402,11 @@ class AdminCourseStructureApiIt extends AbstractAdminApiIntegrationTest {
     var editableCourse = courseRepository.findById(course.getId()).orElseThrow();
     assertThat(editableCourse.getTemplateVersion().getId()).isNotEqualTo(publishedVersionId);
     assertThat(editableCourse.getStatus()).isEqualTo(com.gii.common.enums.PublishStatus.DRAFT);
+    var remappedClass = liveClassRepository.findById(scheduledClass.getId()).orElseThrow();
+    assertThat(remappedClass.getSlot().getId()).isNotEqualTo(publishedSlotId);
+    assertThat(courseSectionRepository.findByCourseIdOrderByPositionAsc(course.getId()))
+        .extracting("id")
+        .contains(remappedClass.getSlot().getSection().getId());
     assertThat(
             courseTemplateVersionRepository.findById(publishedVersionId).orElseThrow().getTitle())
         .isEqualTo("Immutable Curriculum");
@@ -574,7 +581,11 @@ class AdminCourseStructureApiIt extends AbstractAdminApiIntegrationTest {
             courseSectionRepository.findById(section.getId()).orElseThrow().getPosition())
         .isEqualTo(2);
     org.assertj.core.api.Assertions.assertThat(
-            lessonRepository.findById(lesson.getId()).orElseThrow().getPosition())
+            sectionItemRepository
+                .findByItemTypeAndItemId(
+                    com.gii.common.enums.SectionItemType.LESSON, lesson.getId())
+                .orElseThrow()
+                .getPosition())
         .isEqualTo(3);
   }
 

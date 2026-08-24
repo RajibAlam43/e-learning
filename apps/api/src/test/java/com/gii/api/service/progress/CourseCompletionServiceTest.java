@@ -51,7 +51,9 @@ class CourseCompletionServiceTest {
             userId, courseIds, PublishStatus.PUBLISHED))
         .thenReturn(List.<Object[]>of(new Object[] {courseId, 1L}));
     when(liveClassSlotRepository.countMandatoryByCourseIdsAndSectionStatus(
-            courseIds, PublishStatus.PUBLISHED))
+            courseIds,
+            PublishStatus.PUBLISHED,
+            List.of(LiveClassStatus.CANCELLED, LiveClassStatus.FAILED)))
         .thenReturn(List.<Object[]>of(new Object[] {courseId, 2L}));
     when(liveClassRepository.countByCourseIdsAndSectionStatusAndLiveClassStatus(
             courseIds, PublishStatus.PUBLISHED, LiveClassStatus.COMPLETED))
@@ -86,7 +88,9 @@ class CourseCompletionServiceTest {
             userId, courseIds, PublishStatus.PUBLISHED))
         .thenReturn(List.of());
     when(liveClassSlotRepository.countMandatoryByCourseIdsAndSectionStatus(
-            courseIds, PublishStatus.PUBLISHED))
+            courseIds,
+            PublishStatus.PUBLISHED,
+            List.of(LiveClassStatus.CANCELLED, LiveClassStatus.FAILED)))
         .thenReturn(List.of());
     when(liveClassRepository.countByCourseIdsAndSectionStatusAndLiveClassStatus(
             courseIds, PublishStatus.PUBLISHED, LiveClassStatus.COMPLETED))

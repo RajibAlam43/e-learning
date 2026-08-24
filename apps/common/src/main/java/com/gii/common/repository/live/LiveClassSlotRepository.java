@@ -25,9 +25,16 @@ public interface LiveClassSlotRepository extends JpaRepository<LiveClassSlot, UU
         AND slot.section.templateVersion.id = c.templateVersion.id
         AND slot.section.status = :sectionStatus
         AND slot.isMandatory = true
+        AND NOT EXISTS (
+          SELECT lc.id FROM LiveClass lc
+          WHERE lc.course.id = c.id
+          AND lc.slot.id = slot.id
+          AND lc.status IN :excludedStatuses
+        )
         GROUP BY c.id
       """)
   List<Object[]> countMandatoryByCourseIdsAndSectionStatus(
       @Param("courseIds") List<UUID> courseIds,
-      @Param("sectionStatus") com.gii.common.enums.PublishStatus sectionStatus);
+      @Param("sectionStatus") com.gii.common.enums.PublishStatus sectionStatus,
+      @Param("excludedStatuses") List<com.gii.common.enums.LiveClassStatus> excludedStatuses);
 }

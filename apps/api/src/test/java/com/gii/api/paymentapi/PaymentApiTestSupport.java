@@ -30,6 +30,7 @@ import com.gii.common.repository.enrollment.EnrollmentRepository;
 import com.gii.common.repository.order.OrderItemCourseRepository;
 import com.gii.common.repository.order.OrderItemRepository;
 import com.gii.common.repository.order.OrderRepository;
+import com.gii.common.repository.order.PaymentAttemptRepository;
 import com.gii.common.repository.order.PaymentEventRepository;
 import com.gii.common.repository.user.UserRepository;
 import java.math.BigDecimal;
@@ -55,9 +56,11 @@ abstract class PaymentApiTestSupport {
   @Autowired protected OrderItemRepository orderItemRepository;
   @Autowired protected OrderItemCourseRepository orderItemCourseRepository;
   @Autowired protected PaymentEventRepository paymentEventRepository;
+  @Autowired protected PaymentAttemptRepository paymentAttemptRepository;
 
   protected void cleanupPaymentData() {
     paymentEventRepository.deleteAll();
+    paymentAttemptRepository.deleteAll();
     collectionEnrollmentRepository.deleteAll();
     enrollmentRepository.deleteAll();
     orderItemCourseRepository.deleteAll();

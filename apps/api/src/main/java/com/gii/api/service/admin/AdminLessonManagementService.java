@@ -112,7 +112,6 @@ public class AdminLessonManagementService {
     }
     if (request.position() != null) {
       ensurePositionAvailable(lesson.getSection().getId(), request.position(), lesson.getId());
-      lesson.setPosition(request.position());
     }
     if (request.lessonType() != null) {
       LessonType requestedType = parseLessonType(request.lessonType());
@@ -153,7 +152,9 @@ public class AdminLessonManagementService {
                 () ->
                     new ResponseStatusException(
                         HttpStatus.INTERNAL_SERVER_ERROR, "Section item missing"));
-    sectionItem.setPosition(saved.getPosition());
+    if (request.position() != null) {
+      sectionItem.setPosition(request.position());
+    }
     sectionItemRepository.save(sectionItem);
     return toDetail(saved);
   }
@@ -286,7 +287,7 @@ public class AdminLessonManagementService {
         .title(lesson.getTitle())
         .titleEn(lesson.getTitleEn())
         .slug(lesson.getSlug())
-        .position(lesson.getPosition())
+        .position(positionOf(lesson))
         .lessonType(lesson.getLessonType().name())
         .status(lesson.getStatus().name())
         .isMandatory(lesson.getIsMandatory())
@@ -319,5 +320,15 @@ public class AdminLessonManagementService {
     } catch (Exception e) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid lessonType");
     }
+  }
+
+  private Integer positionOf(Lesson lesson) {
+    return sectionItemRepository
+        .findByItemTypeAndItemId(SectionItemType.LESSON, lesson.getId())
+        .map(SectionItem::getPosition)
+        .orElseThrow(
+            () ->
+                new ResponseStatusException(
+                    HttpStatus.INTERNAL_SERVER_ERROR, "Section item missing"));
   }
 }

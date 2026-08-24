@@ -22,6 +22,7 @@ import com.gii.common.repository.course.CourseRepository;
 import com.gii.common.repository.course.CourseReviewRepository;
 import com.gii.common.repository.course.CourseSectionRepository;
 import com.gii.common.repository.course.LessonRepository;
+import com.gii.common.repository.course.SectionItemRepository;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -46,6 +47,7 @@ public class CourseDetailsService {
   private final CourseReviewRepository courseReviewRepository;
   private final AssetUrlService assetUrlService;
   private final LocalizedContentService localizedContentService;
+  private final SectionItemRepository sectionItemRepository;
 
   public CourseDetailsResponse execute(String slug) {
     Course course =
@@ -142,8 +144,16 @@ public class CourseDetailsService {
 
   private CourseSectionResponse toSectionResponse(
       CourseSection section, List<Lesson> lessonsForSection) {
+    Map<UUID, Integer> positions =
+        sectionItemRepository.findBySectionIdOrderByPositionAsc(section.getId()).stream()
+            .collect(
+                Collectors.toMap(
+                    com.gii.common.entity.course.SectionItem::getItemId,
+                    com.gii.common.entity.course.SectionItem::getPosition));
     List<LessonSummaryResponse> lessons =
-        lessonsForSection.stream().map(this::toLessonSummaryResponse).toList();
+        lessonsForSection.stream()
+            .map(lesson -> toLessonSummaryResponse(lesson, positions.get(lesson.getId())))
+            .toList();
 
     return CourseSectionResponse.builder()
         .id(section.getId())
@@ -153,7 +163,7 @@ public class CourseDetailsService {
         .build();
   }
 
-  private LessonSummaryResponse toLessonSummaryResponse(Lesson lesson) {
+  private LessonSummaryResponse toLessonSummaryResponse(Lesson lesson, Integer position) {
     MediaAsset media = lesson.getPrimaryMediaAsset();
 
     LessonVideoResponse video = null;
@@ -170,7 +180,7 @@ public class CourseDetailsService {
         .id(lesson.getId())
         .title(localizedContentService.text(lesson.getTitle(), lesson.getTitleEn()))
         .slug(lesson.getSlug())
-        .position(lesson.getPosition())
+        .position(position)
         .lessonType(lesson.getLessonType())
         .isPreviewFree(lesson.getIsFree())
         .video(video)

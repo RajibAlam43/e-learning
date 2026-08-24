@@ -42,6 +42,12 @@ class QuizSubmitResultHistoryApiIt extends AbstractQuizApiIntegrationTest {
     var q2c2 = choice(q2, "Q2-B", true);
     var attempt = attempt(quiz, student, 1, null, null, Instant.now().minusSeconds(100), null);
 
+    mockMvc
+        .perform(
+            get("/learn/quiz-attempts/{attemptId}", attempt.getId())
+                .with(authentication(studentAuth(student.getId()))))
+        .andExpect(status().isConflict());
+
     String submitBody =
         """
         {
