@@ -8,7 +8,7 @@ import com.gii.api.model.response.admin.AdminLessonSummaryResponse;
 import com.gii.api.model.response.admin.AdminLiveClassSectionItemResponse;
 import com.gii.api.model.response.admin.AdminQuizSummaryResponse;
 import com.gii.api.model.response.admin.AdminSectionItemResponse;
-import com.gii.api.service.course.CourseTemplateMutationGuard;
+import com.gii.api.service.progress.EnrollmentCompletionService;
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.course.CourseSection;
 import com.gii.common.entity.course.Lesson;
@@ -54,7 +54,7 @@ public class AdminSectionManagementService {
   private final SectionItemRepository sectionItemRepository;
   private final LiveClassRepository liveClassRepository;
   private final LiveClassSlotRepository liveClassSlotRepository;
-  private final CourseTemplateMutationGuard templateMutationGuard;
+  private final EnrollmentCompletionService enrollmentCompletionService;
 
   public AdminCourseSectionResponse create(UUID courseId, CreateSectionRequest request) {
     Course course =
@@ -62,10 +62,9 @@ public class AdminSectionManagementService {
             .findById(courseId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found"));
-    course = templateMutationGuard.prepareForTemplateUpdate(course);
     CourseSection section =
         CourseSection.builder()
-            .templateVersion(course.getTemplateVersion())
+            .template(course.getTemplate())
             .title(request.title().trim())
             .titleEn(request.titleEn())
             .slug(request.slug().trim())
@@ -88,7 +87,6 @@ public class AdminSectionManagementService {
             .findById(sectionId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Section not found"));
-    templateMutationGuard.requireDraft(section.getTemplateVersion());
     if (request.title() != null) {
       section.setTitle(request.title().trim());
     }
@@ -107,6 +105,10 @@ public class AdminSectionManagementService {
     if (request.descriptionEn() != null) {
       section.setDescriptionEn(request.descriptionEn());
     }
+    boolean demotedFromMandatory =
+        request.isMandatory() != null
+            && Boolean.TRUE.equals(section.getIsMandatory())
+            && !request.isMandatory();
     if (request.isMandatory() != null) {
       section.setIsMandatory(request.isMandatory());
     }
@@ -122,7 +124,12 @@ public class AdminSectionManagementService {
     if (request.unlockAfterDays() != null) {
       section.setUnlockAfterDays(request.unlockAfterDays());
     }
-    return toResponse(sectionRepository.save(section));
+    CourseSection saved = sectionRepository.save(section);
+    if (demotedFromMandatory) {
+      sectionRepository.flush();
+      enrollmentCompletionService.refreshCoursesForTemplate(saved.getTemplate().getId());
+    }
+    return toResponse(saved);
   }
 
   public void delete(UUID sectionId) {
@@ -131,8 +138,10 @@ public class AdminSectionManagementService {
             .findById(sectionId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Section not found"));
-    templateMutationGuard.requireDraft(section.getTemplateVersion());
+    UUID templateId = section.getTemplate().getId();
     sectionRepository.delete(section);
+    sectionRepository.flush();
+    enrollmentCompletionService.refreshCoursesForTemplate(templateId);
   }
 
   public void publish(UUID sectionId) {
@@ -141,7 +150,6 @@ public class AdminSectionManagementService {
             .findById(sectionId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Section not found"));
-    templateMutationGuard.requireDraft(section.getTemplateVersion());
     section.setStatus(PublishStatus.PUBLISHED);
     if (section.getPublishedAt() == null) {
       section.setPublishedAt(Instant.now());
@@ -155,14 +163,13 @@ public class AdminSectionManagementService {
             .findById(sectionId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Section not found"));
-    templateMutationGuard.requireDraft(section.getTemplateVersion());
     section.setStatus(PublishStatus.DRAFT);
-    sectionRepository.save(section);
+    sectionRepository.saveAndFlush(section);
+    enrollmentCompletionService.refreshCoursesForTemplate(section.getTemplate().getId());
   }
 
   AdminCourseSectionResponse toResponse(CourseSection section) {
-    List<Course> courses =
-        courseRepository.findByTemplateVersionId(section.getTemplateVersion().getId());
+    List<Course> courses = courseRepository.findByTemplateId(section.getTemplate().getId());
     return toResponse(section, courses.size() == 1 ? courses.getFirst().getId() : null);
   }
 

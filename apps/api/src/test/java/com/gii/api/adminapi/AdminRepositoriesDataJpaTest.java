@@ -43,7 +43,7 @@ class AdminRepositoriesDataJpaTest extends AbstractAdminDataJpaTest {
         () ->
             courseSectionRepository.saveAndFlush(
                 CourseSection.builder()
-                    .templateVersion(course.getTemplateVersion())
+                    .template(course.getTemplate())
                     .title("Section Duplicate")
                     .slug("section-dup")
                     .position(1)

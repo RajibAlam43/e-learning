@@ -3,7 +3,6 @@ package com.gii.api.service.admin;
 import com.gii.api.model.request.admin.CreateMediaAssetRequest;
 import com.gii.api.model.request.admin.UpdateMediaAssetRequest;
 import com.gii.api.model.response.admin.AdminMediaAssetResponse;
-import com.gii.api.service.course.CourseTemplateMutationGuard;
 import com.gii.api.service.storage.AssetUrlService;
 import com.gii.common.entity.course.Lesson;
 import com.gii.common.entity.course.MediaAsset;
@@ -28,7 +27,6 @@ public class AdminMediaAssetManagementService {
   private final MediaAssetRepository mediaAssetRepository;
   private final LessonRepository lessonRepository;
   private final AssetUrlService assetUrlService;
-  private final CourseTemplateMutationGuard templateMutationGuard;
 
   public AdminMediaAssetResponse create(CreateMediaAssetRequest request) {
     Lesson lesson =
@@ -36,7 +34,6 @@ public class AdminMediaAssetManagementService {
             .findById(request.lessonId())
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lesson not found"));
-    templateMutationGuard.requireDraft(lesson.getSection().getTemplateVersion());
     if (mediaAssetRepository.existsByLessonId(lesson.getId())) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Lesson already has media asset");
     }
@@ -92,7 +89,6 @@ public class AdminMediaAssetManagementService {
             .findById(mediaAssetId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Media asset not found"));
-    templateMutationGuard.requireDraft(asset.getLesson().getSection().getTemplateVersion());
     if (request.title() != null) {
       asset.setTitle(request.title());
     }

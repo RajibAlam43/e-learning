@@ -13,8 +13,8 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID> {
   @Query(
       """
         SELECT l FROM Lesson l, SectionItem si
-        WHERE l.section.templateVersion.id = (
-          SELECT c.templateVersion.id FROM Course c WHERE c.id = :courseId
+        WHERE l.section.template.id = (
+          SELECT c.template.id FROM Course c WHERE c.id = :courseId
         )
         AND si.section.id = l.section.id
         AND si.itemType = com.gii.common.enums.SectionItemType.LESSON
@@ -38,8 +38,8 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID> {
       """
         SELECT l FROM Lesson l, SectionItem si
         LEFT JOIN FETCH l.primaryMediaAsset
-        WHERE l.section.templateVersion.id = (
-          SELECT c.templateVersion.id FROM Course c WHERE c.id = :courseId
+        WHERE l.section.template.id = (
+          SELECT c.template.id FROM Course c WHERE c.id = :courseId
         )
         AND l.status = :status
         AND si.section.id = l.section.id
@@ -53,8 +53,8 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID> {
   @Query(
       """
         SELECT COUNT(l) FROM Lesson l
-        WHERE l.section.templateVersion.id = (
-          SELECT c.templateVersion.id FROM Course c WHERE c.id = :courseId
+        WHERE l.section.template.id = (
+          SELECT c.template.id FROM Course c WHERE c.id = :courseId
         )
         AND l.status = :status
       """)
@@ -66,7 +66,7 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID> {
         SELECT c.id, COUNT(l)
         FROM Course c, Lesson l
         WHERE c.id IN :courseIds
-        AND l.section.templateVersion.id = c.templateVersion.id
+        AND l.section.template.id = c.template.id
         AND l.status = :status
         GROUP BY c.id
       """)
@@ -78,7 +78,7 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID> {
         SELECT c.id, COUNT(l)
         FROM Course c, Lesson l
         WHERE c.id IN :courseIds
-        AND l.section.templateVersion.id = c.templateVersion.id
+        AND l.section.template.id = c.template.id
         AND l.status = :status
         AND l.section.status = :status
         AND l.isMandatory = true

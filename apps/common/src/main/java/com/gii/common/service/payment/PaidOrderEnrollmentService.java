@@ -108,7 +108,6 @@ public class PaidOrderEnrollmentService {
       existing.setStatus(EnrollmentStatus.ACTIVE);
       existing.setEnrolledAt(now);
       existing.setRevokedAt(null);
-      existing.setCompletedAt(null);
       existing.setExpiresAt(enrollmentPolicyService.calculateExpiry(lockedCourse, now));
       existing.setSourceOrderItem(sourceOrderItem);
       existing.setSourceCollection(sourceCollection);
@@ -140,7 +139,6 @@ public class PaidOrderEnrollmentService {
       existing.setStatus(EnrollmentStatus.ACTIVE);
       existing.setEnrolledAt(now);
       existing.setRevokedAt(null);
-      existing.setCompletedAt(null);
       existing.setExpiresAt(null);
       existing.setSourceOrderItem(sourceOrderItem);
       collectionEnrollmentRepository.save(existing);

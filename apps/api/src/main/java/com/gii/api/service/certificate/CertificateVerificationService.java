@@ -58,7 +58,10 @@ public class CertificateVerificationService {
       CourseCompletion completion =
           courseCompletionService.get(
               certificate.getUser().getId(), certificate.getCourse().getId());
-      completionPct = completion.totalItems() == 0 ? null : completion.completionPercentage();
+      completionPct =
+          completion.totalItems() == 0 && !completion.permanentlyCompleted()
+              ? null
+              : completion.completionPercentage();
       completionCriteria = "Completed all published lessons and passed all published quizzes";
     } else {
       completionCriteria =

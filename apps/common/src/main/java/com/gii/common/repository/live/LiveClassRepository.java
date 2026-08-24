@@ -139,7 +139,7 @@ public interface LiveClassRepository extends JpaRepository<LiveClass, UUID> {
         AND lc.slot.section.isMandatory = true
         AND lc.slot.isMandatory = true
         AND lc.status = :liveClassStatus
-        AND lc.slot.section.templateVersion.id = lc.course.templateVersion.id
+        AND lc.slot.section.template.id = lc.course.template.id
         GROUP BY lc.course.id
       """)
   List<Object[]> countByCourseIdsAndSectionStatusAndLiveClassStatus(

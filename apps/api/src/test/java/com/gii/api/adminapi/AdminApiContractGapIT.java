@@ -39,23 +39,23 @@ class AdminApiContractGapIt extends AbstractAdminApiIntegrationTest {
   }
 
   @Test
-  void updateMediaAssetRejectsPublishedTemplate() throws Exception {
-    var admin = user("Immutable Media Admin", "immutable-media-admin@example.com");
-    var creator = user("Immutable Media Creator", "immutable-media-creator@example.com");
-    var course = course("Immutable Media", "immutable-media", creator);
+  void updateMediaAssetAllowedOnPublishedCourse() throws Exception {
+    var admin = user("Mutable Media Admin", "mutable-media-admin@example.com");
+    var creator = user("Mutable Media Creator", "mutable-media-creator@example.com");
+    var course = course("Mutable Media", "mutable-media", creator);
     var sec = section(course, 1);
     var lesson = lesson(course, sec, 1);
-    var asset = mediaAsset(lesson, "immutable-playback");
-    course.getTemplateVersion().setStatus(com.gii.common.enums.PublishStatus.PUBLISHED);
-    courseTemplateVersionRepository.saveAndFlush(course.getTemplateVersion());
+    var asset = mediaAsset(lesson, "mutable-playback");
+    course.setStatus(com.gii.common.enums.PublishStatus.PUBLISHED);
+    courseRepository.saveAndFlush(course);
 
     mockMvc
         .perform(
             patch("/admin/media-assets/{mediaAssetId}", asset.getId())
                 .with(authentication(adminAuth(admin.getId())))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"title\":\"Must Not Change\"}"))
-        .andExpect(status().isConflict());
+                .content("{\"title\":\"Should Still Work\"}"))
+        .andExpect(status().isOk());
   }
 
   @Test

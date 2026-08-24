@@ -14,6 +14,8 @@ public interface CollectionCourseRepository
 
   List<CollectionCourse> findByCollection_IdOrderByPositionAsc(UUID collectionId);
 
+  List<CollectionCourse> findByCourse_Id(UUID courseId);
+
   List<CollectionCourse> findByCollection_IdIn(List<UUID> collectionIds);
 
   @Query(

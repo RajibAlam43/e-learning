@@ -85,7 +85,11 @@ public class StudentCollectionsService {
                 }
               }
               double progress =
-                  totalItems == 0 ? 0.0 : Math.round(completedItems * 10000.0 / totalItems) / 100.0;
+                  enrollment.getCompletedAt() != null
+                      ? 100.0
+                      : totalItems == 0
+                          ? 0.0
+                          : Math.round(completedItems * 10000.0 / totalItems) / 100.0;
               return StudentCollectionSummaryResponse.builder()
                   .collectionId(collection.getId())
                   .collectionName(

@@ -10,8 +10,7 @@ import com.gii.api.model.response.admin.AdminCourseDetailResponse;
 import com.gii.api.model.response.admin.AdminCourseSectionResponse;
 import com.gii.api.model.response.admin.AdminCourseSummaryResponse;
 import com.gii.api.model.response.admin.AdminInstructorSummaryResponse;
-import com.gii.api.service.course.CourseTemplateMutationGuard;
-import com.gii.api.service.course.CourseTemplateVersionCloneService;
+import com.gii.api.service.course.CourseDuplicationService;
 import com.gii.api.service.enrollment.CurrentUserService;
 import com.gii.api.service.storage.AssetUrlService;
 import com.gii.common.entity.course.Category;
@@ -20,7 +19,6 @@ import com.gii.common.entity.course.CourseCategory;
 import com.gii.common.entity.course.CourseInstructor;
 import com.gii.common.entity.course.CourseSection;
 import com.gii.common.entity.course.CourseTemplate;
-import com.gii.common.entity.course.CourseTemplateVersion;
 import com.gii.common.entity.course.SectionItem;
 import com.gii.common.entity.user.User;
 import com.gii.common.enums.CourseLanguage;
@@ -37,7 +35,6 @@ import com.gii.common.repository.course.CourseInstructorRepository;
 import com.gii.common.repository.course.CourseRepository;
 import com.gii.common.repository.course.CourseSectionRepository;
 import com.gii.common.repository.course.CourseTemplateRepository;
-import com.gii.common.repository.course.CourseTemplateVersionRepository;
 import com.gii.common.repository.course.LessonRepository;
 import com.gii.common.repository.course.SectionItemRepository;
 import com.gii.common.repository.enrollment.EnrollmentRepository;
@@ -67,7 +64,6 @@ public class AdminCourseManagementService {
 
   private final CourseRepository courseRepository;
   private final CourseTemplateRepository courseTemplateRepository;
-  private final CourseTemplateVersionRepository courseTemplateVersionRepository;
   private final CategoryRepository categoryRepository;
   private final CourseCategoryRepository courseCategoryRepository;
   private final CourseSectionRepository sectionRepository;
@@ -81,8 +77,7 @@ public class AdminCourseManagementService {
   private final CurrentUserService currentUserService;
   private final AdminSectionManagementService sectionManagementService;
   private final AssetUrlService assetUrlService;
-  private final CourseTemplateMutationGuard templateMutationGuard;
-  private final CourseTemplateVersionCloneService templateVersionCloneService;
+  private final CourseDuplicationService courseDuplicationService;
 
   @Transactional(readOnly = true)
   public List<AdminCourseSummaryResponse> list() {
@@ -123,12 +118,7 @@ public class AdminCourseManagementService {
     User user = currentUserService.getCurrentUser(authentication);
     CourseTemplate template =
         courseTemplateRepository.save(
-            CourseTemplate.builder().internalKey(request.slug().trim()).build());
-    CourseTemplateVersion version =
-        courseTemplateVersionRepository.save(
-            CourseTemplateVersion.builder()
-                .courseTemplate(template)
-                .versionNumber(1)
+            CourseTemplate.builder()
                 .title(request.title().trim())
                 .titleEn(request.titleEn())
                 .thumbnailObjectKey(
@@ -147,7 +137,6 @@ public class AdminCourseManagementService {
                 .prerequisitesEn(toList(request.prerequisitesEn()))
                 .level(request.level())
                 .language(request.language())
-                .status(PublishStatus.DRAFT)
                 .estimatedDurationMinutes(request.estimatedDurationMinutes())
                 .targetAudience(request.targetAudience())
                 .targetAudienceEn(request.targetAudienceEn())
@@ -157,7 +146,7 @@ public class AdminCourseManagementService {
                 .build());
     Course course =
         Course.builder()
-            .templateVersion(version)
+            .template(template)
             .slug(request.slug().trim())
             .name(request.title().trim())
             .priceBdt(request.priceBdt())
@@ -182,25 +171,18 @@ public class AdminCourseManagementService {
   public AdminCourseDetailResponse repeat(
       UUID sourceCourseId, RepeatCourseRequest request, Authentication authentication) {
     Course source = findCourse(sourceCourseId);
-    CourseTemplateVersion editableVersion = templateVersionCloneService.cloneForEditing(source);
-    Course course =
-        Course.builder()
-            .templateVersion(editableVersion)
-            .slug(request.slug().trim())
-            .name(source.getTitle())
-            .priceBdt(request.priceBdt())
-            .studyMode(request.studyMode())
-            .status(PublishStatus.DRAFT)
-            .isFree(Boolean.TRUE.equals(request.isFree()))
-            .timezone(normalizeTimezone(request.timezone()))
-            .enrollmentStartsAt(request.enrollmentStartsAt())
-            .enrollmentEndsAt(request.enrollmentEndsAt())
-            .startsAt(request.startsAt())
-            .endsAt(request.endsAt())
-            .capacity(request.capacity())
-            .accessDurationDays(request.accessDurationDays())
-            .createdBy(currentUserService.getCurrentUser(authentication))
-            .build();
+    User user = currentUserService.getCurrentUser(authentication);
+    Course course = courseDuplicationService.duplicate(source, request.slug().trim(), user);
+    course.setPriceBdt(request.priceBdt());
+    course.setStudyMode(request.studyMode());
+    course.setIsFree(Boolean.TRUE.equals(request.isFree()));
+    course.setTimezone(normalizeTimezone(request.timezone()));
+    course.setEnrollmentStartsAt(request.enrollmentStartsAt());
+    course.setEnrollmentEndsAt(request.enrollmentEndsAt());
+    course.setStartsAt(request.startsAt());
+    course.setEndsAt(request.endsAt());
+    course.setCapacity(request.capacity());
+    course.setAccessDurationDays(request.accessDurationDays());
     validateOfferingWindow(course);
     return getResponse(courseRepository.save(course));
   }
@@ -221,9 +203,6 @@ public class AdminCourseManagementService {
             .findByIdForUpdate(courseId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found"));
-    if (hasTemplateUpdates(request)) {
-      course = templateMutationGuard.prepareForTemplateUpdate(course);
-    }
     if (request.getTitle() != null) {
       course.setTitle(request.getTitle().trim());
     }
@@ -343,8 +322,6 @@ public class AdminCourseManagementService {
     }
     course.setStatus(PublishStatus.PUBLISHED);
     course.setPublishedAt(Instant.now());
-    course.getTemplateVersion().setStatus(PublishStatus.PUBLISHED);
-    course.getTemplateVersion().setPublishedAt(course.getPublishedAt());
     courseRepository.save(course);
   }
 
@@ -361,9 +338,6 @@ public class AdminCourseManagementService {
     }
     course.setStatus(PublishStatus.DRAFT);
     clearFeatured(course);
-    if (!enrollmentRepository.existsByCourseId(courseId)) {
-      course = templateMutationGuard.prepareForTemplateUpdate(course);
-    }
     courseRepository.save(course);
   }
 
@@ -403,7 +377,6 @@ public class AdminCourseManagementService {
             .findById(courseId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found"));
-    templateMutationGuard.requireDraft(course.getTemplateVersion());
     try {
       Set<UUID> seenSectionIds = new HashSet<>();
       Set<Integer> seenSectionPositions = new HashSet<>();
@@ -426,7 +399,7 @@ public class AdminCourseManagementService {
                 .findById(secReq.sectionId())
                 .orElseThrow(
                     () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Section not found"));
-        if (!sec.getTemplateVersion().getId().equals(course.getTemplateVersion().getId())) {
+        if (!sec.getTemplate().getId().equals(course.getTemplate().getId())) {
           throw new ResponseStatusException(
               HttpStatus.BAD_REQUEST, "Section does not belong to course");
         }
@@ -661,10 +634,7 @@ public class AdminCourseManagementService {
         categories.stream()
             .map(
                 category ->
-                    CourseCategory.builder()
-                        .templateVersion(course.getTemplateVersion())
-                        .category(category)
-                        .build())
+                    CourseCategory.builder().template(course.getTemplate()).category(category).build())
             .toList());
   }
 
@@ -687,30 +657,6 @@ public class AdminCourseManagementService {
         .map(String::trim)
         .filter(s -> !s.isBlank())
         .toList();
-  }
-
-  private boolean hasTemplateUpdates(UpdateCourseRequest request) {
-    return request.getTitle() != null
-        || request.getTitleEn() != null
-        || request.getCategoryIds() != null
-        || request.getThumbnailObjectKey() != null
-        || request.getShortDescription() != null
-        || request.getShortDescriptionEn() != null
-        || request.getDescription() != null
-        || request.getDescriptionEn() != null
-        || request.getHighlights() != null
-        || request.getHighlightsEn() != null
-        || request.getCourseOutcomes() != null
-        || request.getCourseOutcomesEn() != null
-        || request.getRequirements() != null
-        || request.getRequirementsEn() != null
-        || request.getPrerequisites() != null
-        || request.getPrerequisitesEn() != null
-        || request.getLevel() != null
-        || request.getLanguage() != null
-        || request.getEstimatedDurationMinutes() != null
-        || request.getTargetAudience() != null
-        || request.getTargetAudienceEn() != null;
   }
 
   private Map<UUID, String> buildInstructorNameMap(List<UUID> courseIds) {

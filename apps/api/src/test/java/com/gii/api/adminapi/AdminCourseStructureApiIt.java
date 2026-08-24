@@ -325,7 +325,7 @@ class AdminCourseStructureApiIt extends AbstractAdminApiIntegrationTest {
   }
 
   @Test
-  void repeatCourseCreatesEditableCurriculumVersionAndKeepsSourceImmutable() throws Exception {
+  void repeatCourseClonesCurriculumIndependentlyOfSource() throws Exception {
     var admin = user("Repeat Admin", "repeat-admin@example.com");
     var source = course("Repeatable Course", "repeatable-spring", admin);
     var sourceSection = section(source, 1);
@@ -377,8 +377,6 @@ class AdminCourseStructureApiIt extends AbstractAdminApiIntegrationTest {
                 .readTree(response)
                 .get("courseId")
                 .asText());
-    assertThat(courseRepository.findById(repeatedId).orElseThrow().getTemplateVersion().getId())
-        .isNotEqualTo(source.getTemplateVersion().getId());
     var repeatedSection =
         courseSectionRepository.findByCourseIdOrderByPositionAsc(repeatedId).getFirst();
     assertThat(courseSectionRepository.findByCourseIdOrderByPositionAsc(repeatedId))
@@ -441,64 +439,51 @@ class AdminCourseStructureApiIt extends AbstractAdminApiIntegrationTest {
   }
 
   @Test
-  void publishedCurriculumUsesCopyOnWriteAndInUseVersionRemainsImmutable() throws Exception {
-    var admin = user("Immutable Admin", "immutable-curriculum-admin@example.com");
-    final var student = user("Immutable Student", "immutable-curriculum-student@example.com");
-    var course = course("Immutable Curriculum", "immutable-curriculum", admin);
+  void publishedCurriculumRemainsDirectlyEditableEvenWithActiveEnrollments() throws Exception {
+    var admin = user("Mutable Admin", "mutable-curriculum-admin@example.com");
+    final var student = user("Mutable Student", "mutable-curriculum-student@example.com");
+    var course = course("Mutable Curriculum", "mutable-curriculum", admin);
     var section = section(course, 1);
-    var immutableLesson = lesson(course, section, 1);
-    var scheduledClass = liveClass(course, section, immutableLesson);
-    var publishedSlotId = scheduledClass.getSlot().getId();
+    var mutableLesson = lesson(course, section, 1);
+    var scheduledClass = liveClass(course, section, mutableLesson);
 
     mockMvc
         .perform(
             post("/admin/courses/{courseId}/publish", course.getId())
                 .with(authentication(adminAuth(admin.getId()))))
         .andExpect(status().isOk());
-    var publishedVersionId =
-        courseRepository.findById(course.getId()).orElseThrow().getTemplateVersion().getId();
 
     mockMvc
         .perform(
             patch("/admin/courses/{courseId}", course.getId())
                 .with(authentication(adminAuth(admin.getId())))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"title\":\"Unsafe rewrite\"}"))
+                .content("{\"title\":\"Edited after publish\"}"))
         .andExpect(status().isOk());
-    var editableCourse = courseRepository.findById(course.getId()).orElseThrow();
-    assertThat(editableCourse.getTemplateVersion().getId()).isNotEqualTo(publishedVersionId);
-    assertThat(editableCourse.getStatus()).isEqualTo(com.gii.common.enums.PublishStatus.DRAFT);
-    var remappedClass = liveClassRepository.findById(scheduledClass.getId()).orElseThrow();
-    assertThat(remappedClass.getSlot().getId()).isNotEqualTo(publishedSlotId);
-    assertThat(courseSectionRepository.findByCourseIdOrderByPositionAsc(course.getId()))
-        .extracting("id")
-        .contains(remappedClass.getSlot().getSection().getId());
-    assertThat(
-            courseTemplateVersionRepository.findById(publishedVersionId).orElseThrow().getTitle())
-        .isEqualTo("Immutable Curriculum");
+    var editedCourse = courseRepository.findById(course.getId()).orElseThrow();
+    assertThat(editedCourse.getId()).isEqualTo(course.getId());
+    assertThat(editedCourse.getTitle()).isEqualTo("Edited after publish");
+    assertThat(editedCourse.getStatus()).isEqualTo(com.gii.common.enums.PublishStatus.PUBLISHED);
+    assertThat(liveClassRepository.findById(scheduledClass.getId())).isPresent();
+
     mockMvc
         .perform(
             post("/admin/courses/{courseId}/sections", course.getId())
                 .with(authentication(adminAuth(admin.getId())))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"title\":\"Unsafe\",\"slug\":\"unsafe\",\"position\":2}"))
-        .andExpect(status().isOk());
-    mockMvc
-        .perform(
-            patch("/admin/courses/{courseId}", course.getId())
-                .with(authentication(adminAuth(admin.getId())))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"priceBdt\":2000}"))
+                .content("{\"title\":\"New Section\",\"slug\":\"new-section\",\"position\":2}"))
         .andExpect(status().isOk());
 
-    enrollment(student, editableCourse, com.gii.common.enums.EnrollmentStatus.ACTIVE);
+    enrollment(student, editedCourse, com.gii.common.enums.EnrollmentStatus.ACTIVE);
     mockMvc
         .perform(
             patch("/admin/courses/{courseId}", course.getId())
                 .with(authentication(adminAuth(admin.getId())))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"title\":\"Must remain pinned\"}"))
-        .andExpect(status().isConflict());
+                .content("{\"title\":\"Edited with active enrollment\"}"))
+        .andExpect(status().isOk());
+    assertThat(courseRepository.findById(course.getId()).orElseThrow().getTitle())
+        .isEqualTo("Edited with active enrollment");
   }
 
   @Autowired private MockMvc mockMvc;

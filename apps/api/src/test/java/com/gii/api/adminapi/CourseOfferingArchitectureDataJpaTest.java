@@ -18,7 +18,7 @@ class CourseOfferingArchitectureDataJpaTest extends AbstractAdminDataJpaTest {
   @Autowired private LessonProgressRepository lessonProgressRepository;
 
   @Test
-  void repeatedCoursesShareCurriculumButKeepDeliveryAndProgressIsolated() {
+  void offeringsCanShareCurriculumButKeepDeliveryAndProgressIsolated() {
     var creator = user("Creator", "offering-architecture-creator@example.com");
     var student = user("Student", "offering-architecture-student@example.com");
     var firstCourse = course("Reusable curriculum", "reusable-2026-spring", creator);
@@ -29,7 +29,7 @@ class CourseOfferingArchitectureDataJpaTest extends AbstractAdminDataJpaTest {
     var secondCourse =
         courseRepository.saveAndFlush(
             Course.builder()
-                .templateVersion(firstCourse.getTemplateVersion())
+                .template(firstCourse.getTemplate())
                 .slug("reusable-2026-fall")
                 .name(firstCourse.getTitle())
                 .priceBdt(BigDecimal.valueOf(1500))
@@ -40,8 +40,7 @@ class CourseOfferingArchitectureDataJpaTest extends AbstractAdminDataJpaTest {
                 .build());
 
     assertThat(secondCourse.getId()).isNotEqualTo(firstCourse.getId());
-    assertThat(secondCourse.getTemplateVersion().getId())
-        .isEqualTo(firstCourse.getTemplateVersion().getId());
+    assertThat(secondCourse.getTemplate().getId()).isEqualTo(firstCourse.getTemplate().getId());
     assertThat(courseSectionRepository.findByCourseIdOrderByPositionAsc(secondCourse.getId()))
         .extracting("id")
         .containsExactly(section.getId());

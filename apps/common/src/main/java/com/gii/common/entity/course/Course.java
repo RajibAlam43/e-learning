@@ -27,7 +27,7 @@ import lombok.Setter;
 import lombok.experimental.SuperBuilder;
 
 /**
- * A concrete, purchasable delivery of a versioned course template. Public APIs intentionally expose
+ * A concrete, purchasable delivery of a course template. Public APIs intentionally expose
  * this entity as a course and expose its UUID as {@code courseId}.
  */
 @SuperBuilder
@@ -43,8 +43,8 @@ public class Course extends BaseUuidEntity {
       fetch = FetchType.EAGER,
       optional = false,
       cascade = {CascadeType.PERSIST, CascadeType.MERGE})
-  @JoinColumn(name = "course_template_version_id", nullable = false)
-  private CourseTemplateVersion templateVersion;
+  @JoinColumn(name = "course_template_id", nullable = false)
+  private CourseTemplate template;
 
   @Column(name = "slug", nullable = false, unique = true)
   private String slug;
@@ -110,194 +110,194 @@ public class Course extends BaseUuidEntity {
   private User createdBy;
 
   public String getTitle() {
-    return templateVersion.getTitle();
+    return template.getTitle();
   }
 
   public void setTitle(String title) {
-    templateVersion.setTitle(title);
+    template.setTitle(title);
   }
 
   public String getTitleEn() {
-    return templateVersion.getTitleEn();
+    return template.getTitleEn();
   }
 
   public void setTitleEn(String value) {
-    templateVersion.setTitleEn(value);
+    template.setTitleEn(value);
   }
 
   public String getThumbnailObjectKey() {
-    return templateVersion.getThumbnailObjectKey();
+    return template.getThumbnailObjectKey();
   }
 
   public void setThumbnailObjectKey(String value) {
-    templateVersion.setThumbnailObjectKey(value);
+    template.setThumbnailObjectKey(value);
   }
 
   public String getShortDescription() {
-    return templateVersion.getShortDescription();
+    return template.getShortDescription();
   }
 
   public void setShortDescription(String value) {
-    templateVersion.setShortDescription(value);
+    template.setShortDescription(value);
   }
 
   public String getShortDescriptionEn() {
-    return templateVersion.getShortDescriptionEn();
+    return template.getShortDescriptionEn();
   }
 
   public void setShortDescriptionEn(String value) {
-    templateVersion.setShortDescriptionEn(value);
+    template.setShortDescriptionEn(value);
   }
 
   public String getDescription() {
-    return templateVersion.getDescription();
+    return template.getDescription();
   }
 
   public void setDescription(String value) {
-    templateVersion.setDescription(value);
+    template.setDescription(value);
   }
 
   public String getDescriptionEn() {
-    return templateVersion.getDescriptionEn();
+    return template.getDescriptionEn();
   }
 
   public void setDescriptionEn(String value) {
-    templateVersion.setDescriptionEn(value);
+    template.setDescriptionEn(value);
   }
 
   public List<String> getHighlights() {
-    return templateVersion.getHighlights();
+    return template.getHighlights();
   }
 
   public void setHighlights(List<String> value) {
-    templateVersion.setHighlights(value);
+    template.setHighlights(value);
   }
 
   public List<String> getHighlightsEn() {
-    return templateVersion.getHighlightsEn();
+    return template.getHighlightsEn();
   }
 
   public void setHighlightsEn(List<String> value) {
-    templateVersion.setHighlightsEn(value);
+    template.setHighlightsEn(value);
   }
 
   public List<String> getCourseOutcomes() {
-    return templateVersion.getCourseOutcomes();
+    return template.getCourseOutcomes();
   }
 
   public void setCourseOutcomes(List<String> value) {
-    templateVersion.setCourseOutcomes(value);
+    template.setCourseOutcomes(value);
   }
 
   public List<String> getCourseOutcomesEn() {
-    return templateVersion.getCourseOutcomesEn();
+    return template.getCourseOutcomesEn();
   }
 
   public void setCourseOutcomesEn(List<String> value) {
-    templateVersion.setCourseOutcomesEn(value);
+    template.setCourseOutcomesEn(value);
   }
 
   public List<String> getRequirements() {
-    return templateVersion.getRequirements();
+    return template.getRequirements();
   }
 
   public void setRequirements(List<String> value) {
-    templateVersion.setRequirements(value);
+    template.setRequirements(value);
   }
 
   public List<String> getRequirementsEn() {
-    return templateVersion.getRequirementsEn();
+    return template.getRequirementsEn();
   }
 
   public void setRequirementsEn(List<String> value) {
-    templateVersion.setRequirementsEn(value);
+    template.setRequirementsEn(value);
   }
 
   public List<String> getPrerequisites() {
-    return templateVersion.getPrerequisites();
+    return template.getPrerequisites();
   }
 
   public void setPrerequisites(List<String> value) {
-    templateVersion.setPrerequisites(value);
+    template.setPrerequisites(value);
   }
 
   public List<String> getPrerequisitesEn() {
-    return templateVersion.getPrerequisitesEn();
+    return template.getPrerequisitesEn();
   }
 
   public void setPrerequisitesEn(List<String> value) {
-    templateVersion.setPrerequisitesEn(value);
+    template.setPrerequisitesEn(value);
   }
 
   public CourseLevel getLevel() {
-    return templateVersion.getLevel();
+    return template.getLevel();
   }
 
   public void setLevel(CourseLevel value) {
-    templateVersion.setLevel(value);
+    template.setLevel(value);
   }
 
   public CourseLanguage getLanguage() {
-    return templateVersion.getLanguage();
+    return template.getLanguage();
   }
 
   public void setLanguage(CourseLanguage value) {
-    templateVersion.setLanguage(value);
+    template.setLanguage(value);
   }
 
   public Integer getLiveSessionCount() {
-    return templateVersion.getLiveSessionCount();
+    return template.getLiveSessionCount();
   }
 
   public void setLiveSessionCount(Integer value) {
-    templateVersion.setLiveSessionCount(value);
+    template.setLiveSessionCount(value);
   }
 
   public Integer getQuizCount() {
-    return templateVersion.getQuizCount();
+    return template.getQuizCount();
   }
 
   public void setQuizCount(Integer value) {
-    templateVersion.setQuizCount(value);
+    template.setQuizCount(value);
   }
 
   public Integer getRecordedHoursCount() {
-    return templateVersion.getRecordedHoursCount();
+    return template.getRecordedHoursCount();
   }
 
   public void setRecordedHoursCount(Integer value) {
-    templateVersion.setRecordedHoursCount(value);
+    template.setRecordedHoursCount(value);
   }
 
   public Lesson getPreviewLesson() {
-    return templateVersion.getPreviewLesson();
+    return template.getPreviewLesson();
   }
 
   public void setPreviewLesson(Lesson value) {
-    templateVersion.setPreviewLesson(value);
+    template.setPreviewLesson(value);
   }
 
   public Integer getEstimatedDurationMinutes() {
-    return templateVersion.getEstimatedDurationMinutes();
+    return template.getEstimatedDurationMinutes();
   }
 
   public void setEstimatedDurationMinutes(Integer value) {
-    templateVersion.setEstimatedDurationMinutes(value);
+    template.setEstimatedDurationMinutes(value);
   }
 
   public String getTargetAudience() {
-    return templateVersion.getTargetAudience();
+    return template.getTargetAudience();
   }
 
   public void setTargetAudience(String value) {
-    templateVersion.setTargetAudience(value);
+    template.setTargetAudience(value);
   }
 
   public String getTargetAudienceEn() {
-    return templateVersion.getTargetAudienceEn();
+    return template.getTargetAudienceEn();
   }
 
   public void setTargetAudienceEn(String value) {
-    templateVersion.setTargetAudienceEn(value);
+    template.setTargetAudienceEn(value);
   }
 }

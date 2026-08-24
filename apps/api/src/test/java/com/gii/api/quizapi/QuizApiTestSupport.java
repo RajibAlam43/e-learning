@@ -20,9 +20,8 @@ import com.gii.common.enums.QuestionType;
 import com.gii.common.enums.SectionItemType;
 import com.gii.common.enums.UserStatus;
 import com.gii.common.repository.course.CourseRepository;
-import com.gii.common.repository.course.CourseSectionRepository;
 import com.gii.common.repository.course.CourseTemplateRepository;
-import com.gii.common.repository.course.CourseTemplateVersionRepository;
+import com.gii.common.repository.course.CourseSectionRepository;
 import com.gii.common.repository.course.LessonRepository;
 import com.gii.common.repository.course.SectionItemRepository;
 import com.gii.common.repository.enrollment.EnrollmentRepository;
@@ -45,7 +44,6 @@ abstract class QuizApiTestSupport {
 
   @Autowired protected UserRepository userRepository;
   @Autowired protected CourseRepository courseRepository;
-  @Autowired protected CourseTemplateVersionRepository courseTemplateVersionRepository;
   @Autowired protected CourseTemplateRepository courseTemplateRepository;
   @Autowired protected CourseSectionRepository courseSectionRepository;
   @Autowired protected LessonRepository lessonRepository;
@@ -70,7 +68,6 @@ abstract class QuizApiTestSupport {
     lessonRepository.deleteAll();
     courseSectionRepository.deleteAll();
     courseRepository.deleteAll();
-    courseTemplateVersionRepository.deleteAll();
     courseTemplateRepository.deleteAll();
     userRepository.deleteAll();
   }
@@ -97,14 +94,13 @@ abstract class QuizApiTestSupport {
     course.setPublishedAt(Instant.now());
     course.setQuizCount(1);
     course.setEstimatedDurationMinutes(120);
-    course.getTemplateVersion().setStatus(status);
     return courseRepository.save(course);
   }
 
   protected Course repeatedCourse(Course source, String slug, User creator) {
     return courseRepository.save(
         Course.builder()
-            .templateVersion(source.getTemplateVersion())
+            .template(source.getTemplate())
             .name(source.getName())
             .slug(slug)
             .priceBdt(source.getPriceBdt())
@@ -119,7 +115,7 @@ abstract class QuizApiTestSupport {
   protected CourseSection section(Course course, int position, PublishStatus status) {
     return courseSectionRepository.save(
         CourseSection.builder()
-            .templateVersion(course.getTemplateVersion())
+            .template(course.getTemplate())
             .title("Section " + position)
             .slug("section-" + position + "-" + UUID.randomUUID().toString().substring(0, 6))
             .position(position)
@@ -243,15 +239,7 @@ abstract class QuizApiTestSupport {
   }
 
   private Course courseForQuiz(Quiz quiz) {
-    return courseRepository.findAll().stream()
-        .filter(
-            course ->
-                course
-                    .getTemplateVersion()
-                    .getId()
-                    .equals(quiz.getSection().getTemplateVersion().getId()))
-        .findFirst()
-        .orElseThrow();
+    return courseRepository.findByTemplateId(quiz.getSection().getTemplate().getId()).getFirst();
   }
 
   protected QuizAttemptAnswer attemptAnswer(

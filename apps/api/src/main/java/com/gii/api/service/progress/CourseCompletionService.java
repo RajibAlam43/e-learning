@@ -3,6 +3,7 @@ package com.gii.api.service.progress;
 import com.gii.common.enums.LiveClassStatus;
 import com.gii.common.enums.PublishStatus;
 import com.gii.common.repository.course.LessonRepository;
+import com.gii.common.repository.enrollment.EnrollmentRepository;
 import com.gii.common.repository.enrollment.LessonProgressRepository;
 import com.gii.common.repository.live.LiveClassAttendanceRepository;
 import com.gii.common.repository.live.LiveClassRepository;
@@ -10,6 +11,7 @@ import com.gii.common.repository.live.LiveClassSlotRepository;
 import com.gii.common.repository.quiz.QuizAttemptRepository;
 import com.gii.common.repository.quiz.QuizRepository;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -34,11 +36,14 @@ public class CourseCompletionService {
   private final LiveClassRepository liveClassRepository;
   private final LiveClassSlotRepository liveClassSlotRepository;
   private final LiveClassAttendanceRepository liveClassAttendanceRepository;
+  private final EnrollmentRepository enrollmentRepository;
 
   public Map<UUID, CourseCompletion> getByCourseIds(UUID userId, List<UUID> courseIds) {
     if (courseIds.isEmpty()) {
       return Map.of();
     }
+    Set<UUID> completedCourseIds =
+        new HashSet<>(enrollmentRepository.findCompletedCourseIds(userId, courseIds));
     Map<UUID, Integer> totalLessons =
         toCountMap(
             lessonRepository.countCompletableByCourseIdsAndStatus(
@@ -80,7 +85,8 @@ public class CourseCompletionService {
               quizzes,
               completedQuizCount,
               liveClasses,
-              completedLiveClassCount));
+              completedLiveClassCount,
+              completedCourseIds.contains(courseId)));
     }
     return result;
   }
@@ -121,7 +127,8 @@ public class CourseCompletionService {
       int completedLiveClasses,
       int totalItems,
       int completedItems,
-      double completionPercentage) {
+      double completionPercentage,
+      boolean permanentlyCompleted) {
 
     static CourseCompletion create(
         int totalLessons,
@@ -129,11 +136,18 @@ public class CourseCompletionService {
         int totalQuizzes,
         int completedQuizzes,
         int totalLiveClasses,
-        int completedLiveClasses) {
+        int completedLiveClasses,
+        boolean permanentlyCompleted) {
       int totalItems = totalLessons + totalQuizzes + totalLiveClasses;
       int completedItems = completedLessons + completedQuizzes + completedLiveClasses;
+      // Completion is sticky: once an enrollment's completedAt is set, later curriculum changes
+      // (new/removed lessons and quizzes) must never recompute this learner's percentage below
+      // 100%, even if that leaves the current item counts at 0/0. The counts themselves stay
+      // factual — only the percentage is pinned.
       double percentage =
-          totalItems == 0 ? 0.0 : Math.round(completedItems * 10000.0 / totalItems) / 100.0;
+          permanentlyCompleted
+              ? 100.0
+              : totalItems == 0 ? 0.0 : Math.round(completedItems * 10000.0 / totalItems) / 100.0;
       return new CourseCompletion(
           totalLessons,
           completedLessons,
@@ -143,7 +157,8 @@ public class CourseCompletionService {
           completedLiveClasses,
           totalItems,
           completedItems,
-          percentage);
+          percentage,
+          permanentlyCompleted);
     }
   }
 }

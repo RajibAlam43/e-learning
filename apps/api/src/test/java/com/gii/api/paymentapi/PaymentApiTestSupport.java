@@ -25,7 +25,6 @@ import com.gii.common.repository.collection.CollectionEnrollmentRepository;
 import com.gii.common.repository.collection.CollectionRepository;
 import com.gii.common.repository.course.CourseRepository;
 import com.gii.common.repository.course.CourseTemplateRepository;
-import com.gii.common.repository.course.CourseTemplateVersionRepository;
 import com.gii.common.repository.enrollment.EnrollmentRepository;
 import com.gii.common.repository.order.OrderItemCourseRepository;
 import com.gii.common.repository.order.OrderItemRepository;
@@ -49,7 +48,6 @@ abstract class PaymentApiTestSupport {
   @Autowired protected CollectionCourseRepository collectionCourseRepository;
   @Autowired protected CollectionEnrollmentRepository collectionEnrollmentRepository;
   @Autowired protected CourseRepository courseRepository;
-  @Autowired protected CourseTemplateVersionRepository courseTemplateVersionRepository;
   @Autowired protected CourseTemplateRepository courseTemplateRepository;
   @Autowired protected EnrollmentRepository enrollmentRepository;
   @Autowired protected OrderRepository orderRepository;
@@ -69,7 +67,6 @@ abstract class PaymentApiTestSupport {
     collectionCourseRepository.deleteAll();
     collectionRepository.deleteAll();
     courseRepository.deleteAll();
-    courseTemplateVersionRepository.deleteAll();
     courseTemplateRepository.deleteAll();
     userRepository.deleteAll();
   }
@@ -101,7 +98,6 @@ abstract class PaymentApiTestSupport {
     course.setIsFree(price.compareTo(BigDecimal.ZERO) == 0);
     course.setStatus(status);
     course.setPublishedAt(status == PublishStatus.PUBLISHED ? Instant.now() : null);
-    course.getTemplateVersion().setStatus(status);
     return courseRepository.save(course);
   }
 

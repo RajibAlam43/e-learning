@@ -201,7 +201,8 @@ class PaymentGuardsAndStatusApiIt extends AbstractPaymentApiIntegrationTest {
     courseRepository.saveAndFlush(course);
     var expired = enrollment(student, course, EnrollmentStatus.ACTIVE);
     expired.setExpiresAt(java.time.Instant.now().minusSeconds(60));
-    expired.setCompletedAt(java.time.Instant.now().minusSeconds(120));
+    var originalCompletedAt = java.time.Instant.now().minusSeconds(120);
+    expired.setCompletedAt(originalCompletedAt);
     enrollmentRepository.saveAndFlush(expired);
 
     mockMvc
@@ -221,7 +222,8 @@ class PaymentGuardsAndStatusApiIt extends AbstractPaymentApiIntegrationTest {
     var reactivated =
         enrollmentRepository.findByUserIdAndCourseId(student.getId(), course.getId()).orElseThrow();
     assertThat(reactivated.getStatus()).isEqualTo(EnrollmentStatus.ACTIVE);
-    assertThat(reactivated.getCompletedAt()).isNull();
+    // Completion is sticky: repurchasing after expiry must not erase a prior completion.
+    assertThat(reactivated.getCompletedAt()).isEqualTo(originalCompletedAt);
     assertThat(reactivated.getExpiresAt())
         .isAfter(java.time.Instant.now().plusSeconds(29 * 86400L));
   }

@@ -529,7 +529,7 @@ class AdminNewCapabilitiesApiIt extends AbstractAdminApiIntegrationTest {
   }
 
   @Test
-  void lessonVideoUploadRejectsNonAdminImmutableCurriculumAndInvalidMuxResponse() throws Exception {
+  void lessonVideoUploadRejectsNonAdminAndInvalidMuxResponse() throws Exception {
     var admin = user("Hostile Video Admin", "hostile-video-admin@example.com");
     var creator = user("Hostile Video Creator", "hostile-video-creator@example.com");
     var course = course("Hostile Video", "hostile-video", creator);
@@ -547,18 +547,6 @@ class AdminNewCapabilitiesApiIt extends AbstractAdminApiIntegrationTest {
                 .content(request))
         .andExpect(status().isForbidden());
 
-    course.getTemplateVersion().setStatus(com.gii.common.enums.PublishStatus.PUBLISHED);
-    courseTemplateVersionRepository.saveAndFlush(course.getTemplateVersion());
-    mockMvc
-        .perform(
-            post("/admin/lessons/{lessonId}/video/upload-url", lesson.getId())
-                .with(authentication(adminAuth(admin.getId())))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(request))
-        .andExpect(status().isConflict());
-
-    course.getTemplateVersion().setStatus(com.gii.common.enums.PublishStatus.DRAFT);
-    courseTemplateVersionRepository.saveAndFlush(course.getTemplateVersion());
     when(muxDirectUploadClient.create(lesson.getId().toString(), lesson.getTitle()))
         .thenReturn(
             new MuxDirectUploadClient.DirectUpload(

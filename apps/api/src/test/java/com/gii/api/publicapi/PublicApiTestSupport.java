@@ -37,10 +37,9 @@ import com.gii.common.repository.course.CategoryRepository;
 import com.gii.common.repository.course.CourseCategoryRepository;
 import com.gii.common.repository.course.CourseInstructorRepository;
 import com.gii.common.repository.course.CourseRepository;
+import com.gii.common.repository.course.CourseTemplateRepository;
 import com.gii.common.repository.course.CourseReviewRepository;
 import com.gii.common.repository.course.CourseSectionRepository;
-import com.gii.common.repository.course.CourseTemplateRepository;
-import com.gii.common.repository.course.CourseTemplateVersionRepository;
 import com.gii.common.repository.course.LessonRepository;
 import com.gii.common.repository.course.LessonResourceRepository;
 import com.gii.common.repository.course.MediaAssetRepository;
@@ -63,7 +62,6 @@ abstract class PublicApiTestSupport {
   @Autowired protected RoleRepository roleRepository;
   @Autowired protected UserRoleRepository userRoleRepository;
   @Autowired protected CourseRepository courseRepository;
-  @Autowired protected CourseTemplateVersionRepository courseTemplateVersionRepository;
   @Autowired protected CourseTemplateRepository courseTemplateRepository;
   @Autowired protected CourseReviewRepository courseReviewRepository;
   @Autowired protected CourseSectionRepository courseSectionRepository;
@@ -92,7 +90,6 @@ abstract class PublicApiTestSupport {
     courseCategoryRepository.deleteAll();
     courseInstructorRepository.deleteAll();
     courseRepository.deleteAll();
-    courseTemplateVersionRepository.deleteAll();
     courseTemplateRepository.deleteAll();
     categoryRepository.deleteAll();
     instructorProfileRepository.deleteAll();
@@ -165,7 +162,6 @@ abstract class PublicApiTestSupport {
     course.setLanguage(language);
     course.setStatus(status);
     course.setPublishedAt(publishedAt);
-    course.getTemplateVersion().setStatus(status);
     return courseRepository.save(course);
   }
 
@@ -176,7 +172,7 @@ abstract class PublicApiTestSupport {
   protected void attachCategory(Course course, Category category) {
     courseCategoryRepository.save(
         CourseCategory.builder()
-            .templateVersion(course.getTemplateVersion())
+            .template(course.getTemplate())
             .category(category)
             .build());
   }
@@ -218,7 +214,7 @@ abstract class PublicApiTestSupport {
   protected CourseSection section(Course course, String slug, int position, PublishStatus status) {
     return courseSectionRepository.save(
         CourseSection.builder()
-            .templateVersion(course.getTemplateVersion())
+            .template(course.getTemplate())
             .title("Section " + position)
             .slug(slug)
             .position(position)

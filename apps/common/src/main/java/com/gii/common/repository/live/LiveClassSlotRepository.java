@@ -22,7 +22,7 @@ public interface LiveClassSlotRepository extends JpaRepository<LiveClassSlot, UU
         SELECT c.id, COUNT(slot)
         FROM Course c, LiveClassSlot slot
         WHERE c.id IN :courseIds
-        AND slot.section.templateVersion.id = c.templateVersion.id
+        AND slot.section.template.id = c.template.id
         AND slot.section.status = :sectionStatus
         AND slot.section.isMandatory = true
         AND slot.isMandatory = true

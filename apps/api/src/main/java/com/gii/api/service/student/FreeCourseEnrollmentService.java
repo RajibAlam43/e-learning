@@ -64,7 +64,6 @@ public class FreeCourseEnrollmentService {
     existing.setStatus(EnrollmentStatus.ACTIVE);
     existing.setEnrolledAt(now);
     existing.setRevokedAt(null);
-    existing.setCompletedAt(null);
     existing.setExpiresAt(enrollmentPolicyService.calculateExpiry(course, now));
     existing.setSourceOrderItem(null);
     existing.setSourceCollection(null);

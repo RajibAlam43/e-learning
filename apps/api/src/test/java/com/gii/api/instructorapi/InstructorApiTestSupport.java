@@ -27,9 +27,8 @@ import com.gii.common.enums.UserStatus;
 import com.gii.common.repository.course.CourseAnnouncementRepository;
 import com.gii.common.repository.course.CourseInstructorRepository;
 import com.gii.common.repository.course.CourseRepository;
-import com.gii.common.repository.course.CourseSectionRepository;
 import com.gii.common.repository.course.CourseTemplateRepository;
-import com.gii.common.repository.course.CourseTemplateVersionRepository;
+import com.gii.common.repository.course.CourseSectionRepository;
 import com.gii.common.repository.course.LessonRepository;
 import com.gii.common.repository.course.SectionItemRepository;
 import com.gii.common.repository.enrollment.EnrollmentRepository;
@@ -52,7 +51,6 @@ abstract class InstructorApiTestSupport {
   @Autowired protected UserRepository userRepository;
   @Autowired protected InstructorProfileRepository instructorProfileRepository;
   @Autowired protected CourseRepository courseRepository;
-  @Autowired protected CourseTemplateVersionRepository courseTemplateVersionRepository;
   @Autowired protected CourseTemplateRepository courseTemplateRepository;
   @Autowired protected CourseAnnouncementRepository courseAnnouncementRepository;
   @Autowired protected CourseInstructorRepository courseInstructorRepository;
@@ -77,7 +75,6 @@ abstract class InstructorApiTestSupport {
     lessonRepository.deleteAll();
     courseSectionRepository.deleteAll();
     courseRepository.deleteAll();
-    courseTemplateVersionRepository.deleteAll();
     courseTemplateRepository.deleteAll();
     instructorProfileRepository.deleteAll();
     userRepository.deleteAll();
@@ -134,7 +131,6 @@ abstract class InstructorApiTestSupport {
     course.setQuizCount(1);
     course.setRecordedHoursCount(2);
     course.setEstimatedDurationMinutes(180);
-    course.getTemplateVersion().setStatus(status);
     return courseRepository.save(course);
   }
 
@@ -155,7 +151,7 @@ abstract class InstructorApiTestSupport {
   protected CourseSection section(Course course, int position, PublishStatus status) {
     return courseSectionRepository.save(
         CourseSection.builder()
-            .templateVersion(course.getTemplateVersion())
+            .template(course.getTemplate())
             .title("Section " + position)
             .slug("section-" + position + "-" + UUID.randomUUID().toString().substring(0, 6))
             .position(position)

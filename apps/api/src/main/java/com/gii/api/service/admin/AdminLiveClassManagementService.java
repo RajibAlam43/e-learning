@@ -10,7 +10,6 @@ import com.gii.api.model.response.admin.AdminLiveClassItemResponse;
 import com.gii.api.model.response.admin.AdminLiveClassRegistrantResponse;
 import com.gii.api.model.response.admin.AdminLiveClassStartResponse;
 import com.gii.api.model.response.admin.AdminLiveClassSummaryResponse;
-import com.gii.api.service.course.CourseTemplateMutationGuard;
 import com.gii.api.service.live.LiveMeetingCancelRequest;
 import com.gii.api.service.live.LiveMeetingCreateRequest;
 import com.gii.api.service.live.LiveMeetingCreateResult;
@@ -68,7 +67,6 @@ public class AdminLiveClassManagementService {
   private final CourseInstructorRepository courseInstructorRepository;
   private final LiveClassSlotRepository liveClassSlotRepository;
   private final LiveMeetingProvisioningService liveMeetingProvisioningService;
-  private final CourseTemplateMutationGuard templateMutationGuard;
   private final EnrollmentCompletionService enrollmentCompletionService;
 
   @Transactional(readOnly = true)
@@ -110,7 +108,6 @@ public class AdminLiveClassManagementService {
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Section not found"));
     validateHierarchy(course, section);
-    templateMutationGuard.requireDraft(course.getTemplateVersion());
     validateSupportedProvider(request.provider());
     validateTimeRange(request.startsAt(), request.endsAt());
     validateOfferingWindow(course, request.startsAt(), request.endsAt());
@@ -176,7 +173,6 @@ public class AdminLiveClassManagementService {
     Course course = requireCourse(courseId);
     CourseSection section = requireSection(request.sectionId());
     validateHierarchy(course, section);
-    templateMutationGuard.requireDraft(course.getTemplateVersion());
     int position = resolveCreatePosition(section.getId(), request.position());
     LiveClassSlot slot =
         liveClassSlotRepository.save(
@@ -336,9 +332,6 @@ public class AdminLiveClassManagementService {
             || request.descriptionEn() != null
             || request.startsAt() != null
             || request.endsAt() != null;
-    if (request.position() != null) {
-      templateMutationGuard.requireDraft(liveClass.getSection().getTemplateVersion());
-    }
     if (mutatingMetadata && liveClass.getStatus() != LiveClassStatus.SCHEDULED) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "Only scheduled classes can be edited");
@@ -571,7 +564,7 @@ public class AdminLiveClassManagementService {
   }
 
   private void validateHierarchy(Course course, CourseSection section) {
-    if (!section.getTemplateVersion().getId().equals(course.getTemplateVersion().getId())) {
+    if (!section.getTemplate().getId().equals(course.getTemplate().getId())) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "Section does not belong to course");
     }

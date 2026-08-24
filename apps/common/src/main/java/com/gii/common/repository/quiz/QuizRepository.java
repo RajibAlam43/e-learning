@@ -27,8 +27,8 @@ public interface QuizRepository extends JpaRepository<Quiz, UUID> {
   @Query(
       """
         SELECT q FROM Quiz q, SectionItem si
-        WHERE q.section.templateVersion.id = (
-          SELECT c.templateVersion.id FROM Course c WHERE c.id = :courseId
+        WHERE q.section.template.id = (
+          SELECT c.template.id FROM Course c WHERE c.id = :courseId
         )
         AND q.status = :status
         AND si.section.id = q.section.id
@@ -46,7 +46,7 @@ public interface QuizRepository extends JpaRepository<Quiz, UUID> {
         SELECT c.id, COUNT(q)
         FROM Course c, Quiz q
         WHERE c.id IN :courseIds
-        AND q.section.templateVersion.id = c.templateVersion.id
+        AND q.section.template.id = c.template.id
         AND q.status = :status
         AND q.section.status = :status
         AND q.section.isMandatory = true
