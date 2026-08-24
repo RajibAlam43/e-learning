@@ -1,6 +1,7 @@
 package com.gii.api.paymentapi;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -14,6 +15,7 @@ import com.gii.common.enums.OrderStatus;
 import com.gii.common.enums.PublishStatus;
 import com.gii.common.service.payment.PaidOrderEnrollmentService;
 import java.math.BigDecimal;
+import java.time.temporal.ChronoUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -223,7 +225,9 @@ class PaymentGuardsAndStatusApiIt extends AbstractPaymentApiIntegrationTest {
         enrollmentRepository.findByUserIdAndCourseId(student.getId(), course.getId()).orElseThrow();
     assertThat(reactivated.getStatus()).isEqualTo(EnrollmentStatus.ACTIVE);
     // Completion is sticky: repurchasing after expiry must not erase a prior completion.
-    assertThat(reactivated.getCompletedAt()).isEqualTo(originalCompletedAt);
+    // (compared with tolerance: Postgres timestamptz has microsecond precision, so an exact
+    // round-trip match against the in-memory nanosecond-precision Instant isn't guaranteed)
+    assertThat(reactivated.getCompletedAt()).isCloseTo(originalCompletedAt, within(1, ChronoUnit.SECONDS));
     assertThat(reactivated.getExpiresAt())
         .isAfter(java.time.Instant.now().plusSeconds(29 * 86400L));
   }
