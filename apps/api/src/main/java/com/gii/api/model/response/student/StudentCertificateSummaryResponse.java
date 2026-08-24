@@ -24,6 +24,9 @@ public record StudentCertificateSummaryResponse(
     Instant revokedAt, // Null if not revoked
 
     // Access
-    String pdfUrl, // Download link
+    String pdfUrl, // Legacy stored URL, null for certificates stored by R2 object key
+    String objectKey,
+    String storageLocation,
+    String downloadEndpoint,
     String verificationUrl // Public verification page URL
     ) {}

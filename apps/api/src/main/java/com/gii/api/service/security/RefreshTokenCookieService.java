@@ -14,10 +14,10 @@ public class RefreshTokenCookieService {
   private static final String CACHE_CONTROL_VALUE =
       "no-store, no-cache, must-revalidate, max-age=0";
 
-  @Value("${auth.refresh-cookie.path:/public/auth/refresh}")
+  @Value("${auth.refresh-cookie.path:/public/auth}")
   private String cookiePath;
 
-  @Value("${auth.refresh-cookie.same-site:None}")
+  @Value("${auth.refresh-cookie.same-site:Lax}")
   private String sameSite;
 
   @Value("${auth.refresh-cookie.secure:true}")

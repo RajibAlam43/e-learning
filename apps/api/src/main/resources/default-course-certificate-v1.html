@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="UTF-8" />
+  <title>Certificate of Completion</title>
+  <style>
+    @page {
+      size: A4 landscape;
+      margin: 0;
+    }
+
+    html, body {
+      width: 297mm;
+      height: 210mm;
+      margin: 0;
+      padding: 0;
+      font-family: "Times New Roman", serif;
+      color: #1f2937;
+      background: #ffffff;
+    }
+
+    .certificate {
+      box-sizing: border-box;
+      width: 297mm;
+      height: 210mm;
+      padding: 12mm;
+      position: relative;
+    }
+
+    .outer-border {
+      box-sizing: border-box;
+      width: 100%;
+      height: 100%;
+      border: 2.5mm solid #1f2937;
+      padding: 3mm;
+    }
+
+    .inner-border {
+      box-sizing: border-box;
+      width: 100%;
+      height: 100%;
+      border: 0.6mm solid #6b7280;
+      position: relative;
+      text-align: center;
+      padding: 16mm 20mm 20mm 20mm;
+    }
+
+    .institution {
+      font-size: 16pt;
+      letter-spacing: 1.5px;
+      font-weight: bold;
+      margin-top: 2mm;
+    }
+
+    .certificate-title {
+      font-size: 34pt;
+      font-weight: bold;
+      margin-top: 8mm;
+      margin-bottom: 2mm;
+    }
+
+    .subtitle {
+      font-size: 14pt;
+      margin-top: 2mm;
+    }
+
+    .recipient {
+      font-size: 28pt;
+      font-weight: bold;
+      margin-top: 9mm;
+      margin-bottom: 2mm;
+      line-height: 1.2;
+    }
+
+    .recipient-line {
+      width: 70%;
+      border-bottom: 0.5mm solid #374151;
+      margin: 0 auto 5mm auto;
+    }
+
+    .body-text {
+      font-size: 14pt;
+      line-height: 1.55;
+      margin: 0 auto;
+      width: 82%;
+    }
+
+    .course-title {
+      font-size: 21pt;
+      font-weight: bold;
+      margin: 5mm 0 5mm 0;
+      line-height: 1.25;
+    }
+
+    .meta-table {
+      width: 82%;
+      margin: 12mm auto 0 auto;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    .meta-table td {
+      width: 33.33%;
+      text-align: center;
+      vertical-align: bottom;
+      padding: 0 4mm;
+      font-size: 11pt;
+    }
+
+    .signature-line {
+      border-top: 0.4mm solid #374151;
+      padding-top: 2mm;
+      margin-top: 8mm;
+    }
+
+    .certificate-code {
+      position: absolute;
+      left: 10mm;
+      bottom: 7mm;
+      font-size: 9pt;
+      color: #6b7280;
+      text-align: left;
+    }
+
+    .verification-note {
+      position: absolute;
+      right: 10mm;
+      bottom: 7mm;
+      font-size: 9pt;
+      color: #6b7280;
+      text-align: right;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="certificate">
+    <div class="outer-border">
+      <div class="inner-border">
+
+        <div class="institution">GLOBAL ISLAMIC INSTITUTE</div>
+
+        <div class="certificate-title">Certificate of Completion</div>
+
+        <div class="subtitle">This certificate is proudly presented to</div>
+
+        <div class="recipient">{{recipient_name}}</div>
+        <div class="recipient-line"></div>
+
+        <div class="body-text">
+          for successfully completing the course
+        </div>
+
+        <div class="course-title">{{target_title}}</div>
+
+        <div class="body-text">
+          in recognition of the learner's successful fulfillment of the
+          course completion requirements.
+        </div>
+
+        <table class="meta-table">
+          <tr>
+            <td>
+              <div>{{completion_date}}</div>
+              <div class="signature-line">Date of Completion</div>
+            </td>
+
+            <td>
+              <div>{{instructor_name}}</div>
+              <div class="signature-line">Course Instructor</div>
+            </td>
+
+            <td>
+              <div>Global Islamic Institute</div>
+              <div class="signature-line">Issued By</div>
+            </td>
+          </tr>
+        </table>
+
+        <div class="certificate-code">
+          Certificate ID: {{certificate_code}}
+        </div>
+
+        <div class="verification-note">
+          Verify this certificate using its certificate ID.
+        </div>
+
+      </div>
+    </div>
+  </div>
+</body>
+</html>

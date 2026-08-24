@@ -7,6 +7,7 @@ import com.gii.api.model.request.admin.CreateCourseRequest;
 import com.gii.api.model.request.admin.CreateInstructorRequest;
 import com.gii.api.model.request.admin.CreateLessonResourceRequest;
 import com.gii.api.model.request.admin.CreateLessonResourceUploadRequest;
+import com.gii.api.model.request.admin.CreateLessonVideoUploadRequest;
 import com.gii.api.model.request.admin.CreateLiveClassItemRequest;
 import com.gii.api.model.request.admin.CreateMediaAssetRequest;
 import com.gii.api.model.request.admin.CreateQuizRequest;
@@ -53,6 +54,7 @@ import com.gii.api.model.response.admin.AdminOrderSummaryResponse;
 import com.gii.api.model.response.admin.AdminQuizDetailResponse;
 import com.gii.api.model.response.admin.AdminSupportTicketResponse;
 import com.gii.api.model.response.admin.LessonResourceUploadResponse;
+import com.gii.api.model.response.admin.LessonVideoUploadResponse;
 import com.gii.api.model.response.admin.ThumbnailUploadResponse;
 import com.gii.api.model.response.lesson.ResourceDownloadUrlResponse;
 import com.gii.api.service.admin.AdminAppSettingManagementService;
@@ -64,6 +66,7 @@ import com.gii.api.service.admin.AdminCourseReviewManagementService;
 import com.gii.api.service.admin.AdminInstructorManagementService;
 import com.gii.api.service.admin.AdminLessonManagementService;
 import com.gii.api.service.admin.AdminLessonResourceManagementService;
+import com.gii.api.service.admin.AdminLessonVideoUploadService;
 import com.gii.api.service.admin.AdminLiveClassManagementService;
 import com.gii.api.service.admin.AdminMediaAssetManagementService;
 import com.gii.api.service.admin.AdminOrderManagementService;
@@ -94,6 +97,7 @@ public class AdminApiController implements AdminApi {
   private final AdminSectionManagementService sectionManagementService;
   private final AdminLessonManagementService lessonManagementService;
   private final AdminLessonResourceManagementService lessonResourceManagementService;
+  private final AdminLessonVideoUploadService lessonVideoUploadService;
   private final AdminMediaAssetManagementService mediaAssetManagementService;
   private final AdminQuizManagementService quizManagementService;
   private final AdminInstructorManagementService instructorManagementService;
@@ -367,6 +371,12 @@ public class AdminApiController implements AdminApi {
   public ResponseEntity<LessonResourceUploadResponse> createLessonResourceUpload(
       UUID lessonId, CreateLessonResourceUploadRequest request) {
     return ResponseEntity.ok(lessonResourceManagementService.createUpload(lessonId, request));
+  }
+
+  @Override
+  public ResponseEntity<LessonVideoUploadResponse> createLessonVideoUpload(
+      UUID lessonId, CreateLessonVideoUploadRequest request) {
+    return ResponseEntity.ok(lessonVideoUploadService.execute(lessonId, request));
   }
 
   @Override

@@ -3,11 +3,15 @@ package com.gii.api.service.admin;
 import com.gii.api.model.request.admin.CreateMediaAssetRequest;
 import com.gii.api.model.request.admin.UpdateMediaAssetRequest;
 import com.gii.api.model.response.admin.AdminMediaAssetResponse;
+import com.gii.api.service.course.CourseTemplateMutationGuard;
 import com.gii.api.service.storage.AssetUrlService;
 import com.gii.common.entity.course.Lesson;
 import com.gii.common.entity.course.MediaAsset;
+import com.gii.common.enums.LessonType;
 import com.gii.common.enums.MediaAssetType;
+import com.gii.common.enums.MediaProvider;
 import com.gii.common.enums.MediaStatus;
+import com.gii.common.enums.PlaybackPolicy;
 import com.gii.common.repository.course.LessonRepository;
 import com.gii.common.repository.course.MediaAssetRepository;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +28,7 @@ public class AdminMediaAssetManagementService {
   private final MediaAssetRepository mediaAssetRepository;
   private final LessonRepository lessonRepository;
   private final AssetUrlService assetUrlService;
+  private final CourseTemplateMutationGuard templateMutationGuard;
 
   public AdminMediaAssetResponse create(CreateMediaAssetRequest request) {
     Lesson lesson =
@@ -31,9 +36,11 @@ public class AdminMediaAssetManagementService {
             .findById(request.lessonId())
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lesson not found"));
+    templateMutationGuard.requireDraft(lesson.getSection().getTemplateVersion());
     if (mediaAssetRepository.existsByLessonId(lesson.getId())) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Lesson already has media asset");
     }
+    validateMuxVideo(request, lesson);
     MediaAsset asset =
         MediaAsset.builder()
             .lesson(lesson)
@@ -42,7 +49,10 @@ public class AdminMediaAssetManagementService {
             .providerAssetId(request.providerAssetId())
             .providerLibraryId(request.providerLibraryId())
             .playbackId(request.playbackId())
-            .playbackPolicy(request.playbackPolicy())
+            .playbackPolicy(
+                request.provider() == MediaProvider.MUX && request.playbackPolicy() == null
+                    ? PlaybackPolicy.SIGNED
+                    : request.playbackPolicy())
             .fileUrl(request.fileUrl())
             .title(request.title())
             .titleEn(request.titleEn())
@@ -53,6 +63,26 @@ public class AdminMediaAssetManagementService {
             .status(MediaStatus.READY)
             .build();
     return toResponse(mediaAssetRepository.save(asset));
+  }
+
+  private void validateMuxVideo(CreateMediaAssetRequest request, Lesson lesson) {
+    if (request.provider() != MediaProvider.MUX) {
+      return;
+    }
+    if (lesson.getLessonType() != LessonType.VIDEO
+        || request.assetType() != MediaAssetType.VIDEO
+        || isBlank(request.providerAssetId())
+        || isBlank(request.playbackId())
+        || (request.playbackPolicy() != null
+            && request.playbackPolicy() != PlaybackPolicy.SIGNED)) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST,
+          "Mux videos require a VIDEO lesson, asset ID, playback ID, and SIGNED playback policy");
+    }
+  }
+
+  private boolean isBlank(String value) {
+    return value == null || value.isBlank();
   }
 
   public AdminMediaAssetResponse update(

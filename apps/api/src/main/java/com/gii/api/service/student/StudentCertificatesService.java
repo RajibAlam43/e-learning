@@ -2,6 +2,7 @@ package com.gii.api.service.student;
 
 import com.gii.api.model.response.student.StudentCertificateSummaryResponse;
 import com.gii.api.service.enrollment.CurrentUserService;
+import com.gii.api.service.storage.R2ObjectStorageService;
 import com.gii.common.entity.certificate.Certificate;
 import com.gii.common.repository.certificate.CertificateRepository;
 import java.util.List;
@@ -19,6 +20,7 @@ public class StudentCertificatesService {
 
   private final CurrentUserService currentUserService;
   private final CertificateRepository certificateRepository;
+  private final R2ObjectStorageService objectStorageService;
 
   public List<StudentCertificateSummaryResponse> execute(Authentication authentication) {
     java.util.UUID userId = currentUserService.getCurrentUserId(authentication);
@@ -28,6 +30,7 @@ public class StudentCertificatesService {
   }
 
   private StudentCertificateSummaryResponse toCertificateSummary(Certificate certificate) {
+    String objectKey = certificate.getPdfObjectKey();
     return StudentCertificateSummaryResponse.builder()
         .certificateId(certificate.getId())
         .certificateCode(certificate.getCertificateCode())
@@ -39,6 +42,9 @@ public class StudentCertificatesService {
         .isRevoked(certificate.getRevokedAt() != null)
         .revokedAt(certificate.getRevokedAt())
         .pdfUrl(certificate.getPdfUrl())
+        .objectKey(objectKey)
+        .storageLocation(objectKey == null ? null : objectStorageService.storageLocation(objectKey))
+        .downloadEndpoint("/student/certificates/" + certificate.getId() + "/download")
         .verificationUrl(VERIFICATION_BASE_PATH + certificate.getCertificateCode())
         .build();
   }

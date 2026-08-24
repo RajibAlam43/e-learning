@@ -8,4 +8,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface CertificateTemplateRepository extends JpaRepository<CertificateTemplate, UUID> {
 
   List<CertificateTemplate> findByIsActiveTrue();
+
+  List<CertificateTemplate> findByNameAndIsActiveTrue(String name);
 }

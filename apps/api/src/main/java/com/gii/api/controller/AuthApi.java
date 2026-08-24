@@ -1,6 +1,7 @@
 package com.gii.api.controller;
 
 import com.gii.api.model.request.auth.ForgotPasswordRequest;
+import com.gii.api.model.request.auth.GoogleAuthRequest;
 import com.gii.api.model.request.auth.LoginRequest;
 import com.gii.api.model.request.auth.RegisterRequest;
 import com.gii.api.model.request.auth.ResetPasswordRequest;
@@ -16,11 +17,13 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
 @Tag(
     name = "Authentication",
@@ -61,6 +64,34 @@ public interface AuthApi {
       })
   ResponseEntity<AuthResponse> login(
       @Valid @RequestBody LoginRequest request, HttpServletResponse response);
+
+  @PostMapping("/google")
+  @Operation(
+      summary = "Sign in with Google",
+      description =
+          "Verify a Google ID token, create or authenticate the user by verified email, and issue"
+              + " the normal application access and refresh tokens.")
+  @ApiResponses(
+      value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Google authentication successful",
+            content = @Content(schema = @Schema(implementation = AuthResponse.class))),
+        @ApiResponse(responseCode = "401", description = "Invalid Google credential")
+      })
+  ResponseEntity<AuthResponse> google(
+      @Valid @RequestBody GoogleAuthRequest request, HttpServletResponse response);
+
+  @PostMapping(value = "/google/callback", consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+  @Operation(
+      summary = "Google Identity Services POST callback",
+      description =
+          "Authenticates a Google credential after validating the GIS double-submit CSRF token.")
+  ResponseEntity<AuthResponse> googleCallback(
+      @RequestParam("credential") String credential,
+      @RequestParam("g_csrf_token") String requestCsrfToken,
+      @CookieValue(name = "g_csrf_token", required = false) String cookieCsrfToken,
+      HttpServletResponse response);
 
   @PostMapping("/refresh")
   @Operation(

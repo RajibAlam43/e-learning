@@ -1,6 +1,7 @@
 package com.gii.api.controller;
 
 import com.gii.api.model.request.auth.ForgotPasswordRequest;
+import com.gii.api.model.request.auth.GoogleAuthRequest;
 import com.gii.api.model.request.auth.LoginRequest;
 import com.gii.api.model.request.auth.RegisterRequest;
 import com.gii.api.model.request.auth.ResetPasswordRequest;
@@ -9,6 +10,8 @@ import com.gii.api.model.request.auth.VerifyRequest;
 import com.gii.api.model.response.auth.AuthResponse;
 import com.gii.api.model.response.auth.RegisterResponse;
 import com.gii.api.service.auth.ForgotPasswordService;
+import com.gii.api.service.auth.GoogleAuthService;
+import com.gii.api.service.auth.GoogleCsrfTokenValidator;
 import com.gii.api.service.auth.LoginService;
 import com.gii.api.service.auth.LogoutService;
 import com.gii.api.service.auth.RefreshService;
@@ -30,6 +33,8 @@ public class AuthApiController implements AuthApi {
 
   private final RegisterService registerService;
   private final LoginService loginService;
+  private final GoogleAuthService googleAuthService;
+  private final GoogleCsrfTokenValidator googleCsrfTokenValidator;
   private final RefreshService refreshService;
   private final ForgotPasswordService forgotPasswordService;
   private final ResetPasswordService resetPasswordService;
@@ -44,6 +49,21 @@ public class AuthApiController implements AuthApi {
   public ResponseEntity<@NotNull AuthResponse> login(
       @RequestBody LoginRequest request, HttpServletResponse response) {
     return ResponseEntity.ok(loginService.execute(request, response));
+  }
+
+  public ResponseEntity<@NotNull AuthResponse> google(
+      @RequestBody GoogleAuthRequest request, HttpServletResponse response) {
+    return ResponseEntity.ok(googleAuthService.execute(request, response));
+  }
+
+  public ResponseEntity<@NotNull AuthResponse> googleCallback(
+      String credential,
+      String requestCsrfToken,
+      String cookieCsrfToken,
+      HttpServletResponse response) {
+    googleCsrfTokenValidator.validate(cookieCsrfToken, requestCsrfToken);
+    return ResponseEntity.ok(
+        googleAuthService.execute(new GoogleAuthRequest(credential), response));
   }
 
   public ResponseEntity<@NotNull AuthResponse> refresh(

@@ -1,10 +1,12 @@
 package com.gii.api.controller;
 
+import com.gii.api.model.response.certificate.CertificateDetailResponse;
 import com.gii.api.model.response.certificate.CertificateDownloadUrlResponse;
 import com.gii.api.model.response.certificate.CertificateIssueResponse;
 import com.gii.api.model.response.certificate.PublicCertificateVerificationResponse;
 import com.gii.api.service.certificate.CertificateDownloadService;
 import com.gii.api.service.certificate.CertificateIssueService;
+import com.gii.api.service.certificate.CertificateRetrieveService;
 import com.gii.api.service.certificate.CertificateVerificationService;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +20,7 @@ public class CertificateApiController implements CertificateApi {
 
   private final CertificateIssueService certificateIssueService;
   private final CertificateDownloadService certificateDownloadService;
+  private final CertificateRetrieveService certificateRetrieveService;
   private final CertificateVerificationService certificateVerificationService;
 
   @Override
@@ -37,6 +40,12 @@ public class CertificateApiController implements CertificateApi {
   public ResponseEntity<CertificateDownloadUrlResponse> getCertificateDownloadUrl(
       UUID certificateId, Authentication authentication) {
     return ResponseEntity.ok(certificateDownloadService.execute(certificateId, authentication));
+  }
+
+  @Override
+  public ResponseEntity<CertificateDetailResponse> getCertificate(
+      UUID certificateId, Authentication authentication) {
+    return ResponseEntity.ok(certificateRetrieveService.execute(certificateId, authentication));
   }
 
   @Override

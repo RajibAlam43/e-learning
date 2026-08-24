@@ -44,6 +44,8 @@ dependencies {
     implementation 'org.jetbrains:annotations:26.1.0'
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.0'
     implementation 'com.googlecode.libphonenumber:libphonenumber:9.0.37'
+    implementation 'com.google.api-client:google-api-client:2.9.0'
+    implementation 'com.openhtmltopdf:openhtmltopdf-pdfbox:1.0.10'
 
     // TESTS
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
