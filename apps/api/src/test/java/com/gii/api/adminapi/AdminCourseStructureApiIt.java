@@ -10,6 +10,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.gii.common.entity.course.LessonResource;
+import com.gii.common.enums.LessonResourcePurpose;
+import com.gii.common.enums.LessonResourceType;
 import com.gii.common.enums.LiveClassProvisioningMode;
 import com.gii.common.enums.PublishStatus;
 import com.gii.common.enums.ReleaseType;
@@ -21,6 +24,47 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 class AdminCourseStructureApiIt extends AbstractAdminApiIntegrationTest {
+
+  @Test
+  void adminCourseDetailsIncludeLessonResourceSummaries() throws Exception {
+    var admin = user("Resource Summary Admin", "resource-summary-admin@example.com");
+    var course = course("Resource Summary", "resource-summary", admin);
+    var section = section(course, 1);
+    var lesson = lesson(course, section, 1);
+    lessonResourceRepository.saveAllAndFlush(
+        java.util.List.of(
+            LessonResource.builder()
+                .lesson(lesson)
+                .title("Primary PDF")
+                .titleEn("Primary PDF EN")
+                .resourceType(LessonResourceType.PDF)
+                .purpose(LessonResourcePurpose.PRIMARY_CONTENT)
+                .fileUrl("courses/resources/primary.pdf")
+                .mimeType("application/pdf")
+                .position(1)
+                .build(),
+            LessonResource.builder()
+                .lesson(lesson)
+                .title("Worksheet")
+                .titleEn("Worksheet EN")
+                .resourceType(LessonResourceType.PDF)
+                .purpose(LessonResourcePurpose.SUPPLEMENTARY)
+                .fileUrl("courses/resources/worksheet.pdf")
+                .mimeType("application/pdf")
+                .position(2)
+                .build()));
+
+    mockMvc
+        .perform(
+            get("/admin/courses/{courseId}", course.getId())
+                .with(authentication(adminAuth(admin.getId()))))
+        .andExpect(status().isOk())
+        .andExpect(
+            jsonPath("$.sections[0].items[0].lesson.primaryResource.title").value("Primary PDF"))
+        .andExpect(jsonPath("$.sections[0].items[0].lesson.resources.length()").value(1))
+        .andExpect(jsonPath("$.sections[0].items[0].lesson.resources[0].title").value("Worksheet"))
+        .andExpect(jsonPath("$.sections[0].items[0].lesson.resources[0].fileUrl").doesNotExist());
+  }
 
   @Test
   void liveClassCanBeAddedToCurriculumBeforeItIsScheduled() throws Exception {

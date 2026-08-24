@@ -6,14 +6,17 @@ import com.gii.api.model.response.CourseSectionResponse;
 import com.gii.api.model.response.InstructorSummaryResponse;
 import com.gii.api.model.response.LessonSummaryResponse;
 import com.gii.api.model.response.LessonVideoResponse;
+import com.gii.api.model.response.lesson.LessonResourceSummaryResponse;
 import com.gii.api.service.localization.LocalizedContentService;
 import com.gii.api.service.storage.AssetUrlService;
 import com.gii.common.entity.course.Category;
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.course.CourseSection;
 import com.gii.common.entity.course.Lesson;
+import com.gii.common.entity.course.LessonResource;
 import com.gii.common.entity.course.MediaAsset;
 import com.gii.common.entity.user.User;
+import com.gii.common.enums.LessonResourcePurpose;
 import com.gii.common.enums.PublishStatus;
 import com.gii.common.enums.ReviewStatus;
 import com.gii.common.repository.course.CourseCategoryRepository;
@@ -22,6 +25,7 @@ import com.gii.common.repository.course.CourseRepository;
 import com.gii.common.repository.course.CourseReviewRepository;
 import com.gii.common.repository.course.CourseSectionRepository;
 import com.gii.common.repository.course.LessonRepository;
+import com.gii.common.repository.course.LessonResourceRepository;
 import com.gii.common.repository.course.SectionItemRepository;
 import java.util.Comparator;
 import java.util.List;
@@ -42,6 +46,7 @@ public class CourseDetailsService {
   private final CourseRepository courseRepository;
   private final CourseSectionRepository courseSectionRepository;
   private final LessonRepository lessonRepository;
+  private final LessonResourceRepository lessonResourceRepository;
   private final CourseCategoryRepository courseCategoryRepository;
   private final CourseInstructorRepository courseInstructorRepository;
   private final CourseReviewRepository courseReviewRepository;
@@ -67,13 +72,21 @@ public class CourseDetailsService {
         lessons.stream()
             .filter(lesson -> lesson.getSection() != null)
             .collect(Collectors.groupingBy(lesson -> lesson.getSection().getId()));
+    Map<UUID, List<LessonResource>> resourcesByLessonId =
+        lessonResourceRepository
+            .findByLessonIdInOrderByLessonIdAscPositionAsc(
+                lessons.stream().map(Lesson::getId).toList())
+            .stream()
+            .collect(Collectors.groupingBy(resource -> resource.getLesson().getId()));
 
     List<CourseSectionResponse> sectionResponses =
         sections.stream()
             .map(
                 section ->
                     toSectionResponse(
-                        section, lessonsBySectionId.getOrDefault(section.getId(), List.of())))
+                        section,
+                        lessonsBySectionId.getOrDefault(section.getId(), List.of()),
+                        resourcesByLessonId))
             .toList();
 
     List<CategoryResponse> categoryResponses =
@@ -143,7 +156,9 @@ public class CourseDetailsService {
   }
 
   private CourseSectionResponse toSectionResponse(
-      CourseSection section, List<Lesson> lessonsForSection) {
+      CourseSection section,
+      List<Lesson> lessonsForSection,
+      Map<UUID, List<LessonResource>> resourcesByLessonId) {
     Map<UUID, Integer> positions =
         sectionItemRepository.findBySectionIdOrderByPositionAsc(section.getId()).stream()
             .collect(
@@ -152,7 +167,12 @@ public class CourseDetailsService {
                     com.gii.common.entity.course.SectionItem::getPosition));
     List<LessonSummaryResponse> lessons =
         lessonsForSection.stream()
-            .map(lesson -> toLessonSummaryResponse(lesson, positions.get(lesson.getId())))
+            .map(
+                lesson ->
+                    toLessonSummaryResponse(
+                        lesson,
+                        positions.get(lesson.getId()),
+                        resourcesByLessonId.getOrDefault(lesson.getId(), List.of())))
             .toList();
 
     return CourseSectionResponse.builder()
@@ -163,7 +183,8 @@ public class CourseDetailsService {
         .build();
   }
 
-  private LessonSummaryResponse toLessonSummaryResponse(Lesson lesson, Integer position) {
+  private LessonSummaryResponse toLessonSummaryResponse(
+      Lesson lesson, Integer position, List<LessonResource> lessonResources) {
     MediaAsset media = lesson.getPrimaryMediaAsset();
 
     LessonVideoResponse video = null;
@@ -176,6 +197,18 @@ public class CourseDetailsService {
               .build();
     }
 
+    List<LessonResourceSummaryResponse> resourceSummaries =
+        lessonResources.stream().map(this::toResourceSummary).toList();
+    LessonResourceSummaryResponse primaryResource =
+        resourceSummaries.stream()
+            .filter(resource -> resource.purpose() == LessonResourcePurpose.PRIMARY_CONTENT)
+            .findFirst()
+            .orElse(null);
+    List<LessonResourceSummaryResponse> supplementaryResources =
+        resourceSummaries.stream()
+            .filter(resource -> resource.purpose() == LessonResourcePurpose.SUPPLEMENTARY)
+            .toList();
+
     return LessonSummaryResponse.builder()
         .id(lesson.getId())
         .title(localizedContentService.text(lesson.getTitle(), lesson.getTitleEn()))
@@ -184,6 +217,19 @@ public class CourseDetailsService {
         .lessonType(lesson.getLessonType())
         .isPreviewFree(lesson.getIsFree())
         .video(video)
+        .primaryResource(primaryResource)
+        .resources(supplementaryResources)
+        .build();
+  }
+
+  private LessonResourceSummaryResponse toResourceSummary(LessonResource resource) {
+    return LessonResourceSummaryResponse.builder()
+        .resourceId(resource.getId())
+        .title(localizedContentService.text(resource.getTitle(), resource.getTitleEn()))
+        .resourceType(resource.getResourceType())
+        .purpose(resource.getPurpose())
+        .mimeType(resource.getMimeType())
+        .position(resource.getPosition())
         .build();
   }
 

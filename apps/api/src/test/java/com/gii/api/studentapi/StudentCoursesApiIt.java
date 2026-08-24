@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.gii.common.enums.EnrollmentStatus;
+import com.gii.common.enums.LessonResourcePurpose;
 import com.gii.common.enums.LiveClassStatus;
 import com.gii.common.enums.PublishStatus;
 import java.time.Instant;
@@ -80,6 +81,8 @@ class StudentCoursesApiIt extends AbstractStudentApiIntegrationTest {
             "https://live.test/join");
     enrollment(student, course, EnrollmentStatus.ACTIVE, null);
     completedProgress(student, l1);
+    lessonResource(l1, "Lesson PDF", LessonResourcePurpose.PRIMARY_CONTENT, 1);
+    lessonResource(l1, "Practice PDF", LessonResourcePurpose.SUPPLEMENTARY, 2);
 
     mockMvc
         .perform(
@@ -89,6 +92,10 @@ class StudentCoursesApiIt extends AbstractStudentApiIntegrationTest {
         .andExpect(jsonPath("$.courseName").value("Course Home"))
         .andExpect(jsonPath("$.sections.length()").value(1))
         .andExpect(jsonPath("$.sections[0].lessons.length()").value(2))
+        .andExpect(jsonPath("$.sections[0].lessons[0].primaryResource.title").value("Lesson PDF"))
+        .andExpect(jsonPath("$.sections[0].lessons[0].resources.length()").value(1))
+        .andExpect(jsonPath("$.sections[0].lessons[0].resources[0].title").value("Practice PDF"))
+        .andExpect(jsonPath("$.sections[0].lessons[0].resources[0].downloadUrl").doesNotExist())
         .andExpect(jsonPath("$.sections[0].quizzes.length()").value(1))
         .andExpect(jsonPath("$.sections[0].quizzes[0].quizId").value(quiz.getId().toString()))
         .andExpect(jsonPath("$.sections[0].quizzes[0].quizTitle").value("Section Quiz"))

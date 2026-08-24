@@ -3,6 +3,7 @@ package com.gii.api.service.admin;
 import com.gii.api.model.request.admin.CreateSectionRequest;
 import com.gii.api.model.request.admin.UpdateSectionRequest;
 import com.gii.api.model.response.admin.AdminCourseSectionResponse;
+import com.gii.api.model.response.admin.AdminLessonResourceSummaryResponse;
 import com.gii.api.model.response.admin.AdminLessonSummaryResponse;
 import com.gii.api.model.response.admin.AdminLiveClassSectionItemResponse;
 import com.gii.api.model.response.admin.AdminQuizSummaryResponse;
@@ -11,16 +12,19 @@ import com.gii.api.service.course.CourseTemplateMutationGuard;
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.course.CourseSection;
 import com.gii.common.entity.course.Lesson;
+import com.gii.common.entity.course.LessonResource;
 import com.gii.common.entity.course.SectionItem;
 import com.gii.common.entity.live.LiveClass;
 import com.gii.common.entity.live.LiveClassSlot;
 import com.gii.common.entity.quiz.Quiz;
+import com.gii.common.enums.LessonResourcePurpose;
 import com.gii.common.enums.PublishStatus;
 import com.gii.common.enums.ReleaseType;
 import com.gii.common.enums.SectionItemType;
 import com.gii.common.repository.course.CourseRepository;
 import com.gii.common.repository.course.CourseSectionRepository;
 import com.gii.common.repository.course.LessonRepository;
+import com.gii.common.repository.course.LessonResourceRepository;
 import com.gii.common.repository.course.SectionItemRepository;
 import com.gii.common.repository.live.LiveClassRepository;
 import com.gii.common.repository.live.LiveClassSlotRepository;
@@ -45,6 +49,7 @@ public class AdminSectionManagementService {
   private final CourseRepository courseRepository;
   private final CourseSectionRepository sectionRepository;
   private final LessonRepository lessonRepository;
+  private final LessonResourceRepository lessonResourceRepository;
   private final QuizRepository quizRepository;
   private final SectionItemRepository sectionItemRepository;
   private final LiveClassRepository liveClassRepository;
@@ -167,9 +172,22 @@ public class AdminSectionManagementService {
     Map<UUID, Integer> positionByItemId =
         orderedItems.stream()
             .collect(Collectors.toMap(SectionItem::getItemId, SectionItem::getPosition));
+    List<Lesson> lessonEntities =
+        lessonRepository.findBySectionIdOrderByPositionAsc(section.getId());
+    Map<UUID, List<LessonResource>> resourcesByLessonId =
+        lessonResourceRepository
+            .findByLessonIdInOrderByLessonIdAscPositionAsc(
+                lessonEntities.stream().map(Lesson::getId).toList())
+            .stream()
+            .collect(Collectors.groupingBy(resource -> resource.getLesson().getId()));
     List<AdminLessonSummaryResponse> lessons =
-        lessonRepository.findBySectionIdOrderByPositionAsc(section.getId()).stream()
-            .map(lesson -> toLessonSummary(lesson, positionByItemId.get(lesson.getId())))
+        lessonEntities.stream()
+            .map(
+                lesson ->
+                    toLessonSummary(
+                        lesson,
+                        positionByItemId.get(lesson.getId()),
+                        resourcesByLessonId.getOrDefault(lesson.getId(), List.of())))
             .toList();
     List<AdminQuizSummaryResponse> quizzes =
         quizRepository.findBySectionIdOrderByPositionAsc(section.getId()).stream()
@@ -223,7 +241,19 @@ public class AdminSectionManagementService {
         .build();
   }
 
-  private AdminLessonSummaryResponse toLessonSummary(Lesson lesson, Integer position) {
+  private AdminLessonSummaryResponse toLessonSummary(
+      Lesson lesson, Integer position, List<LessonResource> lessonResources) {
+    List<AdminLessonResourceSummaryResponse> resourceSummaries =
+        lessonResources.stream().map(this::toResourceSummary).toList();
+    AdminLessonResourceSummaryResponse primaryResource =
+        resourceSummaries.stream()
+            .filter(resource -> resource.purpose() == LessonResourcePurpose.PRIMARY_CONTENT)
+            .findFirst()
+            .orElse(null);
+    List<AdminLessonResourceSummaryResponse> supplementaryResources =
+        resourceSummaries.stream()
+            .filter(resource -> resource.purpose() == LessonResourcePurpose.SUPPLEMENTARY)
+            .toList();
     return AdminLessonSummaryResponse.builder()
         .lessonId(lesson.getId())
         .title(lesson.getTitle())
@@ -235,7 +265,21 @@ public class AdminSectionManagementService {
         .isMandatory(lesson.getIsMandatory())
         .isFree(lesson.getIsFree())
         .durationSeconds(lesson.getDurationSeconds())
+        .primaryResource(primaryResource)
+        .resources(supplementaryResources)
         .createdAt(lesson.getCreatedAt())
+        .build();
+  }
+
+  private AdminLessonResourceSummaryResponse toResourceSummary(LessonResource resource) {
+    return AdminLessonResourceSummaryResponse.builder()
+        .resourceId(resource.getId())
+        .title(resource.getTitle())
+        .titleEn(resource.getTitleEn())
+        .resourceType(resource.getResourceType())
+        .purpose(resource.getPurpose())
+        .mimeType(resource.getMimeType())
+        .position(resource.getPosition())
         .build();
   }
 

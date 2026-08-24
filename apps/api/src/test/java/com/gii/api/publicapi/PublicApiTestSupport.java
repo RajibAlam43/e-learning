@@ -11,6 +11,7 @@ import com.gii.common.entity.course.CourseInstructor;
 import com.gii.common.entity.course.CourseReview;
 import com.gii.common.entity.course.CourseSection;
 import com.gii.common.entity.course.Lesson;
+import com.gii.common.entity.course.LessonResource;
 import com.gii.common.entity.course.MediaAsset;
 import com.gii.common.entity.course.SectionItem;
 import com.gii.common.entity.support.SupportTicket;
@@ -22,6 +23,8 @@ import com.gii.common.enums.CollectionType;
 import com.gii.common.enums.CourseLanguage;
 import com.gii.common.enums.CourseLevel;
 import com.gii.common.enums.InstructorRole;
+import com.gii.common.enums.LessonResourcePurpose;
+import com.gii.common.enums.LessonResourceType;
 import com.gii.common.enums.LessonType;
 import com.gii.common.enums.MediaProvider;
 import com.gii.common.enums.PublishStatus;
@@ -39,6 +42,7 @@ import com.gii.common.repository.course.CourseSectionRepository;
 import com.gii.common.repository.course.CourseTemplateRepository;
 import com.gii.common.repository.course.CourseTemplateVersionRepository;
 import com.gii.common.repository.course.LessonRepository;
+import com.gii.common.repository.course.LessonResourceRepository;
 import com.gii.common.repository.course.MediaAssetRepository;
 import com.gii.common.repository.course.SectionItemRepository;
 import com.gii.common.repository.support.SupportTicketRepository;
@@ -64,6 +68,7 @@ abstract class PublicApiTestSupport {
   @Autowired protected CourseReviewRepository courseReviewRepository;
   @Autowired protected CourseSectionRepository courseSectionRepository;
   @Autowired protected LessonRepository lessonRepository;
+  @Autowired protected LessonResourceRepository lessonResourceRepository;
   @Autowired protected MediaAssetRepository mediaAssetRepository;
   @Autowired protected SectionItemRepository sectionItemRepository;
   @Autowired protected CategoryRepository categoryRepository;
@@ -80,6 +85,7 @@ abstract class PublicApiTestSupport {
     collectionCourseRepository.deleteAll();
     collectionRepository.deleteAll();
     mediaAssetRepository.deleteAll();
+    lessonResourceRepository.deleteAll();
     sectionItemRepository.deleteAll();
     lessonRepository.deleteAll();
     courseSectionRepository.deleteAll();
@@ -255,6 +261,20 @@ abstract class PublicApiTestSupport {
             .provider(MediaProvider.YOUTUBE)
             .providerAssetId(providerAssetId)
             .title("Video")
+            .build());
+  }
+
+  protected LessonResource lessonResource(
+      Lesson lesson, String title, LessonResourcePurpose purpose, int position) {
+    return lessonResourceRepository.save(
+        LessonResource.builder()
+            .lesson(lesson)
+            .title(title)
+            .resourceType(LessonResourceType.PDF)
+            .purpose(purpose)
+            .fileUrl("courses/resources/" + UUID.randomUUID() + ".pdf")
+            .mimeType("application/pdf")
+            .position(position)
             .build());
   }
 

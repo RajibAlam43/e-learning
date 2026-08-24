@@ -10,6 +10,7 @@ import com.gii.common.entity.course.Lesson;
 import com.gii.common.entity.user.User;
 import com.gii.common.enums.CourseLanguage;
 import com.gii.common.enums.CourseLevel;
+import com.gii.common.enums.LessonResourcePurpose;
 import com.gii.common.enums.PublishStatus;
 import com.gii.common.enums.UserStatus;
 import java.time.Instant;
@@ -48,6 +49,8 @@ class PublicCourseDetailsApiIt extends AbstractPublicApiIntegrationTest {
         published, publishedSection, uniqueSlug("lesson-paid"), 2, PublishStatus.PUBLISHED, false);
     lesson(published, publishedSection, uniqueSlug("lesson-draft"), 3, PublishStatus.DRAFT, true);
     mediaAsset(freeLesson, "yt123");
+    lessonResource(freeLesson, "Course handbook", LessonResourcePurpose.PRIMARY_CONTENT, 1);
+    lessonResource(freeLesson, "Exercise sheet", LessonResourcePurpose.SUPPLEMENTARY, 2);
 
     mockMvc
         .perform(get("/public/courses/{slug}", published.getSlug()))
@@ -56,6 +59,12 @@ class PublicCourseDetailsApiIt extends AbstractPublicApiIntegrationTest {
         .andExpect(jsonPath("$.sections.length()").value(1))
         .andExpect(jsonPath("$.sections[0].lessons.length()").value(2))
         .andExpect(jsonPath("$.sections[0].lessons[0].video.sourceId").value("yt123"))
+        .andExpect(
+            jsonPath("$.sections[0].lessons[0].primaryResource.title").value("Course handbook"))
+        .andExpect(jsonPath("$.sections[0].lessons[0].primaryResource.resourceType").value("PDF"))
+        .andExpect(jsonPath("$.sections[0].lessons[0].resources.length()").value(1))
+        .andExpect(jsonPath("$.sections[0].lessons[0].resources[0].title").value("Exercise sheet"))
+        .andExpect(jsonPath("$.sections[0].lessons[0].resources[0].downloadUrl").doesNotExist())
         .andExpect(jsonPath("$.sections[0].lessons[1].video").doesNotExist());
   }
 

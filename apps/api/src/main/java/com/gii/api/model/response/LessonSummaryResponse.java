@@ -1,6 +1,8 @@
 package com.gii.api.model.response;
 
+import com.gii.api.model.response.lesson.LessonResourceSummaryResponse;
 import com.gii.common.enums.LessonType;
+import java.util.List;
 import java.util.UUID;
 import lombok.Builder;
 
@@ -13,4 +15,6 @@ public record LessonSummaryResponse(
     LessonType lessonType,
     Boolean isPreviewFree,
     Integer durationSeconds,
-    LessonVideoResponse video) {}
+    LessonVideoResponse video,
+    LessonResourceSummaryResponse primaryResource,
+    List<LessonResourceSummaryResponse> resources) {}
