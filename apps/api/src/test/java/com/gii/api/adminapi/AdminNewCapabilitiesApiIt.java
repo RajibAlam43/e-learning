@@ -409,6 +409,21 @@ class AdminNewCapabilitiesApiIt extends AbstractAdminApiIntegrationTest {
     assertThat(asset.getDurationSec()).isEqualTo(126);
     assertThat(lessonRepository.findById(lesson.getId()).orElseThrow().getDurationSeconds())
         .isEqualTo(126);
+
+    String lateCreatedEvent =
+        """
+        {"id":"evt-created-late","type":"video.upload.asset_created","data":{"id":"upload-webhook","asset_id":"asset-webhook","passthrough":"%s"}}
+        """
+            .formatted(lesson.getId())
+            .trim();
+    long lateCreatedTimestamp = Instant.now().getEpochSecond();
+    postMuxWebhook(
+            lateCreatedEvent,
+            lateCreatedTimestamp,
+            muxSignature(lateCreatedEvent, lateCreatedTimestamp))
+        .andExpect(status().isNoContent());
+    assertThat(muxVideoUploadRepository.findByUploadId("upload-webhook").orElseThrow().getStatus())
+        .isEqualTo(MuxUploadStatus.READY);
   }
 
   @Test

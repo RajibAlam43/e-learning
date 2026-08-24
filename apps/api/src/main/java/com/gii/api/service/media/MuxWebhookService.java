@@ -75,8 +75,11 @@ public class MuxWebhookService {
         .ifPresent(
             upload -> {
               upload.setAssetId(assetId);
-              upload.setStatus(MuxUploadStatus.PROCESSING);
-              upload.setErrorMessage(null);
+              if (upload.getStatus() == MuxUploadStatus.WAITING
+                  || upload.getStatus() == MuxUploadStatus.PROCESSING) {
+                upload.setStatus(MuxUploadStatus.PROCESSING);
+                upload.setErrorMessage(null);
+              }
             });
   }
 
