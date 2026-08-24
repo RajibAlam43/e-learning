@@ -21,8 +21,8 @@ import lombok.Setter;
 @Embeddable
 public class CourseInstructorId implements Serializable {
 
-  @Column(name = "course_id", nullable = false)
-  private UUID courseId;
+  @Column(name = "course_offering_id", nullable = false)
+  private UUID courseOfferingId;
 
   @Column(name = "instructor_user_id", nullable = false)
   private UUID instructorUserId;

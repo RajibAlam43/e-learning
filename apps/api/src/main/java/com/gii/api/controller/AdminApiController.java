@@ -7,12 +7,17 @@ import com.gii.api.model.request.admin.CreateCourseRequest;
 import com.gii.api.model.request.admin.CreateInstructorRequest;
 import com.gii.api.model.request.admin.CreateLessonResourceRequest;
 import com.gii.api.model.request.admin.CreateLessonResourceUploadRequest;
+import com.gii.api.model.request.admin.CreateLiveClassItemRequest;
 import com.gii.api.model.request.admin.CreateMediaAssetRequest;
 import com.gii.api.model.request.admin.CreateQuizRequest;
 import com.gii.api.model.request.admin.CreateSectionRequest;
 import com.gii.api.model.request.admin.CreateThumbnailUploadRequest;
 import com.gii.api.model.request.admin.FeatureCourseRequest;
 import com.gii.api.model.request.admin.ReorderCourseStructureRequest;
+import com.gii.api.model.request.admin.RepeatCourseRequest;
+import com.gii.api.model.request.admin.RevokeCertificateRequest;
+import com.gii.api.model.request.admin.ScheduleExternalLiveClassRequest;
+import com.gii.api.model.request.admin.ScheduleLiveClassRequest;
 import com.gii.api.model.request.admin.SetCollectionCoursesRequest;
 import com.gii.api.model.request.admin.UpdateCategoryRequest;
 import com.gii.api.model.request.admin.UpdateCollectionRequest;
@@ -39,6 +44,8 @@ import com.gii.api.model.response.admin.AdminInstructorDetailResponse;
 import com.gii.api.model.response.admin.AdminInstructorSummaryResponse;
 import com.gii.api.model.response.admin.AdminLessonDetailResponse;
 import com.gii.api.model.response.admin.AdminLessonResourceResponse;
+import com.gii.api.model.response.admin.AdminLiveClassDetailResponse;
+import com.gii.api.model.response.admin.AdminLiveClassItemResponse;
 import com.gii.api.model.response.admin.AdminLiveClassSummaryResponse;
 import com.gii.api.model.response.admin.AdminMediaAssetResponse;
 import com.gii.api.model.response.admin.AdminOrderDetailResponse;
@@ -50,6 +57,7 @@ import com.gii.api.model.response.admin.ThumbnailUploadResponse;
 import com.gii.api.model.response.lesson.ResourceDownloadUrlResponse;
 import com.gii.api.service.admin.AdminAppSettingManagementService;
 import com.gii.api.service.admin.AdminCategoryManagementService;
+import com.gii.api.service.admin.AdminCertificateManagementService;
 import com.gii.api.service.admin.AdminCollectionManagementService;
 import com.gii.api.service.admin.AdminCourseManagementService;
 import com.gii.api.service.admin.AdminCourseReviewManagementService;
@@ -93,6 +101,7 @@ public class AdminApiController implements AdminApi {
   private final AdminOrderManagementService orderManagementService;
   private final AdminThumbnailUploadService thumbnailUploadService;
   private final AdminAppSettingManagementService appSettingManagementService;
+  private final AdminCertificateManagementService certificateManagementService;
 
   @Override
   public ResponseEntity<ThumbnailUploadResponse> createThumbnailUpload(
@@ -205,6 +214,31 @@ public class AdminApiController implements AdminApi {
   public ResponseEntity<AdminCourseDetailResponse> createCourse(
       CreateCourseRequest request, Authentication authentication) {
     return ResponseEntity.ok(courseManagementService.create(request, authentication));
+  }
+
+  @Override
+  public ResponseEntity<AdminCourseDetailResponse> repeatCourse(
+      UUID courseId, RepeatCourseRequest request, Authentication authentication) {
+    return ResponseEntity.ok(courseManagementService.repeat(courseId, request, authentication));
+  }
+
+  @Override
+  public ResponseEntity<AdminLiveClassItemResponse> createLiveClassItem(
+      UUID courseId, CreateLiveClassItemRequest request) {
+    return ResponseEntity.ok(liveClassManagementService.createItem(courseId, request));
+  }
+
+  @Override
+  public ResponseEntity<AdminLiveClassDetailResponse> scheduleLiveClass(
+      UUID courseId, UUID liveClassId, ScheduleLiveClassRequest request) {
+    return ResponseEntity.ok(liveClassManagementService.schedule(courseId, liveClassId, request));
+  }
+
+  @Override
+  public ResponseEntity<AdminLiveClassDetailResponse> scheduleExternalLiveClass(
+      UUID courseId, UUID liveClassId, ScheduleExternalLiveClassRequest request) {
+    return ResponseEntity.ok(
+        liveClassManagementService.scheduleExternal(courseId, liveClassId, request));
   }
 
   @Override
@@ -457,5 +491,12 @@ public class AdminApiController implements AdminApi {
   public ResponseEntity<AdminOrderDetailResponse> updateOrder(
       UUID orderId, UpdateOrderRequest request) {
     return ResponseEntity.ok(orderManagementService.update(orderId, request));
+  }
+
+  @Override
+  public ResponseEntity<Void> revokeCertificate(
+      UUID certificateId, RevokeCertificateRequest request, Authentication authentication) {
+    certificateManagementService.revoke(certificateId, request, authentication);
+    return ResponseEntity.noContent().build();
   }
 }

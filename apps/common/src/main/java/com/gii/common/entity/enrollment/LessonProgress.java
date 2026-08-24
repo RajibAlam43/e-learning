@@ -2,7 +2,6 @@ package com.gii.common.entity.enrollment;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.gii.common.entity.course.Lesson;
-import com.gii.common.entity.user.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
@@ -35,9 +34,9 @@ public class LessonProgress {
 
   @JsonIgnore
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
-  @MapsId("userId")
-  @JoinColumn(name = "user_id", nullable = false)
-  private User user;
+  @MapsId("enrollmentId")
+  @JoinColumn(name = "enrollment_id", nullable = false)
+  private Enrollment enrollment;
 
   @JsonIgnore
   @ManyToOne(fetch = FetchType.LAZY, optional = false)

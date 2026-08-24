@@ -11,24 +11,24 @@ import org.springframework.data.repository.query.Param;
 
 public interface QuizAttemptRepository extends JpaRepository<QuizAttempt, UUID> {
 
-  List<QuizAttempt> findByQuizIdAndUserIdOrderByAttemptNoDesc(UUID quizId, UUID userId);
+  List<QuizAttempt> findByQuizIdAndEnrollmentIdOrderByAttemptNoDesc(UUID quizId, UUID enrollmentId);
 
   Optional<QuizAttempt> findByIdAndUserId(UUID id, UUID userId);
 
-  long countByQuizIdAndUserId(UUID quizId, UUID userId);
+  long countByQuizIdAndEnrollmentId(UUID quizId, UUID enrollmentId);
 
   boolean existsByQuizId(UUID quizId);
 
   @Query(
       """
-        SELECT qa.quiz.course.id, COUNT(DISTINCT qa.quiz.id)
+        SELECT qa.enrollment.course.id, COUNT(DISTINCT qa.quiz.id)
         FROM QuizAttempt qa
         WHERE qa.user.id = :userId
-        AND qa.quiz.course.id IN :courseIds
+        AND qa.enrollment.course.id IN :courseIds
         AND qa.quiz.status = :status
         AND qa.quiz.section.status = :status
         AND qa.passed = true
-        GROUP BY qa.quiz.course.id
+        GROUP BY qa.enrollment.course.id
       """)
   List<Object[]> countPassedQuizzesByUserIdAndCourseIds(
       @Param("userId") UUID userId,
@@ -40,7 +40,7 @@ public interface QuizAttemptRepository extends JpaRepository<QuizAttempt, UUID> 
         SELECT DISTINCT qa.quiz.id
         FROM QuizAttempt qa
         WHERE qa.user.id = :userId
-        AND qa.quiz.course.id = :courseId
+        AND qa.enrollment.course.id = :courseId
         AND qa.quiz.status = :status
         AND qa.quiz.section.status = :status
         AND qa.passed = true

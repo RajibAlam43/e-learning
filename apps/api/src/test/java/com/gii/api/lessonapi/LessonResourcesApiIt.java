@@ -49,7 +49,10 @@ class LessonResourcesApiIt extends AbstractLessonApiIntegrationTest {
 
     mockMvc
         .perform(
-            get("/learn/lessons/{lessonId}/resources", lesson.getId())
+            get(
+                    "/learn/courses/{courseId}/lessons/{lessonId}/resources",
+                    course.getId(),
+                    lesson.getId())
                 .with(authentication(studentAuth(student.getId()))))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$[0].resourceId").value(resourceB.getId().toString()))
@@ -57,7 +60,10 @@ class LessonResourcesApiIt extends AbstractLessonApiIntegrationTest {
 
     mockMvc
         .perform(
-            get("/learn/resources/{resourceId}/download-url", resourceB.getId())
+            get(
+                    "/learn/courses/{courseId}/resources/{resourceId}/download-url",
+                    course.getId(),
+                    resourceB.getId())
                 .with(authentication(studentAuth(student.getId()))))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.downloadUrl").value("https://signed.test/file"))

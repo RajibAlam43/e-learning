@@ -1,6 +1,6 @@
 package com.gii.common.enums;
 
 public enum StudyMode {
-  SCHEDULED,
+  COHORT_BASED,
   SELF_PACED
 }

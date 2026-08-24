@@ -55,7 +55,9 @@ subprojects {
 	}
 
 	tasks.withType(JacocoReport).configureEach {
-		dependsOn tasks.withType(Test)
+		// A unit-test report must not implicitly execute every Test task (including
+		// api:integrationTest). Integration tests are an explicit CI phase.
+		dependsOn tasks.named('test')
 
 		reports {
 			xml.required = true

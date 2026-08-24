@@ -1,5 +1,6 @@
 package com.gii.api.paymentapi;
 
+import com.gii.api.testsupport.CourseTestData;
 import com.gii.common.entity.collection.Collection;
 import com.gii.common.entity.collection.CollectionCourse;
 import com.gii.common.entity.collection.CollectionCourseId;
@@ -11,8 +12,6 @@ import com.gii.common.entity.order.OrderItem;
 import com.gii.common.entity.order.PaymentEvent;
 import com.gii.common.entity.user.User;
 import com.gii.common.enums.CollectionType;
-import com.gii.common.enums.CourseLanguage;
-import com.gii.common.enums.CourseLevel;
 import com.gii.common.enums.EnrollmentStatus;
 import com.gii.common.enums.OrderItemType;
 import com.gii.common.enums.OrderProvider;
@@ -20,13 +19,15 @@ import com.gii.common.enums.OrderStatus;
 import com.gii.common.enums.PaymentEventStatus;
 import com.gii.common.enums.PaymentEventType;
 import com.gii.common.enums.PublishStatus;
-import com.gii.common.enums.StudyMode;
 import com.gii.common.enums.UserStatus;
 import com.gii.common.repository.collection.CollectionCourseRepository;
 import com.gii.common.repository.collection.CollectionEnrollmentRepository;
 import com.gii.common.repository.collection.CollectionRepository;
 import com.gii.common.repository.course.CourseRepository;
+import com.gii.common.repository.course.CourseTemplateRepository;
+import com.gii.common.repository.course.CourseTemplateVersionRepository;
 import com.gii.common.repository.enrollment.EnrollmentRepository;
+import com.gii.common.repository.order.OrderItemCourseRepository;
 import com.gii.common.repository.order.OrderItemRepository;
 import com.gii.common.repository.order.OrderRepository;
 import com.gii.common.repository.order.PaymentEventRepository;
@@ -47,20 +48,26 @@ abstract class PaymentApiTestSupport {
   @Autowired protected CollectionCourseRepository collectionCourseRepository;
   @Autowired protected CollectionEnrollmentRepository collectionEnrollmentRepository;
   @Autowired protected CourseRepository courseRepository;
+  @Autowired protected CourseTemplateVersionRepository courseTemplateVersionRepository;
+  @Autowired protected CourseTemplateRepository courseTemplateRepository;
   @Autowired protected EnrollmentRepository enrollmentRepository;
   @Autowired protected OrderRepository orderRepository;
   @Autowired protected OrderItemRepository orderItemRepository;
+  @Autowired protected OrderItemCourseRepository orderItemCourseRepository;
   @Autowired protected PaymentEventRepository paymentEventRepository;
 
   protected void cleanupPaymentData() {
     paymentEventRepository.deleteAll();
     collectionEnrollmentRepository.deleteAll();
     enrollmentRepository.deleteAll();
+    orderItemCourseRepository.deleteAll();
     orderItemRepository.deleteAll();
     orderRepository.deleteAll();
     collectionCourseRepository.deleteAll();
     collectionRepository.deleteAll();
     courseRepository.deleteAll();
+    courseTemplateVersionRepository.deleteAll();
+    courseTemplateRepository.deleteAll();
     userRepository.deleteAll();
   }
 
@@ -86,22 +93,13 @@ abstract class PaymentApiTestSupport {
 
   protected Course course(
       String title, String slug, User creator, PublishStatus status, BigDecimal price) {
-    return courseRepository.save(
-        Course.builder()
-            .title(title)
-            .slug(slug)
-            .priceBdt(price)
-            .isFree(price.compareTo(BigDecimal.ZERO) == 0)
-            .level(CourseLevel.BEGINNER)
-            .language(CourseLanguage.EN)
-            .studyMode(StudyMode.SCHEDULED)
-            .status(status)
-            .publishedAt(status == PublishStatus.PUBLISHED ? Instant.now() : null)
-            .liveSessionCount(0)
-            .quizCount(0)
-            .recordedHoursCount(0)
-            .createdBy(creator)
-            .build());
+    Course course = CourseTestData.course(title, slug, creator);
+    course.setPriceBdt(price);
+    course.setIsFree(price.compareTo(BigDecimal.ZERO) == 0);
+    course.setStatus(status);
+    course.setPublishedAt(status == PublishStatus.PUBLISHED ? Instant.now() : null);
+    course.getTemplateVersion().setStatus(status);
+    return courseRepository.save(course);
   }
 
   protected Order order(
@@ -161,7 +159,7 @@ abstract class PaymentApiTestSupport {
             .id(
                 CollectionCourseId.builder()
                     .collectionId(collection.getId())
-                    .courseId(course.getId())
+                    .courseOfferingId(course.getId())
                     .build())
             .collection(collection)
             .course(course)

@@ -14,4 +14,5 @@ public record AdminLiveClassSectionItemResponse(
     Instant startsAt,
     Instant endsAt,
     LiveClassProvider provider,
-    LiveClassStatus status) {}
+    LiveClassStatus status,
+    Boolean scheduled) {}

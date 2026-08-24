@@ -1,5 +1,6 @@
 package com.gii.api.instructorapi;
 
+import com.gii.api.testsupport.CourseTestData;
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.course.CourseAnnouncement;
 import com.gii.common.entity.course.CourseInstructor;
@@ -13,8 +14,6 @@ import com.gii.common.entity.live.LiveClassAttendance;
 import com.gii.common.entity.live.LiveClassRegistrant;
 import com.gii.common.entity.user.InstructorProfile;
 import com.gii.common.entity.user.User;
-import com.gii.common.enums.CourseLanguage;
-import com.gii.common.enums.CourseLevel;
 import com.gii.common.enums.EnrollmentStatus;
 import com.gii.common.enums.InstructorRole;
 import com.gii.common.enums.LessonType;
@@ -23,18 +22,20 @@ import com.gii.common.enums.LiveClassRegistrantStatus;
 import com.gii.common.enums.LiveClassStatus;
 import com.gii.common.enums.PublishStatus;
 import com.gii.common.enums.SectionItemType;
-import com.gii.common.enums.StudyMode;
 import com.gii.common.enums.UserStatus;
 import com.gii.common.repository.course.CourseAnnouncementRepository;
 import com.gii.common.repository.course.CourseInstructorRepository;
 import com.gii.common.repository.course.CourseRepository;
 import com.gii.common.repository.course.CourseSectionRepository;
+import com.gii.common.repository.course.CourseTemplateRepository;
+import com.gii.common.repository.course.CourseTemplateVersionRepository;
 import com.gii.common.repository.course.LessonRepository;
 import com.gii.common.repository.course.SectionItemRepository;
 import com.gii.common.repository.enrollment.EnrollmentRepository;
 import com.gii.common.repository.live.LiveClassAttendanceRepository;
 import com.gii.common.repository.live.LiveClassRegistrantRepository;
 import com.gii.common.repository.live.LiveClassRepository;
+import com.gii.common.repository.live.LiveClassSlotRepository;
 import com.gii.common.repository.user.InstructorProfileRepository;
 import com.gii.common.repository.user.UserRepository;
 import java.math.BigDecimal;
@@ -50,6 +51,8 @@ abstract class InstructorApiTestSupport {
   @Autowired protected UserRepository userRepository;
   @Autowired protected InstructorProfileRepository instructorProfileRepository;
   @Autowired protected CourseRepository courseRepository;
+  @Autowired protected CourseTemplateVersionRepository courseTemplateVersionRepository;
+  @Autowired protected CourseTemplateRepository courseTemplateRepository;
   @Autowired protected CourseAnnouncementRepository courseAnnouncementRepository;
   @Autowired protected CourseInstructorRepository courseInstructorRepository;
   @Autowired protected CourseSectionRepository courseSectionRepository;
@@ -57,6 +60,7 @@ abstract class InstructorApiTestSupport {
   @Autowired protected SectionItemRepository sectionItemRepository;
   @Autowired protected EnrollmentRepository enrollmentRepository;
   @Autowired protected LiveClassRepository liveClassRepository;
+  @Autowired protected LiveClassSlotRepository liveClassSlotRepository;
   @Autowired protected LiveClassRegistrantRepository liveClassRegistrantRepository;
   @Autowired protected LiveClassAttendanceRepository liveClassAttendanceRepository;
 
@@ -65,12 +69,15 @@ abstract class InstructorApiTestSupport {
     liveClassRegistrantRepository.deleteAll();
     sectionItemRepository.deleteAll();
     liveClassRepository.deleteAll();
+    liveClassSlotRepository.deleteAll();
     enrollmentRepository.deleteAll();
     courseAnnouncementRepository.deleteAll();
     courseInstructorRepository.deleteAll();
     lessonRepository.deleteAll();
     courseSectionRepository.deleteAll();
     courseRepository.deleteAll();
+    courseTemplateVersionRepository.deleteAll();
+    courseTemplateRepository.deleteAll();
     instructorProfileRepository.deleteAll();
     userRepository.deleteAll();
   }
@@ -119,22 +126,15 @@ abstract class InstructorApiTestSupport {
   }
 
   protected Course course(String title, String slug, User creator, PublishStatus status) {
-    return courseRepository.save(
-        Course.builder()
-            .title(title)
-            .slug(slug)
-            .priceBdt(BigDecimal.valueOf(1000))
-            .level(CourseLevel.BEGINNER)
-            .language(CourseLanguage.EN)
-            .studyMode(StudyMode.SCHEDULED)
-            .status(status)
-            .publishedAt(Instant.now())
-            .createdBy(creator)
-            .liveSessionCount(0)
-            .quizCount(1)
-            .recordedHoursCount(2)
-            .estimatedDurationMinutes(180)
-            .build());
+    Course course = CourseTestData.course(title, slug, creator);
+    course.setPriceBdt(BigDecimal.valueOf(1000));
+    course.setStatus(status);
+    course.setPublishedAt(Instant.now());
+    course.setQuizCount(1);
+    course.setRecordedHoursCount(2);
+    course.setEstimatedDurationMinutes(180);
+    course.getTemplateVersion().setStatus(status);
+    return courseRepository.save(course);
   }
 
   protected CourseInstructor assignment(Course course, User instructor, InstructorRole role) {
@@ -142,7 +142,7 @@ abstract class InstructorApiTestSupport {
         CourseInstructor.builder()
             .id(
                 CourseInstructorId.builder()
-                    .courseId(course.getId())
+                    .courseOfferingId(course.getId())
                     .instructorUserId(instructor.getId())
                     .build())
             .course(course)
@@ -154,7 +154,7 @@ abstract class InstructorApiTestSupport {
   protected CourseSection section(Course course, int position, PublishStatus status) {
     return courseSectionRepository.save(
         CourseSection.builder()
-            .course(course)
+            .templateVersion(course.getTemplateVersion())
             .title("Section " + position)
             .slug("section-" + position + "-" + UUID.randomUUID().toString().substring(0, 6))
             .position(position)
@@ -167,7 +167,6 @@ abstract class InstructorApiTestSupport {
     Lesson lesson =
         lessonRepository.save(
             Lesson.builder()
-                .course(course)
                 .section(section)
                 .title("Lesson " + position)
                 .slug("lesson-" + position + "-" + UUID.randomUUID().toString().substring(0, 6))
@@ -209,10 +208,15 @@ abstract class InstructorApiTestSupport {
     return liveClassRepository.save(
         LiveClass.builder()
             .course(course)
-            .section(section)
-            .instructor(instructor)
-            .title("Live Session")
-            .description("desc")
+            .slot(
+                liveClassSlotRepository.save(
+                    com.gii.common.entity.live.LiveClassSlot.builder()
+                        .section(section)
+                        .title("Live Session")
+                        .description("desc")
+                        .expectedDurationMinutes(30)
+                        .isMandatory(true)
+                        .build()))
             .provider(LiveClassProvider.ZOOM)
             .providerMeetingId("m-" + UUID.randomUUID())
             .hostStartUrl("https://zoom.test/start/" + UUID.randomUUID())
@@ -220,7 +224,6 @@ abstract class InstructorApiTestSupport {
             .startsAt(startsAt)
             .endsAt(endsAt)
             .status(status)
-            .createdBy(instructor)
             .build());
   }
 

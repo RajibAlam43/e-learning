@@ -13,6 +13,8 @@ import com.gii.common.enums.LiveClassStatus;
 import com.gii.common.enums.PublishStatus;
 import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.Executors;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -211,6 +213,44 @@ class StudentLiveClassesApiIt extends AbstractStudentApiIntegrationTest {
   }
 
   @Test
+  void concurrentJoinsCannotOversubscribeLiveClassCapacity() throws Exception {
+    var studentA = user("Concurrent Student A", "concurrent-live-a@example.com");
+    var studentB = user("Concurrent Student B", "concurrent-live-b@example.com");
+    var instructor = user("Concurrent Instructor", "concurrent-live-instructor@example.com");
+    var creator = user("Concurrent Creator", "concurrent-live-creator@example.com");
+    var course =
+        course("Concurrent Live", "concurrent-live-course", creator, PublishStatus.PUBLISHED);
+    var section = section(course, 1, PublishStatus.PUBLISHED);
+    var lesson = lesson(course, section, 1, PublishStatus.PUBLISHED, false);
+    enrollment(studentA, course, EnrollmentStatus.ACTIVE, Instant.now().plusSeconds(7200));
+    enrollment(studentB, course, EnrollmentStatus.ACTIVE, Instant.now().plusSeconds(7200));
+    var live =
+        liveClass(
+            course,
+            section,
+            lesson,
+            instructor,
+            LiveClassStatus.LIVE,
+            Instant.now().minusSeconds(60),
+            Instant.now().plusSeconds(1800),
+            "https://meet.test/concurrent");
+    live.setMaxCapacity(1);
+    liveClassRepository.saveAndFlush(live);
+
+    CyclicBarrier start = new CyclicBarrier(2);
+    try (var executor = Executors.newFixedThreadPool(2)) {
+      var first = executor.submit(() -> joinConcurrently(start, studentA.getId(), live.getId()));
+      var second = executor.submit(() -> joinConcurrently(start, studentB.getId(), live.getId()));
+
+      assertThat(List.of(first.get(), second.get())).containsExactlyInAnyOrder(200, 403);
+    }
+    assertThat(
+            liveClassRegistrantRepository.countByLiveClassIdAndStatus(
+                live.getId(), LiveClassRegistrantStatus.APPROVED))
+        .isEqualTo(1);
+  }
+
+  @Test
   void joinLiveClassRejectsInstructorRoleOnSharedEndpoint() throws Exception {
     var student = user("Student Eleven", "student11@example.com");
     var instructor = user("Instructor Eleven", "instructor11@example.com");
@@ -240,5 +280,17 @@ class StudentLiveClassesApiIt extends AbstractStudentApiIntegrationTest {
   private Authentication instructorAuth(java.util.UUID userId) {
     return new UsernamePasswordAuthenticationToken(
         userId, null, List.of(new SimpleGrantedAuthority("ROLE_INSTRUCTOR")));
+  }
+
+  private int joinConcurrently(
+      CyclicBarrier start, java.util.UUID studentId, java.util.UUID liveClassId) throws Exception {
+    start.await();
+    return mockMvc
+        .perform(
+            post("/live-classes/{liveClassId}/join", liveClassId)
+                .with(authentication(studentAuth(studentId))))
+        .andReturn()
+        .getResponse()
+        .getStatus();
   }
 }

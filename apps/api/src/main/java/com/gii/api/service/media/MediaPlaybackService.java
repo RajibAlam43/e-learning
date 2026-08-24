@@ -1,13 +1,13 @@
 package com.gii.api.service.media;
 
 import com.gii.api.model.response.MediaPlaybackResponse;
-import com.gii.api.service.enrollment.CurrentUserService;
-import com.gii.api.service.enrollment.EnrollmentAccessService;
+import com.gii.api.service.lesson.LessonAccessService;
 import com.gii.common.entity.course.Lesson;
 import com.gii.common.entity.course.MediaAsset;
+import com.gii.common.entity.enrollment.Enrollment;
 import com.gii.common.enums.MediaStatus;
-import com.gii.common.repository.course.LessonRepository;
 import com.gii.common.repository.course.MediaAssetRepository;
+import java.time.Instant;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -21,22 +21,36 @@ import org.springframework.web.server.ResponseStatusException;
 @Transactional(readOnly = true)
 public class MediaPlaybackService {
 
-  private final LessonRepository lessonRepository;
   private final MediaAssetRepository mediaAssetRepository;
-  private final EnrollmentAccessService enrollmentAccessService;
+  private final LessonAccessService lessonAccessService;
   private final MediaPlaybackRouter mediaPlaybackRouter;
-  private final CurrentUserService currentUserService;
 
   public MediaPlaybackResponse getLessonPlayback(UUID lessonId, Authentication authentication) {
-    Lesson lesson =
-        lessonRepository
-            .findById(lessonId)
-            .orElseThrow(
-                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lesson not found"));
+    Lesson lesson = lessonAccessService.requirePublishedLesson(lessonId);
+    if (Boolean.TRUE.equals(lesson.getIsFree())) {
+      return getPlayback(lesson, null);
+    }
+    UUID userId = lessonAccessService.requireCurrentUserId(authentication);
+    Enrollment enrollment = lessonAccessService.requireActiveEnrollment(userId, lesson);
+    return getPlayback(lesson, enrollment);
+  }
 
+  public MediaPlaybackResponse getLessonPlayback(
+      UUID courseId, UUID lessonId, Authentication authentication) {
+    Lesson lesson = lessonAccessService.requirePublishedLesson(lessonId);
+    if (Boolean.TRUE.equals(lesson.getIsFree())) {
+      lessonAccessService.requireLessonInCourse(courseId, lesson);
+      return getPlayback(lesson, null);
+    }
+    UUID userId = lessonAccessService.requireCurrentUserId(authentication);
+    Enrollment enrollment = lessonAccessService.requireActiveEnrollment(userId, courseId, lesson);
+    return getPlayback(lesson, enrollment);
+  }
+
+  private MediaPlaybackResponse getPlayback(Lesson lesson, Enrollment enrollment) {
     MediaAsset mediaAsset =
         mediaAssetRepository
-            .findByLessonId(lessonId)
+            .findByLessonId(lesson.getId())
             .orElseThrow(
                 () ->
                     new ResponseStatusException(
@@ -46,9 +60,9 @@ public class MediaPlaybackService {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Media is not ready");
     }
 
-    if (!lesson.getIsFree()) {
-      UUID userId = currentUserService.getCurrentUserId(authentication);
-      enrollmentAccessService.verifyCanAccessLesson(userId, lessonId);
+    if (enrollment != null
+        && !lessonAccessService.isLessonAccessible(lesson, enrollment, Instant.now())) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Lesson is not available yet");
     }
 
     return mediaPlaybackRouter.getPlayback(mediaAsset);

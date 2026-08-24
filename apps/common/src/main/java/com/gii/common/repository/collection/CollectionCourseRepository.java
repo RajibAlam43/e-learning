@@ -74,4 +74,14 @@ public interface CollectionCourseRepository
       """)
   List<CollectionCourse> findByCollection_IdInWithCourseStatus(
       @Param("collectionIds") List<UUID> collectionIds, @Param("status") PublishStatus status);
+
+  @Query(
+      """
+      SELECT COUNT(cc) > 0
+      FROM CollectionCourse cc
+      WHERE cc.course.id = :courseId
+      AND cc.collection.status = :status
+      """)
+  boolean existsByCourseIdAndCollectionStatus(
+      @Param("courseId") UUID courseId, @Param("status") PublishStatus status);
 }

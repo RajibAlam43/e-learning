@@ -2,6 +2,7 @@ package com.gii.common.entity.live;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.gii.common.entity.common.CreatedOnlyUuidEntity;
+import com.gii.common.entity.enrollment.Enrollment;
 import com.gii.common.entity.user.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -33,6 +34,11 @@ public class LiveClassAttendance extends CreatedOnlyUuidEntity {
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "user_id")
   private User user;
+
+  @JsonIgnore
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "enrollment_id")
+  private Enrollment enrollment;
 
   @Column(name = "provider_participant_id")
   private String providerParticipantId;

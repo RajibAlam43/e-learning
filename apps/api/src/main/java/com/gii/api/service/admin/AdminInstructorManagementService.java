@@ -208,7 +208,7 @@ public class AdminInstructorManagementService {
     InstructorRole role = parseInstructorRole(request.role());
     CourseInstructorId id =
         CourseInstructorId.builder()
-            .courseId(courseId)
+            .courseOfferingId(courseId)
             .instructorUserId(instructor.getId())
             .build();
     CourseInstructor assignment =

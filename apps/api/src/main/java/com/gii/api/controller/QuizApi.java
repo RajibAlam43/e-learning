@@ -30,10 +30,21 @@ import org.springframework.web.bind.annotation.RequestMapping;
 @PreAuthorize("hasRole('STUDENT') or hasRole('ADMIN')")
 public interface QuizApi {
 
+  @GetMapping("/courses/{courseId}/quizzes/{quizId}")
+  @Operation(
+      summary = "Get course quiz questions",
+      description = "Fetch quiz questions using the student's enrollment in the specified course.")
+  ResponseEntity<QuizQuestionsResponse> getCourseQuizQuestions(
+      @PathVariable UUID courseId, @PathVariable UUID quizId, Authentication authentication);
+
+  @Deprecated(since = "V12")
   @GetMapping("/quizzes/{quizId}")
   @Operation(
       summary = "Get quiz questions",
-      description = "Fetch quiz questions and choices after validating student access to the quiz.")
+      description =
+          "Fetch quiz questions and choices after validating student access to the quiz."
+              + " Deprecated: use the course-scoped route.",
+      deprecated = true)
   @ApiResponses(
       value = {
         @ApiResponse(
@@ -42,15 +53,29 @@ public interface QuizApi {
             content = @Content(schema = @Schema(implementation = QuizQuestionsResponse.class))),
         @ApiResponse(responseCode = "401", description = "Unauthorized"),
         @ApiResponse(responseCode = "403", description = "Access denied - max attempts exceeded"),
+        @ApiResponse(
+            responseCode = "409",
+            description = "Multiple active courses contain this quiz"),
         @ApiResponse(responseCode = "404", description = "Quiz not found")
       })
   ResponseEntity<QuizQuestionsResponse> getQuizQuestions(
       @PathVariable UUID quizId, Authentication authentication);
 
+  @PostMapping("/courses/{courseId}/quizzes/{quizId}/attempts")
+  @Operation(
+      summary = "Start course quiz attempt",
+      description = "Start an attempt for the student's enrollment in the specified course.")
+  ResponseEntity<QuizAttemptStartResponse> startCourseQuizAttempt(
+      @PathVariable UUID courseId, @PathVariable UUID quizId, Authentication authentication);
+
+  @Deprecated(since = "V12")
   @PostMapping("/quizzes/{quizId}/attempts")
   @Operation(
       summary = "Start quiz attempt",
-      description = "Start a new quiz attempt. Returns attempt ID and timing information.")
+      description =
+          "Start a new quiz attempt. Returns attempt ID and timing information."
+              + " Deprecated: use the course-scoped route.",
+      deprecated = true)
   @ApiResponses(
       value = {
         @ApiResponse(
@@ -61,6 +86,9 @@ public interface QuizApi {
             responseCode = "400",
             description = "Cannot start attempt - max attempts reached"),
         @ApiResponse(responseCode = "401", description = "Unauthorized"),
+        @ApiResponse(
+            responseCode = "409",
+            description = "Multiple active courses contain this quiz"),
         @ApiResponse(responseCode = "404", description = "Quiz not found")
       })
   ResponseEntity<QuizAttemptStartResponse> startQuizAttempt(
@@ -86,14 +114,28 @@ public interface QuizApi {
       @Valid @RequestBody SubmitQuizAttemptRequest request,
       Authentication authentication);
 
+  @GetMapping("/courses/{courseId}/quizzes/{quizId}/attempts")
+  @Operation(
+      summary = "List course quiz attempts",
+      description = "List attempts for the student's enrollment in the specified course.")
+  ResponseEntity<List<QuizAttemptSummaryResponse>> getCourseQuizAttempts(
+      @PathVariable UUID courseId, @PathVariable UUID quizId, Authentication authentication);
+
+  @Deprecated(since = "V12")
   @GetMapping("/quizzes/{quizId}/attempts")
   @Operation(
       summary = "List quiz attempts",
-      description = "Get all quiz attempts made by the current student.")
+      description =
+          "Get all quiz attempts made by the current student."
+              + " Deprecated: use the course-scoped route.",
+      deprecated = true)
   @ApiResponses(
       value = {
         @ApiResponse(responseCode = "200", description = "Attempts retrieved"),
         @ApiResponse(responseCode = "401", description = "Unauthorized"),
+        @ApiResponse(
+            responseCode = "409",
+            description = "Multiple active courses contain this quiz"),
         @ApiResponse(responseCode = "404", description = "Quiz not found")
       })
   ResponseEntity<List<QuizAttemptSummaryResponse>> getQuizAttempts(

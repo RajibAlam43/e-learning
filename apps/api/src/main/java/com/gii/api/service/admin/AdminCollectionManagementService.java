@@ -15,8 +15,10 @@ import com.gii.common.entity.course.Course;
 import com.gii.common.entity.user.User;
 import com.gii.common.enums.PublishStatus;
 import com.gii.common.repository.collection.CollectionCourseRepository;
+import com.gii.common.repository.collection.CollectionEnrollmentRepository;
 import com.gii.common.repository.collection.CollectionRepository;
 import com.gii.common.repository.course.CourseRepository;
+import com.gii.common.repository.order.OrderItemRepository;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -38,6 +40,8 @@ public class AdminCollectionManagementService {
   private final CollectionRepository collectionRepository;
   private final CollectionCourseRepository collectionCourseRepository;
   private final CourseRepository courseRepository;
+  private final CollectionEnrollmentRepository collectionEnrollmentRepository;
+  private final OrderItemRepository orderItemRepository;
   private final CurrentUserService currentUserService;
   private final AssetUrlService assetUrlService;
 
@@ -147,9 +151,16 @@ public class AdminCollectionManagementService {
             .findById(collectionId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Collection not found"));
-    if (collectionCourseRepository.findByCollection_IdOrderByPositionAsc(collectionId).isEmpty()) {
+    List<CollectionCourse> includedCourses =
+        collectionCourseRepository.findByCollection_IdOrderByPositionAscWithCourse(collectionId);
+    if (includedCourses.isEmpty()) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "Collection must have at least one course before publishing");
+    }
+    if (includedCourses.stream()
+        .anyMatch(row -> row.getCourse().getStatus() != PublishStatus.PUBLISHED)) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Published collections may contain only published courses");
     }
     collection.setStatus(PublishStatus.PUBLISHED);
     collection.setPublishedAt(Instant.now());
@@ -173,6 +184,16 @@ public class AdminCollectionManagementService {
             .findById(collectionId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Collection not found"));
+
+    if (collection.getStatus() == PublishStatus.PUBLISHED) {
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT, "Unpublish the collection before changing its courses");
+    }
+    if (collectionEnrollmentRepository.existsByCollectionId(collectionId)
+        || orderItemRepository.existsByCollectionId(collectionId)) {
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT, "Purchased collection contents are immutable");
+    }
 
     HashSet<Integer> seenPositions = new HashSet<>();
     HashSet<UUID> seenCourses = new HashSet<>();
@@ -199,6 +220,11 @@ public class AdminCollectionManagementService {
     if (courseById.size() != request.items().size()) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "One or more courses not found");
     }
+    if (collection.getStatus() == PublishStatus.PUBLISHED
+        && courses.stream().anyMatch(course -> course.getStatus() != PublishStatus.PUBLISHED)) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Published collections may contain only published courses");
+    }
 
     collectionCourseRepository.deleteAll(
         collectionCourseRepository.findByCollection_IdOrderByPositionAsc(collectionId));
@@ -211,7 +237,7 @@ public class AdminCollectionManagementService {
                         .id(
                             CollectionCourseId.builder()
                                 .collectionId(collectionId)
-                                .courseId(item.courseId())
+                                .courseOfferingId(item.courseId())
                                 .build())
                         .collection(collection)
                         .course(courseById.get(item.courseId()))

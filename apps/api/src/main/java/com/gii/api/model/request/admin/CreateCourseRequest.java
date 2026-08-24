@@ -6,7 +6,10 @@ import com.gii.common.enums.StudyMode;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import lombok.Builder;
@@ -37,4 +40,11 @@ public record CreateCourseRequest(
     String targetAudience,
     String targetAudienceEn,
     String prerequisites,
-    String prerequisitesEn) {}
+    String prerequisitesEn,
+    @Size(max = 80) String timezone,
+    Instant enrollmentStartsAt,
+    Instant enrollmentEndsAt,
+    Instant startsAt,
+    Instant endsAt,
+    @Positive Integer capacity,
+    @Positive Integer accessDurationDays) {}

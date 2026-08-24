@@ -15,17 +15,29 @@ public interface QuizRepository extends JpaRepository<Quiz, UUID> {
 
   List<Quiz> findBySectionIdOrderByPositionAsc(UUID sectionId);
 
-  List<Quiz> findByCourseIdAndStatusOrderByPositionAsc(UUID courseId, PublishStatus status);
+  @Query(
+      """
+        SELECT q FROM Quiz q
+        WHERE q.section.templateVersion.id = (
+          SELECT c.templateVersion.id FROM Course c WHERE c.id = :courseId
+        )
+        AND q.status = :status
+        ORDER BY q.position ASC
+      """)
+  List<Quiz> findByCourseIdAndStatusOrderByPositionAsc(
+      @Param("courseId") UUID courseId, @Param("status") PublishStatus status);
 
   boolean existsBySectionIdAndPosition(UUID sectionId, Integer position);
 
   @Query(
       """
-        SELECT q.course.id, COUNT(q)
-        FROM Quiz q
-        WHERE q.course.id IN :courseIds AND q.status = :status
+        SELECT c.id, COUNT(q)
+        FROM Course c, Quiz q
+        WHERE c.id IN :courseIds
+        AND q.section.templateVersion.id = c.templateVersion.id
+        AND q.status = :status
         AND q.section.status = :status
-        GROUP BY q.course.id
+        GROUP BY c.id
       """)
   List<Object[]> countByCourseIdsAndStatus(
       @Param("courseIds") List<UUID> courseIds, @Param("status") PublishStatus status);

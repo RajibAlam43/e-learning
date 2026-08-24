@@ -1,5 +1,6 @@
 package com.gii.api.lessonapi;
 
+import com.gii.api.testsupport.CourseTestData;
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.course.CourseSection;
 import com.gii.common.entity.course.Lesson;
@@ -9,8 +10,6 @@ import com.gii.common.entity.enrollment.Enrollment;
 import com.gii.common.entity.enrollment.LessonProgress;
 import com.gii.common.entity.enrollment.LessonProgressId;
 import com.gii.common.entity.user.User;
-import com.gii.common.enums.CourseLanguage;
-import com.gii.common.enums.CourseLevel;
 import com.gii.common.enums.EnrollmentStatus;
 import com.gii.common.enums.LessonResourceType;
 import com.gii.common.enums.LessonType;
@@ -20,10 +19,11 @@ import com.gii.common.enums.MediaStatus;
 import com.gii.common.enums.PlaybackMode;
 import com.gii.common.enums.PublishStatus;
 import com.gii.common.enums.ReleaseType;
-import com.gii.common.enums.StudyMode;
 import com.gii.common.enums.UserStatus;
 import com.gii.common.repository.course.CourseRepository;
 import com.gii.common.repository.course.CourseSectionRepository;
+import com.gii.common.repository.course.CourseTemplateRepository;
+import com.gii.common.repository.course.CourseTemplateVersionRepository;
 import com.gii.common.repository.course.LessonRepository;
 import com.gii.common.repository.course.LessonResourceRepository;
 import com.gii.common.repository.course.MediaAssetRepository;
@@ -43,6 +43,8 @@ abstract class LessonApiTestSupport {
 
   @Autowired protected UserRepository userRepository;
   @Autowired protected CourseRepository courseRepository;
+  @Autowired protected CourseTemplateVersionRepository courseTemplateVersionRepository;
+  @Autowired protected CourseTemplateRepository courseTemplateRepository;
   @Autowired protected CourseSectionRepository courseSectionRepository;
   @Autowired protected LessonRepository lessonRepository;
   @Autowired protected EnrollmentRepository enrollmentRepository;
@@ -60,6 +62,8 @@ abstract class LessonApiTestSupport {
     lessonRepository.deleteAll();
     courseSectionRepository.deleteAll();
     courseRepository.deleteAll();
+    courseTemplateVersionRepository.deleteAll();
+    courseTemplateRepository.deleteAll();
     userRepository.deleteAll();
   }
 
@@ -79,28 +83,34 @@ abstract class LessonApiTestSupport {
   }
 
   protected Course course(String title, String slug, User creator, PublishStatus status) {
+    Course course = CourseTestData.course(title, slug, creator);
+    course.setPriceBdt(BigDecimal.valueOf(1200));
+    course.setStatus(status);
+    course.setPublishedAt(Instant.now());
+    course.setEstimatedDurationMinutes(120);
+    course.getTemplateVersion().setStatus(status);
+    return courseRepository.save(course);
+  }
+
+  protected Course repeatedCourse(Course source, String slug, User creator) {
     return courseRepository.save(
         Course.builder()
-            .title(title)
+            .templateVersion(source.getTemplateVersion())
+            .name(source.getName())
             .slug(slug)
-            .priceBdt(BigDecimal.valueOf(1200))
-            .level(CourseLevel.BEGINNER)
-            .language(CourseLanguage.EN)
-            .studyMode(StudyMode.SCHEDULED)
-            .status(status)
+            .priceBdt(source.getPriceBdt())
+            .studyMode(source.getStudyMode())
+            .status(PublishStatus.PUBLISHED)
             .publishedAt(Instant.now())
+            .isFree(source.getIsFree())
             .createdBy(creator)
-            .liveSessionCount(0)
-            .quizCount(0)
-            .recordedHoursCount(0)
-            .estimatedDurationMinutes(120)
             .build());
   }
 
   protected CourseSection section(Course course, int position, PublishStatus status) {
     return courseSectionRepository.save(
         CourseSection.builder()
-            .course(course)
+            .templateVersion(course.getTemplateVersion())
             .title("Section " + position)
             .slug("section-" + position + "-" + UUID.randomUUID().toString().substring(0, 6))
             .position(position)
@@ -119,7 +129,6 @@ abstract class LessonApiTestSupport {
       Integer unlockAfterDays) {
     return lessonRepository.save(
         Lesson.builder()
-            .course(course)
             .section(section)
             .title("Lesson " + position)
             .slug("lesson-" + position + "-" + UUID.randomUUID().toString().substring(0, 6))
@@ -178,10 +187,21 @@ abstract class LessonApiTestSupport {
 
   protected LessonProgress progress(
       User user, Lesson lesson, boolean completed, int lastPositionSec) {
+    Enrollment enrollment =
+        enrollmentRepository
+            .findByUserIdAndTemplateVersionIdAndStatus(
+                user.getId(),
+                lesson.getSection().getTemplateVersion().getId(),
+                EnrollmentStatus.ACTIVE)
+            .getFirst();
     return lessonProgressRepository.save(
         LessonProgress.builder()
-            .id(LessonProgressId.builder().userId(user.getId()).lessonId(lesson.getId()).build())
-            .user(user)
+            .id(
+                LessonProgressId.builder()
+                    .enrollmentId(enrollment.getId())
+                    .lessonId(lesson.getId())
+                    .build())
+            .enrollment(enrollment)
             .lesson(lesson)
             .completedAt(completed ? Instant.now().minusSeconds(10) : null)
             .lastPositionSec(lastPositionSec)

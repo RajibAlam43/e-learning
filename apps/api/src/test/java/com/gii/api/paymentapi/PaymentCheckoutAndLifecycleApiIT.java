@@ -139,7 +139,7 @@ class PaymentCheckoutAndLifecycleApiIt extends AbstractPaymentApiIntegrationTest
             creator,
             PublishStatus.PUBLISHED,
             BigDecimal.valueOf(900));
-    var otherCourse =
+    final var otherCourse =
         course(
             "Other Course",
             "other-course-discount-payment",
@@ -176,6 +176,14 @@ class PaymentCheckoutAndLifecycleApiIt extends AbstractPaymentApiIntegrationTest
                     "https://assets.test/thumbnails/collections/"
                         + "discount-collection-a1b2c3d4.webp"))
         .andExpect(jsonPath("$.items[0].discountReason").value("ALREADY_OWNED_INCLUDED_COURSES"));
+
+    var pending =
+        orderRepository.findByUserIdAndStatus(student.getId(), OrderStatus.PENDING).getFirst();
+    assertThat(
+            orderItemCourseRepository.findByOrderItemIdOrderByPositionAsc(
+                orderItemRepository.findByOrderId(pending.getId()).getFirst().getId()))
+        .extracting(snapshot -> snapshot.getCourse().getId())
+        .containsExactly(ownedCourse.getId(), otherCourse.getId());
 
     mockMvc
         .perform(

@@ -1,6 +1,7 @@
 package com.gii.api.controller;
 
 import com.gii.api.exception.GiiApiException;
+import com.gii.common.service.payment.EnrollmentPolicyViolationException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import java.net.URI;
@@ -39,6 +40,13 @@ public class GiiControllerAdvice {
     String detail = ex.getReason() == null ? "Request failed" : ex.getReason();
     return problem(
         HttpStatus.valueOf(ex.getStatusCode().value()), "Request failed", detail, request);
+  }
+
+  @ExceptionHandler(EnrollmentPolicyViolationException.class)
+  public ProblemDetail handleEnrollmentPolicy(
+      EnrollmentPolicyViolationException ex, HttpServletRequest request) {
+    logException("EnrollmentPolicyViolationException", ex, request);
+    return problem(HttpStatus.CONFLICT, "Enrollment unavailable", ex.getMessage(), request);
   }
 
   @ExceptionHandler(AccessDeniedException.class)

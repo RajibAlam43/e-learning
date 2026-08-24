@@ -5,6 +5,7 @@ import com.gii.api.model.request.lesson.UpdateLessonRequest;
 import com.gii.api.model.response.admin.AdminLessonDetailResponse;
 import com.gii.api.model.response.admin.AdminLessonResourceResponse;
 import com.gii.api.model.response.admin.AdminMediaAssetResponse;
+import com.gii.api.service.course.CourseTemplateMutationGuard;
 import com.gii.api.service.storage.AssetUrlService;
 import com.gii.common.entity.course.CourseSection;
 import com.gii.common.entity.course.Lesson;
@@ -40,6 +41,7 @@ public class AdminLessonManagementService {
   private final LessonResourceRepository resourceRepository;
   private final SectionItemRepository sectionItemRepository;
   private final AssetUrlService assetUrlService;
+  private final CourseTemplateMutationGuard templateMutationGuard;
 
   @Transactional(readOnly = true)
   public AdminLessonDetailResponse get(UUID lessonId) {
@@ -57,12 +59,12 @@ public class AdminLessonManagementService {
             .findById(sectionId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Section not found"));
+    templateMutationGuard.requireDraft(section.getTemplateVersion());
 
     ensurePositionAvailable(section.getId(), request.position(), null);
 
     Lesson lesson =
         Lesson.builder()
-            .course(section.getCourse())
             .section(section)
             .title(request.title().trim())
             .titleEn(request.titleEn())
@@ -98,6 +100,7 @@ public class AdminLessonManagementService {
             .findById(lessonId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lesson not found"));
+    templateMutationGuard.requireDraft(lesson.getSection().getTemplateVersion());
     if (request.title() != null) {
       lesson.setTitle(request.title().trim());
     }
@@ -161,6 +164,7 @@ public class AdminLessonManagementService {
             .findById(lessonId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lesson not found"));
+    templateMutationGuard.requireDraft(lesson.getSection().getTemplateVersion());
     sectionItemRepository.deleteByItemTypeAndItemId(SectionItemType.LESSON, lesson.getId());
     lessonRepository.delete(lesson);
   }
@@ -171,6 +175,7 @@ public class AdminLessonManagementService {
             .findById(lessonId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lesson not found"));
+    templateMutationGuard.requireDraft(lesson.getSection().getTemplateVersion());
     if (lesson.getLessonType() == LessonType.PDF
         && !resourceRepository.existsByLessonIdAndPurposeAndResourceType(
             lessonId, LessonResourcePurpose.PRIMARY_CONTENT, LessonResourceType.PDF)) {
@@ -187,6 +192,7 @@ public class AdminLessonManagementService {
             .findById(lessonId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lesson not found"));
+    templateMutationGuard.requireDraft(lesson.getSection().getTemplateVersion());
     lesson.setStatus(PublishStatus.DRAFT);
     lessonRepository.save(lesson);
   }

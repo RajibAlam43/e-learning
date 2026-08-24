@@ -7,6 +7,7 @@ import com.gii.api.model.response.student.StudentQuizHomeResponse;
 import com.gii.api.model.response.student.StudentSectionHomeResponse;
 import com.gii.api.model.response.student.StudentSectionItemResponse;
 import com.gii.api.service.enrollment.CurrentUserService;
+import com.gii.api.service.enrollment.CurriculumAccessService;
 import com.gii.api.service.localization.LocalizedContentService;
 import com.gii.api.service.progress.CourseCompletionService;
 import com.gii.api.service.progress.CourseCompletionService.CourseCompletion;
@@ -20,6 +21,7 @@ import com.gii.common.entity.course.SectionItem;
 import com.gii.common.entity.enrollment.Enrollment;
 import com.gii.common.entity.enrollment.LessonProgress;
 import com.gii.common.entity.live.LiveClass;
+import com.gii.common.entity.live.LiveClassSlot;
 import com.gii.common.entity.quiz.Quiz;
 import com.gii.common.enums.EnrollmentStatus;
 import com.gii.common.enums.InstructorRole;
@@ -34,6 +36,7 @@ import com.gii.common.repository.course.SectionItemRepository;
 import com.gii.common.repository.enrollment.EnrollmentRepository;
 import com.gii.common.repository.enrollment.LessonProgressRepository;
 import com.gii.common.repository.live.LiveClassRepository;
+import com.gii.common.repository.live.LiveClassSlotRepository;
 import com.gii.common.repository.quiz.QuizRepository;
 import java.time.Duration;
 import java.time.Instant;
@@ -67,9 +70,11 @@ public class EnrolledCourseDetailsService {
   private final QuizRepository quizRepository;
   private final SectionItemRepository sectionItemRepository;
   private final LiveClassRepository liveClassRepository;
+  private final LiveClassSlotRepository liveClassSlotRepository;
   private final CourseCompletionService courseCompletionService;
   private final AssetUrlService assetUrlService;
   private final LocalizedContentService localizedContentService;
+  private final CurriculumAccessService curriculumAccessService;
 
   public StudentCourseHomeResponse execute(UUID courseId, Authentication authentication) {
     UUID userId = currentUserService.getCurrentUserId(authentication);
@@ -118,9 +123,15 @@ public class EnrolledCourseDetailsService {
     Map<UUID, List<SectionItem>> itemsBySectionId =
         sectionItems.stream()
             .collect(java.util.stream.Collectors.groupingBy(i -> i.getSection().getId()));
-    Map<UUID, LiveClass> liveClassById =
+    Map<UUID, LiveClass> liveClassBySlotId =
         liveClasses.stream()
-            .collect(java.util.stream.Collectors.toMap(LiveClass::getId, value -> value));
+            .collect(
+                java.util.stream.Collectors.toMap(
+                    liveClass -> liveClass.getSlot().getId(), value -> value));
+    Map<UUID, LiveClassSlot> liveClassSlotById =
+        sections.stream()
+            .flatMap(section -> liveClassSlotRepository.findBySectionId(section.getId()).stream())
+            .collect(java.util.stream.Collectors.toMap(LiveClassSlot::getId, value -> value));
 
     List<StudentSectionHomeResponse> sectionResponses =
         sections.stream()
@@ -131,10 +142,12 @@ public class EnrolledCourseDetailsService {
                         lessonsBySectionId.getOrDefault(section.getId(), List.of()),
                         quizzesBySectionId.getOrDefault(section.getId(), List.of()),
                         itemsBySectionId.getOrDefault(section.getId(), List.of()),
-                        liveClassById,
+                        liveClassBySlotId,
+                        liveClassSlotById,
                         progressByLessonId,
                         passedQuizIds,
-                        attendedLiveClassIds))
+                        attendedLiveClassIds,
+                        enrollment))
             .toList();
 
     java.util.Optional<Certificate> cert =
@@ -151,11 +164,15 @@ public class EnrolledCourseDetailsService {
         .thumbnailUrl(assetUrlService.publicUrl(course.getThumbnailObjectKey()))
         .instructor(instructorName)
         .courseLevel(course.getLevel().name())
+        .studyMode(course.getStudyMode())
+        .timezone(course.getTimezone())
+        .startsAt(course.getStartsAt())
+        .endsAt(course.getEndsAt())
         .enrollmentStatus(enrollment.getStatus())
         .enrolledAt(enrollment.getEnrolledAt())
         .expiresAt(enrollment.getExpiresAt())
         .isExpired(
-            enrollment.getExpiresAt() != null && enrollment.getExpiresAt().isBefore(Instant.now()))
+            enrollment.getExpiresAt() != null && !enrollment.getExpiresAt().isAfter(Instant.now()))
         .completionPercentage(courseCompletion.completionPercentage())
         .completedLessons(courseCompletion.completedLessons())
         .totalLessons(courseCompletion.totalLessons())
@@ -177,10 +194,15 @@ public class EnrolledCourseDetailsService {
       List<Lesson> lessons,
       List<Quiz> quizzes,
       List<SectionItem> sectionItems,
-      Map<UUID, LiveClass> liveClassById,
+      Map<UUID, LiveClass> liveClassBySlotId,
+      Map<UUID, LiveClassSlot> liveClassSlotById,
       Map<UUID, LessonProgress> progressByLessonId,
       Set<UUID> passedQuizIds,
-      Set<UUID> attendedLiveClassIds) {
+      Set<UUID> attendedLiveClassIds,
+      Enrollment enrollment) {
+    Instant now = Instant.now();
+    boolean sectionAccessible =
+        curriculumAccessService.isSectionAccessible(section, enrollment, now);
     int totalLessons = lessons.size();
     int completedLessons =
         (int)
@@ -197,16 +219,16 @@ public class EnrolledCourseDetailsService {
             .map(SectionItem::getItemId)
             .filter(
                 id -> {
-                  LiveClass liveClass = liveClassById.get(id);
-                  return liveClass != null
-                      && COMPLETABLE_LIVE_CLASS_STATUSES.contains(liveClass.getStatus());
+                  LiveClassSlot slot = liveClassSlotById.get(id);
+                  return slot != null && Boolean.TRUE.equals(slot.getIsMandatory());
                 })
             .collect(java.util.stream.Collectors.toUnmodifiableSet());
     int totalLiveClasses = completableLiveClassIds.size();
     int completedLiveClasses =
         (int)
             completableLiveClassIds.stream()
-                .map(liveClassById::get)
+                .map(liveClassBySlotId::get)
+                .filter(java.util.Objects::nonNull)
                 .filter(liveClass -> liveClass.getStatus() == LiveClassStatus.COMPLETED)
                 .count();
     int totalItems = totalLessons + quizzes.size() + totalLiveClasses;
@@ -229,7 +251,14 @@ public class EnrolledCourseDetailsService {
               .completed(progress != null && progress.getCompletedAt() != null)
               .completedAt(progress != null ? progress.getCompletedAt() : null)
               .lastPositionSec(progress != null ? progress.getLastPositionSec() : null)
-              .isAccessible(true)
+              .isAccessible(
+                  sectionAccessible
+                      && curriculumAccessService.isReleased(
+                          lesson.getReleaseType(),
+                          lesson.getReleaseAt(),
+                          lesson.getUnlockAfterDays(),
+                          enrollment,
+                          now))
               .durationLabel(formatLessonDuration(lesson.getDurationSeconds()))
               .isFree(lesson.getIsFree())
               .nextLessonId(next)
@@ -245,8 +274,8 @@ public class EnrolledCourseDetailsService {
                         .quizId(quiz.getId())
                         .quizTitle(localizedContentService.text(quiz.getTitle(), quiz.getTitleEn()))
                         .position(quiz.getPosition())
-                        .isAccessible(true)
-                        .accessReason("AVAILABLE")
+                        .isAccessible(sectionAccessible)
+                        .accessReason(sectionAccessible ? "AVAILABLE" : "SECTION_LOCKED")
                         .passingScorePct(quiz.getPassingScorePct())
                         .maxAttempts(quiz.getMaxAttempts())
                         .timeLimitSec(quiz.getTimeLimitSec())
@@ -270,7 +299,8 @@ public class EnrolledCourseDetailsService {
                         item,
                         lessonResponseById,
                         quizResponseById,
-                        liveClassById,
+                        liveClassBySlotId,
+                        liveClassSlotById,
                         attendedLiveClassIds))
             .filter(java.util.Objects::nonNull)
             .toList();
@@ -288,8 +318,8 @@ public class EnrolledCourseDetailsService {
         .totalLiveClasses(totalLiveClasses)
         .completedItems(completedItems)
         .totalItems(totalItems)
-        .isAccessible(true)
-        .accessReason("AVAILABLE")
+        .isAccessible(sectionAccessible)
+        .accessReason(sectionAccessible ? "AVAILABLE" : "SECTION_LOCKED")
         .items(itemResponses)
         .lessons(lessonResponses)
         .quizzes(quizResponses)
@@ -300,7 +330,8 @@ public class EnrolledCourseDetailsService {
       SectionItem item,
       Map<UUID, StudentLessonHomeResponse> lessonById,
       Map<UUID, StudentQuizHomeResponse> quizById,
-      Map<UUID, LiveClass> liveClassById,
+      Map<UUID, LiveClass> liveClassBySlotId,
+      Map<UUID, LiveClassSlot> liveClassSlotById,
       Set<UUID> attendedLiveClassIds) {
     return switch (item.getItemType()) {
       case LESSON -> {
@@ -326,8 +357,9 @@ public class EnrolledCourseDetailsService {
                 .build();
       }
       case LIVE_CLASS -> {
-        LiveClass liveClass = liveClassById.get(item.getItemId());
-        yield liveClass == null
+        LiveClassSlot slot = liveClassSlotById.get(item.getItemId());
+        LiveClass liveClass = liveClassBySlotId.get(item.getItemId());
+        yield slot == null
             ? null
             : StudentSectionItemResponse.builder()
                 .itemId(item.getItemId())
@@ -335,19 +367,21 @@ public class EnrolledCourseDetailsService {
                 .position(item.getPosition())
                 .liveClass(
                     StudentLiveClassHomeResponse.builder()
-                        .liveClassId(liveClass.getId())
-                        .title(
-                            localizedContentService.text(
-                                liveClass.getTitle(), liveClass.getTitleEn()))
+                        .liveClassId(liveClass != null ? liveClass.getId() : null)
+                        .liveClassItemId(slot.getId())
+                        .scheduled(liveClass != null)
+                        .title(localizedContentService.text(slot.getTitle(), slot.getTitleEn()))
                         .description(
                             localizedContentService.text(
-                                liveClass.getDescription(), liveClass.getDescriptionEn()))
-                        .startsAt(liveClass.getStartsAt())
-                        .endsAt(liveClass.getEndsAt())
-                        .provider(liveClass.getProvider())
-                        .status(liveClass.getStatus())
-                        .attended(attendedLiveClassIds.contains(liveClass.getId()))
-                        .completed(liveClass.getStatus() == LiveClassStatus.COMPLETED)
+                                slot.getDescription(), slot.getDescriptionEn()))
+                        .startsAt(liveClass != null ? liveClass.getStartsAt() : null)
+                        .endsAt(liveClass != null ? liveClass.getEndsAt() : null)
+                        .provider(liveClass != null ? liveClass.getProvider() : null)
+                        .status(liveClass != null ? liveClass.getStatus() : null)
+                        .attended(
+                            liveClass != null && attendedLiveClassIds.contains(liveClass.getId()))
+                        .completed(
+                            liveClass != null && liveClass.getStatus() == LiveClassStatus.COMPLETED)
                         .build())
                 .build();
       }

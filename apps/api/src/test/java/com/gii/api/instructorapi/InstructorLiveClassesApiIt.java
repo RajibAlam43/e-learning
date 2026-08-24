@@ -79,7 +79,7 @@ class InstructorLiveClassesApiIt extends AbstractInstructorApiIntegrationTest {
             sectionItemRepository
                 .findByItemTypeAndItemId(
                     com.gii.common.enums.SectionItemType.LIVE_CLASS,
-                    java.util.UUID.fromString(liveClassId))
+                    liveClassRepository.findAll().get(0).getSlot().getId())
                 .orElseThrow()
                 .getPosition())
         .isEqualTo(1);

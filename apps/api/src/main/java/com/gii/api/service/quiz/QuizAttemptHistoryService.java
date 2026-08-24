@@ -1,6 +1,7 @@
 package com.gii.api.service.quiz;
 
 import com.gii.api.model.response.quiz.QuizAttemptSummaryResponse;
+import com.gii.common.entity.enrollment.Enrollment;
 import com.gii.common.entity.quiz.Quiz;
 import com.gii.common.entity.quiz.QuizAttempt;
 import com.gii.common.entity.quiz.QuizQuestion;
@@ -26,13 +27,25 @@ public class QuizAttemptHistoryService {
   public List<QuizAttemptSummaryResponse> execute(UUID quizId, Authentication authentication) {
     UUID userId = quizAccessService.requireCurrentUserId(authentication);
     Quiz quiz = quizAccessService.requirePublishedQuiz(quizId);
-    quizAccessService.ensureActiveEnrollment(userId, quiz.getCourse().getId());
+    Enrollment enrollment = quizAccessService.requireActiveEnrollment(userId, quiz);
+    return getHistory(quiz, enrollment);
+  }
 
-    List<QuizQuestion> questions = questionRepository.findByQuizIdOrderByPositionAsc(quizId);
+  public List<QuizAttemptSummaryResponse> execute(
+      UUID courseId, UUID quizId, Authentication authentication) {
+    UUID userId = quizAccessService.requireCurrentUserId(authentication);
+    Quiz quiz = quizAccessService.requirePublishedQuiz(quizId);
+    Enrollment enrollment = quizAccessService.requireActiveEnrollment(userId, courseId, quiz);
+    return getHistory(quiz, enrollment);
+  }
+
+  private List<QuizAttemptSummaryResponse> getHistory(Quiz quiz, Enrollment enrollment) {
+    List<QuizQuestion> questions = questionRepository.findByQuizIdOrderByPositionAsc(quiz.getId());
     int totalPoints = questions.stream().mapToInt(QuizQuestion::getPoints).sum();
 
     List<QuizAttempt> attempts =
-        attemptRepository.findByQuizIdAndUserIdOrderByAttemptNoDesc(quizId, userId);
+        attemptRepository.findByQuizIdAndEnrollmentIdOrderByAttemptNoDesc(
+            quiz.getId(), enrollment.getId());
     return attempts.stream()
         .map(
             attempt -> {

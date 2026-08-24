@@ -24,6 +24,6 @@ public class CollectionCourseId implements Serializable {
   @Column(name = "collection_id", nullable = false)
   private UUID collectionId;
 
-  @Column(name = "course_id", nullable = false)
-  private UUID courseId;
+  @Column(name = "course_offering_id", nullable = false)
+  private UUID courseOfferingId;
 }

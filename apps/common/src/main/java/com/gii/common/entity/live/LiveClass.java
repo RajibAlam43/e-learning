@@ -3,10 +3,10 @@ package com.gii.common.entity.live;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.gii.common.entity.common.BaseUuidEntity;
 import com.gii.common.entity.course.Course;
-import com.gii.common.entity.course.CourseSection;
-import com.gii.common.entity.user.User;
 import com.gii.common.enums.LiveClassProvider;
+import com.gii.common.enums.LiveClassProvisioningMode;
 import com.gii.common.enums.LiveClassStatus;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -35,30 +35,13 @@ public class LiveClass extends BaseUuidEntity {
 
   @JsonIgnore
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
-  @JoinColumn(name = "course_id", nullable = false)
+  @JoinColumn(name = "course_offering_id", nullable = false)
   private Course course;
 
   @JsonIgnore
-  @ManyToOne(fetch = FetchType.LAZY, optional = false)
-  @JoinColumn(name = "section_id", nullable = false)
-  private CourseSection section;
-
-  @JsonIgnore
-  @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "instructor_id")
-  private User instructor;
-
-  @Column(name = "title", nullable = false)
-  private String title;
-
-  @Column(name = "title_en")
-  private String titleEn;
-
-  @Column(name = "description")
-  private String description;
-
-  @Column(name = "description_en")
-  private String descriptionEn;
+  @ManyToOne(fetch = FetchType.EAGER, optional = false, cascade = CascadeType.MERGE)
+  @JoinColumn(name = "live_class_slot_id", nullable = false)
+  private LiveClassSlot slot;
 
   @Enumerated(EnumType.STRING)
   @Column(name = "provider", nullable = false, length = 30)
@@ -77,6 +60,11 @@ public class LiveClass extends BaseUuidEntity {
   @Column(name = "provider_metadata", columnDefinition = "jsonb")
   private Map<String, Object> providerMetadata;
 
+  @Enumerated(EnumType.STRING)
+  @Column(name = "provisioning_mode", nullable = false, length = 30)
+  @lombok.Builder.Default
+  private LiveClassProvisioningMode provisioningMode = LiveClassProvisioningMode.API_PROVISIONED;
+
   @Column(name = "starts_at", nullable = false)
   private Instant startsAt;
 
@@ -89,11 +77,6 @@ public class LiveClass extends BaseUuidEntity {
   @Enumerated(EnumType.STRING)
   @Column(name = "status", nullable = false, length = 30)
   private LiveClassStatus status;
-
-  @JsonIgnore
-  @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "created_by")
-  private User createdBy;
 
   /** Provider participant join URL. */
   public String effectiveParticipantJoinUrl() {
@@ -108,5 +91,41 @@ public class LiveClass extends BaseUuidEntity {
   /** Provider meeting ID. */
   public String effectiveMeetingId() {
     return providerMeetingId;
+  }
+
+  public com.gii.common.entity.course.CourseSection getSection() {
+    return slot.getSection();
+  }
+
+  public String getTitle() {
+    return slot.getTitle();
+  }
+
+  public void setTitle(String value) {
+    slot.setTitle(value);
+  }
+
+  public String getTitleEn() {
+    return slot.getTitleEn();
+  }
+
+  public void setTitleEn(String value) {
+    slot.setTitleEn(value);
+  }
+
+  public String getDescription() {
+    return slot.getDescription();
+  }
+
+  public void setDescription(String value) {
+    slot.setDescription(value);
+  }
+
+  public String getDescriptionEn() {
+    return slot.getDescriptionEn();
+  }
+
+  public void setDescriptionEn(String value) {
+    slot.setDescriptionEn(value);
   }
 }

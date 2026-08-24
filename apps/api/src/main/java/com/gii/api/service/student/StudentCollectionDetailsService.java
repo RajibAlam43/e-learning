@@ -2,14 +2,15 @@ package com.gii.api.service.student;
 
 import com.gii.api.model.response.student.StudentCollectionCourseProgressResponse;
 import com.gii.api.model.response.student.StudentCollectionDetailsResponse;
+import com.gii.api.service.collection.PurchasedCollectionCoursesService;
 import com.gii.api.service.enrollment.CurrentUserService;
 import com.gii.api.service.localization.LocalizedContentService;
 import com.gii.api.service.progress.CourseCompletionService;
 import com.gii.api.service.progress.CourseCompletionService.CourseCompletion;
 import com.gii.api.service.storage.AssetUrlService;
 import com.gii.common.entity.collection.Collection;
-import com.gii.common.entity.collection.CollectionCourse;
 import com.gii.common.entity.collection.CollectionEnrollment;
+import com.gii.common.entity.course.Course;
 import com.gii.common.enums.EnrollmentStatus;
 import com.gii.common.enums.PublishStatus;
 import com.gii.common.repository.collection.CollectionCourseRepository;
@@ -35,6 +36,7 @@ public class StudentCollectionDetailsService {
   private final CourseCompletionService courseCompletionService;
   private final AssetUrlService assetUrlService;
   private final LocalizedContentService localizedContentService;
+  private final PurchasedCollectionCoursesService purchasedCollectionCoursesService;
 
   public StudentCollectionDetailsResponse execute(
       UUID collectionId, Authentication authentication) {
@@ -48,11 +50,12 @@ public class StudentCollectionDetailsService {
                         HttpStatus.NOT_FOUND, "Collection not found or not enrolled"));
 
     Collection collection = enrollment.getCollection();
-    List<CollectionCourse> collectionCourses =
-        collectionCourseRepository.findByCollection_IdOrderByPositionAscWithCourseStatus(
-            collectionId, PublishStatus.PUBLISHED);
+    List<Course> collectionCourses =
+        purchasedCollectionCoursesService.resolve(enrollment).stream()
+            .filter(course -> course.getStatus() == PublishStatus.PUBLISHED)
+            .toList();
 
-    List<UUID> courseIds = collectionCourses.stream().map(cc -> cc.getCourse().getId()).toList();
+    List<UUID> courseIds = collectionCourses.stream().map(Course::getId).toList();
     Map<UUID, CourseCompletion> completionByCourseId =
         courseCompletionService.getByCourseIds(userId, courseIds);
 
@@ -61,17 +64,15 @@ public class StudentCollectionDetailsService {
     List<StudentCollectionCourseProgressResponse> courses =
         collectionCourses.stream()
             .map(
-                cc -> {
-                  UUID courseId = cc.getCourse().getId();
+                course -> {
+                  UUID courseId = course.getId();
                   CourseCompletion completion = completionByCourseId.get(courseId);
                   return StudentCollectionCourseProgressResponse.builder()
                       .courseId(courseId)
                       .courseName(
-                          localizedContentService.text(
-                              cc.getCourse().getTitle(), cc.getCourse().getTitleEn()))
-                      .courseSlug(cc.getCourse().getSlug())
-                      .courseThumbnailUrl(
-                          assetUrlService.publicUrl(cc.getCourse().getThumbnailObjectKey()))
+                          localizedContentService.text(course.getTitle(), course.getTitleEn()))
+                      .courseSlug(course.getSlug())
+                      .courseThumbnailUrl(assetUrlService.publicUrl(course.getThumbnailObjectKey()))
                       .completionPercentage(completion.completionPercentage())
                       .completedLessons(completion.completedLessons())
                       .totalLessons(completion.totalLessons())

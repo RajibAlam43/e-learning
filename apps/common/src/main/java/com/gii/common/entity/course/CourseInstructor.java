@@ -26,15 +26,15 @@ import lombok.Setter;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Entity
-@Table(name = "course_instructors")
+@Table(name = "course_offering_instructors")
 public class CourseInstructor {
 
   @EmbeddedId @Builder.Default private CourseInstructorId id = CourseInstructorId.builder().build();
 
   @JsonIgnore
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
-  @MapsId("courseId")
-  @JoinColumn(name = "course_id", nullable = false)
+  @MapsId("courseOfferingId")
+  @JoinColumn(name = "course_offering_id", nullable = false)
   private Course course;
 
   @JsonIgnore

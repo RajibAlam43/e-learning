@@ -2,6 +2,7 @@ package com.gii.api.model.response;
 
 import com.gii.common.enums.CourseLanguage;
 import com.gii.common.enums.CourseLevel;
+import com.gii.common.enums.StudyMode;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
@@ -19,6 +20,9 @@ public record CourseSummaryResponse(
     List<String> categoryNames,
     String thumbnailUrl,
     BigDecimal priceBdt,
+    StudyMode studyMode,
+    Instant startsAt,
+    Instant endsAt,
     Instant publishedAt,
     List<String> instructorNames,
     Double averageRating,

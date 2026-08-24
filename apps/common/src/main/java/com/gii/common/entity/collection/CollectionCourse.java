@@ -36,8 +36,8 @@ public class CollectionCourse {
 
   @JsonIgnore
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
-  @MapsId("courseId")
-  @JoinColumn(name = "course_id", nullable = false)
+  @MapsId("courseOfferingId")
+  @JoinColumn(name = "course_offering_id", nullable = false)
   private Course course;
 
   @Column(name = "position", nullable = false)

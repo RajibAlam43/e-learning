@@ -53,7 +53,7 @@ class LessonContentApiIt extends AbstractLessonApiIntegrationTest {
 
     mockMvc
         .perform(
-            get("/learn/lessons/{lessonId}", lesson.getId())
+            get("/learn/courses/{courseId}/lessons/{lessonId}", course.getId(), lesson.getId())
                 .with(authentication(studentAuth(student.getId()))))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.lessonId").value(lesson.getId().toString()))

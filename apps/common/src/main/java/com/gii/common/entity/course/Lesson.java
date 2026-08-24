@@ -32,18 +32,13 @@ import lombok.experimental.SuperBuilder;
     name = "lessons",
     uniqueConstraints = {
       @UniqueConstraint(
-          name = "uk_lessons_course_slug",
-          columnNames = {"course_id", "slug"}),
+          name = "uk_lessons_section_slug",
+          columnNames = {"section_id", "slug"}),
       @UniqueConstraint(
           name = "uk_lessons_section_position",
           columnNames = {"section_id", "position"})
     })
 public class Lesson extends BaseUuidEntity {
-
-  @JsonIgnore
-  @ManyToOne(fetch = FetchType.LAZY, optional = false)
-  @JoinColumn(name = "course_id", nullable = false)
-  private Course course;
 
   @JsonIgnore
   @ManyToOne(fetch = FetchType.LAZY, optional = false)

@@ -5,6 +5,7 @@ import com.gii.api.service.progress.CourseCompletionService;
 import com.gii.api.service.progress.CourseCompletionService.CourseCompletion;
 import com.gii.common.enums.EnrollmentStatus;
 import com.gii.common.repository.enrollment.EnrollmentRepository;
+import java.time.Instant;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -24,13 +25,17 @@ public class CourseProgressService {
 
   public CourseProgressResponse execute(UUID courseId, Authentication authentication) {
     UUID userId = lessonAccessService.requireCurrentUserId(authentication);
-    enrollmentRepository
-        .findByUserIdAndCourseId(userId, courseId)
-        .filter(enrollment -> enrollment.getStatus() == EnrollmentStatus.ACTIVE)
-        .orElseThrow(
-            () ->
-                new ResponseStatusException(
-                    HttpStatus.NOT_FOUND, "Course not found or not enrolled"));
+    var enrollment =
+        enrollmentRepository
+            .findByUserIdAndCourseId(userId, courseId)
+            .filter(value -> value.getStatus() == EnrollmentStatus.ACTIVE)
+            .orElseThrow(
+                () ->
+                    new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Course not found or not enrolled"));
+    if (enrollment.getExpiresAt() != null && !enrollment.getExpiresAt().isAfter(Instant.now())) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Enrollment expired");
+    }
 
     CourseCompletion courseCompletion = courseCompletionService.get(userId, courseId);
     return CourseProgressResponse.builder()

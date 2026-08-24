@@ -2,7 +2,6 @@ package com.gii.common.entity.quiz;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.gii.common.entity.common.BaseUuidEntity;
-import com.gii.common.entity.course.Course;
 import com.gii.common.entity.course.CourseSection;
 import com.gii.common.enums.PublishStatus;
 import jakarta.persistence.Column;
@@ -27,11 +26,6 @@ import lombok.experimental.SuperBuilder;
 @Entity
 @Table(name = "quizzes")
 public class Quiz extends BaseUuidEntity {
-
-  @JsonIgnore
-  @ManyToOne(fetch = FetchType.LAZY, optional = false)
-  @JoinColumn(name = "course_id", nullable = false)
-  private Course course;
 
   @JsonIgnore
   @ManyToOne(fetch = FetchType.LAZY)

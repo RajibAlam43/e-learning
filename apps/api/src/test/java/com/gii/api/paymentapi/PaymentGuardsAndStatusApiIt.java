@@ -1,14 +1,18 @@
 package com.gii.api.paymentapi;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.gii.common.enums.EnrollmentStatus;
 import com.gii.common.enums.OrderProvider;
 import com.gii.common.enums.OrderStatus;
 import com.gii.common.enums.PublishStatus;
+import com.gii.common.service.payment.PaidOrderEnrollmentService;
 import java.math.BigDecimal;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -19,6 +23,7 @@ import org.springframework.test.web.servlet.MockMvc;
 class PaymentGuardsAndStatusApiIt extends AbstractPaymentApiIntegrationTest {
 
   @Autowired private MockMvc mockMvc;
+  @Autowired private PaidOrderEnrollmentService paidOrderEnrollmentService;
 
   @AfterEach
   void cleanup() {
@@ -134,6 +139,127 @@ class PaymentGuardsAndStatusApiIt extends AbstractPaymentApiIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(singleCourseCheckoutPayload(draftCourse.getId())))
         .andExpect(status().isNotFound());
+  }
+
+  @Test
+  void checkoutEnforcesEnrollmentWindowAndCapacity() throws Exception {
+    final var student = user("Student Policy", "student-policy-checkout@example.com");
+    var creator = user("Creator Policy", "creator-policy-checkout@example.com");
+    var course =
+        course(
+            "Policy Course",
+            "policy-course-checkout",
+            creator,
+            PublishStatus.PUBLISHED,
+            BigDecimal.valueOf(700));
+    course.setEnrollmentStartsAt(java.time.Instant.now().plusSeconds(3600));
+    course.setCapacity(1);
+    courseRepository.saveAndFlush(course);
+
+    mockMvc
+        .perform(
+            post("/checkout/orders")
+                .with(authentication(studentAuth(student.getId())))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(singleCourseCheckoutPayload(course.getId())))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.detail").value("Course enrollment has not opened"));
+
+    course.setEnrollmentStartsAt(java.time.Instant.now().minusSeconds(3600));
+    courseRepository.saveAndFlush(course);
+    var enrolledStudent = user("Already Enrolled", "already-enrolled-policy@example.com");
+    enrollmentRepository.saveAndFlush(
+        com.gii.common.entity.enrollment.Enrollment.builder()
+            .user(enrolledStudent)
+            .course(course)
+            .status(com.gii.common.enums.EnrollmentStatus.ACTIVE)
+            .enrolledAt(java.time.Instant.now())
+            .build());
+
+    mockMvc
+        .perform(
+            post("/checkout/orders")
+                .with(authentication(studentAuth(student.getId())))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(singleCourseCheckoutPayload(course.getId())))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.detail").value("Course capacity has been reached"));
+  }
+
+  @Test
+  void expiredEnrollmentCanBeRepurchasedAndPaidOrderReactivatesWithFreshExpiry() throws Exception {
+    var student = user("Expired Student", "expired-repurchase@example.com");
+    var creator = user("Expired Creator", "expired-repurchase-creator@example.com");
+    var course =
+        course(
+            "Repurchase Course",
+            "expired-repurchase-course",
+            creator,
+            PublishStatus.PUBLISHED,
+            BigDecimal.valueOf(700));
+    course.setAccessDurationDays(30);
+    courseRepository.saveAndFlush(course);
+    var expired = enrollment(student, course, EnrollmentStatus.ACTIVE);
+    expired.setExpiresAt(java.time.Instant.now().minusSeconds(60));
+    expired.setCompletedAt(java.time.Instant.now().minusSeconds(120));
+    enrollmentRepository.saveAndFlush(expired);
+
+    mockMvc
+        .perform(
+            post("/checkout/orders")
+                .with(authentication(studentAuth(student.getId())))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(singleCourseCheckoutPayload(course.getId())))
+        .andExpect(status().isOk());
+
+    var pending =
+        orderRepository.findByUserIdAndStatus(student.getId(), OrderStatus.PENDING).getFirst();
+    pending.setStatus(OrderStatus.PAID);
+    orderRepository.saveAndFlush(pending);
+    paidOrderEnrollmentService.grant(pending.getId());
+
+    var reactivated =
+        enrollmentRepository.findByUserIdAndCourseId(student.getId(), course.getId()).orElseThrow();
+    assertThat(reactivated.getStatus()).isEqualTo(EnrollmentStatus.ACTIVE);
+    assertThat(reactivated.getCompletedAt()).isNull();
+    assertThat(reactivated.getExpiresAt())
+        .isAfter(java.time.Instant.now().plusSeconds(29 * 86400L));
+  }
+
+  @Test
+  void paymentInitiationRevalidatesAnExistingPendingOrder() throws Exception {
+    var buyer = user("Pending Buyer", "pending-revalidate-buyer@example.com");
+    final var other = user("Seat Owner", "pending-revalidate-owner@example.com");
+    var creator = user("Pending Creator", "pending-revalidate-creator@example.com");
+    var course =
+        course(
+            "Pending Revalidation",
+            "pending-revalidation-course",
+            creator,
+            PublishStatus.PUBLISHED,
+            BigDecimal.valueOf(700));
+    course.setCapacity(1);
+    courseRepository.saveAndFlush(course);
+
+    mockMvc
+        .perform(
+            post("/checkout/orders")
+                .with(authentication(studentAuth(buyer.getId())))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(singleCourseCheckoutPayload(course.getId())))
+        .andExpect(status().isOk());
+    var pending =
+        orderRepository.findByUserIdAndStatus(buyer.getId(), OrderStatus.PENDING).getFirst();
+    enrollment(other, course, EnrollmentStatus.ACTIVE);
+
+    mockMvc
+        .perform(
+            post("/payments/{orderId}/initiate", pending.getId())
+                .with(authentication(studentAuth(buyer.getId())))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"provider\":\"SSLCOMMERZ\"}"))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.detail").value("Course capacity has been reached"));
   }
 
   private String singleCourseCheckoutPayload(java.util.UUID courseId) {

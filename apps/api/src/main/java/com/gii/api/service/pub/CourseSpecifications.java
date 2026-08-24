@@ -28,9 +28,11 @@ public class CourseSpecifications {
       var courseCategory = subquery.from(CourseCategory.class);
 
       subquery
-          .select(courseCategory.get("course").get("id"))
+          .select(courseCategory.get("templateVersion").get("id"))
           .where(
-              cb.equal(courseCategory.get("course").get("id"), root.get("id")),
+              cb.equal(
+                  courseCategory.get("templateVersion").get("id"),
+                  root.get("templateVersion").get("id")),
               courseCategory.get("category").get("slug").in(uniqueSlugs));
 
       return cb.exists(subquery);
@@ -38,10 +40,12 @@ public class CourseSpecifications {
   }
 
   public static Specification<@NotNull Course> hasLevel(CourseLevel level) {
-    return (root, query, cb) -> level == null ? null : cb.equal(root.get("level"), level);
+    return (root, query, cb) ->
+        level == null ? null : cb.equal(root.get("templateVersion").get("level"), level);
   }
 
   public static Specification<@NotNull Course> hasLanguage(CourseLanguage language) {
-    return (root, query, cb) -> language == null ? null : cb.equal(root.get("language"), language);
+    return (root, query, cb) ->
+        language == null ? null : cb.equal(root.get("templateVersion").get("language"), language);
   }
 }

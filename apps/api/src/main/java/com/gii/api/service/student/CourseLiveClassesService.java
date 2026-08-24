@@ -9,6 +9,7 @@ import com.gii.common.enums.EnrollmentStatus;
 import com.gii.common.repository.enrollment.EnrollmentRepository;
 import com.gii.common.repository.live.LiveClassRegistrantRepository;
 import com.gii.common.repository.live.LiveClassRepository;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -40,6 +41,9 @@ public class CourseLiveClassesService {
             .filter(e -> e.getStatus() == EnrollmentStatus.ACTIVE)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found"));
+    if (enrollment.getExpiresAt() != null && !enrollment.getExpiresAt().isAfter(Instant.now())) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Enrollment expired");
+    }
 
     List<LiveClass> liveClasses =
         liveClassRepository.findByCourseIdOrderByStartsAtAsc(enrollment.getCourse().getId());

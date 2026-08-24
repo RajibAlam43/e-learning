@@ -11,25 +11,44 @@ import org.springframework.data.repository.query.Param;
 
 public interface CourseSectionRepository extends JpaRepository<CourseSection, UUID> {
 
-  List<CourseSection> findByCourseIdOrderByPositionAsc(UUID courseId);
-
-  List<CourseSection> findByCourseIdAndStatusOrderByPositionAsc(
-      UUID courseId, PublishStatus status);
+  @Query(
+      """
+        SELECT cs FROM CourseSection cs
+        WHERE cs.templateVersion.id = (
+          SELECT c.templateVersion.id FROM Course c WHERE c.id = :courseId
+        )
+        ORDER BY cs.position ASC
+      """)
+  List<CourseSection> findByCourseIdOrderByPositionAsc(@Param("courseId") UUID courseId);
 
   @Query(
       """
-        SELECT cs.course.id, COUNT(cs)
-        FROM CourseSection cs
-        WHERE cs.course.id IN :courseIds
-        GROUP BY cs.course.id
+        SELECT cs FROM CourseSection cs
+        WHERE cs.templateVersion.id = (
+          SELECT c.templateVersion.id FROM Course c WHERE c.id = :courseId
+        )
+        AND cs.status = :status
+        ORDER BY cs.position ASC
+      """)
+  List<CourseSection> findByCourseIdAndStatusOrderByPositionAsc(
+      @Param("courseId") UUID courseId, @Param("status") PublishStatus status);
+
+  @Query(
+      """
+        SELECT c.id, COUNT(cs)
+        FROM Course c, CourseSection cs
+        WHERE c.id IN :courseIds
+        AND cs.templateVersion.id = c.templateVersion.id
+        GROUP BY c.id
       """)
   List<Object[]> countByCourseIds(@Param("courseIds") List<UUID> courseIds);
 
   @Query(
       """
         SELECT cs
-        FROM CourseSection cs JOIN FETCH cs.course c
+        FROM CourseSection cs, Course c
         WHERE cs.id = :sectionId
+        AND cs.templateVersion.id = c.templateVersion.id
         AND c.id = :courseId
         AND EXISTS (
           SELECT 1 FROM CourseInstructor ci

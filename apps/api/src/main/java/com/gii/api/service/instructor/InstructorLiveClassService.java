@@ -12,21 +12,29 @@ import com.gii.api.service.live.LiveMeetingCreateResult;
 import com.gii.api.service.live.LiveMeetingProvisioningService;
 import com.gii.api.service.live.LiveMeetingUpdateRequest;
 import com.gii.api.service.localization.LocalizedContentService;
+import com.gii.api.service.progress.EnrollmentCompletionService;
+import com.gii.common.entity.course.Course;
+import com.gii.common.entity.course.CourseInstructor;
 import com.gii.common.entity.course.CourseSection;
 import com.gii.common.entity.course.SectionItem;
 import com.gii.common.entity.live.LiveClass;
 import com.gii.common.entity.live.LiveClassAttendance;
 import com.gii.common.entity.live.LiveClassRegistrant;
+import com.gii.common.entity.live.LiveClassSlot;
 import com.gii.common.entity.user.User;
 import com.gii.common.enums.LiveClassProvider;
+import com.gii.common.enums.LiveClassProvisioningMode;
 import com.gii.common.enums.LiveClassRegistrantStatus;
 import com.gii.common.enums.LiveClassStatus;
 import com.gii.common.enums.SectionItemType;
+import com.gii.common.repository.course.CourseInstructorRepository;
+import com.gii.common.repository.course.CourseRepository;
 import com.gii.common.repository.course.CourseSectionRepository;
 import com.gii.common.repository.course.SectionItemRepository;
 import com.gii.common.repository.live.LiveClassAttendanceRepository;
 import com.gii.common.repository.live.LiveClassRegistrantRepository;
 import com.gii.common.repository.live.LiveClassRepository;
+import com.gii.common.repository.live.LiveClassSlotRepository;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
@@ -49,13 +57,17 @@ public class InstructorLiveClassService {
   private static final String DISPLAY_TIMEZONE = "Asia/Dhaka";
 
   private final CurrentUserService currentUserService;
+  private final CourseRepository courseRepository;
+  private final CourseInstructorRepository courseInstructorRepository;
   private final CourseSectionRepository courseSectionRepository;
   private final SectionItemRepository sectionItemRepository;
   private final LiveClassRepository liveClassRepository;
+  private final LiveClassSlotRepository liveClassSlotRepository;
   private final LiveClassRegistrantRepository liveClassRegistrantRepository;
   private final LiveClassAttendanceRepository liveClassAttendanceRepository;
   private final LiveMeetingProvisioningService liveMeetingProvisioningService;
   private final LocalizedContentService localizedContentService;
+  private final EnrollmentCompletionService enrollmentCompletionService;
 
   public InstructorLiveClassResponse create(
       UUID courseId, CreateLiveClassRequest request, Authentication authentication) {
@@ -67,6 +79,11 @@ public class InstructorLiveClassService {
                 () ->
                     new ResponseStatusException(
                         HttpStatus.FORBIDDEN, "Not assigned to this course section"));
+    final Course course =
+        courseRepository
+            .findById(courseId)
+            .orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found"));
     validateSupportedProvider(request.provider());
     validateSchedule(request.startsAt(), request.endsAt());
     validateCapacity(request.maxCapacity());
@@ -83,35 +100,48 @@ public class InstructorLiveClassService {
                 .endsAt(request.endsAt())
                 .maxCapacity(request.maxCapacity())
                 .build());
-    LiveClass liveClass =
-        LiveClass.builder()
-            .course(section.getCourse())
-            .section(section)
-            .instructor(instructor)
-            .title(request.title().trim())
-            .titleEn(request.titleEn())
-            .description(request.description())
-            .descriptionEn(request.descriptionEn())
-            .provider(request.provider())
-            .providerMeetingId(meeting.meetingId())
-            .hostStartUrl(meeting.hostStartUrl())
-            .participantJoinUrl(meeting.participantJoinUrl())
-            .startsAt(request.startsAt())
-            .endsAt(request.endsAt())
-            .maxCapacity(request.maxCapacity())
-            .status(LiveClassStatus.SCHEDULED)
-            .createdBy(instructor)
-            .build();
+    try {
+      LiveClassSlot slot =
+          liveClassSlotRepository.saveAndFlush(
+              LiveClassSlot.builder()
+                  .section(section)
+                  .title(request.title().trim())
+                  .titleEn(request.titleEn())
+                  .description(request.description())
+                  .descriptionEn(request.descriptionEn())
+                  .expectedDurationMinutes(
+                      Math.toIntExact(
+                          Duration.between(request.startsAt(), request.endsAt()).toMinutes()))
+                  .isMandatory(true)
+                  .build());
+      LiveClass liveClass =
+          LiveClass.builder()
+              .course(course)
+              .slot(slot)
+              .provider(request.provider())
+              .providerMeetingId(meeting.meetingId())
+              .hostStartUrl(meeting.hostStartUrl())
+              .participantJoinUrl(meeting.participantJoinUrl())
+              .provisioningMode(LiveClassProvisioningMode.API_PROVISIONED)
+              .startsAt(request.startsAt())
+              .endsAt(request.endsAt())
+              .maxCapacity(request.maxCapacity())
+              .status(LiveClassStatus.SCHEDULED)
+              .build();
 
-    LiveClass saved = liveClassRepository.save(liveClass);
-    sectionItemRepository.save(
-        SectionItem.builder()
-            .section(section)
-            .itemType(SectionItemType.LIVE_CLASS)
-            .itemId(saved.getId())
-            .position(position)
-            .build());
-    return toLiveClassResponse(saved);
+      LiveClass saved = liveClassRepository.saveAndFlush(liveClass);
+      sectionItemRepository.saveAndFlush(
+          SectionItem.builder()
+              .section(section)
+              .itemType(SectionItemType.LIVE_CLASS)
+              .itemId(slot.getId())
+              .position(position)
+              .build());
+      return toLiveClassResponse(saved);
+    } catch (RuntimeException persistenceFailure) {
+      compensateCreatedMeeting(request.provider(), meeting.meetingId(), persistenceFailure);
+      throw persistenceFailure;
+    }
   }
 
   public InstructorLiveClassStartResponse start(UUID liveClassId, Authentication authentication) {
@@ -122,7 +152,7 @@ public class InstructorLiveClassService {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "Only scheduled classes can be started");
     }
-    if (isBlank(liveClass.effectiveMeetingId())
+    if ((isApiProvisioned(liveClass) && isBlank(liveClass.effectiveMeetingId()))
         || isBlank(liveClass.effectiveParticipantJoinUrl())
         || isBlank(liveClass.effectiveHostStartUrl())) {
       throw new ResponseStatusException(
@@ -166,7 +196,6 @@ public class InstructorLiveClassService {
       UUID liveClassId, UpdateLiveClassRequest request, Authentication authentication) {
     UUID instructorId = currentUserService.getCurrentUserId(authentication);
     LiveClass liveClass = requireOwnedLiveClass(liveClassId, instructorId);
-
     boolean mutatingMetadata =
         request.title() != null
             || request.titleEn() != null
@@ -196,7 +225,9 @@ public class InstructorLiveClassService {
       Instant startsAt = request.startsAt() != null ? request.startsAt() : liveClass.getStartsAt();
       Instant endsAt = request.endsAt() != null ? request.endsAt() : liveClass.getEndsAt();
       validateSchedule(startsAt, endsAt);
-      ensureNoProviderOverlap(liveClass.getProvider(), startsAt, endsAt, liveClass.getId());
+      if (isApiProvisioned(liveClass)) {
+        ensureNoProviderOverlap(liveClass.getProvider(), startsAt, endsAt, liveClass.getId());
+      }
       syncProviderUpdate(
           liveClass,
           request.title() != null && !request.title().isBlank()
@@ -224,6 +255,10 @@ public class InstructorLiveClassService {
     if (request.status() != null) {
       validateStatusTransitionForUpdate(liveClass.getStatus(), request.status());
       liveClass.setStatus(request.status());
+      if (request.status() == LiveClassStatus.COMPLETED) {
+        liveClassRepository.saveAndFlush(liveClass);
+        enrollmentCompletionService.refreshCourse(liveClass.getCourse().getId());
+      }
     }
 
     if (request.position() != null) {
@@ -251,6 +286,9 @@ public class InstructorLiveClassService {
 
   private void syncProviderUpdate(
       LiveClass liveClass, String title, String description, Instant startsAt, Instant endsAt) {
+    if (!isApiProvisioned(liveClass)) {
+      return;
+    }
     if (isBlank(liveClass.effectiveMeetingId())) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "Live class meeting is not provisioned");
@@ -267,6 +305,9 @@ public class InstructorLiveClassService {
   }
 
   private void syncProviderCancel(LiveClass liveClass) {
+    if (!isApiProvisioned(liveClass)) {
+      return;
+    }
     if (isBlank(liveClass.effectiveMeetingId())) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "Live class meeting is not provisioned");
@@ -280,7 +321,7 @@ public class InstructorLiveClassService {
 
   private LiveClass requireOwnedLiveClass(UUID liveClassId, UUID instructorId) {
     return liveClassRepository
-        .findByIdAndInstructorId(liveClassId, instructorId)
+        .findByIdAssignedToInstructor(liveClassId, instructorId)
         .orElseThrow(
             () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Live class not found"));
   }
@@ -311,6 +352,7 @@ public class InstructorLiveClassService {
 
   private void ensureNoProviderOverlap(
       LiveClassProvider provider, Instant startsAt, Instant endsAt) {
+    liveClassRepository.acquireProviderSchedulingLock(provider.ordinal());
     boolean overlap =
         liveClassRepository.existsOverlappingByProvider(
             provider, List.of(LiveClassStatus.SCHEDULED, LiveClassStatus.LIVE), startsAt, endsAt);
@@ -320,8 +362,22 @@ public class InstructorLiveClassService {
     }
   }
 
+  private void compensateCreatedMeeting(
+      LiveClassProvider provider, String meetingId, RuntimeException persistenceFailure) {
+    try {
+      liveMeetingProvisioningService.cancelMeeting(
+          LiveMeetingCancelRequest.builder()
+              .provider(provider)
+              .providerMeetingId(meetingId)
+              .build());
+    } catch (RuntimeException compensationFailure) {
+      persistenceFailure.addSuppressed(compensationFailure);
+    }
+  }
+
   private void ensureNoProviderOverlap(
       LiveClassProvider provider, Instant startsAt, Instant endsAt, UUID excludingLiveClassId) {
+    liveClassRepository.acquireProviderSchedulingLock(provider.ordinal());
     boolean overlap =
         liveClassRepository.findAll().stream()
             .filter(
@@ -399,10 +455,8 @@ public class InstructorLiveClassService {
             localizedContentService.text(
                 liveClass.getSection().getTitle(), liveClass.getSection().getTitleEn()))
         .position(positionOf(liveClass.getId()))
-        .instructorName(
-            liveClass.getInstructor() != null ? liveClass.getInstructor().getFullName() : null)
-        .instructorEmail(
-            liveClass.getInstructor() != null ? liveClass.getInstructor().getEmail() : null)
+        .instructorName(primaryInstructorName(liveClass.getCourse()))
+        .instructorEmail(primaryInstructorEmail(liveClass.getCourse()))
         .startsAt(liveClass.getStartsAt())
         .endsAt(liveClass.getEndsAt())
         .durationMinutes(
@@ -475,6 +529,10 @@ public class InstructorLiveClassService {
     return value == null || value.isBlank();
   }
 
+  private boolean isApiProvisioned(LiveClass liveClass) {
+    return liveClass.getProvisioningMode() == LiveClassProvisioningMode.API_PROVISIONED;
+  }
+
   private int resolveCreatePosition(UUID sectionId, Integer requestedPosition) {
     int position =
         requestedPosition != null
@@ -485,10 +543,11 @@ public class InstructorLiveClassService {
   }
 
   private void updatePosition(LiveClass liveClass, Integer requestedPosition) {
-    ensurePositionAvailable(liveClass.getSection().getId(), requestedPosition, liveClass.getId());
+    ensurePositionAvailable(
+        liveClass.getSection().getId(), requestedPosition, liveClass.getSlot().getId());
     SectionItem item =
         sectionItemRepository
-            .findByItemTypeAndItemId(SectionItemType.LIVE_CLASS, liveClass.getId())
+            .findByItemTypeAndItemId(SectionItemType.LIVE_CLASS, liveClass.getSlot().getId())
             .orElseThrow(
                 () ->
                     new ResponseStatusException(
@@ -518,9 +577,33 @@ public class InstructorLiveClassService {
   }
 
   private Integer positionOf(UUID liveClassId) {
+    LiveClass liveClass = liveClassRepository.findById(liveClassId).orElse(null);
+    if (liveClass == null) {
+      return null;
+    }
     return sectionItemRepository
-        .findByItemTypeAndItemId(SectionItemType.LIVE_CLASS, liveClassId)
+        .findByItemTypeAndItemId(SectionItemType.LIVE_CLASS, liveClass.getSlot().getId())
         .map(SectionItem::getPosition)
         .orElse(null);
+  }
+
+  private User primaryInstructor(Course course) {
+    List<CourseInstructor> instructors = courseInstructorRepository.findByCourseId(course.getId());
+    return instructors.stream()
+        .filter(i -> i.getRole() == com.gii.common.enums.InstructorRole.PRIMARY)
+        .findFirst()
+        .or(() -> instructors.stream().findFirst())
+        .map(CourseInstructor::getInstructor)
+        .orElse(null);
+  }
+
+  private String primaryInstructorName(Course course) {
+    User instructor = primaryInstructor(course);
+    return instructor != null ? instructor.getFullName() : null;
+  }
+
+  private String primaryInstructorEmail(Course course) {
+    User instructor = primaryInstructor(course);
+    return instructor != null ? instructor.getEmail() : null;
   }
 }

@@ -33,18 +33,33 @@ public class LessonApiController implements LessonApi {
   private final ResourceDownloadService resourceDownloadService;
 
   @Override
+  public ResponseEntity<LessonContentResponse> getCourseLessonContent(
+      UUID courseId, UUID lessonId, Authentication authentication) {
+    return ResponseEntity.ok(lessonContentService.execute(courseId, lessonId, authentication));
+  }
+
+  @Override
+  @Deprecated(since = "V12")
   public ResponseEntity<LessonContentResponse> getLessonContent(
       UUID lessonId, Authentication authentication) {
     return ResponseEntity.ok(lessonContentService.execute(lessonId, authentication));
   }
 
   @Override
+  public ResponseEntity<MediaPlaybackResponse> getCourseLessonPlayback(
+      UUID courseId, UUID lessonId, Authentication authentication) {
+    return ResponseEntity.ok(lessonPlaybackService.execute(courseId, lessonId, authentication));
+  }
+
+  @Override
+  @Deprecated(since = "V12")
   public ResponseEntity<MediaPlaybackResponse> getLessonPlayback(
       UUID lessonId, Authentication authentication) {
     return ResponseEntity.ok(lessonPlaybackService.execute(lessonId, authentication));
   }
 
   @Override
+  @Deprecated(since = "V12")
   public ResponseEntity<Void> saveLessonProgress(
       UUID lessonId, SaveLessonProgressRequest request, Authentication authentication) {
     lessonProgressService.execute(lessonId, request, authentication);
@@ -52,8 +67,26 @@ public class LessonApiController implements LessonApi {
   }
 
   @Override
+  public ResponseEntity<Void> saveCourseLessonProgress(
+      UUID courseId,
+      UUID lessonId,
+      SaveLessonProgressRequest request,
+      Authentication authentication) {
+    lessonProgressService.execute(courseId, lessonId, request, authentication);
+    return ResponseEntity.ok().build();
+  }
+
+  @Override
+  @Deprecated(since = "V12")
   public ResponseEntity<Void> markLessonComplete(UUID lessonId, Authentication authentication) {
     lessonCompleteService.execute(lessonId, authentication);
+    return ResponseEntity.ok().build();
+  }
+
+  @Override
+  public ResponseEntity<Void> markCourseLessonComplete(
+      UUID courseId, UUID lessonId, Authentication authentication) {
+    lessonCompleteService.execute(courseId, lessonId, authentication);
     return ResponseEntity.ok().build();
   }
 
@@ -64,14 +97,28 @@ public class LessonApiController implements LessonApi {
   }
 
   @Override
+  @Deprecated(since = "V12")
   public ResponseEntity<List<LessonResourceResponse>> getLessonResources(
       UUID lessonId, Authentication authentication) {
     return ResponseEntity.ok(lessonResourcesService.execute(lessonId, authentication));
   }
 
   @Override
+  public ResponseEntity<List<LessonResourceResponse>> getCourseLessonResources(
+      UUID courseId, UUID lessonId, Authentication authentication) {
+    return ResponseEntity.ok(lessonResourcesService.execute(courseId, lessonId, authentication));
+  }
+
+  @Override
+  @Deprecated(since = "V12")
   public ResponseEntity<ResourceDownloadUrlResponse> getResourceDownloadUrl(
       UUID resourceId, Authentication authentication) {
     return ResponseEntity.ok(resourceDownloadService.execute(resourceId, authentication));
+  }
+
+  @Override
+  public ResponseEntity<ResourceDownloadUrlResponse> getCourseResourceDownloadUrl(
+      UUID courseId, UUID resourceId, Authentication authentication) {
+    return ResponseEntity.ok(resourceDownloadService.execute(courseId, resourceId, authentication));
   }
 }

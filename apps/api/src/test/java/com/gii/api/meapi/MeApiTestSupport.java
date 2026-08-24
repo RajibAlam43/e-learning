@@ -1,5 +1,6 @@
 package com.gii.api.meapi;
 
+import com.gii.api.testsupport.CourseTestData;
 import com.gii.common.entity.certificate.Certificate;
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.course.CourseSection;
@@ -11,21 +12,21 @@ import com.gii.common.entity.user.InstructorProfile;
 import com.gii.common.entity.user.User;
 import com.gii.common.entity.user.UserProfile;
 import com.gii.common.enums.CertificateTargetType;
-import com.gii.common.enums.CourseLanguage;
-import com.gii.common.enums.CourseLevel;
 import com.gii.common.enums.EnrollmentStatus;
 import com.gii.common.enums.LiveClassProvider;
 import com.gii.common.enums.LiveClassStatus;
 import com.gii.common.enums.PublishStatus;
-import com.gii.common.enums.StudyMode;
 import com.gii.common.enums.UserStatus;
 import com.gii.common.repository.certificate.CertificateRepository;
 import com.gii.common.repository.course.CourseRepository;
 import com.gii.common.repository.course.CourseSectionRepository;
+import com.gii.common.repository.course.CourseTemplateRepository;
+import com.gii.common.repository.course.CourseTemplateVersionRepository;
 import com.gii.common.repository.course.LessonRepository;
 import com.gii.common.repository.enrollment.EnrollmentRepository;
 import com.gii.common.repository.live.LiveClassAttendanceRepository;
 import com.gii.common.repository.live.LiveClassRepository;
+import com.gii.common.repository.live.LiveClassSlotRepository;
 import com.gii.common.repository.user.InstructorProfileRepository;
 import com.gii.common.repository.user.UserProfileRepository;
 import com.gii.common.repository.user.UserRepository;
@@ -44,16 +45,20 @@ abstract class MeApiTestSupport {
   @Autowired protected UserProfileRepository userProfileRepository;
   @Autowired protected InstructorProfileRepository instructorProfileRepository;
   @Autowired protected CourseRepository courseRepository;
+  @Autowired protected CourseTemplateVersionRepository courseTemplateVersionRepository;
+  @Autowired protected CourseTemplateRepository courseTemplateRepository;
   @Autowired protected CourseSectionRepository courseSectionRepository;
   @Autowired protected LessonRepository lessonRepository;
   @Autowired protected EnrollmentRepository enrollmentRepository;
   @Autowired protected CertificateRepository certificateRepository;
   @Autowired protected LiveClassRepository liveClassRepository;
+  @Autowired protected LiveClassSlotRepository liveClassSlotRepository;
   @Autowired protected LiveClassAttendanceRepository liveClassAttendanceRepository;
 
   protected void cleanupMeData() {
     liveClassAttendanceRepository.deleteAll();
     liveClassRepository.deleteAll();
+    liveClassSlotRepository.deleteAll();
     certificateRepository.deleteAll();
     enrollmentRepository.deleteAll();
     instructorProfileRepository.deleteAll();
@@ -61,6 +66,8 @@ abstract class MeApiTestSupport {
     lessonRepository.deleteAll();
     courseSectionRepository.deleteAll();
     courseRepository.deleteAll();
+    courseTemplateVersionRepository.deleteAll();
+    courseTemplateRepository.deleteAll();
     userRepository.deleteAll();
   }
 
@@ -111,28 +118,19 @@ abstract class MeApiTestSupport {
   }
 
   protected Course course(String title, String slug, User creator) {
-    return courseRepository.save(
-        Course.builder()
-            .title(title)
-            .slug(slug)
-            .priceBdt(BigDecimal.valueOf(1000))
-            .level(CourseLevel.BEGINNER)
-            .language(CourseLanguage.EN)
-            .studyMode(StudyMode.SCHEDULED)
-            .status(PublishStatus.PUBLISHED)
-            .publishedAt(Instant.now())
-            .createdBy(creator)
-            .liveSessionCount(0)
-            .quizCount(0)
-            .recordedHoursCount(0)
-            .estimatedDurationMinutes(60)
-            .build());
+    Course course = CourseTestData.course(title, slug, creator);
+    course.setPriceBdt(BigDecimal.valueOf(1000));
+    course.setStatus(PublishStatus.PUBLISHED);
+    course.setPublishedAt(Instant.now());
+    course.setEstimatedDurationMinutes(60);
+    course.getTemplateVersion().setStatus(PublishStatus.PUBLISHED);
+    return courseRepository.save(course);
   }
 
   protected CourseSection section(Course course, int position) {
     return courseSectionRepository.save(
         CourseSection.builder()
-            .course(course)
+            .templateVersion(course.getTemplateVersion())
             .title("Section " + position)
             .slug("section-" + position + "-" + UUID.randomUUID().toString().substring(0, 6))
             .position(position)
@@ -143,7 +141,6 @@ abstract class MeApiTestSupport {
   protected Lesson lesson(Course course, CourseSection section, int position) {
     return lessonRepository.save(
         Lesson.builder()
-            .course(course)
             .section(section)
             .title("Lesson " + position)
             .slug("lesson-" + position + "-" + UUID.randomUUID().toString().substring(0, 6))
@@ -187,9 +184,14 @@ abstract class MeApiTestSupport {
     return liveClassRepository.save(
         LiveClass.builder()
             .course(course)
-            .section(section)
-            .instructor(instructor)
-            .title("lc")
+            .slot(
+                liveClassSlotRepository.save(
+                    com.gii.common.entity.live.LiveClassSlot.builder()
+                        .section(section)
+                        .title("lc")
+                        .expectedDurationMinutes(30)
+                        .isMandatory(true)
+                        .build()))
             .provider(LiveClassProvider.ZOOM)
             .providerMeetingId("m-" + java.util.UUID.randomUUID())
             .hostStartUrl("https://zoom.test/start/" + java.util.UUID.randomUUID())

@@ -7,12 +7,17 @@ import com.gii.api.model.request.admin.CreateCourseRequest;
 import com.gii.api.model.request.admin.CreateInstructorRequest;
 import com.gii.api.model.request.admin.CreateLessonResourceRequest;
 import com.gii.api.model.request.admin.CreateLessonResourceUploadRequest;
+import com.gii.api.model.request.admin.CreateLiveClassItemRequest;
 import com.gii.api.model.request.admin.CreateMediaAssetRequest;
 import com.gii.api.model.request.admin.CreateQuizRequest;
 import com.gii.api.model.request.admin.CreateSectionRequest;
 import com.gii.api.model.request.admin.CreateThumbnailUploadRequest;
 import com.gii.api.model.request.admin.FeatureCourseRequest;
 import com.gii.api.model.request.admin.ReorderCourseStructureRequest;
+import com.gii.api.model.request.admin.RepeatCourseRequest;
+import com.gii.api.model.request.admin.RevokeCertificateRequest;
+import com.gii.api.model.request.admin.ScheduleExternalLiveClassRequest;
+import com.gii.api.model.request.admin.ScheduleLiveClassRequest;
 import com.gii.api.model.request.admin.SetCollectionCoursesRequest;
 import com.gii.api.model.request.admin.UpdateCategoryRequest;
 import com.gii.api.model.request.admin.UpdateCollectionRequest;
@@ -39,6 +44,8 @@ import com.gii.api.model.response.admin.AdminInstructorDetailResponse;
 import com.gii.api.model.response.admin.AdminInstructorSummaryResponse;
 import com.gii.api.model.response.admin.AdminLessonDetailResponse;
 import com.gii.api.model.response.admin.AdminLessonResourceResponse;
+import com.gii.api.model.response.admin.AdminLiveClassDetailResponse;
+import com.gii.api.model.response.admin.AdminLiveClassItemResponse;
 import com.gii.api.model.response.admin.AdminLiveClassSummaryResponse;
 import com.gii.api.model.response.admin.AdminMediaAssetResponse;
 import com.gii.api.model.response.admin.AdminOrderDetailResponse;
@@ -190,6 +197,36 @@ public interface AdminApi {
       })
   ResponseEntity<AdminCourseDetailResponse> createCourse(
       @RequestBody @Valid CreateCourseRequest request, Authentication authentication);
+
+  @PostMapping("/courses/{courseId}/repeat")
+  @Operation(
+      summary = "Create another run of a course",
+      description = "Creates a new course ID that reuses the selected course curriculum.")
+  ResponseEntity<AdminCourseDetailResponse> repeatCourse(
+      @PathVariable UUID courseId,
+      @RequestBody @Valid RepeatCourseRequest request,
+      Authentication authentication);
+
+  @PostMapping("/courses/{courseId}/live-classes")
+  @Operation(summary = "Add an unscheduled live class to course curriculum")
+  ResponseEntity<AdminLiveClassItemResponse> createLiveClassItem(
+      @PathVariable UUID courseId, @RequestBody @Valid CreateLiveClassItemRequest request);
+
+  @PostMapping("/courses/{courseId}/live-classes/{liveClassId}/schedule")
+  @Operation(summary = "Schedule a course live class")
+  ResponseEntity<AdminLiveClassDetailResponse> scheduleLiveClass(
+      @PathVariable UUID courseId,
+      @PathVariable UUID liveClassId,
+      @RequestBody @Valid ScheduleLiveClassRequest request);
+
+  @PostMapping("/courses/{courseId}/live-classes/{liveClassId}/schedule-with-url")
+  @Operation(
+      summary = "Schedule a course live class with an external URL",
+      description = "Schedules an existing curriculum item without provisioning a meeting API.")
+  ResponseEntity<AdminLiveClassDetailResponse> scheduleExternalLiveClass(
+      @PathVariable UUID courseId,
+      @PathVariable UUID liveClassId,
+      @RequestBody @Valid ScheduleExternalLiveClassRequest request);
 
   @GetMapping("/courses/{courseId}")
   @Operation(summary = "Get full course details")
@@ -478,4 +515,11 @@ public interface AdminApi {
   @Operation(summary = "Update order")
   ResponseEntity<AdminOrderDetailResponse> updateOrder(
       @PathVariable UUID orderId, @Valid @RequestBody UpdateOrderRequest request);
+
+  @PostMapping("/certificates/{certificateId}/revoke")
+  @Operation(summary = "Revoke an issued certificate")
+  ResponseEntity<Void> revokeCertificate(
+      @PathVariable UUID certificateId,
+      @Valid @RequestBody RevokeCertificateRequest request,
+      Authentication authentication);
 }

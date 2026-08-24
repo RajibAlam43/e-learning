@@ -1,6 +1,7 @@
 package com.gii.api.model.response.student;
 
 import com.gii.common.enums.EnrollmentStatus;
+import com.gii.common.enums.StudyMode;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.Builder;
@@ -29,6 +30,10 @@ public record StudentCourseSummaryResponse(
     // Course info
     String courseLevel, // BEGINNER, INTERMEDIATE, ADVANCED
     String language, // BN, EN
+    StudyMode studyMode,
+    String timezone,
+    Instant startsAt,
+    Instant endsAt,
 
     // Certificates
     Boolean hasCertificate,

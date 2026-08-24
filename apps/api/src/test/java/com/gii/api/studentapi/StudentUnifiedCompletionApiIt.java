@@ -6,11 +6,14 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.gii.common.entity.course.SectionItem;
 import com.gii.common.entity.live.LiveClassAttendance;
+import com.gii.common.entity.live.LiveClassSlot;
 import com.gii.common.entity.quiz.QuizAttempt;
 import com.gii.common.enums.EnrollmentStatus;
 import com.gii.common.enums.LiveClassStatus;
 import com.gii.common.enums.PublishStatus;
+import com.gii.common.enums.SectionItemType;
 import java.time.Instant;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -46,7 +49,7 @@ class StudentUnifiedCompletionApiIt extends AbstractStudentApiIntegrationTest {
             Instant.now().minusSeconds(7200),
             Instant.now().minusSeconds(3600),
             "https://live.test/completed");
-    enrollment(student, course, EnrollmentStatus.ACTIVE, null);
+    var courseEnrollment = enrollment(student, course, EnrollmentStatus.ACTIVE, null);
     completedProgress(student, completedLesson);
     attendance(student, attendedLiveClass);
     Instant attemptStartedAt = Instant.now().minusSeconds(1);
@@ -54,6 +57,7 @@ class StudentUnifiedCompletionApiIt extends AbstractStudentApiIntegrationTest {
         QuizAttempt.builder()
             .quiz(passedQuiz)
             .user(student)
+            .enrollment(courseEnrollment)
             .attemptNo(1)
             .scorePct(90)
             .passed(true)
@@ -64,6 +68,7 @@ class StudentUnifiedCompletionApiIt extends AbstractStudentApiIntegrationTest {
         QuizAttempt.builder()
             .quiz(failedQuiz)
             .user(student)
+            .enrollment(courseEnrollment)
             .attemptNo(1)
             .scorePct(40)
             .passed(false)
@@ -118,6 +123,7 @@ class StudentUnifiedCompletionApiIt extends AbstractStudentApiIntegrationTest {
         QuizAttempt.builder()
             .quiz(failedQuiz)
             .user(student)
+            .enrollment(courseEnrollment)
             .attemptNo(2)
             .scorePct(80)
             .passed(true)
@@ -134,7 +140,8 @@ class StudentUnifiedCompletionApiIt extends AbstractStudentApiIntegrationTest {
   }
 
   @Test
-  void completedLiveClassDoesNotRequireAttendanceAndCancelledSessionsAreIgnored() throws Exception {
+  void mandatoryLiveSlotsCountBeforeSchedulingAndCompletionDoesNotRequireAttendance()
+      throws Exception {
     var creator = user("Creator", "live-completion-creator@example.com");
     var student = user("Student", "live-completion-student@example.com");
     var course = course("Live Completion", "live-completion", creator, PublishStatus.PUBLISHED);
@@ -169,6 +176,21 @@ class StudentUnifiedCompletionApiIt extends AbstractStudentApiIntegrationTest {
             Instant.now().minusSeconds(7200),
             Instant.now().minusSeconds(3600),
             "https://live.test/cancelled");
+    LiveClassSlot unscheduled =
+        liveClassSlotRepository.save(
+            LiveClassSlot.builder()
+                .section(section)
+                .title("Unscheduled mandatory session")
+                .expectedDurationMinutes(60)
+                .isMandatory(true)
+                .build());
+    sectionItemRepository.save(
+        SectionItem.builder()
+            .section(section)
+            .itemType(SectionItemType.LIVE_CLASS)
+            .itemId(unscheduled.getId())
+            .position(4)
+            .build());
     enrollment(student, course, EnrollmentStatus.ACTIVE, null);
     attendance(student, attended);
     attendance(student, attended);
@@ -182,16 +204,21 @@ class StudentUnifiedCompletionApiIt extends AbstractStudentApiIntegrationTest {
                 .with(authentication(studentAuth(student.getId()))))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.completedLiveClasses").value(2))
-        .andExpect(jsonPath("$.totalLiveClasses").value(2))
+        .andExpect(jsonPath("$.totalLiveClasses").value(4))
         .andExpect(jsonPath("$.completedItems").value(2))
-        .andExpect(jsonPath("$.totalItems").value(2))
-        .andExpect(jsonPath("$.completionPercentage").value(100.0))
+        .andExpect(jsonPath("$.totalItems").value(4))
+        .andExpect(jsonPath("$.completionPercentage").value(50.0))
         .andExpect(jsonPath("$.sections[0].items[0].liveClass.attended").value(true))
         .andExpect(jsonPath("$.sections[0].items[0].liveClass.completed").value(true))
         .andExpect(jsonPath("$.sections[0].items[1].liveClass.attended").value(false))
         .andExpect(jsonPath("$.sections[0].items[1].liveClass.completed").value(true))
         .andExpect(jsonPath("$.sections[0].items[2].liveClass.attended").value(false))
-        .andExpect(jsonPath("$.sections[0].items[2].liveClass.completed").value(false));
+        .andExpect(jsonPath("$.sections[0].items[2].liveClass.completed").value(false))
+        .andExpect(jsonPath("$.sections[0].items[3].liveClass.scheduled").value(false))
+        .andExpect(jsonPath("$.sections[0].items[3].liveClass.liveClassId").doesNotExist())
+        .andExpect(
+            jsonPath("$.sections[0].items[3].liveClass.liveClassItemId")
+                .value(unscheduled.getId().toString()));
   }
 
   @Test
@@ -209,10 +236,13 @@ class StudentUnifiedCompletionApiIt extends AbstractStudentApiIntegrationTest {
     collectionCourse(collection, course, 1, true);
     collectionEnrollment(student, collection, EnrollmentStatus.ACTIVE, null);
     completedProgress(student, lesson);
+    var courseEnrollment =
+        enrollmentRepository.findByUserIdAndCourseId(student.getId(), course.getId()).orElseThrow();
     quizAttemptRepository.save(
         QuizAttempt.builder()
             .quiz(quiz)
             .user(student)
+            .enrollment(courseEnrollment)
             .attemptNo(1)
             .scorePct(85)
             .passed(true)

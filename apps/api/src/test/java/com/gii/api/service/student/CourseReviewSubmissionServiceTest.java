@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 import com.gii.api.model.request.student.CreateCourseReviewRequest;
 import com.gii.api.model.request.student.UpdateCourseReviewRequest;
 import com.gii.api.service.enrollment.CurrentUserService;
+import com.gii.api.testsupport.CourseTestData;
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.course.CourseReview;
 import com.gii.common.entity.enrollment.Enrollment;
@@ -48,8 +49,8 @@ class CourseReviewSubmissionServiceTest {
     UUID courseId = UUID.randomUUID();
     User user = User.builder().fullName("Student").email("student@example.com").build();
     user.setId(userId);
-    Course course =
-        Course.builder().title("Course").slug("course").status(PublishStatus.PUBLISHED).build();
+    Course course = CourseTestData.course("Course", "course", user);
+    course.setStatus(PublishStatus.PUBLISHED);
     course.setId(courseId);
     Enrollment enrollment =
         Enrollment.builder()
@@ -89,8 +90,8 @@ class CourseReviewSubmissionServiceTest {
     UUID courseId = UUID.randomUUID();
     User user = User.builder().fullName("Student").email("student@example.com").build();
     user.setId(userId);
-    Course course =
-        Course.builder().title("Course").slug("course").status(PublishStatus.PUBLISHED).build();
+    Course course = CourseTestData.course("Course", "course", user);
+    course.setStatus(PublishStatus.PUBLISHED);
     course.setId(courseId);
     Enrollment enrollment =
         Enrollment.builder().user(user).course(course).status(EnrollmentStatus.ACTIVE).build();
@@ -114,7 +115,7 @@ class CourseReviewSubmissionServiceTest {
     UUID courseId = UUID.randomUUID();
     User user = User.builder().fullName("Student").email("student@example.com").build();
     user.setId(userId);
-    Course course = Course.builder().title("Course").slug("course").build();
+    Course course = CourseTestData.course("Course", "course", user);
     course.setId(courseId);
     CourseReview review =
         CourseReview.builder()

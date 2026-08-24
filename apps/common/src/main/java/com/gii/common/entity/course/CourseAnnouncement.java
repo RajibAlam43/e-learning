@@ -25,7 +25,7 @@ public class CourseAnnouncement extends BaseUuidEntity {
 
   @JsonIgnore
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
-  @JoinColumn(name = "course_id", nullable = false)
+  @JoinColumn(name = "course_offering_id", nullable = false)
   private Course course;
 
   @JsonIgnore

@@ -62,6 +62,7 @@ public class CourseReviewSubmissionService {
     CourseReview review =
         CourseReview.builder()
             .course(course)
+            .enrollment(enrollment)
             .user(user)
             .rating(request.rating())
             .reviewText(request.reviewText().trim())

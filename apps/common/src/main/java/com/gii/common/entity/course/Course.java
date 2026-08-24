@@ -7,6 +7,7 @@ import com.gii.common.enums.CourseLanguage;
 import com.gii.common.enums.CourseLevel;
 import com.gii.common.enums.PublishStatus;
 import com.gii.common.enums.StudyMode;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -24,91 +25,41 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.experimental.SuperBuilder;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
+/**
+ * A concrete, purchasable delivery of a versioned course template. Public APIs intentionally expose
+ * this entity as a course and expose its UUID as {@code courseId}.
+ */
 @SuperBuilder
 @Getter
 @Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
-@Table(name = "courses")
+@Table(name = "course_offerings")
 public class Course extends BaseUuidEntity {
 
-  @Column(name = "title", nullable = false)
-  private String title;
-
-  @Column(name = "title_en")
-  private String titleEn;
+  @JsonIgnore
+  @ManyToOne(
+      fetch = FetchType.EAGER,
+      optional = false,
+      cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+  @JoinColumn(name = "course_template_version_id", nullable = false)
+  private CourseTemplateVersion templateVersion;
 
   @Column(name = "slug", nullable = false, unique = true)
   private String slug;
 
-  @Column(name = "thumbnail_object_key")
-  private String thumbnailObjectKey;
-
-  @Column(name = "short_description")
-  private String shortDescription;
-
-  @Column(name = "short_description_en")
-  private String shortDescriptionEn;
-
-  @Column(name = "description")
-  private String description;
-
-  @Column(name = "description_en")
-  private String descriptionEn;
-
-  @JdbcTypeCode(SqlTypes.JSON)
-  @Column(name = "highlights", columnDefinition = "jsonb")
-  private List<String> highlights;
-
-  @JdbcTypeCode(SqlTypes.JSON)
-  @Column(name = "highlights_en", columnDefinition = "jsonb")
-  private List<String> highlightsEn;
+  @Column(name = "name")
+  private String name;
 
   @Column(name = "price_bdt", nullable = false)
   @Builder.Default
   private BigDecimal priceBdt = BigDecimal.ZERO;
 
-  @JdbcTypeCode(SqlTypes.JSON)
-  @Column(name = "course_outcomes", columnDefinition = "jsonb")
-  private List<String> courseOutcomes;
-
-  @JdbcTypeCode(SqlTypes.JSON)
-  @Column(name = "course_outcomes_en", columnDefinition = "jsonb")
-  private List<String> courseOutcomesEn;
-
-  @JdbcTypeCode(SqlTypes.JSON)
-  @Column(name = "requirements", columnDefinition = "jsonb")
-  private List<String> requirements;
-
-  @JdbcTypeCode(SqlTypes.JSON)
-  @Column(name = "requirements_en", columnDefinition = "jsonb")
-  private List<String> requirementsEn;
-
-  @JdbcTypeCode(SqlTypes.JSON)
-  @Column(name = "prerequisites", columnDefinition = "jsonb")
-  private List<String> prerequisites;
-
-  @JdbcTypeCode(SqlTypes.JSON)
-  @Column(name = "prerequisites_en", columnDefinition = "jsonb")
-  private List<String> prerequisitesEn;
-
-  @Enumerated(EnumType.STRING)
-  @Column(name = "level", nullable = false, length = 30)
-  @Builder.Default
-  private CourseLevel level = CourseLevel.BEGINNER;
-
-  @Enumerated(EnumType.STRING)
-  @Column(name = "language", nullable = false, length = 20)
-  @Builder.Default
-  private CourseLanguage language = CourseLanguage.BN;
-
   @Enumerated(EnumType.STRING)
   @Column(name = "study_mode", nullable = false, length = 30)
   @Builder.Default
-  private StudyMode studyMode = StudyMode.SCHEDULED;
+  private StudyMode studyMode = StudyMode.COHORT_BASED;
 
   @Enumerated(EnumType.STRING)
   @Column(name = "status", nullable = false, length = 30)
@@ -128,36 +79,225 @@ public class Course extends BaseUuidEntity {
   @Column(name = "featured_at")
   private Instant featuredAt;
 
-  // For ease of use
   @Column(name = "is_free", nullable = false)
   @Builder.Default
   private Boolean isFree = false;
 
-  @Column(name = "live_session_count", nullable = false)
-  private Integer liveSessionCount;
+  @Column(name = "timezone", length = 80)
+  private String timezone;
 
-  @Column(name = "quiz_count", nullable = false)
-  private Integer quizCount;
+  @Column(name = "enrollment_starts_at")
+  private Instant enrollmentStartsAt;
 
-  @Column(name = "recorded_hours_count", nullable = false)
-  private Integer recordedHoursCount;
+  @Column(name = "enrollment_ends_at")
+  private Instant enrollmentEndsAt;
 
-  // Not currently used
+  @Column(name = "starts_at")
+  private Instant startsAt;
+
+  @Column(name = "ends_at")
+  private Instant endsAt;
+
+  @Column(name = "capacity")
+  private Integer capacity;
+
+  @Column(name = "access_duration_days")
+  private Integer accessDurationDays;
+
   @JsonIgnore
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
   @JoinColumn(name = "created_by", nullable = false)
   private User createdBy;
 
-  @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "preview_lesson_id")
-  private Lesson previewLesson;
+  public String getTitle() {
+    return templateVersion.getTitle();
+  }
 
-  @Column(name = "estimated_duration_minutes")
-  private Integer estimatedDurationMinutes;
+  public void setTitle(String title) {
+    templateVersion.setTitle(title);
+  }
 
-  @Column(name = "target_audience", columnDefinition = "text")
-  private String targetAudience;
+  public String getTitleEn() {
+    return templateVersion.getTitleEn();
+  }
 
-  @Column(name = "target_audience_en", columnDefinition = "text")
-  private String targetAudienceEn;
+  public void setTitleEn(String value) {
+    templateVersion.setTitleEn(value);
+  }
+
+  public String getThumbnailObjectKey() {
+    return templateVersion.getThumbnailObjectKey();
+  }
+
+  public void setThumbnailObjectKey(String value) {
+    templateVersion.setThumbnailObjectKey(value);
+  }
+
+  public String getShortDescription() {
+    return templateVersion.getShortDescription();
+  }
+
+  public void setShortDescription(String value) {
+    templateVersion.setShortDescription(value);
+  }
+
+  public String getShortDescriptionEn() {
+    return templateVersion.getShortDescriptionEn();
+  }
+
+  public void setShortDescriptionEn(String value) {
+    templateVersion.setShortDescriptionEn(value);
+  }
+
+  public String getDescription() {
+    return templateVersion.getDescription();
+  }
+
+  public void setDescription(String value) {
+    templateVersion.setDescription(value);
+  }
+
+  public String getDescriptionEn() {
+    return templateVersion.getDescriptionEn();
+  }
+
+  public void setDescriptionEn(String value) {
+    templateVersion.setDescriptionEn(value);
+  }
+
+  public List<String> getHighlights() {
+    return templateVersion.getHighlights();
+  }
+
+  public void setHighlights(List<String> value) {
+    templateVersion.setHighlights(value);
+  }
+
+  public List<String> getHighlightsEn() {
+    return templateVersion.getHighlightsEn();
+  }
+
+  public void setHighlightsEn(List<String> value) {
+    templateVersion.setHighlightsEn(value);
+  }
+
+  public List<String> getCourseOutcomes() {
+    return templateVersion.getCourseOutcomes();
+  }
+
+  public void setCourseOutcomes(List<String> value) {
+    templateVersion.setCourseOutcomes(value);
+  }
+
+  public List<String> getCourseOutcomesEn() {
+    return templateVersion.getCourseOutcomesEn();
+  }
+
+  public void setCourseOutcomesEn(List<String> value) {
+    templateVersion.setCourseOutcomesEn(value);
+  }
+
+  public List<String> getRequirements() {
+    return templateVersion.getRequirements();
+  }
+
+  public void setRequirements(List<String> value) {
+    templateVersion.setRequirements(value);
+  }
+
+  public List<String> getRequirementsEn() {
+    return templateVersion.getRequirementsEn();
+  }
+
+  public void setRequirementsEn(List<String> value) {
+    templateVersion.setRequirementsEn(value);
+  }
+
+  public List<String> getPrerequisites() {
+    return templateVersion.getPrerequisites();
+  }
+
+  public void setPrerequisites(List<String> value) {
+    templateVersion.setPrerequisites(value);
+  }
+
+  public List<String> getPrerequisitesEn() {
+    return templateVersion.getPrerequisitesEn();
+  }
+
+  public void setPrerequisitesEn(List<String> value) {
+    templateVersion.setPrerequisitesEn(value);
+  }
+
+  public CourseLevel getLevel() {
+    return templateVersion.getLevel();
+  }
+
+  public void setLevel(CourseLevel value) {
+    templateVersion.setLevel(value);
+  }
+
+  public CourseLanguage getLanguage() {
+    return templateVersion.getLanguage();
+  }
+
+  public void setLanguage(CourseLanguage value) {
+    templateVersion.setLanguage(value);
+  }
+
+  public Integer getLiveSessionCount() {
+    return templateVersion.getLiveSessionCount();
+  }
+
+  public void setLiveSessionCount(Integer value) {
+    templateVersion.setLiveSessionCount(value);
+  }
+
+  public Integer getQuizCount() {
+    return templateVersion.getQuizCount();
+  }
+
+  public void setQuizCount(Integer value) {
+    templateVersion.setQuizCount(value);
+  }
+
+  public Integer getRecordedHoursCount() {
+    return templateVersion.getRecordedHoursCount();
+  }
+
+  public void setRecordedHoursCount(Integer value) {
+    templateVersion.setRecordedHoursCount(value);
+  }
+
+  public Lesson getPreviewLesson() {
+    return templateVersion.getPreviewLesson();
+  }
+
+  public void setPreviewLesson(Lesson value) {
+    templateVersion.setPreviewLesson(value);
+  }
+
+  public Integer getEstimatedDurationMinutes() {
+    return templateVersion.getEstimatedDurationMinutes();
+  }
+
+  public void setEstimatedDurationMinutes(Integer value) {
+    templateVersion.setEstimatedDurationMinutes(value);
+  }
+
+  public String getTargetAudience() {
+    return templateVersion.getTargetAudience();
+  }
+
+  public void setTargetAudience(String value) {
+    templateVersion.setTargetAudience(value);
+  }
+
+  public String getTargetAudienceEn() {
+    return templateVersion.getTargetAudienceEn();
+  }
+
+  public void setTargetAudienceEn(String value) {
+    templateVersion.setTargetAudienceEn(value);
+  }
 }

@@ -9,6 +9,7 @@ import com.gii.common.repository.course.LessonRepository;
 import com.gii.common.repository.enrollment.LessonProgressRepository;
 import com.gii.common.repository.live.LiveClassAttendanceRepository;
 import com.gii.common.repository.live.LiveClassRepository;
+import com.gii.common.repository.live.LiveClassSlotRepository;
 import com.gii.common.repository.quiz.QuizAttemptRepository;
 import com.gii.common.repository.quiz.QuizRepository;
 import java.util.List;
@@ -28,6 +29,7 @@ class CourseCompletionServiceTest {
   @Mock private QuizRepository quizRepository;
   @Mock private QuizAttemptRepository quizAttemptRepository;
   @Mock private LiveClassRepository liveClassRepository;
+  @Mock private LiveClassSlotRepository liveClassSlotRepository;
   @Mock private LiveClassAttendanceRepository liveClassAttendanceRepository;
 
   @InjectMocks private CourseCompletionService service;
@@ -48,10 +50,8 @@ class CourseCompletionServiceTest {
     when(quizAttemptRepository.countPassedQuizzesByUserIdAndCourseIds(
             userId, courseIds, PublishStatus.PUBLISHED))
         .thenReturn(List.<Object[]>of(new Object[] {courseId, 1L}));
-    List<LiveClassStatus> liveStatuses =
-        List.of(LiveClassStatus.SCHEDULED, LiveClassStatus.LIVE, LiveClassStatus.COMPLETED);
-    when(liveClassRepository.countCompletableByCourseIdsAndStatuses(
-            courseIds, PublishStatus.PUBLISHED, liveStatuses))
+    when(liveClassSlotRepository.countMandatoryByCourseIdsAndSectionStatus(
+            courseIds, PublishStatus.PUBLISHED))
         .thenReturn(List.<Object[]>of(new Object[] {courseId, 2L}));
     when(liveClassRepository.countByCourseIdsAndSectionStatusAndLiveClassStatus(
             courseIds, PublishStatus.PUBLISHED, LiveClassStatus.COMPLETED))
@@ -85,10 +85,8 @@ class CourseCompletionServiceTest {
     when(quizAttemptRepository.countPassedQuizzesByUserIdAndCourseIds(
             userId, courseIds, PublishStatus.PUBLISHED))
         .thenReturn(List.of());
-    List<LiveClassStatus> liveStatuses =
-        List.of(LiveClassStatus.SCHEDULED, LiveClassStatus.LIVE, LiveClassStatus.COMPLETED);
-    when(liveClassRepository.countCompletableByCourseIdsAndStatuses(
-            courseIds, PublishStatus.PUBLISHED, liveStatuses))
+    when(liveClassSlotRepository.countMandatoryByCourseIdsAndSectionStatus(
+            courseIds, PublishStatus.PUBLISHED))
         .thenReturn(List.of());
     when(liveClassRepository.countByCourseIdsAndSectionStatusAndLiveClassStatus(
             courseIds, PublishStatus.PUBLISHED, LiveClassStatus.COMPLETED))

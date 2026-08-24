@@ -1,6 +1,7 @@
 package com.gii.api.model.response.student;
 
 import com.gii.common.enums.EnrollmentStatus;
+import com.gii.common.enums.StudyMode;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -16,6 +17,10 @@ public record StudentCourseHomeResponse(
     String thumbnailUrl,
     String instructor,
     String courseLevel,
+    StudyMode studyMode,
+    String timezone,
+    Instant startsAt,
+    Instant endsAt,
 
     // Enrollment status
     EnrollmentStatus enrollmentStatus,

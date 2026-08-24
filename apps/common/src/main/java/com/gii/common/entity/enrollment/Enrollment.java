@@ -34,7 +34,7 @@ import lombok.experimental.SuperBuilder;
     uniqueConstraints = {
       @UniqueConstraint(
           name = "uk_enrollments_user_course",
-          columnNames = {"user_id", "course_id"})
+          columnNames = {"user_id", "course_offering_id"})
     })
 public class Enrollment extends CreatedOnlyUuidEntity {
 
@@ -45,7 +45,7 @@ public class Enrollment extends CreatedOnlyUuidEntity {
 
   @JsonIgnore
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
-  @JoinColumn(name = "course_id", nullable = false)
+  @JoinColumn(name = "course_offering_id", nullable = false)
   private Course course;
 
   @Enumerated(EnumType.STRING)

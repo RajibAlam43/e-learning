@@ -9,6 +9,7 @@ import com.gii.api.model.request.admin.UpdateQuizRequest;
 import com.gii.api.model.response.admin.AdminQuizChoiceResponse;
 import com.gii.api.model.response.admin.AdminQuizDetailResponse;
 import com.gii.api.model.response.admin.AdminQuizQuestionResponse;
+import com.gii.api.service.course.CourseTemplateMutationGuard;
 import com.gii.common.entity.course.CourseSection;
 import com.gii.common.entity.course.SectionItem;
 import com.gii.common.entity.quiz.Quiz;
@@ -42,6 +43,7 @@ public class AdminQuizManagementService {
   private final QuizAttemptRepository quizAttemptRepository;
   private final QuizQuestionRepository questionRepository;
   private final QuizChoiceRepository choiceRepository;
+  private final CourseTemplateMutationGuard templateMutationGuard;
 
   public AdminQuizDetailResponse create(UUID sectionId, CreateQuizRequest request) {
     CourseSection section =
@@ -49,11 +51,11 @@ public class AdminQuizManagementService {
             .findById(sectionId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Section not found"));
+    templateMutationGuard.requireDraft(section.getTemplateVersion());
     ensurePositionAvailable(section.getId(), request.position(), null);
 
     Quiz quiz =
         Quiz.builder()
-            .course(section.getCourse())
             .section(section)
             .position(request.position())
             .title(request.title().trim())
@@ -80,13 +82,17 @@ public class AdminQuizManagementService {
         quizRepository
             .findById(quizId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Quiz not found"));
+    templateMutationGuard.requireDraft(quiz.getSection().getTemplateVersion());
     if (request.sectionId() != null && !request.sectionId().equals(quiz.getSection().getId())) {
       CourseSection section =
           sectionRepository
               .findById(request.sectionId())
               .orElseThrow(
                   () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Section not found"));
-      if (!section.getCourse().getId().equals(quiz.getCourse().getId())) {
+      if (!section
+          .getTemplateVersion()
+          .getId()
+          .equals(quiz.getSection().getTemplateVersion().getId())) {
         throw new ResponseStatusException(
             HttpStatus.BAD_REQUEST, "Section must belong to the same course");
       }
@@ -134,6 +140,7 @@ public class AdminQuizManagementService {
         quizRepository
             .findById(quizId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Quiz not found"));
+    templateMutationGuard.requireDraft(quiz.getSection().getTemplateVersion());
     List<QuizQuestion> questions = questionRepository.findByQuizIdOrderByPositionAsc(quizId);
     if (questions.isEmpty()) {
       throw new ResponseStatusException(
@@ -158,6 +165,7 @@ public class AdminQuizManagementService {
         quizRepository
             .findById(quizId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Quiz not found"));
+    templateMutationGuard.requireDraft(quiz.getSection().getTemplateVersion());
     quiz.setStatus(PublishStatus.DRAFT);
     quizRepository.save(quiz);
   }
@@ -167,6 +175,7 @@ public class AdminQuizManagementService {
         quizRepository
             .findById(quizId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Quiz not found"));
+    templateMutationGuard.requireDraft(quiz.getSection().getTemplateVersion());
     if (quizAttemptRepository.existsByQuizId(quizId)) {
       throw new ResponseStatusException(
           HttpStatus.CONFLICT, "Quiz with student attempts cannot be deleted");
