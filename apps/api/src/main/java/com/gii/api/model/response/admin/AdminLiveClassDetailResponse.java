@@ -1,6 +1,7 @@
 package com.gii.api.model.response.admin;
 
 import com.gii.common.enums.LiveClassProvider;
+import com.gii.common.enums.LiveClassProvisioningMode;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -25,6 +26,7 @@ public record AdminLiveClassDetailResponse(
     Instant startsAt,
     Instant endsAt,
     LiveClassProvider provider,
+    LiveClassProvisioningMode provisioningMode,
     String status,
     String meetingId,
     String hostStartUrl,

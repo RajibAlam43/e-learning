@@ -9,9 +9,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.gii.common.entity.certificate.Certificate;
 import com.gii.common.entity.quiz.QuizAttempt;
 import com.gii.common.entity.user.UserRole;
 import com.gii.common.entity.user.UserRoleId;
+import com.gii.common.enums.CertificateTargetType;
+import com.gii.common.enums.EnrollmentStatus;
 import com.gii.common.enums.SectionItemType;
 import java.time.Instant;
 import java.util.List;
@@ -39,6 +42,50 @@ class AdminNewCapabilitiesApiIt extends AbstractAdminApiIntegrationTest {
   @AfterEach
   void cleanup() {
     cleanupAdminData();
+  }
+
+  @Test
+  void adminCanRevokeCertificateWithAuditDataAndRepeatIsIdempotent() throws Exception {
+    var admin = user("Certificate Admin", "certificate-revoke-admin@example.com");
+    var student = user("Certificate Student", "certificate-revoke-student@example.com");
+    var creator = user("Certificate Creator", "certificate-revoke-creator@example.com");
+    var course = course("Certificate Course", "certificate-revoke-course", creator);
+    Certificate certificate =
+        certificateRepository.saveAndFlush(
+            Certificate.builder()
+                .certificateCode("GII-REVOKE-0001")
+                .user(student)
+                .targetType(CertificateTargetType.COURSE)
+                .course(course)
+                .recipientName(student.getFullName())
+                .targetTitle(course.getTitle())
+                .targetSlug(course.getSlug())
+                .issuedBy(creator)
+                .build());
+
+    mockMvc
+        .perform(
+            post("/admin/certificates/{certificateId}/revoke", certificate.getId())
+                .with(authentication(adminAuth(admin.getId())))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"reason\":\"  duplicate issuance  \"}"))
+        .andExpect(status().isNoContent());
+
+    Certificate revoked = certificateRepository.findById(certificate.getId()).orElseThrow();
+    assertThat(revoked.getRevokedAt()).isNotNull();
+    assertThat(revoked.getRevokedBy().getId()).isEqualTo(admin.getId());
+    assertThat(revoked.getRevocationReason()).isEqualTo("duplicate issuance");
+    Instant firstRevokedAt = revoked.getRevokedAt();
+
+    mockMvc
+        .perform(
+            post("/admin/certificates/{certificateId}/revoke", certificate.getId())
+                .with(authentication(adminAuth(admin.getId())))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"reason\":\"changed\"}"))
+        .andExpect(status().isNoContent());
+    assertThat(certificateRepository.findById(certificate.getId()).orElseThrow().getRevokedAt())
+        .isEqualTo(firstRevokedAt);
   }
 
   @Test
@@ -274,11 +321,13 @@ class AdminNewCapabilitiesApiIt extends AbstractAdminApiIntegrationTest {
         .isEmpty();
 
     var protectedQuiz = quiz(course, "Has attempt");
+    var protectedEnrollment = enrollment(student, course, EnrollmentStatus.ACTIVE);
     Instant attemptStartedAt = Instant.now().minusSeconds(1);
     quizAttemptRepository.save(
         QuizAttempt.builder()
             .quiz(protectedQuiz)
             .user(student)
+            .enrollment(protectedEnrollment)
             .attemptNo(1)
             .scorePct(50)
             .passed(false)

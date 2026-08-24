@@ -39,11 +39,13 @@ class QuizAttemptRepositoriesDataJpaTest extends AbstractQuizDataJpaTest {
     attemptAnswer(a1, q1, c1);
     attemptAnswer(a1, q2, c2);
 
-    assertThat(quizAttemptRepository.countByQuizIdAndUserId(quiz.getId(), student.getId()))
+    assertThat(
+            quizAttemptRepository.countByQuizIdAndEnrollmentId(
+                quiz.getId(), a1.getEnrollment().getId()))
         .isEqualTo(2);
     var attempts =
-        quizAttemptRepository.findByQuizIdAndUserIdOrderByAttemptNoDesc(
-            quiz.getId(), student.getId());
+        quizAttemptRepository.findByQuizIdAndEnrollmentIdOrderByAttemptNoDesc(
+            quiz.getId(), a1.getEnrollment().getId());
     assertThat(attempts).hasSize(2);
     assertThat(attempts.get(0).getAttemptNo()).isEqualTo(2);
     assertThat(quizAttemptRepository.findByIdAndUserId(a2.getId(), student.getId())).isPresent();

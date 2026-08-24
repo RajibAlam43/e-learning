@@ -14,6 +14,7 @@ import com.gii.common.entity.course.Course;
 import com.gii.common.entity.enrollment.Enrollment;
 import com.gii.common.entity.order.Order;
 import com.gii.common.entity.order.OrderItem;
+import com.gii.common.entity.order.OrderItemCourse;
 import com.gii.common.entity.user.User;
 import com.gii.common.enums.EnrollmentStatus;
 import com.gii.common.enums.OrderItemType;
@@ -25,6 +26,7 @@ import com.gii.common.repository.collection.CollectionEnrollmentRepository;
 import com.gii.common.repository.collection.CollectionRepository;
 import com.gii.common.repository.course.CourseRepository;
 import com.gii.common.repository.enrollment.EnrollmentRepository;
+import com.gii.common.repository.order.OrderItemCourseRepository;
 import com.gii.common.repository.order.OrderItemRepository;
 import com.gii.common.repository.order.OrderRepository;
 import java.math.BigDecimal;
@@ -60,12 +62,16 @@ public class PendingCartOrderService {
   private final EnrollmentRepository enrollmentRepository;
   private final OrderRepository orderRepository;
   private final OrderItemRepository orderItemRepository;
+  private final OrderItemCourseRepository orderItemCourseRepository;
   private final AssetUrlService assetUrlService;
   private final LocalizedContentService localizedContentService;
+  private final OfferingEnrollmentPolicyService offeringEnrollmentPolicyService;
+  private final PendingOrderEligibilityService pendingOrderEligibilityService;
 
   public CheckoutOrderResponse execute(
       CreateCheckoutOrderRequest request, Authentication authentication) {
     User user = currentUserService.getCurrentUser(authentication);
+    Instant now = Instant.now();
     List<CreateCheckoutOrderItemRequest> requestedItems = request.items();
     validateNoDuplicateLines(requestedItems);
 
@@ -80,12 +86,16 @@ public class PendingCartOrderService {
             .map(CreateCheckoutOrderItemRequest::collectionId)
             .toList();
 
-    Map<UUID, Course> coursesById = fetchPublishedCourses(requestedCourseIds);
-    Map<UUID, Collection> collectionsById = fetchPublishedCollections(requestedCollectionIds);
+    final Map<UUID, Course> coursesById = fetchPublishedCourses(requestedCourseIds);
+    final Map<UUID, Collection> collectionsById = fetchPublishedCollections(requestedCollectionIds);
 
     for (UUID courseId : requestedCourseIds) {
-      if (enrollmentRepository.existsByUserIdAndCourseIdAndStatus(
-          user.getId(), courseId, EnrollmentStatus.ACTIVE)) {
+      boolean currentlyOwned =
+          enrollmentRepository
+              .findByUserIdAndCourseIdAndStatus(user.getId(), courseId, EnrollmentStatus.ACTIVE)
+              .filter(e -> e.getExpiresAt() == null || e.getExpiresAt().isAfter(now))
+              .isPresent();
+      if (currentlyOwned) {
         throw new ResponseStatusException(HttpStatus.CONFLICT, "Already enrolled in this course");
       }
     }
@@ -94,8 +104,13 @@ public class PendingCartOrderService {
         requestedCollectionIds.isEmpty()
             ? List.of()
             : collectionCourseRepository.findByCollection_IdInWithCourse(requestedCollectionIds);
-    Map<UUID, List<CollectionCourse>> collectionCoursesByCollectionId =
+    final Map<UUID, List<CollectionCourse>> collectionCoursesByCollectionId =
         groupByCollection(collectionCoursesForCart);
+    if (collectionCoursesForCart.stream()
+        .anyMatch(row -> row.getCourse().getStatus() != PublishStatus.PUBLISHED)) {
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT, "A selected collection contains an unavailable course");
+    }
 
     Set<UUID> collectionCourseIdsInCart = new HashSet<>();
     for (CollectionCourse cc : collectionCoursesForCart) {
@@ -119,6 +134,7 @@ public class PendingCartOrderService {
         collectionEnrollmentRepository
             .findByUserIdAndStatus(user.getId(), EnrollmentStatus.ACTIVE)
             .stream()
+            .filter(e -> e.getExpiresAt() == null || e.getExpiresAt().isAfter(now))
             .map(CollectionEnrollment::getCollection)
             .map(Collection::getId)
             .collect(java.util.stream.Collectors.toSet());
@@ -142,12 +158,32 @@ public class PendingCartOrderService {
     // Case 1: collection price is reduced by already-owned included courses.
     Set<UUID> ownedCourseIds =
         enrollmentRepository.findByUserIdAndStatus(user.getId(), EnrollmentStatus.ACTIVE).stream()
+            .filter(e -> e.getExpiresAt() == null || e.getExpiresAt().isAfter(now))
             .map(Enrollment::getCourse)
             .map(Course::getId)
             .collect(java.util.stream.Collectors.toSet());
 
+    Set<UUID> offeringsToReserve = new HashSet<>(requestedCourseIds);
+    offeringsToReserve.addAll(collectionCourseIdsInCart);
+    offeringsToReserve.removeAll(ownedCourseIds);
+    Instant checkoutTime = now;
+    offeringsToReserve.stream()
+        .sorted()
+        .map(
+            courseId ->
+                courseRepository
+                    .findByIdForUpdate(courseId)
+                    .orElseThrow(
+                        () ->
+                            new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found")))
+        .forEach(
+            course ->
+                offeringEnrollmentPolicyService.validateCheckout(
+                    course, user.getId(), checkoutTime));
+
     Order reusablePendingOrder = findReusablePendingOrder(user.getId(), requestedItems);
     if (reusablePendingOrder != null) {
+      pendingOrderEligibilityService.validate(reusablePendingOrder);
       return toCheckoutResponse(reusablePendingOrder, user);
     }
 
@@ -244,7 +280,23 @@ public class PendingCartOrderService {
       totalDiscount = totalDiscount.add(discount);
     }
 
-    orderItemRepository.saveAll(orderItems);
+    List<OrderItem> savedOrderItems = orderItemRepository.saveAll(orderItems);
+    List<OrderItemCourse> collectionSnapshots = new ArrayList<>();
+    for (OrderItem item : savedOrderItems) {
+      if (item.getItemType() != OrderItemType.COLLECTION) {
+        continue;
+      }
+      for (CollectionCourse included :
+          collectionCoursesByCollectionId.getOrDefault(item.getCollection().getId(), List.of())) {
+        collectionSnapshots.add(
+            OrderItemCourse.builder()
+                .orderItem(item)
+                .course(included.getCourse())
+                .position(included.getPosition())
+                .build());
+      }
+    }
+    orderItemCourseRepository.saveAll(collectionSnapshots);
 
     BigDecimal totalAmount = subtotal.subtract(totalDiscount);
     order.setAmountBdt(totalAmount);

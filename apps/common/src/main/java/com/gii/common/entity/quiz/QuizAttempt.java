@@ -1,6 +1,7 @@
 package com.gii.common.entity.quiz;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.gii.common.entity.enrollment.Enrollment;
 import com.gii.common.entity.user.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -30,8 +31,8 @@ import lombok.Setter;
     name = "quiz_attempts",
     uniqueConstraints = {
       @UniqueConstraint(
-          name = "uk_quiz_attempts_quiz_user_attempt",
-          columnNames = {"quiz_id", "user_id", "attempt_no"})
+          name = "uk_quiz_attempts_quiz_enrollment_attempt",
+          columnNames = {"quiz_id", "enrollment_id", "attempt_no"})
     })
 public class QuizAttempt {
 
@@ -49,6 +50,11 @@ public class QuizAttempt {
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
   @JoinColumn(name = "user_id", nullable = false)
   private User user;
+
+  @JsonIgnore
+  @ManyToOne(fetch = FetchType.LAZY, optional = false)
+  @JoinColumn(name = "enrollment_id", nullable = false)
+  private Enrollment enrollment;
 
   @Column(name = "attempt_no", nullable = false)
   private Integer attemptNo;

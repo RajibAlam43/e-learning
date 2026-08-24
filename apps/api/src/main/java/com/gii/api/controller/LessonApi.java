@@ -33,12 +33,21 @@ import org.springframework.web.bind.annotation.RequestMapping;
 @PreAuthorize("hasRole('STUDENT') or hasRole('ADMIN')")
 public interface LessonApi {
 
+  @GetMapping("/courses/{courseId}/lessons/{lessonId}")
+  @Operation(
+      summary = "Get course lesson content",
+      description = "Fetch lesson content using the student's enrollment in the specified course.")
+  ResponseEntity<LessonContentResponse> getCourseLessonContent(
+      @PathVariable UUID courseId, @PathVariable UUID lessonId, Authentication authentication);
+
+  @Deprecated(since = "V12")
   @GetMapping("/lessons/{lessonId}")
   @Operation(
       summary = "Get lesson content",
       description =
           "Fetch complete lesson content including sections, resources, and access metadata."
-              + " Validates student enrollment/access.")
+              + " Validates student enrollment/access. Deprecated: use the course-scoped route.",
+      deprecated = true)
   @ApiResponses(
       value = {
         @ApiResponse(
@@ -49,17 +58,29 @@ public interface LessonApi {
         @ApiResponse(
             responseCode = "403",
             description = "Access denied - not enrolled or lesson locked"),
+        @ApiResponse(
+            responseCode = "409",
+            description = "Multiple active courses contain this lesson"),
         @ApiResponse(responseCode = "404", description = "Lesson not found")
       })
   ResponseEntity<LessonContentResponse> getLessonContent(
       @PathVariable UUID lessonId, Authentication authentication);
 
+  @GetMapping("/courses/{courseId}/lessons/{lessonId}/playback")
+  @Operation(
+      summary = "Get course lesson playback information",
+      description = "Get playback information using the specified course enrollment.")
+  ResponseEntity<MediaPlaybackResponse> getCourseLessonPlayback(
+      @PathVariable UUID courseId, @PathVariable UUID lessonId, Authentication authentication);
+
+  @Deprecated(since = "V12")
   @GetMapping("/lessons/{lessonId}/playback")
   @Operation(
       summary = "Get media playback information",
       description =
           "Get playback URLs and configuration (Mux, YouTube, Bunny) for video/media lessons"
-              + " after access validation.")
+              + " after access validation. Deprecated: use the course-scoped route.",
+      deprecated = true)
   @ApiResponses(
       value = {
         @ApiResponse(
@@ -68,20 +89,40 @@ public interface LessonApi {
             content = @Content(schema = @Schema(implementation = MediaPlaybackResponse.class))),
         @ApiResponse(responseCode = "401", description = "Unauthorized"),
         @ApiResponse(responseCode = "403", description = "Access denied"),
+        @ApiResponse(
+            responseCode = "409",
+            description = "Multiple active courses contain this lesson"),
         @ApiResponse(responseCode = "404", description = "Media not found")
       })
   ResponseEntity<MediaPlaybackResponse> getLessonPlayback(
       @PathVariable UUID lessonId, Authentication authentication);
 
+  @PostMapping("/courses/{courseId}/lessons/{lessonId}/progress")
+  @Operation(
+      summary = "Save course lesson progress",
+      description = "Save progress against the student's enrollment in the specified course.")
+  ResponseEntity<Void> saveCourseLessonProgress(
+      @PathVariable UUID courseId,
+      @PathVariable UUID lessonId,
+      @Valid @RequestBody SaveLessonProgressRequest request,
+      Authentication authentication);
+
+  @Deprecated(since = "V12")
   @PostMapping("/lessons/{lessonId}/progress")
   @Operation(
       summary = "Save lesson progress",
-      description = "Save student progress: completion state, last watched position (for videos).")
+      description =
+          "Save student progress: completion state, last watched position (for videos)."
+              + " Deprecated: use the course-scoped route.",
+      deprecated = true)
   @ApiResponses(
       value = {
         @ApiResponse(responseCode = "200", description = "Progress saved"),
         @ApiResponse(responseCode = "400", description = "Invalid progress data"),
         @ApiResponse(responseCode = "401", description = "Unauthorized"),
+        @ApiResponse(
+            responseCode = "409",
+            description = "Multiple active courses contain this lesson"),
         @ApiResponse(responseCode = "404", description = "Lesson not found")
       })
   ResponseEntity<Void> saveLessonProgress(
@@ -89,14 +130,28 @@ public interface LessonApi {
       @Valid @RequestBody SaveLessonProgressRequest request,
       Authentication authentication);
 
+  @PostMapping("/courses/{courseId}/lessons/{lessonId}/complete")
+  @Operation(
+      summary = "Mark course lesson as completed",
+      description = "Complete the lesson for the student's enrollment in the specified course.")
+  ResponseEntity<Void> markCourseLessonComplete(
+      @PathVariable UUID courseId, @PathVariable UUID lessonId, Authentication authentication);
+
+  @Deprecated(since = "V12")
   @PostMapping("/lessons/{lessonId}/complete")
   @Operation(
       summary = "Mark lesson as completed",
-      description = "Explicitly mark a lesson as completed by the student.")
+      description =
+          "Explicitly mark a lesson as completed by the student."
+              + " Deprecated: use the course-scoped route.",
+      deprecated = true)
   @ApiResponses(
       value = {
         @ApiResponse(responseCode = "200", description = "Lesson marked complete"),
         @ApiResponse(responseCode = "401", description = "Unauthorized"),
+        @ApiResponse(
+            responseCode = "409",
+            description = "Multiple active courses contain this lesson"),
         @ApiResponse(responseCode = "404", description = "Lesson not found")
       })
   ResponseEntity<Void> markLessonComplete(
@@ -120,12 +175,21 @@ public interface LessonApi {
   ResponseEntity<CourseProgressResponse> getCourseProgress(
       @PathVariable UUID courseId, Authentication authentication);
 
+  @GetMapping("/courses/{courseId}/lessons/{lessonId}/resources")
+  @Operation(
+      summary = "List course lesson resources",
+      description = "List lesson resources using the specified course enrollment.")
+  ResponseEntity<List<LessonResourceResponse>> getCourseLessonResources(
+      @PathVariable UUID courseId, @PathVariable UUID lessonId, Authentication authentication);
+
+  @Deprecated(since = "V12")
   @GetMapping("/lessons/{lessonId}/resources")
   @Operation(
       summary = "List lesson resources",
       description =
           "Get all downloadable resources (PDFs, images) attached to a lesson after access"
-              + " validation.")
+              + " validation. Deprecated: use the course-scoped route.",
+      deprecated = true)
   @ApiResponses(
       value = {
         @ApiResponse(
@@ -134,15 +198,29 @@ public interface LessonApi {
             content = @Content(schema = @Schema(implementation = LessonResourceResponse.class))),
         @ApiResponse(responseCode = "401", description = "Unauthorized"),
         @ApiResponse(responseCode = "403", description = "Access denied"),
+        @ApiResponse(
+            responseCode = "409",
+            description = "Multiple active courses contain this lesson"),
         @ApiResponse(responseCode = "404", description = "Lesson not found")
       })
   ResponseEntity<List<LessonResourceResponse>> getLessonResources(
       @PathVariable UUID lessonId, Authentication authentication);
 
+  @GetMapping("/courses/{courseId}/resources/{resourceId}/download-url")
+  @Operation(
+      summary = "Get course resource download URL",
+      description = "Get a signed download URL using the specified course enrollment.")
+  ResponseEntity<ResourceDownloadUrlResponse> getCourseResourceDownloadUrl(
+      @PathVariable UUID courseId, @PathVariable UUID resourceId, Authentication authentication);
+
+  @Deprecated(since = "V12")
   @GetMapping("/resources/{resourceId}/download-url")
   @Operation(
       summary = "Get resource download URL",
-      description = "Get signed temporary download URL for a lesson resource after access checks.")
+      description =
+          "Get signed temporary download URL for a lesson resource after access checks."
+              + " Deprecated: use the course-scoped route.",
+      deprecated = true)
   @ApiResponses(
       value = {
         @ApiResponse(
@@ -152,6 +230,9 @@ public interface LessonApi {
                 @Content(schema = @Schema(implementation = ResourceDownloadUrlResponse.class))),
         @ApiResponse(responseCode = "401", description = "Unauthorized"),
         @ApiResponse(responseCode = "403", description = "Access denied"),
+        @ApiResponse(
+            responseCode = "409",
+            description = "Multiple active courses contain this lesson"),
         @ApiResponse(responseCode = "404", description = "Resource not found")
       })
   ResponseEntity<ResourceDownloadUrlResponse> getResourceDownloadUrl(

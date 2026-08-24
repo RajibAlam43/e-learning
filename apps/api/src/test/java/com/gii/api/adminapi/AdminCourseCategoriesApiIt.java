@@ -90,6 +90,54 @@ class AdminCourseCategoriesApiIt extends AbstractAdminApiIntegrationTest {
     assertThat(courseRepository.findAll()).isEmpty();
   }
 
+  @Test
+  void nullableOfferingPatchDistinguishesMissingFromExplicitNull() throws Exception {
+    var admin = user("Nullable Course Admin", "nullable-course-admin@example.com");
+    var category = category("প্রযুক্তি", "Technology", "nullable-technology");
+    mockMvc
+        .perform(
+            post("/admin/courses")
+                .with(authentication(adminAuth(admin.getId())))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "title":"Nullable Course",
+                      "slug":"nullable-course",
+                      "categoryIds":["%s"],
+                      "priceBdt":1000,
+                      "level":"BEGINNER",
+                      "language":"BN",
+                      "studyMode":"COHORT_BASED",
+                      "timezone":"Asia/Dhaka",
+                      "capacity":20
+                    }
+                    """
+                        .formatted(category.getId())))
+        .andExpect(status().isOk());
+    var course = courseRepository.findAll().getFirst();
+
+    mockMvc
+        .perform(
+            patch("/admin/courses/{courseId}", course.getId())
+                .with(authentication(adminAuth(admin.getId())))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"priceBdt\":1200}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.timezone").value("Asia/Dhaka"))
+        .andExpect(jsonPath("$.capacity").value(20));
+
+    mockMvc
+        .perform(
+            patch("/admin/courses/{courseId}", course.getId())
+                .with(authentication(adminAuth(admin.getId())))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"timezone\":null,\"capacity\":null}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.timezone").doesNotExist())
+        .andExpect(jsonPath("$.capacity").doesNotExist());
+  }
+
   private void assertInvalidCourse(UUID adminId, String body) throws Exception {
     mockMvc
         .perform(

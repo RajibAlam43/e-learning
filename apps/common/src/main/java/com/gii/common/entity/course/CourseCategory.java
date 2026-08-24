@@ -28,9 +28,9 @@ public class CourseCategory {
 
   @JsonIgnore
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
-  @MapsId("courseId")
-  @JoinColumn(name = "course_id", nullable = false)
-  private Course course;
+  @MapsId("courseTemplateVersionId")
+  @JoinColumn(name = "course_template_version_id", nullable = false)
+  private CourseTemplateVersion templateVersion;
 
   @JsonIgnore
   @ManyToOne(fetch = FetchType.LAZY, optional = false)

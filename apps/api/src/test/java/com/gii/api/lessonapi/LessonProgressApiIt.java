@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
 
 class LessonProgressApiIt extends AbstractLessonApiIntegrationTest {
 
@@ -33,7 +34,8 @@ class LessonProgressApiIt extends AbstractLessonApiIntegrationTest {
     var sec = section(course, 1, PublishStatus.PUBLISHED);
     var lesson =
         lesson(course, sec, 1, PublishStatus.PUBLISHED, false, ReleaseType.IMMEDIATE, null, null);
-    enrollment(student, course, EnrollmentStatus.ACTIVE, Instant.now().plusSeconds(3600));
+    var enrollment =
+        enrollment(student, course, EnrollmentStatus.ACTIVE, Instant.now().plusSeconds(3600));
 
     mockMvc
         .perform(
@@ -46,7 +48,10 @@ class LessonProgressApiIt extends AbstractLessonApiIntegrationTest {
     var saved =
         lessonProgressRepository
             .findById(
-                LessonProgressId.builder().userId(student.getId()).lessonId(lesson.getId()).build())
+                LessonProgressId.builder()
+                    .enrollmentId(enrollment.getId())
+                    .lessonId(lesson.getId())
+                    .build())
             .orElseThrow();
     assertThat(saved.getLastPositionSec()).isEqualTo(95);
     assertThat(saved.getCompletedAt()).isNull();
@@ -73,7 +78,8 @@ class LessonProgressApiIt extends AbstractLessonApiIntegrationTest {
     var sec = section(course, 1, PublishStatus.PUBLISHED);
     var lesson =
         lesson(course, sec, 1, PublishStatus.PUBLISHED, false, ReleaseType.IMMEDIATE, null, null);
-    enrollment(student, course, EnrollmentStatus.ACTIVE, Instant.now().plusSeconds(3600));
+    var enrollment =
+        enrollment(student, course, EnrollmentStatus.ACTIVE, Instant.now().plusSeconds(3600));
 
     mockMvc
         .perform(
@@ -84,12 +90,88 @@ class LessonProgressApiIt extends AbstractLessonApiIntegrationTest {
     var saved =
         lessonProgressRepository
             .findById(
-                LessonProgressId.builder().userId(student.getId()).lessonId(lesson.getId()).build())
+                LessonProgressId.builder()
+                    .enrollmentId(enrollment.getId())
+                    .lessonId(lesson.getId())
+                    .build())
             .orElseThrow();
     assertThat(saved.getCompletedAt()).isNotNull();
+    assertThat(enrollmentRepository.findById(enrollment.getId()).orElseThrow().getCompletedAt())
+        .isNotNull();
     assertThat(studentLearningStreakRepository.findById(student.getId()))
         .get()
         .extracting("currentStreak", "maxStreak")
         .containsExactly(1, 1);
+  }
+
+  @Test
+  @Transactional
+  void courseScopedProgressIsIsolatedAcrossRepeatedCoursesAndLegacyRouteRejectsAmbiguity()
+      throws Exception {
+    var creator = user("Creator", "creator-repeated-progress@example.com");
+    var student = user("Student", "student-repeated-progress@example.com");
+    var firstCourse =
+        course("Repeated Course", "repeated-course-fall", creator, PublishStatus.PUBLISHED);
+    var secondCourse = repeatedCourse(firstCourse, "repeated-course-spring", creator);
+    var sec = section(firstCourse, 1, PublishStatus.PUBLISHED);
+    var lesson =
+        lesson(
+            firstCourse, sec, 1, PublishStatus.PUBLISHED, false, ReleaseType.IMMEDIATE, null, null);
+    var firstEnrollment =
+        enrollment(student, firstCourse, EnrollmentStatus.ACTIVE, Instant.now().plusSeconds(3600));
+    var secondEnrollment =
+        enrollment(student, secondCourse, EnrollmentStatus.ACTIVE, Instant.now().plusSeconds(3600));
+
+    mockMvc
+        .perform(
+            post(
+                    "/learn/courses/{courseId}/lessons/{lessonId}/complete",
+                    firstCourse.getId(),
+                    lesson.getId())
+                .with(authentication(studentAuth(student.getId()))))
+        .andExpect(status().isOk());
+
+    assertThat(
+            lessonProgressRepository.findById(
+                LessonProgressId.builder()
+                    .enrollmentId(firstEnrollment.getId())
+                    .lessonId(lesson.getId())
+                    .build()))
+        .isPresent();
+    assertThat(
+            lessonProgressRepository.findById(
+                LessonProgressId.builder()
+                    .enrollmentId(secondEnrollment.getId())
+                    .lessonId(lesson.getId())
+                    .build()))
+        .isEmpty();
+
+    mockMvc
+        .perform(
+            post(
+                    "/learn/courses/{courseId}/lessons/{lessonId}/progress",
+                    secondCourse.getId(),
+                    lesson.getId())
+                .with(authentication(studentAuth(student.getId())))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"completed\":false,\"lastPositionSec\":55}"))
+        .andExpect(status().isOk());
+
+    assertThat(
+            lessonProgressRepository
+                .findById(
+                    LessonProgressId.builder()
+                        .enrollmentId(secondEnrollment.getId())
+                        .lessonId(lesson.getId())
+                        .build())
+                .orElseThrow()
+                .getLastPositionSec())
+        .isEqualTo(55);
+
+    mockMvc
+        .perform(
+            post("/learn/lessons/{lessonId}/complete", lesson.getId())
+                .with(authentication(studentAuth(student.getId()))))
+        .andExpect(status().isConflict());
   }
 }

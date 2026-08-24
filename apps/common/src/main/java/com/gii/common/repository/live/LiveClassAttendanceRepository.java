@@ -28,7 +28,7 @@ public interface LiveClassAttendanceRepository extends JpaRepository<LiveClassAt
         FROM LiveClassAttendance a
         WHERE a.user.id = :userId
         AND a.liveClass.course.id = :courseId
-        AND a.liveClass.section.status = :sectionStatus
+        AND a.liveClass.slot.section.status = :sectionStatus
         AND a.liveClass.status IN :statuses
         AND a.joinedAt IS NOT NULL
       """)

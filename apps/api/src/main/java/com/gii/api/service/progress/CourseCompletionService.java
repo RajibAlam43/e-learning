@@ -6,6 +6,7 @@ import com.gii.common.repository.course.LessonRepository;
 import com.gii.common.repository.enrollment.LessonProgressRepository;
 import com.gii.common.repository.live.LiveClassAttendanceRepository;
 import com.gii.common.repository.live.LiveClassRepository;
+import com.gii.common.repository.live.LiveClassSlotRepository;
 import com.gii.common.repository.quiz.QuizAttemptRepository;
 import com.gii.common.repository.quiz.QuizRepository;
 import java.util.HashMap;
@@ -31,6 +32,7 @@ public class CourseCompletionService {
   private final QuizRepository quizRepository;
   private final QuizAttemptRepository quizAttemptRepository;
   private final LiveClassRepository liveClassRepository;
+  private final LiveClassSlotRepository liveClassSlotRepository;
   private final LiveClassAttendanceRepository liveClassAttendanceRepository;
 
   public Map<UUID, CourseCompletion> getByCourseIds(UUID userId, List<UUID> courseIds) {
@@ -53,8 +55,8 @@ public class CourseCompletionService {
                 userId, courseIds, PublishStatus.PUBLISHED));
     Map<UUID, Integer> totalLiveClasses =
         toCountMap(
-            liveClassRepository.countCompletableByCourseIdsAndStatuses(
-                courseIds, PublishStatus.PUBLISHED, COMPLETABLE_LIVE_CLASS_STATUSES));
+            liveClassSlotRepository.countMandatoryByCourseIdsAndSectionStatus(
+                courseIds, PublishStatus.PUBLISHED));
     Map<UUID, Integer> completedLiveClasses =
         toCountMap(
             liveClassRepository.countByCourseIdsAndSectionStatusAndLiveClassStatus(

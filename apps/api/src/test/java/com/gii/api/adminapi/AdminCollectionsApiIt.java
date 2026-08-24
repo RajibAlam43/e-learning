@@ -95,4 +95,23 @@ class AdminCollectionsApiIt extends AbstractAdminApiIntegrationTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.shortDescription").value("Updated short description"));
   }
+
+  @Test
+  void publishedCollectionRejectsDraftCourse() throws Exception {
+    var admin = user("Admin Draft Collection", "admin-draft-collection@example.com");
+    var creator = user("Creator Draft Collection", "creator-draft-collection@example.com");
+    var collection =
+        collection("Draft Offering Pack", "draft-offering-pack", creator, PublishStatus.DRAFT);
+    var draftCourse =
+        course("Draft Offering", "draft-offering-in-pack", creator, PublishStatus.DRAFT);
+    collectionCourse(collection, draftCourse, 1, true);
+
+    mockMvc
+        .perform(
+            post("/admin/collections/{collectionId}/publish", collection.getId())
+                .with(authentication(adminAuth(admin.getId()))))
+        .andExpect(status().isBadRequest())
+        .andExpect(
+            jsonPath("$.detail").value("Published collections may contain only published courses"));
+  }
 }

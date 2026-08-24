@@ -40,7 +40,7 @@ class InstructorLiveRepositoriesDataJpaTest extends AbstractInstructorDataJpaTes
     registrant(student, live, LiveClassRegistrantStatus.APPROVED);
     attendance(student, live);
 
-    assertThat(liveClassRepository.findByIdAndInstructorId(live.getId(), instructor.getId()))
+    assertThat(liveClassRepository.findByIdAssignedToInstructor(live.getId(), instructor.getId()))
         .isPresent();
     assertThat(
             liveClassRepository.findUpcomingByCourseIds(

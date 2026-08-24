@@ -29,11 +29,11 @@ public class EnrollmentAccessService {
       return;
     }
 
-    UUID courseId = lesson.getCourse().getId();
-
     boolean hasAccess =
-        enrollmentRepository.existsByUserIdAndCourseIdAndStatus(
-            userId, courseId, EnrollmentStatus.ACTIVE);
+        !enrollmentRepository
+            .findByUserIdAndTemplateVersionIdAndStatus(
+                userId, lesson.getSection().getTemplateVersion().getId(), EnrollmentStatus.ACTIVE)
+            .isEmpty();
 
     if (!hasAccess) {
       throw new ForbiddenApiException("You do not have access to this lesson");

@@ -30,12 +30,24 @@ public class LessonResourcesService {
     UUID userId = lessonAccessService.requireCurrentUserId(authentication);
     Lesson lesson = lessonAccessService.requirePublishedLesson(lessonId);
     Enrollment enrollment = lessonAccessService.requireActiveEnrollment(userId, lesson);
+    return getResources(lesson, enrollment);
+  }
+
+  public List<LessonResourceResponse> execute(
+      UUID courseId, UUID lessonId, Authentication authentication) {
+    UUID userId = lessonAccessService.requireCurrentUserId(authentication);
+    Lesson lesson = lessonAccessService.requirePublishedLesson(lessonId);
+    Enrollment enrollment = lessonAccessService.requireActiveEnrollment(userId, courseId, lesson);
+    return getResources(lesson, enrollment);
+  }
+
+  private List<LessonResourceResponse> getResources(Lesson lesson, Enrollment enrollment) {
     if (!lessonAccessService.isLessonAccessible(lesson, enrollment, Instant.now())) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Lesson is not available yet");
     }
 
     List<LessonResource> resources =
-        lessonResourceRepository.findByLessonIdOrderByPositionAsc(lessonId);
+        lessonResourceRepository.findByLessonIdOrderByPositionAsc(lesson.getId());
     return resources.stream()
         .filter(resource -> resource.getPurpose() == LessonResourcePurpose.SUPPLEMENTARY)
         .map(

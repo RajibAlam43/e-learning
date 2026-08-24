@@ -1,6 +1,7 @@
 package com.gii.api.service.certificate;
 
 import com.gii.api.model.response.certificate.CertificateIssueResponse;
+import com.gii.api.service.collection.PurchasedCollectionCoursesService;
 import com.gii.api.service.enrollment.CurrentUserService;
 import com.gii.api.service.localization.LocalizedContentService;
 import com.gii.api.service.progress.CourseCompletionService;
@@ -57,6 +58,7 @@ public class CertificateIssueService {
   private final CourseInstructorRepository courseInstructorRepository;
   private final R2PresignedUrlService r2PresignedUrlService;
   private final LocalizedContentService localizedContentService;
+  private final PurchasedCollectionCoursesService purchasedCollectionCoursesService;
 
   public CertificateIssueResponse executeCourse(UUID courseId, Authentication authentication) {
     User user = currentUserService.getCurrentUser(authentication);
@@ -67,6 +69,7 @@ public class CertificateIssueService {
     Certificate existing =
         certificateRepository.findByUserIdAndCourseId(user.getId(), courseId).orElse(null);
     if (existing != null) {
+      requireNotRevoked(existing);
       return toResponse(existing, true, "CERTIFICATE_ALREADY_EXISTS");
     }
 
@@ -81,13 +84,14 @@ public class CertificateIssueService {
     // Re-check after lock so concurrent issue requests become idempotent.
     existing = certificateRepository.findByUserIdAndCourseId(user.getId(), courseId).orElse(null);
     if (existing != null) {
+      requireNotRevoked(existing);
       return toResponse(existing, true, "CERTIFICATE_ALREADY_EXISTS");
     }
 
     if (enrollment.getStatus() != EnrollmentStatus.ACTIVE) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Enrollment is not active");
     }
-    if (enrollment.getExpiresAt() != null && enrollment.getExpiresAt().isBefore(Instant.now())) {
+    if (enrollment.getExpiresAt() != null && !enrollment.getExpiresAt().isAfter(Instant.now())) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Enrollment has expired");
     }
 
@@ -105,6 +109,7 @@ public class CertificateIssueService {
             .user(user)
             .targetType(CertificateTargetType.COURSE)
             .course(enrollment.getCourse())
+            .enrollment(enrollment)
             .collection(null)
             .issuedBy(user)
             .recipientName(user.getFullName())
@@ -130,6 +135,7 @@ public class CertificateIssueService {
     Certificate existing =
         certificateRepository.findByUserIdAndCollectionId(user.getId(), collectionId).orElse(null);
     if (existing != null) {
+      requireNotRevoked(existing);
       return toResponse(existing, true, "CERTIFICATE_ALREADY_EXISTS");
     }
 
@@ -144,21 +150,23 @@ public class CertificateIssueService {
     existing =
         certificateRepository.findByUserIdAndCollectionId(user.getId(), collectionId).orElse(null);
     if (existing != null) {
+      requireNotRevoked(existing);
       return toResponse(existing, true, "CERTIFICATE_ALREADY_EXISTS");
     }
 
     if (enrollment.getStatus() != EnrollmentStatus.ACTIVE) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Enrollment is not active");
     }
-    if (enrollment.getExpiresAt() != null && enrollment.getExpiresAt().isBefore(Instant.now())) {
+    if (enrollment.getExpiresAt() != null && !enrollment.getExpiresAt().isAfter(Instant.now())) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Enrollment has expired");
     }
 
-    var collectionCourses =
-        collectionCourseRepository.findByCollection_IdOrderByPositionAscWithCourseStatus(
-            collectionId, PublishStatus.PUBLISHED);
     var courseIds =
-        collectionCourses.stream().map(cc -> cc.getCourse().getId()).distinct().toList();
+        purchasedCollectionCoursesService.resolve(enrollment).stream()
+            .filter(course -> course.getStatus() == PublishStatus.PUBLISHED)
+            .map(course -> course.getId())
+            .distinct()
+            .toList();
     if (courseIds.isEmpty()) {
       throw new ResponseStatusException(
           HttpStatus.FORBIDDEN, "Collection completion criteria not met");
@@ -189,6 +197,7 @@ public class CertificateIssueService {
             .build();
     Certificate saved =
         saveCollectionCertificateIdempotent(certificate, user.getId(), collectionId);
+    requireNotRevoked(saved);
     return toResponse(saved, true, "COLLECTION_COMPLETED");
   }
 
@@ -200,6 +209,12 @@ public class CertificateIssueService {
       return certificateRepository
           .findByUserIdAndCollectionId(userId, collectionId)
           .orElseThrow(() -> ex);
+    }
+  }
+
+  private void requireNotRevoked(Certificate certificate) {
+    if (certificate.getRevokedAt() != null) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Certificate has been revoked");
     }
   }
 

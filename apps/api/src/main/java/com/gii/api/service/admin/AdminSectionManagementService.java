@@ -7,11 +7,13 @@ import com.gii.api.model.response.admin.AdminLessonSummaryResponse;
 import com.gii.api.model.response.admin.AdminLiveClassSectionItemResponse;
 import com.gii.api.model.response.admin.AdminQuizSummaryResponse;
 import com.gii.api.model.response.admin.AdminSectionItemResponse;
+import com.gii.api.service.course.CourseTemplateMutationGuard;
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.course.CourseSection;
 import com.gii.common.entity.course.Lesson;
 import com.gii.common.entity.course.SectionItem;
 import com.gii.common.entity.live.LiveClass;
+import com.gii.common.entity.live.LiveClassSlot;
 import com.gii.common.entity.quiz.Quiz;
 import com.gii.common.enums.PublishStatus;
 import com.gii.common.enums.ReleaseType;
@@ -21,6 +23,7 @@ import com.gii.common.repository.course.CourseSectionRepository;
 import com.gii.common.repository.course.LessonRepository;
 import com.gii.common.repository.course.SectionItemRepository;
 import com.gii.common.repository.live.LiveClassRepository;
+import com.gii.common.repository.live.LiveClassSlotRepository;
 import com.gii.common.repository.quiz.QuizRepository;
 import java.time.Instant;
 import java.util.List;
@@ -45,6 +48,8 @@ public class AdminSectionManagementService {
   private final QuizRepository quizRepository;
   private final SectionItemRepository sectionItemRepository;
   private final LiveClassRepository liveClassRepository;
+  private final LiveClassSlotRepository liveClassSlotRepository;
+  private final CourseTemplateMutationGuard templateMutationGuard;
 
   public AdminCourseSectionResponse create(UUID courseId, CreateSectionRequest request) {
     Course course =
@@ -52,9 +57,10 @@ public class AdminSectionManagementService {
             .findById(courseId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found"));
+    course = templateMutationGuard.prepareForTemplateUpdate(course);
     CourseSection section =
         CourseSection.builder()
-            .course(course)
+            .templateVersion(course.getTemplateVersion())
             .title(request.title().trim())
             .titleEn(request.titleEn())
             .slug(request.slug().trim())
@@ -68,7 +74,7 @@ public class AdminSectionManagementService {
             .unlockAfterDays(request.unlockAfterDays())
             .status(PublishStatus.DRAFT)
             .build();
-    return toResponse(sectionRepository.save(section));
+    return toResponse(sectionRepository.save(section), courseId);
   }
 
   public AdminCourseSectionResponse update(UUID sectionId, UpdateSectionRequest request) {
@@ -77,6 +83,7 @@ public class AdminSectionManagementService {
             .findById(sectionId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Section not found"));
+    templateMutationGuard.requireDraft(section.getTemplateVersion());
     if (request.title() != null) {
       section.setTitle(request.title().trim());
     }
@@ -119,6 +126,7 @@ public class AdminSectionManagementService {
             .findById(sectionId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Section not found"));
+    templateMutationGuard.requireDraft(section.getTemplateVersion());
     sectionRepository.delete(section);
   }
 
@@ -128,6 +136,7 @@ public class AdminSectionManagementService {
             .findById(sectionId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Section not found"));
+    templateMutationGuard.requireDraft(section.getTemplateVersion());
     section.setStatus(PublishStatus.PUBLISHED);
     if (section.getPublishedAt() == null) {
       section.setPublishedAt(Instant.now());
@@ -141,11 +150,18 @@ public class AdminSectionManagementService {
             .findById(sectionId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Section not found"));
+    templateMutationGuard.requireDraft(section.getTemplateVersion());
     section.setStatus(PublishStatus.DRAFT);
     sectionRepository.save(section);
   }
 
   AdminCourseSectionResponse toResponse(CourseSection section) {
+    List<Course> courses =
+        courseRepository.findByTemplateVersionId(section.getTemplateVersion().getId());
+    return toResponse(section, courses.size() == 1 ? courses.getFirst().getId() : null);
+  }
+
+  AdminCourseSectionResponse toResponse(CourseSection section, UUID courseId) {
     List<AdminLessonSummaryResponse> lessons =
         lessonRepository.findBySectionIdOrderByPositionAsc(section.getId()).stream()
             .map(this::toLessonSummary)
@@ -155,7 +171,10 @@ public class AdminSectionManagementService {
             .map(this::toQuizSummary)
             .toList();
     List<LiveClass> liveClasses =
-        liveClassRepository.findBySectionIdOrderByStartsAtAsc(section.getId());
+        courseId == null
+            ? List.of()
+            : liveClassRepository.findByCourseIdAndSectionIdOrderByStartsAtAsc(
+                courseId, section.getId());
     Map<UUID, AdminLessonSummaryResponse> lessonById =
         lessons.stream()
             .collect(Collectors.toMap(AdminLessonSummaryResponse::lessonId, Function.identity()));
@@ -163,10 +182,19 @@ public class AdminSectionManagementService {
         quizzes.stream()
             .collect(Collectors.toMap(AdminQuizSummaryResponse::quizId, Function.identity()));
     Map<UUID, LiveClass> liveClassById =
-        liveClasses.stream().collect(Collectors.toMap(LiveClass::getId, Function.identity()));
+        liveClasses.stream()
+            .collect(
+                Collectors.toMap(
+                    liveClass -> liveClass.getSlot().getId(), Function.identity(), (a, b) -> a));
+    Map<UUID, LiveClassSlot> liveClassSlotById =
+        liveClassSlotRepository.findBySectionId(section.getId()).stream()
+            .collect(Collectors.toMap(LiveClassSlot::getId, Function.identity()));
     List<AdminSectionItemResponse> items =
         sectionItemRepository.findBySectionIdOrderByPositionAsc(section.getId()).stream()
-            .map(item -> toSectionItemResponse(item, lessonById, quizById, liveClassById))
+            .map(
+                item ->
+                    toSectionItemResponse(
+                        item, lessonById, quizById, liveClassById, liveClassSlotById))
             .toList();
 
     return AdminCourseSectionResponse.builder()
@@ -224,7 +252,8 @@ public class AdminSectionManagementService {
       SectionItem item,
       Map<UUID, AdminLessonSummaryResponse> lessonById,
       Map<UUID, AdminQuizSummaryResponse> quizById,
-      Map<UUID, LiveClass> liveClassById) {
+      Map<UUID, LiveClass> liveClassById,
+      Map<UUID, LiveClassSlot> liveClassSlotById) {
     AdminLessonSummaryResponse lesson = null;
     AdminQuizSummaryResponse quiz = null;
     AdminLiveClassSectionItemResponse liveClass = null;
@@ -244,7 +273,19 @@ public class AdminSectionManagementService {
                 .endsAt(value.getEndsAt())
                 .provider(value.getProvider())
                 .status(value.getStatus())
+                .scheduled(true)
                 .build();
+      } else {
+        LiveClassSlot slot = liveClassSlotById.get(item.getItemId());
+        if (slot != null) {
+          liveClass =
+              AdminLiveClassSectionItemResponse.builder()
+                  .liveClassId(slot.getId())
+                  .title(slot.getTitle())
+                  .titleEn(slot.getTitleEn())
+                  .scheduled(false)
+                  .build();
+        }
       }
     }
     return AdminSectionItemResponse.builder()

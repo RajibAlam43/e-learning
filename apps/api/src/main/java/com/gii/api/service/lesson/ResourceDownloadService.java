@@ -36,6 +36,24 @@ public class ResourceDownloadService {
 
     Lesson lesson = lessonAccessService.requirePublishedLesson(resource.getLesson().getId());
     Enrollment enrollment = lessonAccessService.requireActiveEnrollment(userId, lesson);
+    return createDownload(resource, lesson, enrollment);
+  }
+
+  public ResourceDownloadUrlResponse execute(
+      UUID courseId, UUID resourceId, Authentication authentication) {
+    UUID userId = lessonAccessService.requireCurrentUserId(authentication);
+    LessonResource resource =
+        lessonResourceRepository
+            .findById(resourceId)
+            .orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Resource not found"));
+    Lesson lesson = lessonAccessService.requirePublishedLesson(resource.getLesson().getId());
+    Enrollment enrollment = lessonAccessService.requireActiveEnrollment(userId, courseId, lesson);
+    return createDownload(resource, lesson, enrollment);
+  }
+
+  private ResourceDownloadUrlResponse createDownload(
+      LessonResource resource, Lesson lesson, Enrollment enrollment) {
     if (!lessonAccessService.isLessonAccessible(lesson, enrollment, Instant.now())) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Lesson is not available yet");
     }

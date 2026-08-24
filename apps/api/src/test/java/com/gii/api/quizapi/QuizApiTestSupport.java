@@ -1,5 +1,6 @@
 package com.gii.api.quizapi;
 
+import com.gii.api.testsupport.CourseTestData;
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.course.CourseSection;
 import com.gii.common.entity.course.Lesson;
@@ -11,16 +12,15 @@ import com.gii.common.entity.quiz.QuizAttemptAnswerId;
 import com.gii.common.entity.quiz.QuizChoice;
 import com.gii.common.entity.quiz.QuizQuestion;
 import com.gii.common.entity.user.User;
-import com.gii.common.enums.CourseLanguage;
-import com.gii.common.enums.CourseLevel;
 import com.gii.common.enums.EnrollmentStatus;
 import com.gii.common.enums.LessonType;
 import com.gii.common.enums.PublishStatus;
 import com.gii.common.enums.QuestionType;
-import com.gii.common.enums.StudyMode;
 import com.gii.common.enums.UserStatus;
 import com.gii.common.repository.course.CourseRepository;
 import com.gii.common.repository.course.CourseSectionRepository;
+import com.gii.common.repository.course.CourseTemplateRepository;
+import com.gii.common.repository.course.CourseTemplateVersionRepository;
 import com.gii.common.repository.course.LessonRepository;
 import com.gii.common.repository.enrollment.EnrollmentRepository;
 import com.gii.common.repository.enrollment.StudentLearningStreakRepository;
@@ -42,6 +42,8 @@ abstract class QuizApiTestSupport {
 
   @Autowired protected UserRepository userRepository;
   @Autowired protected CourseRepository courseRepository;
+  @Autowired protected CourseTemplateVersionRepository courseTemplateVersionRepository;
+  @Autowired protected CourseTemplateRepository courseTemplateRepository;
   @Autowired protected CourseSectionRepository courseSectionRepository;
   @Autowired protected LessonRepository lessonRepository;
   @Autowired protected EnrollmentRepository enrollmentRepository;
@@ -63,6 +65,8 @@ abstract class QuizApiTestSupport {
     lessonRepository.deleteAll();
     courseSectionRepository.deleteAll();
     courseRepository.deleteAll();
+    courseTemplateVersionRepository.deleteAll();
+    courseTemplateRepository.deleteAll();
     userRepository.deleteAll();
   }
 
@@ -82,28 +86,35 @@ abstract class QuizApiTestSupport {
   }
 
   protected Course course(String title, String slug, User creator, PublishStatus status) {
+    Course course = CourseTestData.course(title, slug, creator);
+    course.setPriceBdt(BigDecimal.valueOf(1200));
+    course.setStatus(status);
+    course.setPublishedAt(Instant.now());
+    course.setQuizCount(1);
+    course.setEstimatedDurationMinutes(120);
+    course.getTemplateVersion().setStatus(status);
+    return courseRepository.save(course);
+  }
+
+  protected Course repeatedCourse(Course source, String slug, User creator) {
     return courseRepository.save(
         Course.builder()
-            .title(title)
+            .templateVersion(source.getTemplateVersion())
+            .name(source.getName())
             .slug(slug)
-            .priceBdt(BigDecimal.valueOf(1200))
-            .level(CourseLevel.BEGINNER)
-            .language(CourseLanguage.EN)
-            .studyMode(StudyMode.SCHEDULED)
-            .status(status)
+            .priceBdt(source.getPriceBdt())
+            .studyMode(source.getStudyMode())
+            .status(PublishStatus.PUBLISHED)
             .publishedAt(Instant.now())
+            .isFree(source.getIsFree())
             .createdBy(creator)
-            .liveSessionCount(0)
-            .quizCount(1)
-            .recordedHoursCount(0)
-            .estimatedDurationMinutes(120)
             .build());
   }
 
   protected CourseSection section(Course course, int position, PublishStatus status) {
     return courseSectionRepository.save(
         CourseSection.builder()
-            .course(course)
+            .templateVersion(course.getTemplateVersion())
             .title("Section " + position)
             .slug("section-" + position + "-" + UUID.randomUUID().toString().substring(0, 6))
             .position(position)
@@ -115,7 +126,6 @@ abstract class QuizApiTestSupport {
       Course course, CourseSection section, int position, PublishStatus status) {
     return lessonRepository.save(
         Lesson.builder()
-            .course(course)
             .section(section)
             .title("Lesson " + position)
             .slug("lesson-" + position + "-" + UUID.randomUUID().toString().substring(0, 6))
@@ -148,7 +158,6 @@ abstract class QuizApiTestSupport {
       Integer timeLimitSec) {
     return quizRepository.save(
         Quiz.builder()
-            .course(course)
             .section(lesson.getSection())
             .position(lesson.getPosition())
             .title(title)
@@ -184,16 +193,51 @@ abstract class QuizApiTestSupport {
       Boolean passed,
       Instant startedAt,
       Instant submittedAt) {
+    Enrollment quizEnrollment =
+        enrollmentRepository
+            .findByUserIdAndCourseId(user.getId(), courseForQuiz(quiz).getId())
+            .orElseGet(
+                () ->
+                    enrollment(
+                        user,
+                        courseForQuiz(quiz),
+                        EnrollmentStatus.ACTIVE,
+                        Instant.now().plusSeconds(86400)));
+    return attempt(quiz, user, quizEnrollment, attemptNo, scorePct, passed, startedAt, submittedAt);
+  }
+
+  protected QuizAttempt attempt(
+      Quiz quiz,
+      User user,
+      Enrollment enrollment,
+      int attemptNo,
+      Integer scorePct,
+      Boolean passed,
+      Instant startedAt,
+      Instant submittedAt) {
     return quizAttemptRepository.save(
         QuizAttempt.builder()
             .quiz(quiz)
             .user(user)
+            .enrollment(enrollment)
             .attemptNo(attemptNo)
             .scorePct(scorePct)
             .passed(passed)
             .startedAt(startedAt)
             .submittedAt(submittedAt)
             .build());
+  }
+
+  private Course courseForQuiz(Quiz quiz) {
+    return courseRepository.findAll().stream()
+        .filter(
+            course ->
+                course
+                    .getTemplateVersion()
+                    .getId()
+                    .equals(quiz.getSection().getTemplateVersion().getId()))
+        .findFirst()
+        .orElseThrow();
   }
 
   protected QuizAttemptAnswer attemptAnswer(

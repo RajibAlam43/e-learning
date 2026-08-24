@@ -10,9 +10,21 @@ import org.springframework.data.repository.query.Param;
 
 public interface CourseCategoryRepository extends JpaRepository<CourseCategory, CourseCategoryId> {
 
-  @Query("SELECT cc FROM CourseCategory cc JOIN FETCH cc.category WHERE cc.course.id = :courseId")
+  @Query(
+      """
+        SELECT cc FROM CourseCategory cc JOIN FETCH cc.category
+        WHERE cc.templateVersion.id = (
+          SELECT c.templateVersion.id FROM Course c WHERE c.id = :courseId
+        )
+      """)
   List<CourseCategory> findByCourseId(@Param("courseId") UUID courseId);
 
-  @Query("SELECT cc FROM CourseCategory cc JOIN FETCH cc.category WHERE cc.course.id IN :courseIds")
+  @Query(
+      """
+        SELECT cc FROM CourseCategory cc JOIN FETCH cc.category
+        WHERE cc.templateVersion.id IN (
+          SELECT c.templateVersion.id FROM Course c WHERE c.id IN :courseIds
+        )
+      """)
   List<CourseCategory> findByCourseIds(@Param("courseIds") List<UUID> courseIds);
 }

@@ -1,5 +1,6 @@
 package com.gii.api.certificateapi;
 
+import com.gii.api.testsupport.CourseTestData;
 import com.gii.common.entity.certificate.Certificate;
 import com.gii.common.entity.collection.Collection;
 import com.gii.common.entity.collection.CollectionCourse;
@@ -16,13 +17,10 @@ import com.gii.common.entity.enrollment.LessonProgressId;
 import com.gii.common.entity.user.User;
 import com.gii.common.enums.CertificateTargetType;
 import com.gii.common.enums.CollectionType;
-import com.gii.common.enums.CourseLanguage;
-import com.gii.common.enums.CourseLevel;
 import com.gii.common.enums.EnrollmentStatus;
 import com.gii.common.enums.InstructorRole;
 import com.gii.common.enums.LessonType;
 import com.gii.common.enums.PublishStatus;
-import com.gii.common.enums.StudyMode;
 import com.gii.common.enums.UserStatus;
 import com.gii.common.repository.certificate.CertificateRepository;
 import com.gii.common.repository.collection.CollectionCourseRepository;
@@ -31,6 +29,8 @@ import com.gii.common.repository.collection.CollectionRepository;
 import com.gii.common.repository.course.CourseInstructorRepository;
 import com.gii.common.repository.course.CourseRepository;
 import com.gii.common.repository.course.CourseSectionRepository;
+import com.gii.common.repository.course.CourseTemplateRepository;
+import com.gii.common.repository.course.CourseTemplateVersionRepository;
 import com.gii.common.repository.course.LessonRepository;
 import com.gii.common.repository.enrollment.EnrollmentRepository;
 import com.gii.common.repository.enrollment.LessonProgressRepository;
@@ -47,6 +47,8 @@ abstract class CertificateApiTestSupport {
 
   @Autowired protected UserRepository userRepository;
   @Autowired protected CourseRepository courseRepository;
+  @Autowired protected CourseTemplateVersionRepository courseTemplateVersionRepository;
+  @Autowired protected CourseTemplateRepository courseTemplateRepository;
   @Autowired protected CollectionRepository collectionRepository;
   @Autowired protected CollectionCourseRepository collectionCourseRepository;
   @Autowired protected CollectionEnrollmentRepository collectionEnrollmentRepository;
@@ -68,6 +70,8 @@ abstract class CertificateApiTestSupport {
     lessonRepository.deleteAll();
     courseSectionRepository.deleteAll();
     courseRepository.deleteAll();
+    courseTemplateVersionRepository.deleteAll();
+    courseTemplateRepository.deleteAll();
     userRepository.deleteAll();
   }
 
@@ -91,7 +95,7 @@ abstract class CertificateApiTestSupport {
             .id(
                 CollectionCourseId.builder()
                     .collectionId(collection.getId())
-                    .courseId(course.getId())
+                    .courseOfferingId(course.getId())
                     .build())
             .collection(collection)
             .course(course)
@@ -128,28 +132,20 @@ abstract class CertificateApiTestSupport {
   }
 
   protected Course course(String title, String slug, User creator, PublishStatus status) {
-    return courseRepository.save(
-        Course.builder()
-            .title(title)
-            .slug(slug)
-            .priceBdt(BigDecimal.valueOf(1200))
-            .level(CourseLevel.BEGINNER)
-            .language(CourseLanguage.EN)
-            .studyMode(StudyMode.SCHEDULED)
-            .status(status)
-            .publishedAt(Instant.now())
-            .createdBy(creator)
-            .liveSessionCount(0)
-            .quizCount(0)
-            .recordedHoursCount(2)
-            .estimatedDurationMinutes(120)
-            .build());
+    Course course = CourseTestData.course(title, slug, creator);
+    course.setPriceBdt(BigDecimal.valueOf(1200));
+    course.setStatus(status);
+    course.setPublishedAt(Instant.now());
+    course.setRecordedHoursCount(2);
+    course.setEstimatedDurationMinutes(120);
+    course.getTemplateVersion().setStatus(status);
+    return courseRepository.save(course);
   }
 
   protected CourseSection section(Course course, int position, PublishStatus status) {
     return courseSectionRepository.save(
         CourseSection.builder()
-            .course(course)
+            .templateVersion(course.getTemplateVersion())
             .title("Section " + position)
             .slug("section-" + position + "-" + UUID.randomUUID().toString().substring(0, 6))
             .position(position)
@@ -161,7 +157,6 @@ abstract class CertificateApiTestSupport {
       Course course, CourseSection section, int position, PublishStatus status) {
     return lessonRepository.save(
         Lesson.builder()
-            .course(course)
             .section(section)
             .title("Lesson " + position)
             .slug("lesson-" + position + "-" + UUID.randomUUID().toString().substring(0, 6))
@@ -185,10 +180,37 @@ abstract class CertificateApiTestSupport {
   }
 
   protected LessonProgress completedProgress(User user, Lesson lesson) {
+    Enrollment enrollment =
+        enrollmentRepository
+            .findByUserIdAndTemplateVersionIdAndStatus(
+                user.getId(),
+                lesson.getSection().getTemplateVersion().getId(),
+                EnrollmentStatus.ACTIVE)
+            .stream()
+            .findFirst()
+            .orElseGet(
+                () ->
+                    enrollment(
+                        user,
+                        courseRepository.findAll().stream()
+                            .filter(
+                                course ->
+                                    course
+                                        .getTemplateVersion()
+                                        .getId()
+                                        .equals(lesson.getSection().getTemplateVersion().getId()))
+                            .findFirst()
+                            .orElseThrow(),
+                        EnrollmentStatus.ACTIVE,
+                        null));
     return lessonProgressRepository.save(
         LessonProgress.builder()
-            .id(LessonProgressId.builder().userId(user.getId()).lessonId(lesson.getId()).build())
-            .user(user)
+            .id(
+                LessonProgressId.builder()
+                    .enrollmentId(enrollment.getId())
+                    .lessonId(lesson.getId())
+                    .build())
+            .enrollment(enrollment)
             .lesson(lesson)
             .completedAt(Instant.now().minusSeconds(60))
             .lastPositionSec(100)
@@ -201,7 +223,7 @@ abstract class CertificateApiTestSupport {
         CourseInstructor.builder()
             .id(
                 CourseInstructorId.builder()
-                    .courseId(course.getId())
+                    .courseOfferingId(course.getId())
                     .instructorUserId(instructor.getId())
                     .build())
             .course(course)

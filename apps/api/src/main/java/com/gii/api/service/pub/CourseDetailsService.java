@@ -120,6 +120,13 @@ public class CourseDetailsService {
         .prerequisites(
             localizedContentService.list(course.getPrerequisites(), course.getPrerequisitesEn()))
         .studyMode(course.getStudyMode())
+        .timezone(course.getTimezone())
+        .enrollmentStartsAt(course.getEnrollmentStartsAt())
+        .enrollmentEndsAt(course.getEnrollmentEndsAt())
+        .startsAt(course.getStartsAt())
+        .endsAt(course.getEndsAt())
+        .capacity(course.getCapacity())
+        .accessDurationDays(course.getAccessDurationDays())
         .categories(categoryResponses)
         .publishedAt(course.getPublishedAt())
         .instructors(instructors)

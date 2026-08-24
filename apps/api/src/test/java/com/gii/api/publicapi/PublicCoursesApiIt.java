@@ -250,4 +250,31 @@ class PublicCoursesApiIt extends AbstractPublicApiIntegrationTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content[0].title").value("Newer2"));
   }
+
+  @Test
+  void sortsByTemplateTitleWhenPublicSortUsesTitle() throws Exception {
+    User creator = user("Creator", "creator-title-sort@example.com", UserStatus.ACTIVE);
+    course(
+        "Zulu Course",
+        uniqueSlug("zulu-title-sort"),
+        PublishStatus.PUBLISHED,
+        creator,
+        CourseLevel.BEGINNER,
+        CourseLanguage.EN,
+        Instant.now());
+    course(
+        "Alpha Course",
+        uniqueSlug("alpha-title-sort"),
+        PublishStatus.PUBLISHED,
+        creator,
+        CourseLevel.BEGINNER,
+        CourseLanguage.EN,
+        Instant.now());
+
+    mockMvc
+        .perform(get("/public/courses").param("sort", "title,asc"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[0].title").value("Alpha Course"))
+        .andExpect(jsonPath("$.content[1].title").value("Zulu Course"));
+  }
 }

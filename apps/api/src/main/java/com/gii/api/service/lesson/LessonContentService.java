@@ -41,7 +41,18 @@ public class LessonContentService {
     UUID userId = lessonAccessService.requireCurrentUserId(authentication);
     Lesson lesson = lessonAccessService.requirePublishedLesson(lessonId);
     Enrollment enrollment = lessonAccessService.requireActiveEnrollment(userId, lesson);
+    return buildResponse(lesson, enrollment);
+  }
 
+  public LessonContentResponse execute(
+      UUID courseId, UUID lessonId, Authentication authentication) {
+    UUID userId = lessonAccessService.requireCurrentUserId(authentication);
+    Lesson lesson = lessonAccessService.requirePublishedLesson(lessonId);
+    Enrollment enrollment = lessonAccessService.requireActiveEnrollment(userId, courseId, lesson);
+    return buildResponse(lesson, enrollment);
+  }
+
+  private LessonContentResponse buildResponse(Lesson lesson, Enrollment enrollment) {
     Instant now = Instant.now();
     boolean accessible = lessonAccessService.isLessonAccessible(lesson, enrollment, now);
     if (!accessible) {
@@ -52,18 +63,18 @@ public class LessonContentService {
         lessonProgressRepository
             .findById(
                 com.gii.common.entity.enrollment.LessonProgressId.builder()
-                    .userId(userId)
-                    .lessonId(lessonId)
+                    .enrollmentId(enrollment.getId())
+                    .lessonId(lesson.getId())
                     .build())
             .orElse(null);
 
     String courseThumbnailUrl =
-        assetUrlService.publicUrl(lesson.getCourse().getThumbnailObjectKey());
+        assetUrlService.publicUrl(enrollment.getCourse().getThumbnailObjectKey());
     MediaPlaybackResponse media =
         toLessonPlayback(
-            mediaAssetRepository.findByLessonId(lessonId).orElse(null), courseThumbnailUrl);
+            mediaAssetRepository.findByLessonId(lesson.getId()).orElse(null), courseThumbnailUrl);
     List<LessonResourceResponse> allResources =
-        lessonResourceRepository.findByLessonIdOrderByPositionAsc(lessonId).stream()
+        lessonResourceRepository.findByLessonIdOrderByPositionAsc(lesson.getId()).stream()
             .map(
                 resource ->
                     LessonResourceResponse.builder()
@@ -107,11 +118,11 @@ public class LessonContentService {
         .mediaPlayback(media)
         .primaryResource(primaryResource)
         .resources(resources)
-        .courseId(lesson.getCourse().getId())
+        .courseId(enrollment.getCourse().getId())
         .sectionId(lesson.getSection().getId())
         .courseName(
             localizedContentService.text(
-                lesson.getCourse().getTitle(), lesson.getCourse().getTitleEn()))
+                enrollment.getCourse().getTitle(), enrollment.getCourse().getTitleEn()))
         .build();
   }
 

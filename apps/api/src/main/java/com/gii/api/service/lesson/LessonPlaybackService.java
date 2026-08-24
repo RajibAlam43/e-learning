@@ -18,4 +18,9 @@ public class LessonPlaybackService {
   public MediaPlaybackResponse execute(UUID lessonId, Authentication authentication) {
     return mediaPlaybackService.getLessonPlayback(lessonId, authentication);
   }
+
+  public MediaPlaybackResponse execute(
+      UUID courseId, UUID lessonId, Authentication authentication) {
+    return mediaPlaybackService.getLessonPlayback(courseId, lessonId, authentication);
+  }
 }

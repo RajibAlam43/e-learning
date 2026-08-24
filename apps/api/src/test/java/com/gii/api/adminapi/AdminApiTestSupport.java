@@ -1,5 +1,6 @@
 package com.gii.api.adminapi;
 
+import com.gii.api.testsupport.CourseTestData;
 import com.gii.common.entity.collection.Collection;
 import com.gii.common.entity.collection.CollectionCourse;
 import com.gii.common.entity.collection.CollectionCourseId;
@@ -22,8 +23,6 @@ import com.gii.common.entity.user.InstructorProfile;
 import com.gii.common.entity.user.Role;
 import com.gii.common.entity.user.User;
 import com.gii.common.enums.CollectionType;
-import com.gii.common.enums.CourseLanguage;
-import com.gii.common.enums.CourseLevel;
 import com.gii.common.enums.InstructorRole;
 import com.gii.common.enums.LessonType;
 import com.gii.common.enums.LiveClassProvider;
@@ -37,8 +36,8 @@ import com.gii.common.enums.OrderStatus;
 import com.gii.common.enums.PublishStatus;
 import com.gii.common.enums.QuestionType;
 import com.gii.common.enums.SectionItemType;
-import com.gii.common.enums.StudyMode;
 import com.gii.common.enums.UserStatus;
+import com.gii.common.repository.certificate.CertificateRepository;
 import com.gii.common.repository.collection.CollectionCourseRepository;
 import com.gii.common.repository.collection.CollectionRepository;
 import com.gii.common.repository.course.CategoryRepository;
@@ -47,6 +46,8 @@ import com.gii.common.repository.course.CourseInstructorRepository;
 import com.gii.common.repository.course.CourseRepository;
 import com.gii.common.repository.course.CourseReviewRepository;
 import com.gii.common.repository.course.CourseSectionRepository;
+import com.gii.common.repository.course.CourseTemplateRepository;
+import com.gii.common.repository.course.CourseTemplateVersionRepository;
 import com.gii.common.repository.course.LessonRepository;
 import com.gii.common.repository.course.LessonResourceRepository;
 import com.gii.common.repository.course.MediaAssetRepository;
@@ -54,6 +55,8 @@ import com.gii.common.repository.course.SectionItemRepository;
 import com.gii.common.repository.enrollment.EnrollmentRepository;
 import com.gii.common.repository.live.LiveClassRegistrantRepository;
 import com.gii.common.repository.live.LiveClassRepository;
+import com.gii.common.repository.live.LiveClassSlotRepository;
+import com.gii.common.repository.order.OrderItemCourseRepository;
 import com.gii.common.repository.order.OrderItemRepository;
 import com.gii.common.repository.order.OrderRepository;
 import com.gii.common.repository.quiz.QuizAttemptAnswerRepository;
@@ -80,8 +83,11 @@ abstract class AdminApiTestSupport {
 
   @Autowired protected UserRepository userRepository;
   @Autowired protected CollectionRepository collectionRepository;
+  @Autowired protected CertificateRepository certificateRepository;
   @Autowired protected CollectionCourseRepository collectionCourseRepository;
   @Autowired protected CourseRepository courseRepository;
+  @Autowired protected CourseTemplateVersionRepository courseTemplateVersionRepository;
+  @Autowired protected CourseTemplateRepository courseTemplateRepository;
   @Autowired protected CourseReviewRepository courseReviewRepository;
   @Autowired protected CategoryRepository categoryRepository;
   @Autowired protected CourseCategoryRepository courseCategoryRepository;
@@ -92,6 +98,7 @@ abstract class AdminApiTestSupport {
   @Autowired protected SectionItemRepository sectionItemRepository;
   @Autowired protected EnrollmentRepository enrollmentRepository;
   @Autowired protected LiveClassRepository liveClassRepository;
+  @Autowired protected LiveClassSlotRepository liveClassSlotRepository;
   @Autowired protected LiveClassRegistrantRepository liveClassRegistrantRepository;
   @Autowired protected QuizRepository quizRepository;
   @Autowired protected QuizQuestionRepository quizQuestionRepository;
@@ -104,11 +111,13 @@ abstract class AdminApiTestSupport {
   @Autowired protected UserRoleRepository userRoleRepository;
   @Autowired protected SupportTicketRepository supportTicketRepository;
   @Autowired protected OrderItemRepository orderItemRepository;
+  @Autowired protected OrderItemCourseRepository orderItemCourseRepository;
   @Autowired protected OrderRepository orderRepository;
   @Autowired protected AppSettingRepository appSettingRepository;
 
   protected void cleanupAdminData() {
     appSettingRepository.deleteAll();
+    certificateRepository.deleteAll();
     courseReviewRepository.deleteAll();
     supportTicketRepository.deleteAll();
     collectionCourseRepository.deleteAll();
@@ -121,7 +130,9 @@ abstract class AdminApiTestSupport {
     sectionItemRepository.deleteAll();
     liveClassRegistrantRepository.deleteAll();
     liveClassRepository.deleteAll();
+    liveClassSlotRepository.deleteAll();
     enrollmentRepository.deleteAll();
+    orderItemCourseRepository.deleteAll();
     orderItemRepository.deleteAll();
     orderRepository.deleteAll();
     mediaAssetRepository.deleteAll();
@@ -131,6 +142,8 @@ abstract class AdminApiTestSupport {
     courseInstructorRepository.deleteAll();
     courseCategoryRepository.deleteAll();
     courseRepository.deleteAll();
+    courseTemplateVersionRepository.deleteAll();
+    courseTemplateRepository.deleteAll();
     categoryRepository.deleteAll();
     instructorProfileRepository.deleteAll();
     userRoleRepository.deleteAll();
@@ -157,7 +170,7 @@ abstract class AdminApiTestSupport {
             .id(
                 CollectionCourseId.builder()
                     .collectionId(collection.getId())
-                    .courseId(course.getId())
+                    .courseOfferingId(course.getId())
                     .build())
             .collection(collection)
             .course(course)
@@ -182,21 +195,9 @@ abstract class AdminApiTestSupport {
   }
 
   protected Course course(String title, String slug, User creator) {
-    return courseRepository.save(
-        Course.builder()
-            .title(title)
-            .slug(slug)
-            .priceBdt(BigDecimal.valueOf(1500))
-            .level(CourseLevel.BEGINNER)
-            .language(CourseLanguage.EN)
-            .studyMode(StudyMode.SCHEDULED)
-            .status(PublishStatus.DRAFT)
-            .createdBy(creator)
-            .isFree(false)
-            .liveSessionCount(0)
-            .quizCount(0)
-            .recordedHoursCount(0)
-            .build());
+    Course course = CourseTestData.course(title, slug, creator);
+    course.setPriceBdt(BigDecimal.valueOf(1500));
+    return courseRepository.save(course);
   }
 
   protected Course course(String title, String slug, User creator, PublishStatus status) {
@@ -215,7 +216,7 @@ abstract class AdminApiTestSupport {
   protected CourseSection section(Course course, int position) {
     return courseSectionRepository.save(
         CourseSection.builder()
-            .course(course)
+            .templateVersion(course.getTemplateVersion())
             .title("Section " + position)
             .slug("section-" + position + "-" + UUID.randomUUID().toString().substring(0, 6))
             .position(position)
@@ -231,7 +232,6 @@ abstract class AdminApiTestSupport {
     Lesson lesson =
         lessonRepository.save(
             Lesson.builder()
-                .course(course)
                 .section(section)
                 .title("Lesson " + position)
                 .slug("lesson-" + position + "-" + UUID.randomUUID().toString().substring(0, 6))
@@ -283,7 +283,7 @@ abstract class AdminApiTestSupport {
         CourseInstructor.builder()
             .id(
                 CourseInstructorId.builder()
-                    .courseId(course.getId())
+                    .courseOfferingId(course.getId())
                     .instructorUserId(instructor.getId())
                     .build())
             .course(course)
@@ -297,8 +297,14 @@ abstract class AdminApiTestSupport {
         liveClassRepository.save(
             LiveClass.builder()
                 .course(course)
-                .section(section)
-                .title("Live Session")
+                .slot(
+                    liveClassSlotRepository.save(
+                        com.gii.common.entity.live.LiveClassSlot.builder()
+                            .section(section)
+                            .title("Live Session")
+                            .expectedDurationMinutes(30)
+                            .isMandatory(true)
+                            .build()))
                 .provider(LiveClassProvider.ZOOM)
                 .providerMeetingId("m-" + UUID.randomUUID())
                 .hostStartUrl("https://zoom.test/start")
@@ -312,7 +318,7 @@ abstract class AdminApiTestSupport {
         SectionItem.builder()
             .section(section)
             .itemType(SectionItemType.LIVE_CLASS)
-            .itemId(liveClass.getId())
+            .itemId(liveClass.getSlot().getId())
             .position(position)
             .build());
     return liveClass;
@@ -349,7 +355,6 @@ abstract class AdminApiTestSupport {
     Quiz quiz =
         quizRepository.save(
             Quiz.builder()
-                .course(course)
                 .section(section)
                 .position(position)
                 .title(title)

@@ -132,6 +132,11 @@ public class AllCoursesService {
     List<Sort.Order> safeOrders =
         requestedSort.stream()
             .filter(order -> ALLOWED_SORT_FIELDS.contains(order.getProperty()))
+            .map(
+                order ->
+                    order.getProperty().equals("title")
+                        ? new Sort.Order(order.getDirection(), "templateVersion.title")
+                        : order)
             .toList();
 
     if (safeOrders.isEmpty()) {
@@ -152,15 +157,24 @@ public class AllCoursesService {
     }
 
     List<CourseCategory> courseCategories = courseCategoryRepository.findByCourseIds(courseIds);
+    Map<UUID, List<UUID>> courseIdsByVersionId =
+        courseRepository.findAllById(courseIds).stream()
+            .collect(
+                Collectors.groupingBy(
+                    course -> course.getTemplateVersion().getId(),
+                    Collectors.mapping(Course::getId, Collectors.toList())));
     Map<UUID, List<String>> result = new HashMap<>();
     for (CourseCategory courseCategory : courseCategories) {
-      result
-          .computeIfAbsent(
-              courseCategory.getCourse().getId(), ignored -> new java.util.ArrayList<>())
-          .add(
-              localizedContentService.text(
-                  courseCategory.getCategory().getName(),
-                  courseCategory.getCategory().getNameEn()));
+      for (UUID courseId :
+          courseIdsByVersionId.getOrDefault(
+              courseCategory.getTemplateVersion().getId(), List.of())) {
+        result
+            .computeIfAbsent(courseId, ignored -> new java.util.ArrayList<>())
+            .add(
+                localizedContentService.text(
+                    courseCategory.getCategory().getName(),
+                    courseCategory.getCategory().getNameEn()));
+      }
     }
     result.replaceAll((key, value) -> new java.util.ArrayList<>(new LinkedHashSet<>(value)));
     return result;
@@ -197,6 +211,9 @@ public class AllCoursesService {
                 course.getShortDescription(), course.getShortDescriptionEn()))
         .thumbnailUrl(assetUrlService.publicUrl(course.getThumbnailObjectKey()))
         .priceBdt(course.getPriceBdt())
+        .studyMode(course.getStudyMode())
+        .startsAt(course.getStartsAt())
+        .endsAt(course.getEndsAt())
         .level(course.getLevel())
         .language(course.getLanguage())
         .publishedAt(course.getPublishedAt())

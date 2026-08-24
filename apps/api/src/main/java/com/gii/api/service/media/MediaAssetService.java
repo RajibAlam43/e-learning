@@ -5,9 +5,11 @@ import com.gii.api.exception.ConflictApiException;
 import com.gii.api.model.request.admin.CreateMediaAssetRequest;
 import com.gii.api.model.request.admin.UpdateMediaAssetRequest;
 import com.gii.api.model.response.MediaAssetResponse;
+import com.gii.api.service.course.CourseTemplateMutationGuard;
 import com.gii.common.entity.course.Lesson;
 import com.gii.common.entity.course.MediaAsset;
 import com.gii.common.enums.MediaStatus;
+import com.gii.common.repository.course.CourseRepository;
 import com.gii.common.repository.course.LessonRepository;
 import com.gii.common.repository.course.MediaAssetRepository;
 import java.util.UUID;
@@ -24,7 +26,9 @@ public class MediaAssetService {
 
   private final MediaAssetRepository mediaAssetRepository;
   private final LessonRepository lessonRepository;
+  private final CourseRepository courseRepository;
   private final MediaAssetMapper mediaAssetMapper;
+  private final CourseTemplateMutationGuard templateMutationGuard;
 
   // private final CurrentUserService currentUserService;
 
@@ -35,8 +39,19 @@ public class MediaAssetService {
             .findById(lessonId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lesson not found"));
+    templateMutationGuard.requireDraft(lesson.getSection().getTemplateVersion());
 
-    if (!lesson.getCourse().getId().equals(courseId)) {
+    if (!lesson
+        .getSection()
+        .getTemplateVersion()
+        .getId()
+        .equals(
+            courseRepository
+                .findById(courseId)
+                .orElseThrow(
+                    () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found"))
+                .getTemplateVersion()
+                .getId())) {
       throw new BadRequestApiException("Lesson does not belong to course");
     }
 
@@ -55,12 +70,14 @@ public class MediaAssetService {
   @Transactional(readOnly = true)
   public MediaAssetResponse getMediaAsset(UUID assetId) {
     MediaAsset asset = getAssetOrThrow(assetId);
+    templateMutationGuard.requireDraft(asset.getLesson().getSection().getTemplateVersion());
     return mediaAssetMapper.toResponse(asset);
   }
 
   @Transactional
   public MediaAssetResponse updateMediaAsset(UUID assetId, UpdateMediaAssetRequest request) {
     MediaAsset asset = getAssetOrThrow(assetId);
+    templateMutationGuard.requireDraft(asset.getLesson().getSection().getTemplateVersion());
 
     mediaAssetMapper.updateEntity(asset, request);
     validateAsset(asset);

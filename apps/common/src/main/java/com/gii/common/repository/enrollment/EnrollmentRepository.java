@@ -29,13 +29,52 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, UUID> {
   Optional<Enrollment> findByUserIdAndCourseIdAndStatus(
       UUID userId, UUID courseId, EnrollmentStatus status);
 
+  @Query(
+      """
+        SELECT e
+        FROM Enrollment e
+        WHERE e.user.id = :userId
+        AND e.course.templateVersion.id = :templateVersionId
+        AND e.status = :status
+        ORDER BY e.enrolledAt DESC
+      """)
+  List<Enrollment> findByUserIdAndTemplateVersionIdAndStatus(
+      @Param("userId") UUID userId,
+      @Param("templateVersionId") UUID templateVersionId,
+      @Param("status") EnrollmentStatus status);
+
   boolean existsByUserIdAndCourseIdAndStatus(UUID userId, UUID courseId, EnrollmentStatus status);
+
+  boolean existsByCourseId(UUID courseId);
+
+  @Query(
+      """
+        SELECT COUNT(e) > 0
+        FROM Enrollment e
+        WHERE e.course.templateVersion.id = :templateVersionId
+      """)
+  boolean existsByTemplateVersionId(@Param("templateVersionId") UUID templateVersionId);
 
   List<Enrollment> findByUserIdAndStatus(UUID userId, EnrollmentStatus status);
 
   long countByUserIdAndStatus(UUID userId, EnrollmentStatus status);
 
   long countByUserIdAndStatusAndCompletedAtIsNotNull(UUID userId, EnrollmentStatus status);
+
+  @Query(
+      """
+        SELECT COUNT(e)
+        FROM Enrollment e
+        WHERE e.course.id = :courseId
+        AND e.status = :status
+        AND (e.expiresAt IS NULL OR e.expiresAt > :now)
+      """)
+  long countAvailableSeatsInUse(
+      @Param("courseId") UUID courseId,
+      @Param("status") EnrollmentStatus status,
+      @Param("now") java.time.Instant now);
+
+  List<Enrollment> findByCourseIdAndStatus(UUID courseId, EnrollmentStatus status);
 
   @Query(
       """

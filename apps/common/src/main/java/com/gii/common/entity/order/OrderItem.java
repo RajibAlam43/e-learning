@@ -43,7 +43,7 @@ public class OrderItem {
 
   @JsonIgnore
   @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "course_id")
+  @JoinColumn(name = "course_offering_id")
   private Course course;
 
   @JsonIgnore

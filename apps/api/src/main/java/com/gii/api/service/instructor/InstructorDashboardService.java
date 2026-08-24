@@ -170,12 +170,7 @@ public class InstructorDashboardService {
 
   private List<InstructorUpcomingLiveClassResponse> toUpcomingLiveClassResponses(
       List<LiveClass> upcoming, UUID instructorId) {
-    List<LiveClass> filtered =
-        upcoming.stream()
-            .filter(
-                lc -> lc.getInstructor() != null && lc.getInstructor().getId().equals(instructorId))
-            .limit(10)
-            .toList();
+    List<LiveClass> filtered = upcoming.stream().limit(10).toList();
 
     Map<UUID, Long> approvedRegistrantCountByLiveClassId =
         filtered.isEmpty()

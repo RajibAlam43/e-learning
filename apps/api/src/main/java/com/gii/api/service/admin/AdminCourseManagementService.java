@@ -3,12 +3,15 @@ package com.gii.api.service.admin;
 import com.gii.api.model.request.admin.CreateCourseRequest;
 import com.gii.api.model.request.admin.FeatureCourseRequest;
 import com.gii.api.model.request.admin.ReorderCourseStructureRequest;
+import com.gii.api.model.request.admin.RepeatCourseRequest;
 import com.gii.api.model.request.admin.UpdateCourseRequest;
 import com.gii.api.model.response.admin.AdminCategoryResponse;
 import com.gii.api.model.response.admin.AdminCourseDetailResponse;
 import com.gii.api.model.response.admin.AdminCourseSectionResponse;
 import com.gii.api.model.response.admin.AdminCourseSummaryResponse;
 import com.gii.api.model.response.admin.AdminInstructorSummaryResponse;
+import com.gii.api.service.course.CourseTemplateMutationGuard;
+import com.gii.api.service.course.CourseTemplateVersionCloneService;
 import com.gii.api.service.enrollment.CurrentUserService;
 import com.gii.api.service.storage.AssetUrlService;
 import com.gii.common.entity.course.Category;
@@ -16,6 +19,8 @@ import com.gii.common.entity.course.Course;
 import com.gii.common.entity.course.CourseCategory;
 import com.gii.common.entity.course.CourseInstructor;
 import com.gii.common.entity.course.CourseSection;
+import com.gii.common.entity.course.CourseTemplate;
+import com.gii.common.entity.course.CourseTemplateVersion;
 import com.gii.common.entity.course.SectionItem;
 import com.gii.common.entity.user.User;
 import com.gii.common.enums.CourseLanguage;
@@ -25,14 +30,18 @@ import com.gii.common.enums.InstructorRole;
 import com.gii.common.enums.PublishStatus;
 import com.gii.common.enums.SectionItemType;
 import com.gii.common.enums.StudyMode;
+import com.gii.common.repository.collection.CollectionCourseRepository;
 import com.gii.common.repository.course.CategoryRepository;
 import com.gii.common.repository.course.CourseCategoryRepository;
 import com.gii.common.repository.course.CourseInstructorRepository;
 import com.gii.common.repository.course.CourseRepository;
 import com.gii.common.repository.course.CourseSectionRepository;
+import com.gii.common.repository.course.CourseTemplateRepository;
+import com.gii.common.repository.course.CourseTemplateVersionRepository;
 import com.gii.common.repository.course.LessonRepository;
 import com.gii.common.repository.course.SectionItemRepository;
 import com.gii.common.repository.enrollment.EnrollmentRepository;
+import com.gii.common.repository.live.LiveClassRepository;
 import com.gii.common.repository.quiz.QuizRepository;
 import java.time.Instant;
 import java.util.Comparator;
@@ -57,6 +66,8 @@ import org.springframework.web.server.ResponseStatusException;
 public class AdminCourseManagementService {
 
   private final CourseRepository courseRepository;
+  private final CourseTemplateRepository courseTemplateRepository;
+  private final CourseTemplateVersionRepository courseTemplateVersionRepository;
   private final CategoryRepository categoryRepository;
   private final CourseCategoryRepository courseCategoryRepository;
   private final CourseSectionRepository sectionRepository;
@@ -65,9 +76,13 @@ public class AdminCourseManagementService {
   private final SectionItemRepository sectionItemRepository;
   private final CourseInstructorRepository instructorRepository;
   private final EnrollmentRepository enrollmentRepository;
+  private final LiveClassRepository liveClassRepository;
+  private final CollectionCourseRepository collectionCourseRepository;
   private final CurrentUserService currentUserService;
   private final AdminSectionManagementService sectionManagementService;
   private final AssetUrlService assetUrlService;
+  private final CourseTemplateMutationGuard templateMutationGuard;
+  private final CourseTemplateVersionCloneService templateVersionCloneService;
 
   @Transactional(readOnly = true)
   public List<AdminCourseSummaryResponse> list() {
@@ -106,42 +121,88 @@ public class AdminCourseManagementService {
   public AdminCourseDetailResponse create(
       CreateCourseRequest request, Authentication authentication) {
     User user = currentUserService.getCurrentUser(authentication);
+    CourseTemplate template =
+        courseTemplateRepository.save(
+            CourseTemplate.builder().internalKey(request.slug().trim()).build());
+    CourseTemplateVersion version =
+        courseTemplateVersionRepository.save(
+            CourseTemplateVersion.builder()
+                .courseTemplate(template)
+                .versionNumber(1)
+                .title(request.title().trim())
+                .titleEn(request.titleEn())
+                .thumbnailObjectKey(
+                    assetUrlService.normalizeThumbnailKey(request.thumbnailObjectKey(), "courses"))
+                .shortDescription(request.shortDescription())
+                .shortDescriptionEn(request.shortDescriptionEn())
+                .description(request.description())
+                .descriptionEn(request.descriptionEn())
+                .highlights(request.highlights())
+                .highlightsEn(request.highlightsEn())
+                .courseOutcomes(request.courseOutcomes())
+                .courseOutcomesEn(request.courseOutcomesEn())
+                .requirements(request.requirements())
+                .requirementsEn(request.requirementsEn())
+                .prerequisites(toList(request.prerequisites()))
+                .prerequisitesEn(toList(request.prerequisitesEn()))
+                .level(request.level())
+                .language(request.language())
+                .status(PublishStatus.DRAFT)
+                .estimatedDurationMinutes(request.estimatedDurationMinutes())
+                .targetAudience(request.targetAudience())
+                .targetAudienceEn(request.targetAudienceEn())
+                .liveSessionCount(0)
+                .quizCount(0)
+                .recordedHoursCount(0)
+                .build());
     Course course =
         Course.builder()
-            .title(request.title().trim())
-            .titleEn(request.titleEn())
+            .templateVersion(version)
             .slug(request.slug().trim())
-            .thumbnailObjectKey(
-                assetUrlService.normalizeThumbnailKey(request.thumbnailObjectKey(), "courses"))
-            .shortDescription(request.shortDescription())
-            .shortDescriptionEn(request.shortDescriptionEn())
-            .description(request.description())
-            .descriptionEn(request.descriptionEn())
-            .highlights(request.highlights())
-            .highlightsEn(request.highlightsEn())
+            .name(request.title().trim())
             .priceBdt(request.priceBdt())
-            .courseOutcomes(request.courseOutcomes())
-            .courseOutcomesEn(request.courseOutcomesEn())
-            .requirements(request.requirements())
-            .requirementsEn(request.requirementsEn())
-            .prerequisites(toList(request.prerequisites()))
-            .prerequisitesEn(toList(request.prerequisitesEn()))
-            .level(request.level())
-            .language(request.language())
             .studyMode(request.studyMode())
             .status(PublishStatus.DRAFT)
             .isFree(Boolean.TRUE.equals(request.isFree()))
-            .estimatedDurationMinutes(request.estimatedDurationMinutes())
-            .targetAudience(request.targetAudience())
-            .targetAudienceEn(request.targetAudienceEn())
-            .liveSessionCount(0)
-            .quizCount(0)
-            .recordedHoursCount(0)
+            .timezone(normalizeTimezone(request.timezone()))
+            .enrollmentStartsAt(request.enrollmentStartsAt())
+            .enrollmentEndsAt(request.enrollmentEndsAt())
+            .startsAt(request.startsAt())
+            .endsAt(request.endsAt())
+            .capacity(request.capacity())
+            .accessDurationDays(request.accessDurationDays())
             .createdBy(user)
             .build();
+    validateOfferingWindow(course);
     Course savedCourse = courseRepository.save(course);
     replaceCategories(savedCourse, request.categoryIds());
     return getResponse(savedCourse);
+  }
+
+  public AdminCourseDetailResponse repeat(
+      UUID sourceCourseId, RepeatCourseRequest request, Authentication authentication) {
+    Course source = findCourse(sourceCourseId);
+    CourseTemplateVersion editableVersion = templateVersionCloneService.cloneForEditing(source);
+    Course course =
+        Course.builder()
+            .templateVersion(editableVersion)
+            .slug(request.slug().trim())
+            .name(source.getTitle())
+            .priceBdt(request.priceBdt())
+            .studyMode(request.studyMode())
+            .status(PublishStatus.DRAFT)
+            .isFree(Boolean.TRUE.equals(request.isFree()))
+            .timezone(normalizeTimezone(request.timezone()))
+            .enrollmentStartsAt(request.enrollmentStartsAt())
+            .enrollmentEndsAt(request.enrollmentEndsAt())
+            .startsAt(request.startsAt())
+            .endsAt(request.endsAt())
+            .capacity(request.capacity())
+            .accessDurationDays(request.accessDurationDays())
+            .createdBy(currentUserService.getCurrentUser(authentication))
+            .build();
+    validateOfferingWindow(course);
+    return getResponse(courseRepository.save(course));
   }
 
   @Transactional(readOnly = true)
@@ -160,82 +221,107 @@ public class AdminCourseManagementService {
             .findById(courseId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found"));
-    if (request.title() != null) {
-      course.setTitle(request.title().trim());
+    if (hasTemplateUpdates(request)) {
+      course = templateMutationGuard.prepareForTemplateUpdate(course);
     }
-    if (request.titleEn() != null) {
-      course.setTitleEn(request.titleEn().trim());
+    if (request.getTitle() != null) {
+      course.setTitle(request.getTitle().trim());
     }
-    if (request.slug() != null) {
-      course.setSlug(request.slug().trim());
+    if (request.getTitleEn() != null) {
+      course.setTitleEn(request.getTitleEn().trim());
     }
-    if (request.categoryIds() != null) {
-      replaceCategories(course, request.categoryIds());
+    if (request.getSlug() != null) {
+      course.setSlug(request.getSlug().trim());
     }
-    if (request.thumbnailObjectKey() != null) {
+    if (request.getCategoryIds() != null) {
+      replaceCategories(course, request.getCategoryIds());
+    }
+    if (request.getThumbnailObjectKey() != null) {
       course.setThumbnailObjectKey(
-          assetUrlService.normalizeThumbnailKey(request.thumbnailObjectKey(), "courses"));
+          assetUrlService.normalizeThumbnailKey(request.getThumbnailObjectKey(), "courses"));
     }
-    if (request.shortDescription() != null) {
-      course.setShortDescription(request.shortDescription());
+    if (request.getShortDescription() != null) {
+      course.setShortDescription(request.getShortDescription());
     }
-    if (request.shortDescriptionEn() != null) {
-      course.setShortDescriptionEn(request.shortDescriptionEn());
+    if (request.getShortDescriptionEn() != null) {
+      course.setShortDescriptionEn(request.getShortDescriptionEn());
     }
-    if (request.description() != null) {
-      course.setDescription(request.description());
+    if (request.getDescription() != null) {
+      course.setDescription(request.getDescription());
     }
-    if (request.descriptionEn() != null) {
-      course.setDescriptionEn(request.descriptionEn());
+    if (request.getDescriptionEn() != null) {
+      course.setDescriptionEn(request.getDescriptionEn());
     }
-    if (request.highlights() != null) {
-      course.setHighlights(request.highlights());
+    if (request.getHighlights() != null) {
+      course.setHighlights(request.getHighlights());
     }
-    if (request.highlightsEn() != null) {
-      course.setHighlightsEn(request.highlightsEn());
+    if (request.getHighlightsEn() != null) {
+      course.setHighlightsEn(request.getHighlightsEn());
     }
-    if (request.priceBdt() != null) {
-      course.setPriceBdt(request.priceBdt());
+    if (request.getPriceBdt() != null) {
+      course.setPriceBdt(request.getPriceBdt());
     }
-    if (request.courseOutcomes() != null) {
-      course.setCourseOutcomes(request.courseOutcomes());
+    if (request.getCourseOutcomes() != null) {
+      course.setCourseOutcomes(request.getCourseOutcomes());
     }
-    if (request.courseOutcomesEn() != null) {
-      course.setCourseOutcomesEn(request.courseOutcomesEn());
+    if (request.getCourseOutcomesEn() != null) {
+      course.setCourseOutcomesEn(request.getCourseOutcomesEn());
     }
-    if (request.requirements() != null) {
-      course.setRequirements(request.requirements());
+    if (request.getRequirements() != null) {
+      course.setRequirements(request.getRequirements());
     }
-    if (request.requirementsEn() != null) {
-      course.setRequirementsEn(request.requirementsEn());
+    if (request.getRequirementsEn() != null) {
+      course.setRequirementsEn(request.getRequirementsEn());
     }
-    if (request.prerequisites() != null) {
-      course.setPrerequisites(toList(request.prerequisites()));
+    if (request.getPrerequisites() != null) {
+      course.setPrerequisites(toList(request.getPrerequisites()));
     }
-    if (request.prerequisitesEn() != null) {
-      course.setPrerequisitesEn(toList(request.prerequisitesEn()));
+    if (request.getPrerequisitesEn() != null) {
+      course.setPrerequisitesEn(toList(request.getPrerequisitesEn()));
     }
-    if (request.level() != null) {
-      course.setLevel(CourseLevel.valueOf(request.level().toUpperCase()));
+    if (request.getLevel() != null) {
+      course.setLevel(CourseLevel.valueOf(request.getLevel().toUpperCase()));
     }
-    if (request.language() != null) {
-      course.setLanguage(CourseLanguage.valueOf(request.language().toUpperCase()));
+    if (request.getLanguage() != null) {
+      course.setLanguage(CourseLanguage.valueOf(request.getLanguage().toUpperCase()));
     }
-    if (request.studyMode() != null) {
-      course.setStudyMode(StudyMode.valueOf(request.studyMode().toUpperCase()));
+    if (request.getStudyMode() != null) {
+      course.setStudyMode(StudyMode.valueOf(request.getStudyMode().toUpperCase()));
     }
-    if (request.isFree() != null) {
-      course.setIsFree(request.isFree());
+    if (request.getIsFree() != null) {
+      course.setIsFree(request.getIsFree());
     }
-    if (request.estimatedDurationMinutes() != null) {
-      course.setEstimatedDurationMinutes(request.estimatedDurationMinutes());
+    if (request.getEstimatedDurationMinutes() != null) {
+      course.setEstimatedDurationMinutes(request.getEstimatedDurationMinutes());
     }
-    if (request.targetAudience() != null) {
-      course.setTargetAudience(request.targetAudience());
+    if (request.getTargetAudience() != null) {
+      course.setTargetAudience(request.getTargetAudience());
     }
-    if (request.targetAudienceEn() != null) {
-      course.setTargetAudienceEn(request.targetAudienceEn());
+    if (request.getTargetAudienceEn() != null) {
+      course.setTargetAudienceEn(request.getTargetAudienceEn());
     }
+    if (request.isTimezonePresent()) {
+      course.setTimezone(normalizeTimezone(request.getTimezone()));
+    }
+    if (request.isEnrollmentStartsAtPresent()) {
+      course.setEnrollmentStartsAt(request.getEnrollmentStartsAt());
+    }
+    if (request.isEnrollmentEndsAtPresent()) {
+      course.setEnrollmentEndsAt(request.getEnrollmentEndsAt());
+    }
+    if (request.isStartsAtPresent()) {
+      course.setStartsAt(request.getStartsAt());
+    }
+    if (request.isEndsAtPresent()) {
+      course.setEndsAt(request.getEndsAt());
+    }
+    if (request.isCapacityPresent()) {
+      course.setCapacity(request.getCapacity());
+    }
+    if (request.isAccessDurationDaysPresent()) {
+      course.setAccessDurationDays(request.getAccessDurationDays());
+    }
+    validateOfferingWindow(course);
     return getResponse(courseRepository.save(course));
   }
 
@@ -256,6 +342,8 @@ public class AdminCourseManagementService {
     }
     course.setStatus(PublishStatus.PUBLISHED);
     course.setPublishedAt(Instant.now());
+    course.getTemplateVersion().setStatus(PublishStatus.PUBLISHED);
+    course.getTemplateVersion().setPublishedAt(course.getPublishedAt());
     courseRepository.save(course);
   }
 
@@ -265,8 +353,16 @@ public class AdminCourseManagementService {
             .findById(courseId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found"));
+    if (collectionCourseRepository.existsByCourseIdAndCollectionStatus(
+        courseId, PublishStatus.PUBLISHED)) {
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT, "Course belongs to a published collection");
+    }
     course.setStatus(PublishStatus.DRAFT);
     clearFeatured(course);
+    if (!enrollmentRepository.existsByCourseId(courseId)) {
+      course = templateMutationGuard.prepareForTemplateUpdate(course);
+    }
     courseRepository.save(course);
   }
 
@@ -306,6 +402,7 @@ public class AdminCourseManagementService {
             .findById(courseId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found"));
+    templateMutationGuard.requireDraft(course.getTemplateVersion());
     try {
       for (var secReq : request.sections()) {
         CourseSection sec =
@@ -313,7 +410,7 @@ public class AdminCourseManagementService {
                 .findById(secReq.sectionId())
                 .orElseThrow(
                     () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Section not found"));
-        if (!sec.getCourse().getId().equals(course.getId())) {
+        if (!sec.getTemplateVersion().getId().equals(course.getTemplateVersion().getId())) {
           continue;
         }
         sec.setPosition(secReq.newPosition());
@@ -347,11 +444,12 @@ public class AdminCourseManagementService {
         throw new ResponseStatusException(
             HttpStatus.BAD_REQUEST, "Duplicate item id or position in section reorder request");
       }
-      targetPositionByItemId.put(itemReq.itemId(), itemReq.newPosition());
       SectionItemType itemType = itemReq.itemType();
+      UUID persistedItemId = resolvePersistedSectionItemId(itemType, itemReq.itemId());
+      targetPositionByItemId.put(persistedItemId, itemReq.newPosition());
       SectionItem sectionItem =
           sectionItemRepository
-              .findByItemTypeAndItemId(itemType, itemReq.itemId())
+              .findByItemTypeAndItemId(itemType, persistedItemId)
               .orElseThrow(
                   () ->
                       new ResponseStatusException(HttpStatus.NOT_FOUND, "Section item not found"));
@@ -411,6 +509,16 @@ public class AdminCourseManagementService {
     }
   }
 
+  private UUID resolvePersistedSectionItemId(SectionItemType itemType, UUID apiItemId) {
+    if (itemType != SectionItemType.LIVE_CLASS) {
+      return apiItemId;
+    }
+    return liveClassRepository
+        .findById(apiItemId)
+        .map(liveClass -> liveClass.getSlot().getId())
+        .orElse(apiItemId);
+  }
+
   private AdminCourseDetailResponse getResponse(Course course) {
     List<AdminCategoryResponse> categories =
         courseCategoryRepository.findByCourseId(course.getId()).stream()
@@ -422,7 +530,7 @@ public class AdminCourseManagementService {
 
     List<AdminCourseSectionResponse> sections =
         sectionRepository.findByCourseIdOrderByPositionAsc(course.getId()).stream()
-            .map(sectionManagementService::toResponse)
+            .map(section -> sectionManagementService.toResponse(section, course.getId()))
             .toList();
 
     List<AdminInstructorSummaryResponse> instructors =
@@ -481,6 +589,13 @@ public class AdminCourseManagementService {
             course.getPrerequisitesEn() != null
                 ? String.join(", ", course.getPrerequisitesEn())
                 : null)
+        .timezone(course.getTimezone())
+        .enrollmentStartsAt(course.getEnrollmentStartsAt())
+        .enrollmentEndsAt(course.getEnrollmentEndsAt())
+        .startsAt(course.getStartsAt())
+        .endsAt(course.getEndsAt())
+        .capacity(course.getCapacity())
+        .accessDurationDays(course.getAccessDurationDays())
         .createdBy(course.getCreatedBy() != null ? course.getCreatedBy().getId() : null)
         .publishedAt(course.getPublishedAt())
         .createdAt(course.getCreatedAt())
@@ -488,6 +603,24 @@ public class AdminCourseManagementService {
         .sections(sections)
         .instructors(instructors)
         .build();
+  }
+
+  private String normalizeTimezone(String timezone) {
+    return timezone == null || timezone.isBlank() ? null : timezone.trim();
+  }
+
+  private void validateOfferingWindow(Course course) {
+    if (course.getEnrollmentStartsAt() != null
+        && course.getEnrollmentEndsAt() != null
+        && !course.getEnrollmentEndsAt().isAfter(course.getEnrollmentStartsAt())) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Enrollment end must be after enrollment start");
+    }
+    if (course.getStartsAt() != null
+        && course.getEndsAt() != null
+        && !course.getEndsAt().isAfter(course.getStartsAt())) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Course end must be after start");
+    }
   }
 
   private void replaceCategories(Course course, List<UUID> categoryIds) {
@@ -511,7 +644,12 @@ public class AdminCourseManagementService {
     }
     courseCategoryRepository.saveAll(
         categories.stream()
-            .map(category -> CourseCategory.builder().course(course).category(category).build())
+            .map(
+                category ->
+                    CourseCategory.builder()
+                        .templateVersion(course.getTemplateVersion())
+                        .category(category)
+                        .build())
             .toList());
   }
 
@@ -534,6 +672,30 @@ public class AdminCourseManagementService {
         .map(String::trim)
         .filter(s -> !s.isBlank())
         .toList();
+  }
+
+  private boolean hasTemplateUpdates(UpdateCourseRequest request) {
+    return request.getTitle() != null
+        || request.getTitleEn() != null
+        || request.getCategoryIds() != null
+        || request.getThumbnailObjectKey() != null
+        || request.getShortDescription() != null
+        || request.getShortDescriptionEn() != null
+        || request.getDescription() != null
+        || request.getDescriptionEn() != null
+        || request.getHighlights() != null
+        || request.getHighlightsEn() != null
+        || request.getCourseOutcomes() != null
+        || request.getCourseOutcomesEn() != null
+        || request.getRequirements() != null
+        || request.getRequirementsEn() != null
+        || request.getPrerequisites() != null
+        || request.getPrerequisitesEn() != null
+        || request.getLevel() != null
+        || request.getLanguage() != null
+        || request.getEstimatedDurationMinutes() != null
+        || request.getTargetAudience() != null
+        || request.getTargetAudienceEn() != null;
   }
 
   private Map<UUID, String> buildInstructorNameMap(List<UUID> courseIds) {

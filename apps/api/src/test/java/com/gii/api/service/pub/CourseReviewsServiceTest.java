@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.gii.api.testsupport.CourseTestData;
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.course.CourseReview;
 import com.gii.common.entity.user.User;
@@ -36,9 +37,9 @@ class CourseReviewsServiceTest {
   @Test
   void listsPublishedReviewsWithRatingAndSafePagination() {
     UUID courseId = UUID.randomUUID();
-    Course course = Course.builder().title("Course").slug("course").build();
-    course.setId(courseId);
     User student = User.builder().fullName("Student").build();
+    Course course = CourseTestData.course("Course", "course", student);
+    course.setId(courseId);
     CourseReview review =
         CourseReview.builder()
             .course(course)

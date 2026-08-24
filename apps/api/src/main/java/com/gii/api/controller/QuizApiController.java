@@ -28,15 +28,29 @@ public class QuizApiController implements QuizApi {
   private final QuizAttemptResultService quizAttemptResultService;
 
   @Override
+  public ResponseEntity<QuizQuestionsResponse> getCourseQuizQuestions(
+      UUID courseId, UUID quizId, Authentication authentication) {
+    return ResponseEntity.ok(quizQuestionsService.execute(courseId, quizId, authentication));
+  }
+
+  @Override
+  @Deprecated(since = "V12")
   public ResponseEntity<QuizQuestionsResponse> getQuizQuestions(
       UUID quizId, Authentication authentication) {
     return ResponseEntity.ok(quizQuestionsService.execute(quizId, authentication));
   }
 
   @Override
+  @Deprecated(since = "V12")
   public ResponseEntity<QuizAttemptStartResponse> startQuizAttempt(
       UUID quizId, Authentication authentication) {
     return ResponseEntity.ok(quizAttemptStartService.execute(quizId, authentication));
+  }
+
+  @Override
+  public ResponseEntity<QuizAttemptStartResponse> startCourseQuizAttempt(
+      UUID courseId, UUID quizId, Authentication authentication) {
+    return ResponseEntity.ok(quizAttemptStartService.execute(courseId, quizId, authentication));
   }
 
   @Override
@@ -46,9 +60,16 @@ public class QuizApiController implements QuizApi {
   }
 
   @Override
+  @Deprecated(since = "V12")
   public ResponseEntity<List<QuizAttemptSummaryResponse>> getQuizAttempts(
       UUID quizId, Authentication authentication) {
     return ResponseEntity.ok(quizAttemptHistoryService.execute(quizId, authentication));
+  }
+
+  @Override
+  public ResponseEntity<List<QuizAttemptSummaryResponse>> getCourseQuizAttempts(
+      UUID courseId, UUID quizId, Authentication authentication) {
+    return ResponseEntity.ok(quizAttemptHistoryService.execute(courseId, quizId, authentication));
   }
 
   @Override

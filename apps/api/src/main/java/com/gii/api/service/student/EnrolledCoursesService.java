@@ -90,6 +90,10 @@ public class EnrolledCoursesService {
         .expiresAt(enrollment.getExpiresAt())
         .courseLevel(course.getLevel().name())
         .language(course.getLanguage().name())
+        .studyMode(course.getStudyMode())
+        .timezone(course.getTimezone())
+        .startsAt(course.getStartsAt())
+        .endsAt(course.getEndsAt())
         .hasCertificate(certificate != null)
         .certificateCode(certificate != null ? certificate.getCertificateCode() : null)
         .build();

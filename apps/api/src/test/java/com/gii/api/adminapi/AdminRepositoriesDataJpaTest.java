@@ -43,7 +43,7 @@ class AdminRepositoriesDataJpaTest extends AbstractAdminDataJpaTest {
         () ->
             courseSectionRepository.saveAndFlush(
                 CourseSection.builder()
-                    .course(course)
+                    .templateVersion(course.getTemplateVersion())
                     .title("Section Duplicate")
                     .slug("section-dup")
                     .position(1)
@@ -69,7 +69,6 @@ class AdminRepositoriesDataJpaTest extends AbstractAdminDataJpaTest {
 
     quizRepository.saveAndFlush(
         Quiz.builder()
-            .course(course)
             .section(section)
             .position(1)
             .title("Quiz A")
@@ -83,7 +82,6 @@ class AdminRepositoriesDataJpaTest extends AbstractAdminDataJpaTest {
         () ->
             quizRepository.saveAndFlush(
                 Quiz.builder()
-                    .course(course)
                     .section(section)
                     .position(1)
                     .title("Quiz B")

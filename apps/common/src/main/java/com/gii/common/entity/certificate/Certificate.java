@@ -53,8 +53,13 @@ public class Certificate {
 
   @JsonIgnore
   @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "course_id")
+  @JoinColumn(name = "course_offering_id")
   private Course course;
+
+  @JsonIgnore
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "enrollment_id")
+  private com.gii.common.entity.enrollment.Enrollment enrollment;
 
   @JsonIgnore
   @ManyToOne(fetch = FetchType.LAZY)
@@ -70,6 +75,14 @@ public class Certificate {
 
   @Column(name = "revoked_at")
   private Instant revokedAt;
+
+  @JsonIgnore
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "revoked_by")
+  private User revokedBy;
+
+  @Column(name = "revocation_reason", length = 1000)
+  private String revocationReason;
 
   @Column(name = "pdf_url")
   private String pdfUrl;

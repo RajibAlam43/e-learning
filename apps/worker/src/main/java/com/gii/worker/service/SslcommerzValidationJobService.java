@@ -3,36 +3,26 @@ package com.gii.worker.service;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gii.common.dto.SslcommerzValidationJobMessage;
-import com.gii.common.entity.collection.CollectionEnrollment;
-import com.gii.common.entity.enrollment.Enrollment;
 import com.gii.common.entity.order.Order;
-import com.gii.common.entity.order.OrderItem;
 import com.gii.common.entity.order.PaymentEvent;
-import com.gii.common.enums.EnrollmentStatus;
-import com.gii.common.enums.OrderItemType;
 import com.gii.common.enums.OrderProvider;
 import com.gii.common.enums.OrderStatus;
 import com.gii.common.enums.PaymentEventStatus;
 import com.gii.common.enums.PaymentEventType;
-import com.gii.common.repository.collection.CollectionCourseRepository;
-import com.gii.common.repository.collection.CollectionEnrollmentRepository;
-import com.gii.common.repository.enrollment.EnrollmentRepository;
-import com.gii.common.repository.order.OrderItemRepository;
 import com.gii.common.repository.order.OrderRepository;
 import com.gii.common.repository.order.PaymentEventRepository;
+import com.gii.common.service.payment.PaidOrderEnrollmentService;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -56,11 +46,8 @@ public class SslcommerzValidationJobService {
   private final WebClient.Builder webClientBuilder;
   private final SqsAsyncClient sqsClient;
   private final OrderRepository orderRepository;
-  private final OrderItemRepository orderItemRepository;
-  private final EnrollmentRepository enrollmentRepository;
-  private final CollectionEnrollmentRepository collectionEnrollmentRepository;
-  private final CollectionCourseRepository collectionCourseRepository;
   private final PaymentEventRepository paymentEventRepository;
+  private final PaidOrderEnrollmentService paidOrderEnrollmentService;
   private final Map<String, String> queueUrlCache = new ConcurrentHashMap<>();
 
   @Value("${payments.sslcommerz.validation-api-url}")
@@ -121,7 +108,7 @@ public class SslcommerzValidationJobService {
           return;
         }
         markPaid(order);
-        grantEnrollmentsForPaidOrder(order.getId());
+        paidOrderEnrollmentService.grant(order.getId());
         recordEvent(order, job, PaymentEventStatus.PROCESSED);
         return;
       }
@@ -335,100 +322,6 @@ public class SslcommerzValidationJobService {
     if (order.getStatus() == OrderStatus.PENDING) {
       order.setStatus(OrderStatus.FAILED);
       orderRepository.save(order);
-    }
-  }
-
-  private void grantEnrollmentsForPaidOrder(UUID orderId) {
-    Order order = orderRepository.findById(orderId).orElseThrow();
-    if (order.getStatus() != OrderStatus.PAID) {
-      return;
-    }
-    Instant now = Instant.now();
-    for (OrderItem item : orderItemRepository.findByOrderId(order.getId())) {
-      if (item.getItemType() == OrderItemType.COURSE) {
-        activateOrCreateCourseEnrollment(order, item, item.getCourse(), now, item.getCollection());
-        continue;
-      }
-      if (item.getItemType() == OrderItemType.COLLECTION) {
-        activateOrCreateCollectionEnrollment(order, item, now);
-        collectionCourseRepository
-            .findByCollection_IdOrderByPositionAsc(item.getCollection().getId())
-            .forEach(
-                collectionCourse ->
-                    activateOrCreateCourseEnrollment(
-                        order, item, collectionCourse.getCourse(), now, item.getCollection()));
-      }
-    }
-  }
-
-  private void activateOrCreateCourseEnrollment(
-      Order order,
-      OrderItem sourceOrderItem,
-      com.gii.common.entity.course.Course course,
-      Instant now,
-      com.gii.common.entity.collection.Collection sourceCollection) {
-    var existingOpt =
-        enrollmentRepository.findByUserIdAndCourseId(order.getUser().getId(), course.getId());
-    if (existingOpt.isPresent()) {
-      Enrollment existing = existingOpt.get();
-      existing.setStatus(EnrollmentStatus.ACTIVE);
-      existing.setEnrolledAt(now);
-      existing.setRevokedAt(null);
-      existing.setExpiresAt(null);
-      existing.setSourceOrderItem(sourceOrderItem);
-      existing.setSourceCollection(sourceCollection);
-      enrollmentRepository.save(existing);
-      return;
-    }
-    Enrollment enrollment =
-        Enrollment.builder()
-            .user(order.getUser())
-            .course(course)
-            .sourceOrderItem(sourceOrderItem)
-            .sourceCollection(sourceCollection)
-            .status(EnrollmentStatus.ACTIVE)
-            .enrolledAt(now)
-            .build();
-    saveEnrollmentIdempotent(enrollment);
-  }
-
-  private void activateOrCreateCollectionEnrollment(
-      Order order, OrderItem sourceOrderItem, Instant now) {
-    var existingOpt =
-        collectionEnrollmentRepository.findByUserIdAndCollectionId(
-            order.getUser().getId(), sourceOrderItem.getCollection().getId());
-    if (existingOpt.isPresent()) {
-      CollectionEnrollment existing = existingOpt.get();
-      existing.setStatus(EnrollmentStatus.ACTIVE);
-      existing.setEnrolledAt(now);
-      existing.setRevokedAt(null);
-      existing.setExpiresAt(null);
-      existing.setSourceOrderItem(sourceOrderItem);
-      collectionEnrollmentRepository.save(existing);
-      return;
-    }
-    CollectionEnrollment collectionEnrollment =
-        CollectionEnrollment.builder()
-            .user(order.getUser())
-            .collection(sourceOrderItem.getCollection())
-            .sourceOrderItem(sourceOrderItem)
-            .status(EnrollmentStatus.ACTIVE)
-            .enrolledAt(now)
-            .build();
-    saveCollectionEnrollmentIdempotent(collectionEnrollment);
-  }
-
-  private void saveEnrollmentIdempotent(Enrollment enrollment) {
-    try {
-      enrollmentRepository.save(enrollment);
-    } catch (DataIntegrityViolationException ignored) {
-    }
-  }
-
-  private void saveCollectionEnrollmentIdempotent(CollectionEnrollment enrollment) {
-    try {
-      collectionEnrollmentRepository.save(enrollment);
-    } catch (DataIntegrityViolationException ignored) {
     }
   }
 

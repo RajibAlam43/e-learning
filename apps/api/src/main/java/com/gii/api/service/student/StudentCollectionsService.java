@@ -1,14 +1,15 @@
 package com.gii.api.service.student;
 
 import com.gii.api.model.response.student.StudentCollectionSummaryResponse;
+import com.gii.api.service.collection.PurchasedCollectionCoursesService;
 import com.gii.api.service.enrollment.CurrentUserService;
 import com.gii.api.service.localization.LocalizedContentService;
 import com.gii.api.service.progress.CourseCompletionService;
 import com.gii.api.service.progress.CourseCompletionService.CourseCompletion;
 import com.gii.api.service.storage.AssetUrlService;
 import com.gii.common.entity.collection.Collection;
-import com.gii.common.entity.collection.CollectionCourse;
 import com.gii.common.entity.collection.CollectionEnrollment;
+import com.gii.common.entity.course.Course;
 import com.gii.common.enums.EnrollmentStatus;
 import com.gii.common.enums.PublishStatus;
 import com.gii.common.repository.collection.CollectionCourseRepository;
@@ -33,6 +34,7 @@ public class StudentCollectionsService {
   private final CourseCompletionService courseCompletionService;
   private final AssetUrlService assetUrlService;
   private final LocalizedContentService localizedContentService;
+  private final PurchasedCollectionCoursesService purchasedCollectionCoursesService;
 
   public List<StudentCollectionSummaryResponse> execute(Authentication authentication) {
     UUID userId = currentUserService.getCurrentUserId(authentication);
@@ -42,18 +44,21 @@ public class StudentCollectionsService {
       return List.of();
     }
 
-    List<UUID> collectionIds = enrollments.stream().map(e -> e.getCollection().getId()).toList();
-    List<CollectionCourse> rows =
-        collectionCourseRepository.findByCollection_IdInWithCourseStatus(
-            collectionIds, PublishStatus.PUBLISHED);
-    Map<UUID, List<CollectionCourse>> coursesByCollectionId = new HashMap<>();
-    for (CollectionCourse row : rows) {
-      coursesByCollectionId
-          .computeIfAbsent(row.getCollection().getId(), ignored -> new java.util.ArrayList<>())
-          .add(row);
+    Map<UUID, List<Course>> coursesByCollectionId = new HashMap<>();
+    for (CollectionEnrollment enrollment : enrollments) {
+      coursesByCollectionId.put(
+          enrollment.getCollection().getId(),
+          purchasedCollectionCoursesService.resolve(enrollment).stream()
+              .filter(course -> course.getStatus() == PublishStatus.PUBLISHED)
+              .toList());
     }
 
-    List<UUID> allCourseIds = rows.stream().map(row -> row.getCourse().getId()).distinct().toList();
+    List<UUID> allCourseIds =
+        coursesByCollectionId.values().stream()
+            .flatMap(List::stream)
+            .map(Course::getId)
+            .distinct()
+            .toList();
     Map<UUID, CourseCompletion> completionByCourseId =
         courseCompletionService.getByCourseIds(userId, allCourseIds);
 
@@ -61,14 +66,14 @@ public class StudentCollectionsService {
         .map(
             enrollment -> {
               Collection collection = enrollment.getCollection();
-              List<CollectionCourse> collectionCourses =
+              List<Course> collectionCourses =
                   coursesByCollectionId.getOrDefault(collection.getId(), List.of());
               int totalLessons = 0;
               int completedLessons = 0;
               int totalItems = 0;
               int completedItems = 0;
-              for (CollectionCourse cc : collectionCourses) {
-                UUID courseId = cc.getCourse().getId();
+              for (Course course : collectionCourses) {
+                UUID courseId = course.getId();
                 CourseCompletion courseCompletion = completionByCourseId.get(courseId);
                 totalLessons += courseCompletion.totalLessons();
                 completedLessons += courseCompletion.completedLessons();

@@ -33,6 +33,7 @@ public class InitiatePaymentService {
   private final OrderRepository orderRepository;
   private final BkashCheckoutService bkashCheckoutService;
   private final SslcommerzCheckoutService sslcommerzCheckoutService;
+  private final PendingOrderEligibilityService pendingOrderEligibilityService;
 
   @Value("${payments.sslcommerz.fallback-email}")
   private String sslcommerzFallbackEmail;
@@ -54,6 +55,7 @@ public class InitiatePaymentService {
     if (order.getCreatedAt().plusSeconds(ORDER_EXPIRY_SECONDS).isBefore(Instant.now())) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Order has expired");
     }
+    pendingOrderEligibilityService.validate(order);
 
     String sessionId = "pay_" + UUID.randomUUID();
     String redirectUrl =

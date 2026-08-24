@@ -86,6 +86,28 @@ class CertificateIssueApiIt extends AbstractCertificateApiIntegrationTest {
   }
 
   @Test
+  void revokedCertificateCannotBeReissuedByStudent() throws Exception {
+    var creator = user("Creator", "creator-cert-revoked@example.com");
+    var student = user("Student", "student-cert-revoked@example.com");
+    var course = course("Revoked Cert", "revoked-cert", creator, PublishStatus.PUBLISHED);
+    enrollment(student, course, EnrollmentStatus.ACTIVE, Instant.now().plusSeconds(3600));
+    certificate(
+        student, course, "GII-CERT-REVOKED1", true, "https://cdn.test/revoked.pdf", creator);
+
+    mockMvc
+        .perform(
+            post("/student/courses/{courseId}/certificate", course.getId())
+                .with(authentication(studentAuth(student.getId()))))
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.detail").value("Certificate has been revoked"));
+
+    assertThat(certificateRepository.findByUserIdAndCourseId(student.getId(), course.getId()))
+        .get()
+        .extracting(com.gii.common.entity.certificate.Certificate::getRevokedAt)
+        .isNotNull();
+  }
+
+  @Test
   void issueCollectionCertificateCreatesCertificateForEligibleStudentAndIsIdempotent()
       throws Exception {
     var creator = user("Creator", "creator-cert-collection@example.com");

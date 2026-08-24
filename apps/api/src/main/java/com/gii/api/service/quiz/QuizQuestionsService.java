@@ -4,6 +4,7 @@ import com.gii.api.model.response.quiz.QuizChoiceResponse;
 import com.gii.api.model.response.quiz.QuizQuestionResponse;
 import com.gii.api.model.response.quiz.QuizQuestionsResponse;
 import com.gii.api.service.localization.LocalizedContentService;
+import com.gii.common.entity.enrollment.Enrollment;
 import com.gii.common.entity.quiz.Quiz;
 import com.gii.common.entity.quiz.QuizAttempt;
 import com.gii.common.entity.quiz.QuizChoice;
@@ -35,9 +36,19 @@ public class QuizQuestionsService {
   public QuizQuestionsResponse execute(UUID quizId, Authentication authentication) {
     UUID userId = quizAccessService.requireCurrentUserId(authentication);
     Quiz quiz = quizAccessService.requirePublishedQuiz(quizId);
-    quizAccessService.ensureActiveEnrollment(userId, quiz.getCourse().getId());
+    Enrollment enrollment = quizAccessService.requireActiveEnrollment(userId, quiz);
+    return buildResponse(quiz, enrollment);
+  }
 
-    List<QuizQuestion> questions = questionRepository.findByQuizIdOrderByPositionAsc(quizId);
+  public QuizQuestionsResponse execute(UUID courseId, UUID quizId, Authentication authentication) {
+    UUID userId = quizAccessService.requireCurrentUserId(authentication);
+    Quiz quiz = quizAccessService.requirePublishedQuiz(quizId);
+    Enrollment enrollment = quizAccessService.requireActiveEnrollment(userId, courseId, quiz);
+    return buildResponse(quiz, enrollment);
+  }
+
+  private QuizQuestionsResponse buildResponse(Quiz quiz, Enrollment enrollment) {
+    List<QuizQuestion> questions = questionRepository.findByQuizIdOrderByPositionAsc(quiz.getId());
     Map<UUID, List<QuizChoice>> choicesByQuestion =
         choiceRepository
             .findByQuestionIdIn(questions.stream().map(QuizQuestion::getId).toList())
@@ -45,7 +56,8 @@ public class QuizQuestionsService {
             .collect(Collectors.groupingBy(choice -> choice.getQuestion().getId()));
 
     List<QuizAttempt> attempts =
-        attemptRepository.findByQuizIdAndUserIdOrderByAttemptNoDesc(quizId, userId);
+        attemptRepository.findByQuizIdAndEnrollmentIdOrderByAttemptNoDesc(
+            quiz.getId(), enrollment.getId());
     int totalAttempts = attempts.size();
     int remainingAttempts = Math.max(quiz.getMaxAttempts() - totalAttempts, 0);
     Integer bestScore =

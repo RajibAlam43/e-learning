@@ -1,11 +1,13 @@
 package com.gii.api.service.student;
 
 import com.gii.api.model.response.student.StudentLiveClassJoinResponse;
+import com.gii.api.service.course.CourseInstructorResolver;
 import com.gii.api.service.enrollment.CurrentUserService;
 import com.gii.api.service.localization.LocalizedContentService;
 import com.gii.common.entity.enrollment.Enrollment;
 import com.gii.common.entity.live.LiveClass;
 import com.gii.common.entity.live.LiveClassRegistrant;
+import com.gii.common.entity.user.User;
 import com.gii.common.enums.EnrollmentStatus;
 import com.gii.common.enums.LiveClassRegistrantStatus;
 import com.gii.common.enums.LiveClassStatus;
@@ -32,12 +34,13 @@ public class StudentJoinLiveClassesService {
   private final EnrollmentRepository enrollmentRepository;
   private final LocalizedContentService localizedContentService;
   private final StudentLearningStreakTrackerService studentLearningStreakTrackerService;
+  private final CourseInstructorResolver courseInstructorResolver;
 
   public StudentLiveClassJoinResponse execute(UUID liveClassId, Authentication authentication) {
     UUID userId = currentUserService.getCurrentUserId(authentication);
     LiveClass liveClass =
         liveClassRepository
-            .findById(liveClassId)
+            .findByIdForUpdate(liveClassId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Live class not found"));
 
@@ -50,7 +53,7 @@ public class StudentJoinLiveClassesService {
                     new ResponseStatusException(
                         HttpStatus.FORBIDDEN, "Not enrolled in this course"));
 
-    if (enrollment.getExpiresAt() != null && enrollment.getExpiresAt().isBefore(Instant.now())) {
+    if (enrollment.getExpiresAt() != null && !enrollment.getExpiresAt().isAfter(Instant.now())) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Enrollment expired");
     }
 
@@ -77,6 +80,7 @@ public class StudentJoinLiveClassesService {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Join link is unavailable");
     }
     studentLearningStreakTrackerService.recordActivity(userId, now);
+    User instructor = courseInstructorResolver.primaryInstructor(liveClass.getCourse());
 
     return StudentLiveClassJoinResponse.builder()
         .liveClassId(liveClass.getId())
@@ -87,10 +91,8 @@ public class StudentJoinLiveClassesService {
         .endsAt(liveClass.getEndsAt())
         .joinUrl(joinUrl)
         .meetingId(liveClass.effectiveMeetingId())
-        .instructorName(
-            liveClass.getInstructor() != null ? liveClass.getInstructor().getFullName() : null)
-        .instructorEmail(
-            liveClass.getInstructor() != null ? liveClass.getInstructor().getEmail() : null)
+        .instructorName(instructor != null ? instructor.getFullName() : null)
+        .instructorEmail(instructor != null ? instructor.getEmail() : null)
         .isRegistered(true)
         .participantEmail(enrollment.getUser().getEmail())
         .providerRegistrantId(registrant.getProviderRegistrantId())

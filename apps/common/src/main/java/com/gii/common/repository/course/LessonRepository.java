@@ -10,7 +10,15 @@ import org.springframework.data.repository.query.Param;
 
 public interface LessonRepository extends JpaRepository<Lesson, UUID> {
 
-  List<Lesson> findByCourseIdOrderByPositionAsc(UUID courseId);
+  @Query(
+      """
+        SELECT l FROM Lesson l
+        WHERE l.section.templateVersion.id = (
+          SELECT c.templateVersion.id FROM Course c WHERE c.id = :courseId
+        )
+        ORDER BY l.position ASC
+      """)
+  List<Lesson> findByCourseIdOrderByPositionAsc(@Param("courseId") UUID courseId);
 
   List<Lesson> findBySectionIdOrderByPositionAsc(UUID sectionId);
 
@@ -18,34 +26,47 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID> {
       """
         SELECT l FROM Lesson l
         LEFT JOIN FETCH l.primaryMediaAsset
-        WHERE l.course.id = :courseId
+        WHERE l.section.templateVersion.id = (
+          SELECT c.templateVersion.id FROM Course c WHERE c.id = :courseId
+        )
         AND l.status = :status
         ORDER BY l.position ASC
       """)
   List<Lesson> findByCourseIdAndStatusWithMediaOrderByPositionAsc(
       @Param("courseId") UUID courseId, @Param("status") PublishStatus status);
 
-  long countByCourseIdAndStatus(UUID courseId, PublishStatus status);
+  @Query(
+      """
+        SELECT COUNT(l) FROM Lesson l
+        WHERE l.section.templateVersion.id = (
+          SELECT c.templateVersion.id FROM Course c WHERE c.id = :courseId
+        )
+        AND l.status = :status
+      """)
+  long countByCourseIdAndStatus(
+      @Param("courseId") UUID courseId, @Param("status") PublishStatus status);
 
   @Query(
       """
-        SELECT l.course.id, COUNT(l)
-        FROM Lesson l
-        WHERE l.course.id IN :courseIds
+        SELECT c.id, COUNT(l)
+        FROM Course c, Lesson l
+        WHERE c.id IN :courseIds
+        AND l.section.templateVersion.id = c.templateVersion.id
         AND l.status = :status
-        GROUP BY l.course.id
+        GROUP BY c.id
       """)
   List<Object[]> countByCourseIdsAndStatus(
       @Param("courseIds") List<UUID> courseIds, @Param("status") PublishStatus status);
 
   @Query(
       """
-        SELECT l.course.id, COUNT(l)
-        FROM Lesson l
-        WHERE l.course.id IN :courseIds
+        SELECT c.id, COUNT(l)
+        FROM Course c, Lesson l
+        WHERE c.id IN :courseIds
+        AND l.section.templateVersion.id = c.templateVersion.id
         AND l.status = :status
         AND l.section.status = :status
-        GROUP BY l.course.id
+        GROUP BY c.id
       """)
   List<Object[]> countCompletableByCourseIdsAndStatus(
       @Param("courseIds") List<UUID> courseIds, @Param("status") PublishStatus status);

@@ -1,5 +1,6 @@
 package com.gii.api.service.lesson;
 
+import com.gii.api.service.progress.EnrollmentCompletionService;
 import com.gii.api.service.student.StudentLearningStreakTrackerService;
 import com.gii.common.entity.course.Lesson;
 import com.gii.common.entity.enrollment.Enrollment;
@@ -24,24 +25,40 @@ public class LessonCompleteService {
   private final LessonAccessService lessonAccessService;
   private final LessonProgressRepository lessonProgressRepository;
   private final StudentLearningStreakTrackerService studentLearningStreakTrackerService;
+  private final EnrollmentCompletionService enrollmentCompletionService;
 
   public void execute(UUID lessonId, Authentication authentication) {
     User user = lessonAccessService.requireCurrentUser(authentication);
     Lesson lesson = lessonAccessService.requirePublishedLesson(lessonId);
     Enrollment enrollment = lessonAccessService.requireActiveEnrollment(user.getId(), lesson);
+    complete(user, lesson, enrollment);
+  }
+
+  public void execute(UUID courseId, UUID lessonId, Authentication authentication) {
+    User user = lessonAccessService.requireCurrentUser(authentication);
+    Lesson lesson = lessonAccessService.requirePublishedLesson(lessonId);
+    Enrollment enrollment =
+        lessonAccessService.requireActiveEnrollment(user.getId(), courseId, lesson);
+    complete(user, lesson, enrollment);
+  }
+
+  private void complete(User user, Lesson lesson, Enrollment enrollment) {
     if (!lessonAccessService.isLessonAccessible(lesson, enrollment, Instant.now())) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Lesson is not available yet");
     }
 
     LessonProgressId id =
-        LessonProgressId.builder().userId(user.getId()).lessonId(lessonId).build();
+        LessonProgressId.builder()
+            .enrollmentId(enrollment.getId())
+            .lessonId(lesson.getId())
+            .build();
     LessonProgress progress =
         lessonProgressRepository
             .findById(id)
             .orElse(
                 LessonProgress.builder()
                     .id(id)
-                    .user(user)
+                    .enrollment(enrollment)
                     .lesson(lesson)
                     .updatedAt(Instant.now())
                     .build());
@@ -52,5 +69,6 @@ public class LessonCompleteService {
     progress.setCompletedAt(completedAt);
     lessonProgressRepository.save(progress);
     studentLearningStreakTrackerService.recordActivity(user.getId(), completedAt);
+    enrollmentCompletionService.refresh(user.getId(), enrollment.getCourse().getId());
   }
 }

@@ -3,6 +3,7 @@ package com.gii.api.service.quiz;
 import com.gii.api.model.request.quiz.QuizAnswerSubmissionRequest;
 import com.gii.api.model.request.quiz.SubmitQuizAttemptRequest;
 import com.gii.api.model.response.quiz.QuizAttemptResultResponse;
+import com.gii.api.service.progress.EnrollmentCompletionService;
 import com.gii.api.service.student.StudentLearningStreakTrackerService;
 import com.gii.common.entity.quiz.Quiz;
 import com.gii.common.entity.quiz.QuizAttempt;
@@ -42,6 +43,7 @@ public class QuizAttemptSubmitService {
   private final QuizAttemptAnswerRepository attemptAnswerRepository;
   private final QuizAttemptResultService attemptResultService;
   private final StudentLearningStreakTrackerService studentLearningStreakTrackerService;
+  private final EnrollmentCompletionService enrollmentCompletionService;
 
   public QuizAttemptResultResponse execute(
       UUID attemptId, SubmitQuizAttemptRequest request, Authentication authentication) {
@@ -57,7 +59,7 @@ public class QuizAttemptSubmitService {
     }
 
     Quiz quiz = attempt.getQuiz();
-    quizAccessService.ensureActiveEnrollment(userId, quiz.getCourse().getId());
+    quizAccessService.requireActiveAttemptEnrollment(userId, attempt);
 
     if (quiz.getTimeLimitSec() != null) {
       Instant deadline = attempt.getStartedAt().plusSeconds(quiz.getTimeLimitSec());
@@ -131,6 +133,7 @@ public class QuizAttemptSubmitService {
     attempt.setSubmittedAt(submittedAt);
     attemptRepository.save(attempt);
     studentLearningStreakTrackerService.recordActivity(userId, submittedAt);
+    enrollmentCompletionService.refresh(userId, attempt.getEnrollment().getCourse().getId());
 
     return attemptResultService.execute(attempt.getId(), authentication);
   }

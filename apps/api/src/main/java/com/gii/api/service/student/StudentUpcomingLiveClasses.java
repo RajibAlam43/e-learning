@@ -1,11 +1,13 @@
 package com.gii.api.service.student;
 
 import com.gii.api.model.response.student.StudentLiveClassSummaryResponse;
+import com.gii.api.service.course.CourseInstructorResolver;
 import com.gii.api.service.enrollment.CurrentUserService;
 import com.gii.api.service.localization.LocalizedContentService;
 import com.gii.common.entity.enrollment.Enrollment;
 import com.gii.common.entity.live.LiveClass;
 import com.gii.common.entity.live.LiveClassRegistrant;
+import com.gii.common.entity.user.User;
 import com.gii.common.enums.EnrollmentStatus;
 import com.gii.common.enums.LiveClassRegistrantStatus;
 import com.gii.common.enums.LiveClassStatus;
@@ -33,6 +35,7 @@ public class StudentUpcomingLiveClasses {
   private final LiveClassRepository liveClassRepository;
   private final LiveClassRegistrantRepository registrantRepository;
   private final LocalizedContentService localizedContentService;
+  private final CourseInstructorResolver courseInstructorResolver;
 
   public List<StudentLiveClassSummaryResponse> execute(Authentication authentication) {
     UUID userId = currentUserService.getCurrentUserId(authentication);
@@ -42,10 +45,18 @@ public class StudentUpcomingLiveClasses {
       return List.of();
     }
 
-    List<UUID> courseIds = enrollments.stream().map(e -> e.getCourse().getId()).toList();
+    Instant now = Instant.now();
+    List<UUID> courseIds =
+        enrollments.stream()
+            .filter(e -> e.getExpiresAt() == null || e.getExpiresAt().isAfter(now))
+            .map(e -> e.getCourse().getId())
+            .toList();
+    if (courseIds.isEmpty()) {
+      return List.of();
+    }
     List<LiveClass> liveClasses =
         liveClassRepository.findUpcomingByCourseIds(
-            courseIds, List.of(LiveClassStatus.SCHEDULED, LiveClassStatus.LIVE), Instant.now());
+            courseIds, List.of(LiveClassStatus.SCHEDULED, LiveClassStatus.LIVE), now);
 
     Map<UUID, LiveClassRegistrant> registrantByClassId =
         registrantRepository
@@ -72,14 +83,14 @@ public class StudentUpcomingLiveClasses {
             ? registrant.getParticipantJoinUrl()
             : liveClass.effectiveParticipantJoinUrl();
     boolean canJoin = isLive && isRegistered && joinUrl != null;
+    User instructor = courseInstructorResolver.primaryInstructor(liveClass.getCourse());
 
     return StudentLiveClassSummaryResponse.builder()
         .liveClassId(liveClass.getId())
         .title(localizedContentService.text(liveClass.getTitle(), liveClass.getTitleEn()))
         .description(
             localizedContentService.text(liveClass.getDescription(), liveClass.getDescriptionEn()))
-        .instructorName(
-            liveClass.getInstructor() != null ? liveClass.getInstructor().getFullName() : null)
+        .instructorName(instructor != null ? instructor.getFullName() : null)
         .instructorImageUrl(null)
         .startsAt(liveClass.getStartsAt())
         .endsAt(liveClass.getEndsAt())

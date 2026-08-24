@@ -1,6 +1,7 @@
 package com.gii.api.service.quiz;
 
 import com.gii.api.model.response.quiz.QuizAttemptStartResponse;
+import com.gii.common.entity.enrollment.Enrollment;
 import com.gii.common.entity.quiz.Quiz;
 import com.gii.common.entity.quiz.QuizAttempt;
 import com.gii.common.entity.quiz.QuizQuestion;
@@ -30,15 +31,33 @@ public class QuizAttemptStartService {
   public QuizAttemptStartResponse execute(UUID quizId, Authentication authentication) {
     User user = quizAccessService.requireCurrentUser(authentication);
     Quiz quiz = quizAccessService.requirePublishedQuiz(quizId);
-    quizAccessService.ensureActiveEnrollment(user.getId(), quiz.getCourse().getId());
+    Enrollment enrollment = quizAccessService.requireActiveEnrollment(user.getId(), quiz);
+    return startAttempt(user, quiz, enrollment);
+  }
 
-    long usedAttempts = attemptRepository.countByQuizIdAndUserId(quizId, user.getId());
+  public QuizAttemptStartResponse execute(
+      UUID courseId, UUID quizId, Authentication authentication) {
+    User user = quizAccessService.requireCurrentUser(authentication);
+    Quiz quiz = quizAccessService.requirePublishedQuiz(quizId);
+    Enrollment enrollment = quizAccessService.requireActiveEnrollment(user.getId(), courseId, quiz);
+    return startAttempt(user, quiz, enrollment);
+  }
+
+  private QuizAttemptStartResponse startAttempt(User user, Quiz quiz, Enrollment enrollment) {
+    long usedAttempts =
+        attemptRepository.countByQuizIdAndEnrollmentId(quiz.getId(), enrollment.getId());
     if (usedAttempts >= quiz.getMaxAttempts()) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Maximum attempts reached");
     }
 
     int attemptNo = (int) usedAttempts + 1;
-    QuizAttempt attempt = QuizAttempt.builder().quiz(quiz).user(user).attemptNo(attemptNo).build();
+    QuizAttempt attempt =
+        QuizAttempt.builder()
+            .quiz(quiz)
+            .user(user)
+            .enrollment(enrollment)
+            .attemptNo(attemptNo)
+            .build();
     try {
       attemptRepository.save(attempt);
     } catch (DataIntegrityViolationException ex) {
@@ -47,7 +66,7 @@ public class QuizAttemptStartService {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Maximum attempts reached");
     }
 
-    List<QuizQuestion> questions = questionRepository.findByQuizIdOrderByPositionAsc(quizId);
+    List<QuizQuestion> questions = questionRepository.findByQuizIdOrderByPositionAsc(quiz.getId());
     int totalPoints = questions.stream().mapToInt(QuizQuestion::getPoints).sum();
     Instant deadline =
         quiz.getTimeLimitSec() != null

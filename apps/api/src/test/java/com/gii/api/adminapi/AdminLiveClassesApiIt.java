@@ -35,12 +35,12 @@ class AdminLiveClassesApiIt extends AbstractAdminApiIntegrationTest {
     var firstStudent = user("First Student", "first-live-student@example.com");
     final var secondStudent = user("Second Student", "second-live-student@example.com");
     var course = course("Database Live Course", "database-live-course", creator);
+    assignment(course, instructor);
     course.setTitleEn("Database Live Course English");
     courseRepository.saveAndFlush(course);
     var section = section(course, 1);
     var liveClass = liveClass(course, section, lesson(course, section, 1));
     liveClass.setTitleEn("Live Session English");
-    liveClass.setInstructor(instructor);
     liveClassRepository.saveAndFlush(liveClass);
     registrant(liveClass, firstStudent, LiveClassRegistrantStatus.APPROVED);
     registrant(liveClass, secondStudent, LiveClassRegistrantStatus.PENDING);

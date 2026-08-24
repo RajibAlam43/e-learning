@@ -9,6 +9,8 @@ import lombok.Builder;
 @Builder
 public record StudentLiveClassHomeResponse(
     UUID liveClassId,
+    UUID liveClassItemId,
+    Boolean scheduled,
     String title,
     String description,
     Instant startsAt,

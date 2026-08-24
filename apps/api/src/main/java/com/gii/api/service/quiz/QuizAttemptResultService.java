@@ -4,6 +4,7 @@ import com.gii.api.model.response.quiz.QuizAttemptQuestionResultResponse;
 import com.gii.api.model.response.quiz.QuizAttemptResultResponse;
 import com.gii.api.model.response.quiz.QuizResultChoiceResponse;
 import com.gii.api.service.localization.LocalizedContentService;
+import com.gii.common.entity.enrollment.Enrollment;
 import com.gii.common.entity.quiz.Quiz;
 import com.gii.common.entity.quiz.QuizAttempt;
 import com.gii.common.entity.quiz.QuizAttemptAnswer;
@@ -49,7 +50,7 @@ public class QuizAttemptResultService {
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Attempt not found"));
 
     Quiz quiz = attempt.getQuiz();
-    quizAccessService.ensureActiveEnrollment(userId, quiz.getCourse().getId());
+    Enrollment enrollment = quizAccessService.requireActiveAttemptEnrollment(userId, attempt);
 
     List<QuizQuestion> questions = questionRepository.findByQuizIdOrderByPositionAsc(quiz.getId());
     Map<UUID, QuizQuestion> questionById =
@@ -125,9 +126,12 @@ public class QuizAttemptResultService {
     }
 
     int scorePct = totalPoints == 0 ? 0 : (int) Math.round((earnedPoints * 100.0) / totalPoints);
-    int totalAttempts = (int) attemptRepository.countByQuizIdAndUserId(quiz.getId(), userId);
+    int totalAttempts =
+        (int) attemptRepository.countByQuizIdAndEnrollmentId(quiz.getId(), enrollment.getId());
     int bestScore =
-        attemptRepository.findByQuizIdAndUserIdOrderByAttemptNoDesc(quiz.getId(), userId).stream()
+        attemptRepository
+            .findByQuizIdAndEnrollmentIdOrderByAttemptNoDesc(quiz.getId(), enrollment.getId())
+            .stream()
             .map(QuizAttempt::getScorePct)
             .filter(Objects::nonNull)
             .max(Integer::compareTo)

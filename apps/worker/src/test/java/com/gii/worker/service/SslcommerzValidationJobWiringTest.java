@@ -4,12 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.gii.common.repository.collection.CollectionCourseRepository;
-import com.gii.common.repository.collection.CollectionEnrollmentRepository;
-import com.gii.common.repository.enrollment.EnrollmentRepository;
-import com.gii.common.repository.order.OrderItemRepository;
 import com.gii.common.repository.order.OrderRepository;
 import com.gii.common.repository.order.PaymentEventRepository;
+import com.gii.common.service.payment.PaidOrderEnrollmentService;
 import com.gii.worker.config.RedisConfig;
 import com.gii.worker.config.SqsConfig;
 import org.junit.jupiter.api.Test;
@@ -55,28 +52,13 @@ class SslcommerzValidationJobWiringTest {
     }
 
     @Bean
-    OrderItemRepository orderItemRepository() {
-      return mock(OrderItemRepository.class);
-    }
-
-    @Bean
-    EnrollmentRepository enrollmentRepository() {
-      return mock(EnrollmentRepository.class);
-    }
-
-    @Bean
-    CollectionEnrollmentRepository collectionEnrollmentRepository() {
-      return mock(CollectionEnrollmentRepository.class);
-    }
-
-    @Bean
-    CollectionCourseRepository collectionCourseRepository() {
-      return mock(CollectionCourseRepository.class);
-    }
-
-    @Bean
     PaymentEventRepository paymentEventRepository() {
       return mock(PaymentEventRepository.class);
+    }
+
+    @Bean
+    PaidOrderEnrollmentService paidOrderEnrollmentService() {
+      return mock(PaidOrderEnrollmentService.class);
     }
 
     @Bean
@@ -85,21 +67,15 @@ class SslcommerzValidationJobWiringTest {
         WebClient.Builder webClientBuilder,
         SqsAsyncClient sqsAsyncClient,
         OrderRepository orderRepository,
-        OrderItemRepository orderItemRepository,
-        EnrollmentRepository enrollmentRepository,
-        CollectionEnrollmentRepository collectionEnrollmentRepository,
-        CollectionCourseRepository collectionCourseRepository,
-        PaymentEventRepository paymentEventRepository) {
+        PaymentEventRepository paymentEventRepository,
+        PaidOrderEnrollmentService paidOrderEnrollmentService) {
       return new SslcommerzValidationJobService(
           objectMapper,
           webClientBuilder,
           sqsAsyncClient,
           orderRepository,
-          orderItemRepository,
-          enrollmentRepository,
-          collectionEnrollmentRepository,
-          collectionCourseRepository,
-          paymentEventRepository);
+          paymentEventRepository,
+          paidOrderEnrollmentService);
     }
   }
 }

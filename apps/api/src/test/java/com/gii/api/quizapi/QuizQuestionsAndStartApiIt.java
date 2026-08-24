@@ -1,5 +1,6 @@
 package com.gii.api.quizapi;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -13,6 +14,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
 
 class QuizQuestionsAndStartApiIt extends AbstractQuizApiIntegrationTest {
 
@@ -55,7 +57,7 @@ class QuizQuestionsAndStartApiIt extends AbstractQuizApiIntegrationTest {
 
     mockMvc
         .perform(
-            get("/learn/quizzes/{quizId}", quiz.getId())
+            get("/learn/courses/{courseId}/quizzes/{quizId}", course.getId(), quiz.getId())
                 .with(authentication(studentAuth(student.getId()))))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.quizId").value(quiz.getId().toString()))
@@ -101,5 +103,78 @@ class QuizQuestionsAndStartApiIt extends AbstractQuizApiIntegrationTest {
             post("/learn/quizzes/{quizId}/attempts", quiz.getId())
                 .with(authentication(studentAuth(student.getId()))))
         .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  @Transactional
+  void courseScopedAttemptsAreIsolatedAcrossRepeatedCoursesAndLegacyRouteRejectsAmbiguity()
+      throws Exception {
+    var creator = user("Creator", "creator-repeated-quiz@example.com");
+    var student = user("Student", "student-repeated-quiz@example.com");
+    var firstCourse =
+        course("Repeated Quiz Course", "repeated-quiz-fall", creator, PublishStatus.PUBLISHED);
+    var secondCourse = repeatedCourse(firstCourse, "repeated-quiz-spring", creator);
+    var sec = section(firstCourse, 1, PublishStatus.PUBLISHED);
+    var lesson = lesson(firstCourse, sec, 1, PublishStatus.PUBLISHED);
+    var firstEnrollment =
+        enrollment(student, firstCourse, EnrollmentStatus.ACTIVE, Instant.now().plusSeconds(3600));
+    final var secondEnrollment =
+        enrollment(student, secondCourse, EnrollmentStatus.ACTIVE, Instant.now().plusSeconds(3600));
+    var quiz = quiz(firstCourse, lesson, "Shared Quiz", PublishStatus.PUBLISHED, 60, 1, 600);
+    question(quiz, 1, "Question", 10);
+    var firstAttempt =
+        attempt(
+            quiz,
+            student,
+            firstEnrollment,
+            1,
+            100,
+            true,
+            Instant.now().minusSeconds(120),
+            Instant.now().minusSeconds(60));
+
+    mockMvc
+        .perform(
+            post(
+                    "/learn/courses/{courseId}/quizzes/{quizId}/attempts",
+                    secondCourse.getId(),
+                    quiz.getId())
+                .with(authentication(studentAuth(student.getId()))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.attemptNumber").value(1));
+
+    assertThat(
+            quizAttemptRepository.countByQuizIdAndEnrollmentId(
+                quiz.getId(), firstEnrollment.getId()))
+        .isEqualTo(1);
+    assertThat(
+            quizAttemptRepository.countByQuizIdAndEnrollmentId(
+                quiz.getId(), secondEnrollment.getId()))
+        .isEqualTo(1);
+
+    mockMvc
+        .perform(
+            get(
+                    "/learn/courses/{courseId}/quizzes/{quizId}/attempts",
+                    firstCourse.getId(),
+                    quiz.getId())
+                .with(authentication(studentAuth(student.getId()))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.length()").value(1))
+        .andExpect(jsonPath("$[0].attemptNumber").value(1));
+
+    mockMvc
+        .perform(
+            get("/learn/quiz-attempts/{attemptId}", firstAttempt.getId())
+                .with(authentication(studentAuth(student.getId()))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalAttempts").value(1))
+        .andExpect(jsonPath("$.bestScorePct").value(100));
+
+    mockMvc
+        .perform(
+            post("/learn/quizzes/{quizId}/attempts", quiz.getId())
+                .with(authentication(studentAuth(student.getId()))))
+        .andExpect(status().isConflict());
   }
 }
