@@ -133,6 +133,14 @@ public class Course extends BaseUuidEntity {
     template.setThumbnailObjectKey(value);
   }
 
+  public String getYoutubeVideoId() {
+    return template.getYoutubeVideoId();
+  }
+
+  public void setYoutubeVideoId(String value) {
+    template.setYoutubeVideoId(value);
+  }
+
   public String getShortDescription() {
     return template.getShortDescription();
   }

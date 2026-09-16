@@ -34,6 +34,8 @@ class PublicCourseDetailsApiIt extends AbstractPublicApiIntegrationTest {
             CourseLevel.BEGINNER,
             CourseLanguage.EN,
             Instant.now());
+    published.setYoutubeVideoId("dQw4w9WgXcQ");
+    courseRepository.save(published);
     CourseSection publishedSection =
         section(published, uniqueSlug("sec-p"), 1, PublishStatus.PUBLISHED);
     section(published, uniqueSlug("sec-d"), 2, PublishStatus.DRAFT);
@@ -56,6 +58,8 @@ class PublicCourseDetailsApiIt extends AbstractPublicApiIntegrationTest {
         .perform(get("/public/courses/{slug}", published.getSlug()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.title").value("Public Course"))
+        .andExpect(jsonPath("$.video.provider").value("YOUTUBE"))
+        .andExpect(jsonPath("$.video.sourceId").value("dQw4w9WgXcQ"))
         .andExpect(jsonPath("$.sections.length()").value(1))
         .andExpect(jsonPath("$.sections[0].lessons.length()").value(2))
         .andExpect(jsonPath("$.sections[0].lessons[0].video.sourceId").value("yt123"))

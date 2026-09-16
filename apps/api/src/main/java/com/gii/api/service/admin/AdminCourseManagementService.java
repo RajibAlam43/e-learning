@@ -1,10 +1,12 @@
 package com.gii.api.service.admin;
 
+import com.gii.api.model.request.admin.CourseVideoRequest;
 import com.gii.api.model.request.admin.CreateCourseRequest;
 import com.gii.api.model.request.admin.FeatureCourseRequest;
 import com.gii.api.model.request.admin.ReorderCourseStructureRequest;
 import com.gii.api.model.request.admin.RepeatCourseRequest;
 import com.gii.api.model.request.admin.UpdateCourseRequest;
+import com.gii.api.model.response.LessonVideoResponse;
 import com.gii.api.model.response.admin.AdminCategoryResponse;
 import com.gii.api.model.response.admin.AdminCourseDetailResponse;
 import com.gii.api.model.response.admin.AdminCourseSectionResponse;
@@ -25,6 +27,7 @@ import com.gii.common.enums.CourseLanguage;
 import com.gii.common.enums.CourseLevel;
 import com.gii.common.enums.EnrollmentStatus;
 import com.gii.common.enums.InstructorRole;
+import com.gii.common.enums.MediaProvider;
 import com.gii.common.enums.PublishStatus;
 import com.gii.common.enums.SectionItemType;
 import com.gii.common.enums.StudyMode;
@@ -123,6 +126,7 @@ public class AdminCourseManagementService {
                 .titleEn(request.titleEn())
                 .thumbnailObjectKey(
                     assetUrlService.normalizeThumbnailKey(request.thumbnailObjectKey(), "courses"))
+                .youtubeVideoId(normalizeVideo(request.video()))
                 .shortDescription(request.shortDescription())
                 .shortDescriptionEn(request.shortDescriptionEn())
                 .description(request.description())
@@ -218,6 +222,9 @@ public class AdminCourseManagementService {
     if (request.getThumbnailObjectKey() != null) {
       course.setThumbnailObjectKey(
           assetUrlService.normalizeThumbnailKey(request.getThumbnailObjectKey(), "courses"));
+    }
+    if (request.isVideoPresent()) {
+      course.setYoutubeVideoId(normalizeVideo(request.getVideo()));
     }
     if (request.getShortDescription() != null) {
       course.setShortDescription(request.getShortDescription());
@@ -533,6 +540,13 @@ public class AdminCourseManagementService {
         .categories(categories)
         .thumbnailObjectKey(course.getThumbnailObjectKey())
         .thumbnailUrl(assetUrlService.publicUrl(course.getThumbnailObjectKey()))
+        .video(
+            course.getYoutubeVideoId() == null
+                ? null
+                : LessonVideoResponse.builder()
+                    .provider(MediaProvider.YOUTUBE)
+                    .sourceId(course.getYoutubeVideoId())
+                    .build())
         .shortDescription(course.getShortDescription())
         .shortDescriptionEn(course.getShortDescriptionEn())
         .description(course.getDescription())
@@ -578,6 +592,16 @@ public class AdminCourseManagementService {
         .sections(sections)
         .instructors(instructors)
         .build();
+  }
+
+  private String normalizeVideo(CourseVideoRequest video) {
+    if (video == null) {
+      return null;
+    }
+    if (video.provider() != MediaProvider.YOUTUBE) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only YouTube video is supported");
+    }
+    return video.sourceId();
   }
 
   private String normalizeTimezone(String timezone) {
@@ -634,7 +658,10 @@ public class AdminCourseManagementService {
         categories.stream()
             .map(
                 category ->
-                    CourseCategory.builder().template(course.getTemplate()).category(category).build())
+                    CourseCategory.builder()
+                        .template(course.getTemplate())
+                        .category(category)
+                        .build())
             .toList());
   }
 

@@ -9,6 +9,7 @@ import com.gii.common.entity.course.Course;
 import com.gii.common.entity.enrollment.Enrollment;
 import com.gii.common.entity.order.Order;
 import com.gii.common.entity.order.OrderItem;
+import com.gii.common.entity.order.PaymentAttempt;
 import com.gii.common.entity.order.PaymentEvent;
 import com.gii.common.entity.user.User;
 import com.gii.common.enums.CollectionType;
@@ -189,6 +190,18 @@ abstract class PaymentApiTestSupport {
             .rawPayloadJson(java.util.Map.of("k", "v"))
             .status(status)
             .processedAt(Instant.now())
+            .build());
+  }
+
+  protected PaymentAttempt paymentAttempt(
+      Order order, OrderProvider provider, String txnId, Instant expiresAt) {
+    return paymentAttemptRepository.save(
+        PaymentAttempt.builder()
+            .order(order)
+            .provider(provider)
+            .providerTxnId(txnId)
+            .redirectUrl("https://payments.test/" + txnId)
+            .expiresAt(expiresAt)
             .build());
   }
 }

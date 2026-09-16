@@ -48,29 +48,44 @@ public class PaymentFlowSupportService {
 
   public void validateProviderTransactionId(
       Order order, OrderProvider callbackProvider, String callbackTxnId) {
+    validateProviderTransactionId(order, callbackProvider, callbackTxnId, true);
+  }
+
+  private boolean validateProviderTransactionId(
+      Order order,
+      OrderProvider callbackProvider,
+      String callbackTxnId,
+      boolean promoteHistoricalAttempt) {
     if (callbackTxnId == null || callbackTxnId.isBlank()) {
-      return;
+      return true;
     }
     String expected = normalizeTxn(order.getProviderTxnId());
     String actual = normalizeTxn(callbackTxnId);
-    boolean matches = order.getProvider() == callbackProvider && expected.equals(actual);
-    if (!matches) {
+    boolean currentAttempt = order.getProvider() == callbackProvider && expected.equals(actual);
+    boolean matchesKnownAttempt = currentAttempt;
+    if (!currentAttempt) {
       var attempt =
           paymentAttemptRepository
               .findTopByOrderIdAndProviderAndProviderTxnIdOrderByCreatedAtDesc(
                   order.getId(), callbackProvider, callbackTxnId)
               .orElse(null);
-      matches = attempt != null;
-      if (attempt != null) {
+      matchesKnownAttempt = attempt != null;
+      if (attempt != null && promoteHistoricalAttempt) {
         order.setProvider(attempt.getProvider());
         order.setProviderTxnId(attempt.getProviderTxnId());
         orderRepository.save(order);
       }
     }
-    if (!matches) {
+    if (!matchesKnownAttempt) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "Callback transaction identifier does not match order");
     }
+    return currentAttempt;
+  }
+
+  public boolean validateTerminalProviderTransactionId(
+      Order order, OrderProvider callbackProvider, String callbackTxnId) {
+    return validateProviderTransactionId(order, callbackProvider, callbackTxnId, false);
   }
 
   private String normalizeTxn(String value) {
@@ -82,12 +97,21 @@ public class PaymentFlowSupportService {
       PaymentEventType eventType,
       Map<String, String> payload,
       PaymentEventStatus status) {
+    recordCallbackEvent(order, order.getProvider(), eventType, payload, status);
+  }
+
+  public void recordCallbackEvent(
+      Order order,
+      OrderProvider callbackProvider,
+      PaymentEventType eventType,
+      Map<String, String> payload,
+      PaymentEventStatus status) {
     String providerEventId =
         firstNonBlank(payload.get("event_id"), payload.get("eventId"), payload.get("event_ref"));
     PaymentEvent event =
         PaymentEvent.builder()
             .order(order)
-            .provider(order.getProvider())
+            .provider(callbackProvider)
             .eventType(eventType)
             .providerEventId(providerEventId)
             .rawPayloadJson(Map.copyOf(payload))

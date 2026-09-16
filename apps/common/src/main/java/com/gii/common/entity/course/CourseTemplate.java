@@ -40,6 +40,9 @@ public class CourseTemplate extends BaseUuidEntity {
   @Column(name = "thumbnail_object_key")
   private String thumbnailObjectKey;
 
+  @Column(name = "youtube_video_id", length = 11)
+  private String youtubeVideoId;
+
   @Column(name = "short_description")
   private String shortDescription;
 

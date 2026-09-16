@@ -328,6 +328,8 @@ class AdminCourseStructureApiIt extends AbstractAdminApiIntegrationTest {
   void repeatCourseClonesCurriculumIndependentlyOfSource() throws Exception {
     var admin = user("Repeat Admin", "repeat-admin@example.com");
     var source = course("Repeatable Course", "repeatable-spring", admin);
+    source.setYoutubeVideoId("dQw4w9WgXcQ");
+    courseRepository.saveAndFlush(source);
     var sourceSection = section(source, 1);
     var sourceLesson = lesson(source, sourceSection, 1);
     sourceSection.setReleaseType(ReleaseType.FIXED_DATE);
@@ -363,6 +365,8 @@ class AdminCourseStructureApiIt extends AbstractAdminApiIntegrationTest {
                 jsonPath("$.courseId").value(org.hamcrest.Matchers.not(source.getId().toString())))
             .andExpect(jsonPath("$.slug").value("repeatable-fall"))
             .andExpect(jsonPath("$.title").value("Repeatable Course"))
+            .andExpect(jsonPath("$.video.provider").value("YOUTUBE"))
+            .andExpect(jsonPath("$.video.sourceId").value("dQw4w9WgXcQ"))
             .andExpect(jsonPath("$.studyMode").value("COHORT_BASED"))
             .andExpect(jsonPath("$.timezone").value("America/Chicago"))
             .andExpect(jsonPath("$.capacity").value(40))
@@ -513,12 +517,18 @@ class AdminCourseStructureApiIt extends AbstractAdminApiIntegrationTest {
                       "level":"BEGINNER",
                       "language":"EN",
                       "studyMode":"COHORT_BASED",
-                      "isFree":false
+                      "isFree":false,
+                      "video":{
+                        "provider":"YOUTUBE",
+                        "sourceId":"dQw4w9WgXcQ"
+                      }
                     }
                     """
                         .formatted(category.getId())))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.title").value("Course Alpha"))
+        .andExpect(jsonPath("$.video.provider").value("YOUTUBE"))
+        .andExpect(jsonPath("$.video.sourceId").value("dQw4w9WgXcQ"))
         .andExpect(jsonPath("$.categories[0].id").value(category.getId().toString()))
         .andExpect(jsonPath("$.status").value("DRAFT"));
 
@@ -532,7 +542,8 @@ class AdminCourseStructureApiIt extends AbstractAdminApiIntegrationTest {
             get("/admin/courses/{courseId}", course.getId())
                 .with(authentication(adminAuth(admin.getId()))))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.courseId").value(course.getId().toString()));
+        .andExpect(jsonPath("$.courseId").value(course.getId().toString()))
+        .andExpect(jsonPath("$.video.sourceId").value("dQw4w9WgXcQ"));
 
     mockMvc
         .perform(
@@ -541,7 +552,33 @@ class AdminCourseStructureApiIt extends AbstractAdminApiIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"title\":\"Course Alpha Updated\"}"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.title").value("Course Alpha Updated"));
+        .andExpect(jsonPath("$.title").value("Course Alpha Updated"))
+        .andExpect(jsonPath("$.video.sourceId").value("dQw4w9WgXcQ"));
+
+    mockMvc
+        .perform(
+            patch("/admin/courses/{courseId}", course.getId())
+                .with(authentication(adminAuth(admin.getId())))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"video\":{\"provider\":\"MUX\",\"sourceId\":\"dQw4w9WgXcQ\"}}"))
+        .andExpect(status().isBadRequest());
+
+    mockMvc
+        .perform(
+            patch("/admin/courses/{courseId}", course.getId())
+                .with(authentication(adminAuth(admin.getId())))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"video\":{\"provider\":\"YOUTUBE\",\"sourceId\":\"invalid\"}}"))
+        .andExpect(status().isBadRequest());
+
+    mockMvc
+        .perform(
+            patch("/admin/courses/{courseId}", course.getId())
+                .with(authentication(adminAuth(admin.getId())))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"video\":null}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.video").doesNotExist());
 
     mockMvc
         .perform(

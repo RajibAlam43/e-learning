@@ -15,6 +15,7 @@ public record CourseDetailsResponse(
     String title,
     String slug,
     String thumbnailUrl,
+    LessonVideoResponse video,
     String shortDescription,
     String description,
     List<String> highlights,

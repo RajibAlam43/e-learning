@@ -17,6 +17,7 @@ import com.gii.common.entity.course.LessonResource;
 import com.gii.common.entity.course.MediaAsset;
 import com.gii.common.entity.user.User;
 import com.gii.common.enums.LessonResourcePurpose;
+import com.gii.common.enums.MediaProvider;
 import com.gii.common.enums.PublishStatus;
 import com.gii.common.enums.ReviewStatus;
 import com.gii.common.repository.course.CourseCategoryRepository;
@@ -126,6 +127,7 @@ public class CourseDetailsService {
         .language(course.getLanguage())
         .level(course.getLevel())
         .thumbnailUrl(assetUrlService.publicUrl(course.getThumbnailObjectKey()))
+        .video(toCourseVideo(course.getYoutubeVideoId()))
         .priceBdt(course.getPriceBdt())
         .highlights(localizedContentService.list(course.getHighlights(), course.getHighlightsEn()))
         .courseOutcomes(
@@ -153,6 +155,15 @@ public class CourseDetailsService {
         .totalReviews(totalReviews)
         .sections(sectionResponses)
         .build();
+  }
+
+  private LessonVideoResponse toCourseVideo(String youtubeVideoId) {
+    return youtubeVideoId == null
+        ? null
+        : LessonVideoResponse.builder()
+            .provider(MediaProvider.YOUTUBE)
+            .sourceId(youtubeVideoId)
+            .build();
   }
 
   private CourseSectionResponse toSectionResponse(

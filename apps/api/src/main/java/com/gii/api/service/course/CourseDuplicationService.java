@@ -90,6 +90,7 @@ public class CourseDuplicationService {
         .title(source.getTitle())
         .titleEn(source.getTitleEn())
         .thumbnailObjectKey(source.getThumbnailObjectKey())
+        .youtubeVideoId(source.getYoutubeVideoId())
         .shortDescription(source.getShortDescription())
         .shortDescriptionEn(source.getShortDescriptionEn())
         .description(source.getDescription())
