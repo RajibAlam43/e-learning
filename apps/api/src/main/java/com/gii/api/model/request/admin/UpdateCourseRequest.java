@@ -2,6 +2,7 @@ package com.gii.api.model.request.admin;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonSetter;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
@@ -26,6 +27,11 @@ public class UpdateCourseRequest {
   private List<@NotNull UUID> categoryIds;
 
   private String thumbnailObjectKey;
+
+  @Valid
+  @Setter(AccessLevel.NONE)
+  private CourseVideoRequest video;
+
   private String shortDescription;
   private String shortDescriptionEn;
   private String description;
@@ -99,6 +105,10 @@ public class UpdateCourseRequest {
   @Getter(AccessLevel.NONE)
   private boolean accessDurationDaysPresent;
 
+  @Setter(AccessLevel.NONE)
+  @Getter(AccessLevel.NONE)
+  private boolean videoPresent;
+
   @JsonIgnore
   public boolean isTimezonePresent() {
     return timezonePresent;
@@ -132,6 +142,17 @@ public class UpdateCourseRequest {
   @JsonIgnore
   public boolean isAccessDurationDaysPresent() {
     return accessDurationDaysPresent;
+  }
+
+  @JsonIgnore
+  public boolean isVideoPresent() {
+    return videoPresent;
+  }
+
+  @JsonSetter("video")
+  public void setVideoValue(CourseVideoRequest value) {
+    video = value;
+    videoPresent = true;
   }
 
   @JsonSetter("timezone")

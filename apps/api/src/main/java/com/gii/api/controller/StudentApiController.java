@@ -19,6 +19,7 @@ import com.gii.api.service.student.CourseLiveClassesService;
 import com.gii.api.service.student.CourseReviewSubmissionService;
 import com.gii.api.service.student.EnrolledCourseDetailsService;
 import com.gii.api.service.student.EnrolledCoursesService;
+import com.gii.api.service.student.FreeCourseEnrollmentService;
 import com.gii.api.service.student.StudentCertificatesService;
 import com.gii.api.service.student.StudentCollectionDetailsService;
 import com.gii.api.service.student.StudentCollectionsService;
@@ -49,6 +50,7 @@ public class StudentApiController implements StudentApi {
   private final StudentCollectionsService studentCollectionsService;
   private final StudentCollectionDetailsService studentCollectionDetailsService;
   private final EnrolledCourseDetailsService enrolledCourseDetailsService;
+  private final FreeCourseEnrollmentService freeCourseEnrollmentService;
   private final StudentOrdersService studentOrdersService;
   private final StudentCertificatesService studentCertificatesService;
   private final StudentUpcomingLiveClasses studentUpcomingLiveClasses;
@@ -99,6 +101,12 @@ public class StudentApiController implements StudentApi {
   public ResponseEntity<StudentCourseHomeResponse> getMyCourseDetails(
       UUID courseId, Authentication authentication) {
     return ResponseEntity.ok(enrolledCourseDetailsService.execute(courseId, authentication));
+  }
+
+  @Override
+  public ResponseEntity<Void> enrollInFreeCourse(UUID courseId, Authentication authentication) {
+    freeCourseEnrollmentService.execute(courseId, authentication);
+    return ResponseEntity.noContent().build();
   }
 
   @Override

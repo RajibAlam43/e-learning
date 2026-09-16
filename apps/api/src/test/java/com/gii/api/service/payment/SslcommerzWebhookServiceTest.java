@@ -17,6 +17,7 @@ import com.gii.common.entity.user.User;
 import com.gii.common.enums.OrderProvider;
 import com.gii.common.enums.OrderStatus;
 import com.gii.common.repository.order.OrderRepository;
+import com.gii.common.repository.order.PaymentAttemptRepository;
 import com.gii.common.repository.order.PaymentEventRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -36,6 +37,7 @@ class SslcommerzWebhookServiceTest {
 
   @Mock private PaymentEventRepository paymentEventRepository;
   @Mock private OrderRepository orderRepository;
+  @Mock private PaymentAttemptRepository paymentAttemptRepository;
   @Mock private SslcommerzCallbackService sslcommerzCallbackService;
   @Mock private SslcommerzCallbackValidationService sslcommerzCallbackValidationService;
 

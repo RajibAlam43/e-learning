@@ -15,7 +15,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.experimental.SuperBuilder;
 
-/** A reusable live-class position in a versioned curriculum. */
+/** A live-class position in a course's curriculum. */
 @SuperBuilder
 @Getter
 @Setter

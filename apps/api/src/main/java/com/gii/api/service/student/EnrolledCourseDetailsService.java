@@ -1,5 +1,6 @@
 package com.gii.api.service.student;
 
+import com.gii.api.model.response.lesson.LessonResourceSummaryResponse;
 import com.gii.api.model.response.student.StudentCourseHomeResponse;
 import com.gii.api.model.response.student.StudentLessonHomeResponse;
 import com.gii.api.model.response.student.StudentLiveClassHomeResponse;
@@ -17,6 +18,7 @@ import com.gii.common.entity.course.Course;
 import com.gii.common.entity.course.CourseInstructor;
 import com.gii.common.entity.course.CourseSection;
 import com.gii.common.entity.course.Lesson;
+import com.gii.common.entity.course.LessonResource;
 import com.gii.common.entity.course.SectionItem;
 import com.gii.common.entity.enrollment.Enrollment;
 import com.gii.common.entity.enrollment.LessonProgress;
@@ -25,6 +27,7 @@ import com.gii.common.entity.live.LiveClassSlot;
 import com.gii.common.entity.quiz.Quiz;
 import com.gii.common.enums.EnrollmentStatus;
 import com.gii.common.enums.InstructorRole;
+import com.gii.common.enums.LessonResourcePurpose;
 import com.gii.common.enums.LiveClassStatus;
 import com.gii.common.enums.PublishStatus;
 import com.gii.common.enums.SectionItemType;
@@ -32,6 +35,7 @@ import com.gii.common.repository.certificate.CertificateRepository;
 import com.gii.common.repository.course.CourseInstructorRepository;
 import com.gii.common.repository.course.CourseSectionRepository;
 import com.gii.common.repository.course.LessonRepository;
+import com.gii.common.repository.course.LessonResourceRepository;
 import com.gii.common.repository.course.SectionItemRepository;
 import com.gii.common.repository.enrollment.EnrollmentRepository;
 import com.gii.common.repository.enrollment.LessonProgressRepository;
@@ -63,6 +67,7 @@ public class EnrolledCourseDetailsService {
   private final CurrentUserService currentUserService;
   private final EnrollmentRepository enrollmentRepository;
   private final LessonRepository lessonRepository;
+  private final LessonResourceRepository lessonResourceRepository;
   private final LessonProgressRepository lessonProgressRepository;
   private final CourseSectionRepository courseSectionRepository;
   private final CourseInstructorRepository courseInstructorRepository;
@@ -102,6 +107,13 @@ public class EnrolledCourseDetailsService {
             sections.stream().map(CourseSection::getId).toList());
     List<LessonProgress> progresses =
         lessonProgressRepository.findByUserIdAndLessonCourseId(userId, courseId);
+    Map<UUID, List<LessonResource>> resourcesByLessonId =
+        lessonResourceRepository
+            .findByLessonIdInOrderByLessonIdAscPositionAsc(
+                lessons.stream().map(Lesson::getId).toList())
+            .stream()
+            .collect(
+                java.util.stream.Collectors.groupingBy(resource -> resource.getLesson().getId()));
 
     Map<UUID, LessonProgress> progressByLessonId = new HashMap<>();
     for (LessonProgress progress : progresses) {
@@ -147,6 +159,7 @@ public class EnrolledCourseDetailsService {
                         progressByLessonId,
                         passedQuizIds,
                         attendedLiveClassIds,
+                        resourcesByLessonId,
                         enrollment))
             .toList();
 
@@ -199,20 +212,35 @@ public class EnrolledCourseDetailsService {
       Map<UUID, LessonProgress> progressByLessonId,
       Set<UUID> passedQuizIds,
       Set<UUID> attendedLiveClassIds,
+      Map<UUID, List<LessonResource>> resourcesByLessonId,
       Enrollment enrollment) {
     Instant now = Instant.now();
+    Map<UUID, Integer> positionByItemId =
+        sectionItems.stream()
+            .collect(
+                java.util.stream.Collectors.toMap(
+                    SectionItem::getItemId, SectionItem::getPosition));
     boolean sectionAccessible =
         curriculumAccessService.isSectionAccessible(section, enrollment, now);
-    int totalLessons = lessons.size();
+    boolean sectionMandatory = Boolean.TRUE.equals(section.getIsMandatory());
+    int totalLessons =
+        sectionMandatory
+            ? (int) lessons.stream().filter(l -> Boolean.TRUE.equals(l.getIsMandatory())).count()
+            : 0;
     int completedLessons =
-        (int)
-            lessons.stream()
-                .map(Lesson::getId)
-                .map(progressByLessonId::get)
-                .filter(p -> p != null && p.getCompletedAt() != null)
-                .count();
+        sectionMandatory
+            ? (int)
+                lessons.stream()
+                    .filter(lesson -> Boolean.TRUE.equals(lesson.getIsMandatory()))
+                    .map(Lesson::getId)
+                    .map(progressByLessonId::get)
+                    .filter(p -> p != null && p.getCompletedAt() != null)
+                    .count()
+            : 0;
     int completedQuizzes =
-        (int) quizzes.stream().map(Quiz::getId).filter(passedQuizIds::contains).count();
+        sectionMandatory
+            ? (int) quizzes.stream().map(Quiz::getId).filter(passedQuizIds::contains).count()
+            : 0;
     Set<UUID> completableLiveClassIds =
         sectionItems.stream()
             .filter(item -> item.getItemType() == SectionItemType.LIVE_CLASS)
@@ -220,7 +248,13 @@ public class EnrolledCourseDetailsService {
             .filter(
                 id -> {
                   LiveClassSlot slot = liveClassSlotById.get(id);
-                  return slot != null && Boolean.TRUE.equals(slot.getIsMandatory());
+                  LiveClass scheduled = liveClassBySlotId.get(id);
+                  return slot != null
+                      && sectionMandatory
+                      && Boolean.TRUE.equals(slot.getIsMandatory())
+                      && (scheduled == null
+                          || (scheduled.getStatus() != LiveClassStatus.CANCELLED
+                              && scheduled.getStatus() != LiveClassStatus.FAILED));
                 })
             .collect(java.util.stream.Collectors.toUnmodifiableSet());
     int totalLiveClasses = completableLiveClassIds.size();
@@ -231,7 +265,7 @@ public class EnrolledCourseDetailsService {
                 .filter(java.util.Objects::nonNull)
                 .filter(liveClass -> liveClass.getStatus() == LiveClassStatus.COMPLETED)
                 .count();
-    int totalItems = totalLessons + quizzes.size() + totalLiveClasses;
+    int totalItems = totalLessons + (sectionMandatory ? quizzes.size() : 0) + totalLiveClasses;
     int completedItems = completedLessons + completedQuizzes + completedLiveClasses;
     double completion = totalItems == 0 ? 0.0 : (completedItems * 100.0) / totalItems;
 
@@ -239,6 +273,19 @@ public class EnrolledCourseDetailsService {
     for (int i = 0; i < lessons.size(); i++) {
       Lesson lesson = lessons.get(i);
       LessonProgress progress = progressByLessonId.get(lesson.getId());
+      List<LessonResourceSummaryResponse> resourceSummaries =
+          resourcesByLessonId.getOrDefault(lesson.getId(), List.of()).stream()
+              .map(this::toResourceSummary)
+              .toList();
+      LessonResourceSummaryResponse primaryResource =
+          resourceSummaries.stream()
+              .filter(resource -> resource.purpose() == LessonResourcePurpose.PRIMARY_CONTENT)
+              .findFirst()
+              .orElse(null);
+      List<LessonResourceSummaryResponse> supplementaryResources =
+          resourceSummaries.stream()
+              .filter(resource -> resource.purpose() == LessonResourcePurpose.SUPPLEMENTARY)
+              .toList();
       String prev = i > 0 ? lessons.get(i - 1).getId().toString() : null;
       String next = i < lessons.size() - 1 ? lessons.get(i + 1).getId().toString() : null;
 
@@ -246,7 +293,7 @@ public class EnrolledCourseDetailsService {
           StudentLessonHomeResponse.builder()
               .lessonId(lesson.getId())
               .lessonTitle(localizedContentService.text(lesson.getTitle(), lesson.getTitleEn()))
-              .position(lesson.getPosition())
+              .position(positionByItemId.get(lesson.getId()))
               .lessonType(lesson.getLessonType())
               .completed(progress != null && progress.getCompletedAt() != null)
               .completedAt(progress != null ? progress.getCompletedAt() : null)
@@ -261,6 +308,8 @@ public class EnrolledCourseDetailsService {
                           now))
               .durationLabel(formatLessonDuration(lesson.getDurationSeconds()))
               .isFree(lesson.getIsFree())
+              .primaryResource(primaryResource)
+              .resources(supplementaryResources)
               .nextLessonId(next)
               .previousLessonId(prev)
               .build());
@@ -273,7 +322,7 @@ public class EnrolledCourseDetailsService {
                     StudentQuizHomeResponse.builder()
                         .quizId(quiz.getId())
                         .quizTitle(localizedContentService.text(quiz.getTitle(), quiz.getTitleEn()))
-                        .position(quiz.getPosition())
+                        .position(positionByItemId.get(quiz.getId()))
                         .isAccessible(sectionAccessible)
                         .accessReason(sectionAccessible ? "AVAILABLE" : "SECTION_LOCKED")
                         .passingScorePct(quiz.getPassingScorePct())
@@ -323,6 +372,17 @@ public class EnrolledCourseDetailsService {
         .items(itemResponses)
         .lessons(lessonResponses)
         .quizzes(quizResponses)
+        .build();
+  }
+
+  private LessonResourceSummaryResponse toResourceSummary(LessonResource resource) {
+    return LessonResourceSummaryResponse.builder()
+        .resourceId(resource.getId())
+        .title(localizedContentService.text(resource.getTitle(), resource.getTitleEn()))
+        .resourceType(resource.getResourceType())
+        .purpose(resource.getPurpose())
+        .mimeType(resource.getMimeType())
+        .position(resource.getPosition())
         .build();
   }
 

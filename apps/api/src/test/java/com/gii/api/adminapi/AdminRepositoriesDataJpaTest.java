@@ -43,7 +43,7 @@ class AdminRepositoriesDataJpaTest extends AbstractAdminDataJpaTest {
         () ->
             courseSectionRepository.saveAndFlush(
                 CourseSection.builder()
-                    .templateVersion(course.getTemplateVersion())
+                    .template(course.getTemplate())
                     .title("Section Duplicate")
                     .slug("section-dup")
                     .position(1)
@@ -62,7 +62,7 @@ class AdminRepositoriesDataJpaTest extends AbstractAdminDataJpaTest {
   }
 
   @Test
-  void quizPositionShouldBeUniqueWithinSection() {
+  void legacyQuizPositionsMayOverlapBecauseSectionItemsOwnOrdering() {
     var creator = user("Creator Quiz Repo", "creator-quiz-repo@example.com");
     var course = course("Quiz Repo", "quiz-repo", creator);
     var section = section(course, 1);
@@ -77,18 +77,17 @@ class AdminRepositoriesDataJpaTest extends AbstractAdminDataJpaTest {
             .maxAttempts(3)
             .build());
 
-    assertThrows(
-        DataIntegrityViolationException.class,
-        () ->
-            quizRepository.saveAndFlush(
-                Quiz.builder()
-                    .section(section)
-                    .position(1)
-                    .title("Quiz B")
-                    .status(PublishStatus.DRAFT)
-                    .passingScorePct(60)
-                    .maxAttempts(3)
-                    .build()));
+    quizRepository.saveAndFlush(
+        Quiz.builder()
+            .section(section)
+            .position(1)
+            .title("Quiz B")
+            .status(PublishStatus.DRAFT)
+            .passingScorePct(60)
+            .maxAttempts(3)
+            .build());
+
+    assertThat(quizRepository.findAll()).hasSize(2);
   }
 
   @Test

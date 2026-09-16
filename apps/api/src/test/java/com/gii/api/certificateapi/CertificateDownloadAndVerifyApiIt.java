@@ -51,7 +51,7 @@ class CertificateDownloadAndVerifyApiIt extends AbstractCertificateApiIntegratio
             true,
             "https://cdn.test/cert2.pdf",
             instructor);
-    when(r2PresignedUrlService.generateDownloadUrl(any(), any(), any()))
+    when(r2PresignedUrlService.generateDownloadUrl(any(), any(), any(), any()))
         .thenReturn(
             new R2PresignedUrlService.PresignedDownload(
                 "https://signed.test/cert", Instant.now().plusSeconds(600)));

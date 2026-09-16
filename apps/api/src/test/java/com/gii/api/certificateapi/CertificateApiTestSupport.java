@@ -28,9 +28,8 @@ import com.gii.common.repository.collection.CollectionEnrollmentRepository;
 import com.gii.common.repository.collection.CollectionRepository;
 import com.gii.common.repository.course.CourseInstructorRepository;
 import com.gii.common.repository.course.CourseRepository;
-import com.gii.common.repository.course.CourseSectionRepository;
 import com.gii.common.repository.course.CourseTemplateRepository;
-import com.gii.common.repository.course.CourseTemplateVersionRepository;
+import com.gii.common.repository.course.CourseSectionRepository;
 import com.gii.common.repository.course.LessonRepository;
 import com.gii.common.repository.enrollment.EnrollmentRepository;
 import com.gii.common.repository.enrollment.LessonProgressRepository;
@@ -47,7 +46,6 @@ abstract class CertificateApiTestSupport {
 
   @Autowired protected UserRepository userRepository;
   @Autowired protected CourseRepository courseRepository;
-  @Autowired protected CourseTemplateVersionRepository courseTemplateVersionRepository;
   @Autowired protected CourseTemplateRepository courseTemplateRepository;
   @Autowired protected CollectionRepository collectionRepository;
   @Autowired protected CollectionCourseRepository collectionCourseRepository;
@@ -70,7 +68,6 @@ abstract class CertificateApiTestSupport {
     lessonRepository.deleteAll();
     courseSectionRepository.deleteAll();
     courseRepository.deleteAll();
-    courseTemplateVersionRepository.deleteAll();
     courseTemplateRepository.deleteAll();
     userRepository.deleteAll();
   }
@@ -138,14 +135,13 @@ abstract class CertificateApiTestSupport {
     course.setPublishedAt(Instant.now());
     course.setRecordedHoursCount(2);
     course.setEstimatedDurationMinutes(120);
-    course.getTemplateVersion().setStatus(status);
     return courseRepository.save(course);
   }
 
   protected CourseSection section(Course course, int position, PublishStatus status) {
     return courseSectionRepository.save(
         CourseSection.builder()
-            .templateVersion(course.getTemplateVersion())
+            .template(course.getTemplate())
             .title("Section " + position)
             .slug("section-" + position + "-" + UUID.randomUUID().toString().substring(0, 6))
             .position(position)
@@ -182,25 +178,17 @@ abstract class CertificateApiTestSupport {
   protected LessonProgress completedProgress(User user, Lesson lesson) {
     Enrollment enrollment =
         enrollmentRepository
-            .findByUserIdAndTemplateVersionIdAndStatus(
-                user.getId(),
-                lesson.getSection().getTemplateVersion().getId(),
-                EnrollmentStatus.ACTIVE)
+            .findByUserIdAndTemplateIdAndStatus(
+                user.getId(), lesson.getSection().getTemplate().getId(), EnrollmentStatus.ACTIVE)
             .stream()
             .findFirst()
             .orElseGet(
                 () ->
                     enrollment(
                         user,
-                        courseRepository.findAll().stream()
-                            .filter(
-                                course ->
-                                    course
-                                        .getTemplateVersion()
-                                        .getId()
-                                        .equals(lesson.getSection().getTemplateVersion().getId()))
-                            .findFirst()
-                            .orElseThrow(),
+                        courseRepository
+                            .findByTemplateId(lesson.getSection().getTemplate().getId())
+                            .getFirst(),
                         EnrollmentStatus.ACTIVE,
                         null));
     return lessonProgressRepository.save(

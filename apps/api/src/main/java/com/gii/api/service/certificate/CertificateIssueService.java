@@ -18,7 +18,6 @@ import com.gii.common.enums.CertificateTargetType;
 import com.gii.common.enums.EnrollmentStatus;
 import com.gii.common.enums.InstructorRole;
 import com.gii.common.repository.certificate.CertificateRepository;
-import com.gii.common.repository.collection.CollectionCourseRepository;
 import com.gii.common.repository.collection.CollectionEnrollmentRepository;
 import com.gii.common.repository.collection.CollectionRepository;
 import com.gii.common.repository.course.CourseInstructorRepository;
@@ -50,7 +49,6 @@ public class CertificateIssueService {
   private final CourseRepository courseRepository;
   private final CollectionRepository collectionRepository;
   private final CollectionEnrollmentRepository collectionEnrollmentRepository;
-  private final CollectionCourseRepository collectionCourseRepository;
   private final EnrollmentRepository enrollmentRepository;
   private final CourseCompletionService courseCompletionService;
   private final CertificateRepository certificateRepository;
@@ -97,9 +95,18 @@ public class CertificateIssueService {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Enrollment has expired");
     }
 
-    CourseCompletion completion = courseCompletionService.get(user.getId(), courseId);
-    boolean eligible =
-        completion.totalItems() > 0 && completion.completedItems() >= completion.totalItems();
+    boolean eligible = enrollment.getCompletedAt() != null;
+    if (!eligible) {
+      CourseCompletion completion = courseCompletionService.get(user.getId(), courseId);
+      eligible = completion.totalItems() > 0 && completion.completedItems() >= completion.totalItems();
+      if (eligible) {
+        // The learner just crossed 100% but no progress event has persisted completedAt yet
+        // (e.g. this request raced ahead of EnrollmentCompletionService.refresh). Persist it now
+        // so completion stays sticky from this point on, same as the normal completion path.
+        enrollment.setCompletedAt(Instant.now());
+        enrollmentRepository.save(enrollment);
+      }
+    }
 
     if (!eligible) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Course completion criteria not met");
@@ -170,21 +177,29 @@ public class CertificateIssueService {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Enrollment has expired");
     }
 
-    var courseIds =
-        purchasedCollectionCoursesService.resolve(enrollment).stream()
-            .map(course -> course.getId())
-            .distinct()
-            .toList();
-    if (courseIds.isEmpty()) {
-      throw new ResponseStatusException(
-          HttpStatus.FORBIDDEN, "Collection completion criteria not met");
+    boolean eligible = enrollment.getCompletedAt() != null;
+    if (!eligible) {
+      var courseIds =
+          purchasedCollectionCoursesService.resolveItems(enrollment).stream()
+              .filter(
+                  com.gii.api.service.collection.PurchasedCollectionCoursesService.PurchasedCourse
+                      ::mandatory)
+              .map(item -> item.course().getId())
+              .distinct()
+              .toList();
+      if (!courseIds.isEmpty()) {
+        var completions = courseCompletionService.getByCourseIds(user.getId(), courseIds);
+        int totalItems = completions.values().stream().mapToInt(CourseCompletion::totalItems).sum();
+        int completedItems =
+            completions.values().stream().mapToInt(CourseCompletion::completedItems).sum();
+        eligible = totalItems > 0 && completedItems >= totalItems;
+      }
+      if (eligible) {
+        // Same race as the course path: persist completedAt now so it stays sticky from here on.
+        enrollment.setCompletedAt(Instant.now());
+        collectionEnrollmentRepository.save(enrollment);
+      }
     }
-
-    var completions = courseCompletionService.getByCourseIds(user.getId(), courseIds);
-    int totalItems = completions.values().stream().mapToInt(CourseCompletion::totalItems).sum();
-    int completedItems =
-        completions.values().stream().mapToInt(CourseCompletion::completedItems).sum();
-    boolean eligible = totalItems > 0 && completedItems >= totalItems;
     if (!eligible) {
       throw new ResponseStatusException(
           HttpStatus.FORBIDDEN, "Collection completion criteria not met");

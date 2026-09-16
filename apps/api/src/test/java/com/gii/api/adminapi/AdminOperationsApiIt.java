@@ -296,6 +296,8 @@ class AdminOperationsApiIt extends AbstractAdminApiIntegrationTest {
         .isEqualTo(PublishStatus.DRAFT);
 
     var buyer = user("Buyer One", "buyer-one@example.com");
+    course.setStatus(PublishStatus.PUBLISHED);
+    courseRepository.save(course);
     var order = order(buyer, OrderStatus.PENDING);
     orderItem(order, course, BigDecimal.valueOf(1500), BigDecimal.valueOf(300));
 
@@ -323,6 +325,24 @@ class AdminOperationsApiIt extends AbstractAdminApiIntegrationTest {
     org.assertj.core.api.Assertions.assertThat(
             orderRepository.findById(order.getId()).orElseThrow().getPaidAt())
         .isNotNull();
+    org.assertj.core.api.Assertions.assertThat(
+            enrollmentRepository.findByUserIdAndCourseId(buyer.getId(), course.getId()))
+        .isPresent();
+
+    mockMvc
+        .perform(
+            patch("/admin/orders/{orderId}", order.getId())
+                .with(authentication(adminAuth(admin.getId())))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"status\":\"REFUNDED\"}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.status").value("REFUNDED"));
+
+    var refundedEnrollment =
+        enrollmentRepository.findByUserIdAndCourseId(buyer.getId(), course.getId()).orElseThrow();
+    org.assertj.core.api.Assertions.assertThat(refundedEnrollment.getStatus())
+        .isEqualTo(com.gii.common.enums.EnrollmentStatus.REFUNDED);
+    org.assertj.core.api.Assertions.assertThat(refundedEnrollment.getRevokedAt()).isNotNull();
   }
 
   @Test

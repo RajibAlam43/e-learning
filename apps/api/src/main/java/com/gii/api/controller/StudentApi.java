@@ -172,6 +172,19 @@ public interface StudentApi {
   ResponseEntity<StudentCourseHomeResponse> getMyCourseDetails(
       @PathVariable UUID courseId, Authentication authentication);
 
+  @PostMapping("/courses/{courseId}/enroll")
+  @Operation(
+      summary = "Enroll in a free course",
+      description = "Enroll the authenticated student in a published free course offering.")
+  @ApiResponses(
+      value = {
+        @ApiResponse(responseCode = "204", description = "Enrollment active"),
+        @ApiResponse(responseCode = "404", description = "Course not found"),
+        @ApiResponse(responseCode = "409", description = "Course is paid or unavailable")
+      })
+  ResponseEntity<Void> enrollInFreeCourse(
+      @PathVariable UUID courseId, Authentication authentication);
+
   @PostMapping("/courses/{courseId}/reviews")
   @Operation(summary = "Submit course review")
   ResponseEntity<CourseReviewResponse> createCourseReview(

@@ -5,6 +5,7 @@ import lombok.Builder;
 
 @Builder
 public record AdminLiveClassItemResponse(
+    UUID liveClassItemId,
     UUID liveClassId,
     UUID sectionId,
     Integer position,

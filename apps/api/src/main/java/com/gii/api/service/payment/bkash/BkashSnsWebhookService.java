@@ -10,6 +10,7 @@ import com.gii.common.enums.OrderProvider;
 import com.gii.common.enums.PaymentEventStatus;
 import com.gii.common.enums.PaymentEventType;
 import com.gii.common.repository.order.OrderRepository;
+import com.gii.common.repository.order.PaymentAttemptRepository;
 import com.gii.common.repository.order.PaymentEventRepository;
 import java.net.URL;
 import java.time.Instant;
@@ -35,6 +36,7 @@ public class BkashSnsWebhookService {
 
   private final PaymentEventRepository paymentEventRepository;
   private final OrderRepository orderRepository;
+  private final PaymentAttemptRepository paymentAttemptRepository;
   private final BkashCallbackService bkashCallbackService;
   private final ObjectMapper objectMapper;
   private final BkashSnsSignatureVerifier bkashSnsSignatureVerifier;
@@ -77,7 +79,11 @@ public class BkashSnsWebhookService {
     Optional<Order> orderOpt =
         txnId == null
             ? Optional.empty()
-            : orderRepository.findByProviderAndProviderTxnId(OrderProvider.BKASH, txnId);
+            : paymentAttemptRepository
+                .findOrderByProviderAndProviderTxnId(OrderProvider.BKASH, txnId)
+                .or(
+                    () ->
+                        orderRepository.findByProviderAndProviderTxnId(OrderProvider.BKASH, txnId));
 
     PaymentEventStatus eventStatus = PaymentEventStatus.RECEIVED;
     if (orderOpt.isPresent()) {
