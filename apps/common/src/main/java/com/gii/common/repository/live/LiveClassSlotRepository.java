@@ -13,6 +13,8 @@ import org.springframework.data.repository.query.Param;
 public interface LiveClassSlotRepository extends JpaRepository<LiveClassSlot, UUID> {
   List<LiveClassSlot> findBySectionId(UUID sectionId);
 
+  List<LiveClassSlot> findBySectionIdIn(List<UUID> sectionIds);
+
   @Lock(LockModeType.PESSIMISTIC_WRITE)
   @Query("SELECT slot FROM LiveClassSlot slot WHERE slot.id = :id")
   Optional<LiveClassSlot> findByIdForUpdate(@Param("id") UUID id);
