@@ -6,14 +6,18 @@ import com.gii.api.model.response.lesson.LessonResourceResponse;
 import com.gii.api.model.response.lesson.MediaPlaybackResponse;
 import com.gii.api.service.localization.LocalizedContentService;
 import com.gii.api.service.storage.AssetUrlService;
+import com.gii.api.service.storage.R2PresignedUrlService;
+import com.gii.api.service.storage.R2PresignedUrlService.Disposition;
 import com.gii.common.entity.course.Lesson;
 import com.gii.common.entity.course.MediaAsset;
 import com.gii.common.entity.enrollment.Enrollment;
 import com.gii.common.entity.enrollment.LessonProgress;
 import com.gii.common.enums.LessonResourcePurpose;
 import com.gii.common.enums.MediaStatus;
+import com.gii.common.enums.SectionItemType;
 import com.gii.common.repository.course.LessonResourceRepository;
 import com.gii.common.repository.course.MediaAssetRepository;
+import com.gii.common.repository.course.SectionItemRepository;
 import com.gii.common.repository.enrollment.LessonProgressRepository;
 import java.time.Instant;
 import java.util.List;
@@ -36,6 +40,8 @@ public class LessonContentService {
   private final LessonResourceRepository lessonResourceRepository;
   private final AssetUrlService assetUrlService;
   private final LocalizedContentService localizedContentService;
+  private final SectionItemRepository sectionItemRepository;
+  private final R2PresignedUrlService r2PresignedUrlService;
 
   public LessonContentResponse execute(UUID lessonId, Authentication authentication) {
     UUID userId = lessonAccessService.requireCurrentUserId(authentication);
@@ -75,19 +81,7 @@ public class LessonContentService {
             mediaAssetRepository.findByLessonId(lesson.getId()).orElse(null), courseThumbnailUrl);
     List<LessonResourceResponse> allResources =
         lessonResourceRepository.findByLessonIdOrderByPositionAsc(lesson.getId()).stream()
-            .map(
-                resource ->
-                    LessonResourceResponse.builder()
-                        .resourceId(resource.getId())
-                        .title(
-                            localizedContentService.text(
-                                resource.getTitle(), resource.getTitleEn()))
-                        .resourceType(resource.getResourceType())
-                        .purpose(resource.getPurpose())
-                        .mimeType(resource.getMimeType())
-                        .position(resource.getPosition())
-                        .downloadUrl(null)
-                        .build())
+            .map(this::toResourceResponse)
             .toList();
     LessonResourceResponse primaryResource =
         allResources.stream()
@@ -103,7 +97,11 @@ public class LessonContentService {
         .lessonId(lesson.getId())
         .title(localizedContentService.text(lesson.getTitle(), lesson.getTitleEn()))
         .slug(lesson.getSlug())
-        .position(lesson.getPosition())
+        .position(
+            sectionItemRepository
+                .findByItemTypeAndItemId(SectionItemType.LESSON, lesson.getId())
+                .map(com.gii.common.entity.course.SectionItem::getPosition)
+                .orElse(null))
         .lessonType(lesson.getLessonType())
         .description(null)
         .durationSeconds(lesson.getDurationSeconds())
@@ -123,6 +121,25 @@ public class LessonContentService {
         .courseName(
             localizedContentService.text(
                 enrollment.getCourse().getTitle(), enrollment.getCourse().getTitleEn()))
+        .build();
+  }
+
+  private LessonResourceResponse toResourceResponse(com.gii.common.entity.course.LessonResource resource) {
+    String title = localizedContentService.text(resource.getTitle(), resource.getTitleEn());
+    String viewUrl =
+        r2PresignedUrlService
+            .generateDownloadUrl(
+                resource.getFileObjectKey(), title, resource.getMimeType(), Disposition.INLINE)
+            .downloadUrl();
+    return LessonResourceResponse.builder()
+        .resourceId(resource.getId())
+        .title(title)
+        .resourceType(resource.getResourceType())
+        .purpose(resource.getPurpose())
+        .mimeType(resource.getMimeType())
+        .position(resource.getPosition())
+        .downloadUrl(null)
+        .viewUrl(viewUrl)
         .build();
   }
 

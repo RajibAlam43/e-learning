@@ -153,8 +153,7 @@ class StudentUnifiedCompletionApiIt extends AbstractStudentApiIntegrationTest {
   }
 
   @Test
-  void mandatoryLiveSlotsCountBeforeSchedulingAndCompletionDoesNotRequireAttendance()
-      throws Exception {
+  void cancelledLiveSlotsDoNotCountAndCompletionDoesNotRequireAttendance() throws Exception {
     var creator = user("Creator", "live-completion-creator@example.com");
     var student = user("Student", "live-completion-student@example.com");
     var course = course("Live Completion", "live-completion", creator, PublishStatus.PUBLISHED);
@@ -217,10 +216,10 @@ class StudentUnifiedCompletionApiIt extends AbstractStudentApiIntegrationTest {
                 .with(authentication(studentAuth(student.getId()))))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.completedLiveClasses").value(2))
-        .andExpect(jsonPath("$.totalLiveClasses").value(4))
+        .andExpect(jsonPath("$.totalLiveClasses").value(3))
         .andExpect(jsonPath("$.completedItems").value(2))
-        .andExpect(jsonPath("$.totalItems").value(4))
-        .andExpect(jsonPath("$.completionPercentage").value(50.0))
+        .andExpect(jsonPath("$.totalItems").value(3))
+        .andExpect(jsonPath("$.completionPercentage").value(66.67))
         .andExpect(jsonPath("$.sections[0].items[0].liveClass.attended").value(true))
         .andExpect(jsonPath("$.sections[0].items[0].liveClass.completed").value(true))
         .andExpect(jsonPath("$.sections[0].items[1].liveClass.attended").value(false))

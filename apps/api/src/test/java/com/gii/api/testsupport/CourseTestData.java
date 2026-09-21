@@ -2,7 +2,6 @@ package com.gii.api.testsupport;
 
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.course.CourseTemplate;
-import com.gii.common.entity.course.CourseTemplateVersion;
 import com.gii.common.entity.user.User;
 import com.gii.common.enums.CourseLanguage;
 import com.gii.common.enums.CourseLevel;
@@ -15,12 +14,8 @@ public final class CourseTestData {
   private CourseTestData() {}
 
   public static Course course(String title, String slug, User creator) {
-    CourseTemplate template = CourseTemplate.builder().internalKey(slug).build();
-    CourseTemplateVersion version =
-        CourseTemplateVersion.builder()
-            .courseTemplate(template)
-            .versionNumber(1)
-            .status(PublishStatus.DRAFT)
+    CourseTemplate template =
+        CourseTemplate.builder()
             .title(title)
             .level(CourseLevel.BEGINNER)
             .language(CourseLanguage.EN)
@@ -29,7 +24,7 @@ public final class CourseTestData {
             .recordedHoursCount(0)
             .build();
     return Course.builder()
-        .templateVersion(version)
+        .template(template)
         .name(title)
         .slug(slug)
         .priceBdt(BigDecimal.ZERO)

@@ -6,7 +6,6 @@ import com.gii.api.model.request.admin.UpdateLessonResourceRequest;
 import com.gii.api.model.response.admin.AdminLessonResourceResponse;
 import com.gii.api.model.response.admin.LessonResourceUploadResponse;
 import com.gii.api.model.response.lesson.ResourceDownloadUrlResponse;
-import com.gii.api.service.course.CourseTemplateMutationGuard;
 import com.gii.api.service.storage.R2PresignedUrlService;
 import com.gii.common.entity.course.Lesson;
 import com.gii.common.entity.course.LessonResource;
@@ -44,13 +43,11 @@ public class AdminLessonResourceManagementService {
   private final LessonRepository lessonRepository;
   private final LessonResourceRepository lessonResourceRepository;
   private final R2PresignedUrlService r2PresignedUrlService;
-  private final CourseTemplateMutationGuard templateMutationGuard;
 
   @Transactional(readOnly = true)
   public LessonResourceUploadResponse createUpload(
       UUID lessonId, CreateLessonResourceUploadRequest request) {
     Lesson lesson = requireLesson(lessonId);
-    templateMutationGuard.requireDraft(lesson.getSection().getTemplateVersion());
     String filename = request.filename().trim();
     if (!FILE_NAME.matcher(filename).matches()) {
       throw invalidUpload();
@@ -81,7 +78,6 @@ public class AdminLessonResourceManagementService {
 
   public AdminLessonResourceResponse create(UUID lessonId, CreateLessonResourceRequest request) {
     final Lesson lesson = requireLesson(lessonId);
-    templateMutationGuard.requireDraft(lesson.getSection().getTemplateVersion());
     LessonResourcePurpose purpose =
         request.purpose() != null ? request.purpose() : LessonResourcePurpose.SUPPLEMENTARY;
     validateObjectKey(lessonId, request.objectKey());
@@ -120,7 +116,6 @@ public class AdminLessonResourceManagementService {
 
   public AdminLessonResourceResponse update(UUID resourceId, UpdateLessonResourceRequest request) {
     LessonResource resource = findResource(resourceId);
-    templateMutationGuard.requireDraft(resource.getLesson().getSection().getTemplateVersion());
     if (request.title() != null) {
       if (request.title().isBlank()) {
         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Resource title is required");
@@ -161,7 +156,6 @@ public class AdminLessonResourceManagementService {
 
   public void delete(UUID resourceId) {
     LessonResource resource = findResource(resourceId);
-    templateMutationGuard.requireDraft(resource.getLesson().getSection().getTemplateVersion());
     if (resource.getLesson().getStatus() == PublishStatus.PUBLISHED
         && resource.getLesson().getLessonType() == LessonType.PDF
         && resource.getPurpose() == LessonResourcePurpose.PRIMARY_CONTENT) {

@@ -3,6 +3,7 @@ package com.gii.api.model.request.admin;
 import com.gii.common.enums.CourseLanguage;
 import com.gii.common.enums.CourseLevel;
 import com.gii.common.enums.StudyMode;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -21,6 +22,7 @@ public record CreateCourseRequest(
     @NotBlank String slug,
     @NotEmpty List<@NotNull UUID> categoryIds,
     String thumbnailObjectKey,
+    @Valid CourseVideoRequest video,
     String shortDescription,
     String shortDescriptionEn,
     String description,

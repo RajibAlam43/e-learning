@@ -4,7 +4,6 @@ import com.gii.common.entity.course.Course;
 import com.gii.common.entity.course.CourseCategory;
 import com.gii.common.entity.course.CourseSection;
 import com.gii.common.entity.course.CourseTemplate;
-import com.gii.common.entity.course.CourseTemplateVersion;
 import com.gii.common.entity.course.Lesson;
 import com.gii.common.entity.course.LessonResource;
 import com.gii.common.entity.course.MediaAsset;
@@ -13,11 +12,13 @@ import com.gii.common.entity.live.LiveClassSlot;
 import com.gii.common.entity.quiz.Quiz;
 import com.gii.common.entity.quiz.QuizChoice;
 import com.gii.common.entity.quiz.QuizQuestion;
-import com.gii.common.enums.PublishStatus;
+import com.gii.common.entity.user.User;
+import com.gii.common.enums.MediaStatus;
+import com.gii.common.enums.ReleaseType;
 import com.gii.common.repository.course.CourseCategoryRepository;
+import com.gii.common.repository.course.CourseRepository;
 import com.gii.common.repository.course.CourseSectionRepository;
 import com.gii.common.repository.course.CourseTemplateRepository;
-import com.gii.common.repository.course.CourseTemplateVersionRepository;
 import com.gii.common.repository.course.LessonRepository;
 import com.gii.common.repository.course.LessonResourceRepository;
 import com.gii.common.repository.course.MediaAssetRepository;
@@ -37,13 +38,18 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+/**
+ * Deep-clones a course's curriculum into a brand-new, independent {@link CourseTemplate} and
+ * attaches a new {@link Course} offering to it. The clone is fully independent of the source —
+ * editing one never leaks into the other.
+ */
 @Service
 @RequiredArgsConstructor
 @Transactional
-public class CourseTemplateVersionCloneService {
+public class CourseDuplicationService {
 
   private final CourseTemplateRepository templateRepository;
-  private final CourseTemplateVersionRepository versionRepository;
+  private final CourseRepository courseRepository;
   private final CourseCategoryRepository categoryRepository;
   private final CourseSectionRepository sectionRepository;
   private final LessonRepository lessonRepository;
@@ -55,29 +61,14 @@ public class CourseTemplateVersionCloneService {
   private final LiveClassSlotRepository liveClassSlotRepository;
   private final SectionItemRepository sectionItemRepository;
 
-  public CourseTemplateVersion cloneForEditing(Course sourceCourse) {
-    CourseTemplateVersion source = sourceCourse.getTemplateVersion();
-    CourseTemplate template =
-        templateRepository
-            .findByIdForUpdate(source.getCourseTemplate().getId())
-            .orElseThrow(
-                () ->
-                    new ResponseStatusException(HttpStatus.NOT_FOUND, "Course template not found"));
-    int nextVersion =
-        versionRepository
-                .findTopByCourseTemplateIdOrderByVersionNumberDesc(template.getId())
-                .map(CourseTemplateVersion::getVersionNumber)
-                .orElse(0)
-            + 1;
-
-    CourseTemplateVersion target =
-        versionRepository.save(copyVersion(source, template, nextVersion));
-    copyCategories(sourceCourse, target);
+  public Course duplicate(Course source, String slug, User createdBy) {
+    CourseTemplate target = templateRepository.save(copyTemplate(source.getTemplate()));
+    copyCategories(source, target);
 
     Map<UUID, UUID> itemIds = new HashMap<>();
     Map<UUID, Lesson> lessons = new HashMap<>();
     for (CourseSection sourceSection :
-        sectionRepository.findByCourseIdOrderByPositionAsc(sourceCourse.getId())) {
+        sectionRepository.findByCourseIdOrderByPositionAsc(source.getId())) {
       CourseSection targetSection = sectionRepository.save(copySection(sourceSection, target));
       copyLessons(sourceSection, targetSection, itemIds, lessons);
       copyQuizzes(sourceSection, targetSection, itemIds);
@@ -85,22 +76,21 @@ public class CourseTemplateVersionCloneService {
       copySectionItems(sourceSection, targetSection, itemIds);
     }
 
-    if (source.getPreviewLesson() != null) {
-      target.setPreviewLesson(lessons.get(source.getPreviewLesson().getId()));
-      target = versionRepository.save(target);
+    if (source.getTemplate().getPreviewLesson() != null) {
+      target.setPreviewLesson(lessons.get(source.getTemplate().getPreviewLesson().getId()));
+      target = templateRepository.save(target);
     }
-    return target;
+
+    return courseRepository.save(
+        Course.builder().template(target).slug(slug).name(source.getTitle()).createdBy(createdBy).build());
   }
 
-  private CourseTemplateVersion copyVersion(
-      CourseTemplateVersion source, CourseTemplate template, int versionNumber) {
-    return CourseTemplateVersion.builder()
-        .courseTemplate(template)
-        .versionNumber(versionNumber)
-        .status(PublishStatus.DRAFT)
+  private CourseTemplate copyTemplate(CourseTemplate source) {
+    return CourseTemplate.builder()
         .title(source.getTitle())
         .titleEn(source.getTitleEn())
         .thumbnailObjectKey(source.getThumbnailObjectKey())
+        .youtubeVideoId(source.getYoutubeVideoId())
         .shortDescription(source.getShortDescription())
         .shortDescriptionEn(source.getShortDescriptionEn())
         .description(source.getDescription())
@@ -124,21 +114,21 @@ public class CourseTemplateVersionCloneService {
         .build();
   }
 
-  private void copyCategories(Course sourceCourse, CourseTemplateVersion target) {
+  private void copyCategories(Course source, CourseTemplate target) {
     categoryRepository.saveAll(
-        categoryRepository.findByCourseId(sourceCourse.getId()).stream()
+        categoryRepository.findByCourseId(source.getId()).stream()
             .map(
-                source ->
+                sourceCategory ->
                     CourseCategory.builder()
-                        .templateVersion(target)
-                        .category(source.getCategory())
+                        .template(target)
+                        .category(sourceCategory.getCategory())
                         .build())
             .toList());
   }
 
-  private CourseSection copySection(CourseSection source, CourseTemplateVersion templateVersion) {
+  private CourseSection copySection(CourseSection source, CourseTemplate target) {
     return CourseSection.builder()
-        .templateVersion(templateVersion)
+        .template(target)
         .title(source.getTitle())
         .titleEn(source.getTitleEn())
         .slug(source.getSlug())
@@ -149,9 +139,9 @@ public class CourseTemplateVersionCloneService {
         .publishedAt(source.getPublishedAt())
         .isMandatory(source.getIsMandatory())
         .isFree(source.getIsFree())
-        .releaseType(source.getReleaseType())
-        .releaseAt(source.getReleaseAt())
-        .unlockAfterDays(source.getUnlockAfterDays())
+        .releaseType(copiedReleaseType(source.getReleaseType()))
+        .releaseAt(copiedReleaseAt(source.getReleaseType(), source.getReleaseAt()))
+        .unlockAfterDays(copiedUnlockAfterDays(source.getReleaseType(), source.getUnlockAfterDays()))
         .build();
   }
 
@@ -176,9 +166,10 @@ public class CourseTemplateVersionCloneService {
                   .transcriptUrl(source.getTranscriptUrl())
                   .isFree(source.getIsFree())
                   .isMandatory(source.getIsMandatory())
-                  .releaseType(source.getReleaseType())
-                  .releaseAt(source.getReleaseAt())
-                  .unlockAfterDays(source.getUnlockAfterDays())
+                  .releaseType(copiedReleaseType(source.getReleaseType()))
+                  .releaseAt(copiedReleaseAt(source.getReleaseType(), source.getReleaseAt()))
+                  .unlockAfterDays(
+                      copiedUnlockAfterDays(source.getReleaseType(), source.getUnlockAfterDays()))
                   .build());
       lessons.put(source.getId(), target);
       itemIds.put(source.getId(), target.getId());
@@ -210,26 +201,32 @@ public class CourseTemplateVersionCloneService {
     mediaAssetRepository
         .findByLessonId(source.getId())
         .ifPresent(
-            media ->
-                mediaAssetRepository.save(
-                    MediaAsset.builder()
-                        .lesson(target)
-                        .provider(media.getProvider())
-                        .assetType(media.getAssetType())
-                        .providerAssetId(media.getProviderAssetId())
-                        .providerLibraryId(media.getProviderLibraryId())
-                        .playbackId(media.getPlaybackId())
-                        .playbackPolicy(media.getPlaybackPolicy())
-                        .fileUrl(media.getFileUrl())
-                        .title(media.getTitle())
-                        .titleEn(media.getTitleEn())
-                        .thumbnailObjectKey(media.getThumbnailObjectKey())
-                        .maxResolution(media.getMaxResolution())
-                        .durationSec(media.getDurationSec())
-                        .status(media.getStatus())
-                        .createdBy(media.getCreatedBy())
-                        .preferredPlaybackMode(media.getPreferredPlaybackMode())
-                        .build()));
+            media -> {
+              if (media.getStatus() != MediaStatus.READY) {
+                throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Course cannot be copied while a lesson media asset is still processing");
+              }
+              mediaAssetRepository.save(
+                  MediaAsset.builder()
+                      .lesson(target)
+                      .provider(media.getProvider())
+                      .assetType(media.getAssetType())
+                      .providerAssetId(media.getProviderAssetId())
+                      .providerLibraryId(media.getProviderLibraryId())
+                      .playbackId(media.getPlaybackId())
+                      .playbackPolicy(media.getPlaybackPolicy())
+                      .fileUrl(media.getFileUrl())
+                      .title(media.getTitle())
+                      .titleEn(media.getTitleEn())
+                      .thumbnailObjectKey(media.getThumbnailObjectKey())
+                      .maxResolution(media.getMaxResolution())
+                      .durationSec(media.getDurationSec())
+                      .status(media.getStatus())
+                      .createdBy(media.getCreatedBy())
+                      .preferredPlaybackMode(media.getPreferredPlaybackMode())
+                      .build());
+            });
   }
 
   private void copyQuizzes(
@@ -327,5 +324,17 @@ public class CourseTemplateVersionCloneService {
 
   private List<String> copyList(List<String> values) {
     return values == null ? null : new ArrayList<>(values);
+  }
+
+  private ReleaseType copiedReleaseType(ReleaseType releaseType) {
+    return releaseType == ReleaseType.FIXED_DATE ? ReleaseType.IMMEDIATE : releaseType;
+  }
+
+  private java.time.Instant copiedReleaseAt(ReleaseType releaseType, java.time.Instant releaseAt) {
+    return releaseType == ReleaseType.FIXED_DATE ? null : releaseAt;
+  }
+
+  private Integer copiedUnlockAfterDays(ReleaseType releaseType, Integer unlockAfterDays) {
+    return releaseType == ReleaseType.FIXED_DATE ? null : unlockAfterDays;
   }
 }

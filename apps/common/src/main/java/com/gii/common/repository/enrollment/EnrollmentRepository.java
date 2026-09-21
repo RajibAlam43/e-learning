@@ -34,28 +34,27 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, UUID> {
         SELECT e
         FROM Enrollment e
         WHERE e.user.id = :userId
-        AND e.course.templateVersion.id = :templateVersionId
+        AND e.course.template.id = :templateId
         AND e.status = :status
         ORDER BY e.enrolledAt DESC
       """)
-  List<Enrollment> findByUserIdAndTemplateVersionIdAndStatus(
+  List<Enrollment> findByUserIdAndTemplateIdAndStatus(
       @Param("userId") UUID userId,
-      @Param("templateVersionId") UUID templateVersionId,
+      @Param("templateId") UUID templateId,
       @Param("status") EnrollmentStatus status);
+
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
+  @Query("SELECT e FROM Enrollment e WHERE e.sourceOrderItem.order.id = :orderId")
+  List<Enrollment> findBySourceOrderIdForUpdate(@Param("orderId") UUID orderId);
 
   boolean existsByUserIdAndCourseIdAndStatus(UUID userId, UUID courseId, EnrollmentStatus status);
 
   boolean existsByCourseId(UUID courseId);
 
-  @Query(
-      """
-        SELECT COUNT(e) > 0
-        FROM Enrollment e
-        WHERE e.course.templateVersion.id = :templateVersionId
-      """)
-  boolean existsByTemplateVersionId(@Param("templateVersionId") UUID templateVersionId);
-
   List<Enrollment> findByUserIdAndStatus(UUID userId, EnrollmentStatus status);
+
+  List<Enrollment> findByUserIdAndStatusAndCompletedAtIsNotNull(
+      UUID userId, EnrollmentStatus status);
 
   long countByUserIdAndStatus(UUID userId, EnrollmentStatus status);
 
@@ -98,4 +97,15 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, UUID> {
       """)
   List<Object[]> countCompletedByCourseIdsAndStatus(
       @Param("courseIds") List<UUID> courseIds, @Param("status") EnrollmentStatus status);
+
+  @Query(
+      """
+        SELECT e.course.id
+        FROM Enrollment e
+        WHERE e.user.id = :userId
+        AND e.course.id IN :courseIds
+        AND e.completedAt IS NOT NULL
+      """)
+  List<UUID> findCompletedCourseIds(
+      @Param("userId") UUID userId, @Param("courseIds") List<UUID> courseIds);
 }

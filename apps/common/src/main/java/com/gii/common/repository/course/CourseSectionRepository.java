@@ -14,8 +14,8 @@ public interface CourseSectionRepository extends JpaRepository<CourseSection, UU
   @Query(
       """
         SELECT cs FROM CourseSection cs
-        WHERE cs.templateVersion.id = (
-          SELECT c.templateVersion.id FROM Course c WHERE c.id = :courseId
+        WHERE cs.template.id = (
+          SELECT c.template.id FROM Course c WHERE c.id = :courseId
         )
         ORDER BY cs.position ASC
       """)
@@ -24,8 +24,8 @@ public interface CourseSectionRepository extends JpaRepository<CourseSection, UU
   @Query(
       """
         SELECT cs FROM CourseSection cs
-        WHERE cs.templateVersion.id = (
-          SELECT c.templateVersion.id FROM Course c WHERE c.id = :courseId
+        WHERE cs.template.id = (
+          SELECT c.template.id FROM Course c WHERE c.id = :courseId
         )
         AND cs.status = :status
         ORDER BY cs.position ASC
@@ -38,7 +38,7 @@ public interface CourseSectionRepository extends JpaRepository<CourseSection, UU
         SELECT c.id, COUNT(cs)
         FROM Course c, CourseSection cs
         WHERE c.id IN :courseIds
-        AND cs.templateVersion.id = c.templateVersion.id
+        AND cs.template.id = c.template.id
         GROUP BY c.id
       """)
   List<Object[]> countByCourseIds(@Param("courseIds") List<UUID> courseIds);
@@ -48,7 +48,7 @@ public interface CourseSectionRepository extends JpaRepository<CourseSection, UU
         SELECT cs
         FROM CourseSection cs, Course c
         WHERE cs.id = :sectionId
-        AND cs.templateVersion.id = c.templateVersion.id
+        AND cs.template.id = c.template.id
         AND c.id = :courseId
         AND EXISTS (
           SELECT 1 FROM CourseInstructor ci

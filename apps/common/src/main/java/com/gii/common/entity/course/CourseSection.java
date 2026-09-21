@@ -30,18 +30,18 @@ import lombok.experimental.SuperBuilder;
     name = "course_sections",
     uniqueConstraints = {
       @UniqueConstraint(
-          name = "uk_course_sections_version_position",
-          columnNames = {"course_template_version_id", "position"}),
+          name = "uk_course_sections_template_position",
+          columnNames = {"course_template_id", "position"}),
       @UniqueConstraint(
-          name = "uk_course_sections_version_slug",
-          columnNames = {"course_template_version_id", "slug"})
+          name = "uk_course_sections_template_slug",
+          columnNames = {"course_template_id", "slug"})
     })
 public class CourseSection extends BaseUuidEntity {
 
   @JsonIgnore
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
-  @JoinColumn(name = "course_template_version_id", nullable = false)
-  private CourseTemplateVersion templateVersion;
+  @JoinColumn(name = "course_template_id", nullable = false)
+  private CourseTemplate template;
 
   @Column(name = "title", nullable = false)
   private String title;
@@ -72,7 +72,7 @@ public class CourseSection extends BaseUuidEntity {
   // Drip Content Fields
   @Column(name = "is_mandatory", nullable = false)
   @Builder.Default
-  private Boolean isMandatory = false;
+  private Boolean isMandatory = true;
 
   @Column(name = "is_free", nullable = false)
   @Builder.Default

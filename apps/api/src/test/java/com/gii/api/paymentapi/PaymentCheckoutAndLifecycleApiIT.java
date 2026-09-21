@@ -67,6 +67,19 @@ class PaymentCheckoutAndLifecycleApiIt extends AbstractPaymentApiIntegrationTest
         .formatted(courseId, collectionId);
   }
 
+  private String twoCollectionCheckoutPayload(
+      java.util.UUID firstCollectionId, java.util.UUID secondCollectionId) {
+    return """
+        {
+          "items": [
+            {"itemType":"COLLECTION","collectionId":"%s"},
+            {"itemType":"COLLECTION","collectionId":"%s"}
+          ]
+        }
+        """
+        .formatted(firstCollectionId, secondCollectionId);
+  }
+
   @Test
   void createPendingOrderShouldCreateAndReuseUnexpiredPendingOrder() throws Exception {
     var student = user("Student One", "student-payment-a@example.com");
@@ -226,6 +239,64 @@ class PaymentCheckoutAndLifecycleApiIt extends AbstractPaymentApiIntegrationTest
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mixedCheckoutPayload(courseInCollection.getId(), collection.getId())))
         .andExpect(status().isConflict());
+  }
+
+  @Test
+  void overlappingCollectionsDiscountTheRepeatedOfferingOnce() throws Exception {
+    var student = user("Student Bundle Overlap", "student-bundle-overlap@example.com");
+    var creator = user("Creator Bundle Overlap", "creator-bundle-overlap@example.com");
+    var shared =
+        course(
+            "Shared Offering",
+            "shared-offering-bundles",
+            creator,
+            PublishStatus.PUBLISHED,
+            BigDecimal.valueOf(500));
+    var firstOnly =
+        course(
+            "First Only",
+            "first-only-bundle",
+            creator,
+            PublishStatus.PUBLISHED,
+            BigDecimal.valueOf(700));
+    var secondOnly =
+        course(
+            "Second Only",
+            "second-only-bundle",
+            creator,
+            PublishStatus.PUBLISHED,
+            BigDecimal.valueOf(800));
+    var first =
+        collection(
+            "First Bundle",
+            "first-overlap-bundle",
+            creator,
+            PublishStatus.PUBLISHED,
+            BigDecimal.valueOf(1600));
+    var second =
+        collection(
+            "Second Bundle",
+            "second-overlap-bundle",
+            creator,
+            PublishStatus.PUBLISHED,
+            BigDecimal.valueOf(1400));
+    collectionCourse(first, shared, 1, true);
+    collectionCourse(first, firstOnly, 2, true);
+    collectionCourse(second, shared, 1, true);
+    collectionCourse(second, secondOnly, 2, true);
+
+    mockMvc
+        .perform(
+            post("/checkout/orders")
+                .with(authentication(studentAuth(student.getId())))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(twoCollectionCheckoutPayload(first.getId(), second.getId())))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.subtotal").value(3000))
+        .andExpect(jsonPath("$.totalDiscount").value(500))
+        .andExpect(jsonPath("$.totalAmount").value(2500))
+        .andExpect(jsonPath("$.items[1].discountAmount").value(500))
+        .andExpect(jsonPath("$.items[1].discountReason").value("OVERLAPPING_COLLECTION_COURSES"));
   }
 
   @Test
@@ -456,6 +527,30 @@ class PaymentCheckoutAndLifecycleApiIt extends AbstractPaymentApiIntegrationTest
                 .content("{\"provider\":\"SSLCOMMERZ\"}"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.provider").value("SSLCOMMERZ"));
+  }
+
+  @Test
+  void repeatedInitiationReusesTheUnexpiredProviderAttempt() throws Exception {
+    var student = user("Student Attempt", "student-payment-attempt@example.com");
+    var order =
+        order(
+            student,
+            OrderStatus.PENDING,
+            OrderProvider.SSLCOMMERZ,
+            "old-attempt",
+            BigDecimal.valueOf(500));
+
+    for (int request = 0; request < 2; request++) {
+      mockMvc
+          .perform(
+              post("/payments/{orderId}/initiate", order.getId())
+                  .with(authentication(studentAuth(student.getId())))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content("{\"provider\":\"SSLCOMMERZ\"}"))
+          .andExpect(status().isOk());
+    }
+
+    assertThat(paymentAttemptRepository.findAll()).hasSize(1);
   }
 
   @Test

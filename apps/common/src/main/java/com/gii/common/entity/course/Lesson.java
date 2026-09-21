@@ -84,7 +84,7 @@ public class Lesson extends BaseUuidEntity {
 
   @Column(name = "is_mandatory", nullable = false)
   @Builder.Default
-  private Boolean isMandatory = false;
+  private Boolean isMandatory = true;
 
   @Enumerated(EnumType.STRING)
   @Column(name = "release_type", length = 30)

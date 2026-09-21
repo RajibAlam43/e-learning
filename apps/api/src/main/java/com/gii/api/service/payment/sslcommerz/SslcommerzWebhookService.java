@@ -11,6 +11,7 @@ import com.gii.common.enums.OrderStatus;
 import com.gii.common.enums.PaymentEventStatus;
 import com.gii.common.enums.PaymentEventType;
 import com.gii.common.repository.order.OrderRepository;
+import com.gii.common.repository.order.PaymentAttemptRepository;
 import com.gii.common.repository.order.PaymentEventRepository;
 import java.time.Instant;
 import java.util.HashMap;
@@ -35,6 +36,7 @@ public class SslcommerzWebhookService {
 
   private final PaymentEventRepository paymentEventRepository;
   private final OrderRepository orderRepository;
+  private final PaymentAttemptRepository paymentAttemptRepository;
   private final SslcommerzCallbackService sslcommerzCallbackService;
   private final SslcommerzCallbackValidationService sslcommerzCallbackValidationService;
   private final SslcommerzValidationJobPublisherService validationJobPublisherService;
@@ -60,7 +62,12 @@ public class SslcommerzWebhookService {
     Optional<Order> orderOpt =
         txnId == null
             ? Optional.empty()
-            : orderRepository.findByProviderAndProviderTxnId(OrderProvider.SSLCOMMERZ, txnId);
+            : paymentAttemptRepository
+                .findOrderByProviderAndProviderTxnId(OrderProvider.SSLCOMMERZ, txnId)
+                .or(
+                    () ->
+                        orderRepository.findByProviderAndProviderTxnId(
+                            OrderProvider.SSLCOMMERZ, txnId));
 
     PaymentEventStatus status = PaymentEventStatus.RECEIVED;
     if (orderOpt.isPresent()) {

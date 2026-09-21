@@ -32,6 +32,11 @@ public class LiveClassApiController implements LiveClassApi {
       com.gii.api.model.request.instructor.CreateLiveClassRequest request,
       Authentication authentication) {
     if (hasRole(authentication, "ROLE_ADMIN")) {
+      if (request.sectionId() == null) {
+        throw new org.springframework.web.server.ResponseStatusException(
+            org.springframework.http.HttpStatus.BAD_REQUEST,
+            "sectionId is required for admin live class creation");
+      }
       CreateLiveClassRequest adminRequest =
           CreateLiveClassRequest.builder()
               .sectionId(request.sectionId())

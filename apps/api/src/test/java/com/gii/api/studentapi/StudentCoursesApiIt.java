@@ -2,10 +2,12 @@ package com.gii.api.studentapi;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.gii.common.enums.EnrollmentStatus;
+import com.gii.common.enums.LessonResourcePurpose;
 import com.gii.common.enums.LiveClassStatus;
 import com.gii.common.enums.PublishStatus;
 import java.time.Instant;
@@ -79,6 +81,8 @@ class StudentCoursesApiIt extends AbstractStudentApiIntegrationTest {
             "https://live.test/join");
     enrollment(student, course, EnrollmentStatus.ACTIVE, null);
     completedProgress(student, l1);
+    lessonResource(l1, "Lesson PDF", LessonResourcePurpose.PRIMARY_CONTENT, 1);
+    lessonResource(l1, "Practice PDF", LessonResourcePurpose.SUPPLEMENTARY, 2);
 
     mockMvc
         .perform(
@@ -88,6 +92,10 @@ class StudentCoursesApiIt extends AbstractStudentApiIntegrationTest {
         .andExpect(jsonPath("$.courseName").value("Course Home"))
         .andExpect(jsonPath("$.sections.length()").value(1))
         .andExpect(jsonPath("$.sections[0].lessons.length()").value(2))
+        .andExpect(jsonPath("$.sections[0].lessons[0].primaryResource.title").value("Lesson PDF"))
+        .andExpect(jsonPath("$.sections[0].lessons[0].resources.length()").value(1))
+        .andExpect(jsonPath("$.sections[0].lessons[0].resources[0].title").value("Practice PDF"))
+        .andExpect(jsonPath("$.sections[0].lessons[0].resources[0].downloadUrl").doesNotExist())
         .andExpect(jsonPath("$.sections[0].quizzes.length()").value(1))
         .andExpect(jsonPath("$.sections[0].quizzes[0].quizId").value(quiz.getId().toString()))
         .andExpect(jsonPath("$.sections[0].quizzes[0].quizTitle").value("Section Quiz"))
@@ -101,5 +109,40 @@ class StudentCoursesApiIt extends AbstractStudentApiIntegrationTest {
             jsonPath("$.sections[0].items[3].liveClass.liveClassId")
                 .value(liveClass.getId().toString()))
         .andExpect(jsonPath("$.sections[0].completedLessons").value(1));
+  }
+
+  @Test
+  void enrollFreeCourseCreatesActiveEnrollment() throws Exception {
+    var student = user("Free Student", "free-student@example.com");
+    var creator = user("Creator", "creator-free@example.com");
+    var course = course("Free Course", "free-course", creator, PublishStatus.PUBLISHED);
+    course.setIsFree(true);
+    course.setPriceBdt(java.math.BigDecimal.ZERO);
+    courseRepository.saveAndFlush(course);
+
+    mockMvc
+        .perform(
+            post("/student/courses/{courseId}/enroll", course.getId())
+                .with(authentication(studentAuth(student.getId()))))
+        .andExpect(status().isNoContent());
+
+    var enrollment =
+        enrollmentRepository.findByUserIdAndCourseId(student.getId(), course.getId()).orElseThrow();
+    org.assertj.core.api.Assertions.assertThat(enrollment.getStatus())
+        .isEqualTo(EnrollmentStatus.ACTIVE);
+    org.assertj.core.api.Assertions.assertThat(enrollment.getSourceOrderItem()).isNull();
+  }
+
+  @Test
+  void enrollFreeCourseRejectsPaidCourse() throws Exception {
+    var student = user("Paid Student", "paid-student@example.com");
+    var creator = user("Creator", "creator-paid@example.com");
+    var course = course("Paid Course", "paid-course", creator, PublishStatus.PUBLISHED);
+
+    mockMvc
+        .perform(
+            post("/student/courses/{courseId}/enroll", course.getId())
+                .with(authentication(studentAuth(student.getId()))))
+        .andExpect(status().isConflict());
   }
 }

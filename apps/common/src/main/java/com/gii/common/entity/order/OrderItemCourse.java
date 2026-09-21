@@ -17,9 +17,11 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Builder
 @Getter
+@Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Entity
@@ -49,4 +51,8 @@ public class OrderItemCourse {
 
   @Column(name = "position", nullable = false)
   private Integer position;
+
+  @Column(name = "is_mandatory", nullable = false)
+  @Builder.Default
+  private Boolean isMandatory = true;
 }

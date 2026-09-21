@@ -13,8 +13,8 @@ public interface CourseCategoryRepository extends JpaRepository<CourseCategory, 
   @Query(
       """
         SELECT cc FROM CourseCategory cc JOIN FETCH cc.category
-        WHERE cc.templateVersion.id = (
-          SELECT c.templateVersion.id FROM Course c WHERE c.id = :courseId
+        WHERE cc.template.id = (
+          SELECT c.template.id FROM Course c WHERE c.id = :courseId
         )
       """)
   List<CourseCategory> findByCourseId(@Param("courseId") UUID courseId);
@@ -22,8 +22,8 @@ public interface CourseCategoryRepository extends JpaRepository<CourseCategory, 
   @Query(
       """
         SELECT cc FROM CourseCategory cc JOIN FETCH cc.category
-        WHERE cc.templateVersion.id IN (
-          SELECT c.templateVersion.id FROM Course c WHERE c.id IN :courseIds
+        WHERE cc.template.id IN (
+          SELECT c.template.id FROM Course c WHERE c.id IN :courseIds
         )
       """)
   List<CourseCategory> findByCourseIds(@Param("courseIds") List<UUID> courseIds);

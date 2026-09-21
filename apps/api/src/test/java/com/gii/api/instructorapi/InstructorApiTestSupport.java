@@ -12,6 +12,7 @@ import com.gii.common.entity.enrollment.Enrollment;
 import com.gii.common.entity.live.LiveClass;
 import com.gii.common.entity.live.LiveClassAttendance;
 import com.gii.common.entity.live.LiveClassRegistrant;
+import com.gii.common.entity.live.LiveClassSlot;
 import com.gii.common.entity.user.InstructorProfile;
 import com.gii.common.entity.user.User;
 import com.gii.common.enums.EnrollmentStatus;
@@ -26,9 +27,8 @@ import com.gii.common.enums.UserStatus;
 import com.gii.common.repository.course.CourseAnnouncementRepository;
 import com.gii.common.repository.course.CourseInstructorRepository;
 import com.gii.common.repository.course.CourseRepository;
-import com.gii.common.repository.course.CourseSectionRepository;
 import com.gii.common.repository.course.CourseTemplateRepository;
-import com.gii.common.repository.course.CourseTemplateVersionRepository;
+import com.gii.common.repository.course.CourseSectionRepository;
 import com.gii.common.repository.course.LessonRepository;
 import com.gii.common.repository.course.SectionItemRepository;
 import com.gii.common.repository.enrollment.EnrollmentRepository;
@@ -51,7 +51,6 @@ abstract class InstructorApiTestSupport {
   @Autowired protected UserRepository userRepository;
   @Autowired protected InstructorProfileRepository instructorProfileRepository;
   @Autowired protected CourseRepository courseRepository;
-  @Autowired protected CourseTemplateVersionRepository courseTemplateVersionRepository;
   @Autowired protected CourseTemplateRepository courseTemplateRepository;
   @Autowired protected CourseAnnouncementRepository courseAnnouncementRepository;
   @Autowired protected CourseInstructorRepository courseInstructorRepository;
@@ -76,7 +75,6 @@ abstract class InstructorApiTestSupport {
     lessonRepository.deleteAll();
     courseSectionRepository.deleteAll();
     courseRepository.deleteAll();
-    courseTemplateVersionRepository.deleteAll();
     courseTemplateRepository.deleteAll();
     instructorProfileRepository.deleteAll();
     userRepository.deleteAll();
@@ -133,7 +131,6 @@ abstract class InstructorApiTestSupport {
     course.setQuizCount(1);
     course.setRecordedHoursCount(2);
     course.setEstimatedDurationMinutes(180);
-    course.getTemplateVersion().setStatus(status);
     return courseRepository.save(course);
   }
 
@@ -154,7 +151,7 @@ abstract class InstructorApiTestSupport {
   protected CourseSection section(Course course, int position, PublishStatus status) {
     return courseSectionRepository.save(
         CourseSection.builder()
-            .templateVersion(course.getTemplateVersion())
+            .template(course.getTemplate())
             .title("Section " + position)
             .slug("section-" + position + "-" + UUID.randomUUID().toString().substring(0, 6))
             .position(position)
@@ -195,6 +192,26 @@ abstract class InstructorApiTestSupport {
             .enrolledAt(Instant.now().minusSeconds(86400))
             .expiresAt(expiresAt)
             .build());
+  }
+
+  protected LiveClassSlot liveClassItem(CourseSection section, int position) {
+    LiveClassSlot slot =
+        liveClassSlotRepository.save(
+            LiveClassSlot.builder()
+                .section(section)
+                .title("Live Session " + position)
+                .description("desc")
+                .expectedDurationMinutes(60)
+                .isMandatory(true)
+                .build());
+    sectionItemRepository.save(
+        SectionItem.builder()
+            .section(section)
+            .itemType(SectionItemType.LIVE_CLASS)
+            .itemId(slot.getId())
+            .position(position)
+            .build());
+    return slot;
   }
 
   protected LiveClass liveClass(

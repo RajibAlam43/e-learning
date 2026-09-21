@@ -54,8 +54,8 @@ public class LessonAccessService {
   public Enrollment requireActiveEnrollment(UUID userId, Lesson lesson) {
     var enrollments =
         enrollmentRepository
-            .findByUserIdAndTemplateVersionIdAndStatus(
-                userId, lesson.getSection().getTemplateVersion().getId(), EnrollmentStatus.ACTIVE)
+            .findByUserIdAndTemplateIdAndStatus(
+                userId, lesson.getSection().getTemplate().getId(), EnrollmentStatus.ACTIVE)
             .stream()
             .filter(e -> !curriculumAccessService.isEnrollmentExpired(e, Instant.now()))
             .toList();
@@ -92,10 +92,7 @@ public class LessonAccessService {
             .findById(courseId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found"));
-    if (!course
-        .getTemplateVersion()
-        .getId()
-        .equals(lesson.getSection().getTemplateVersion().getId())) {
+    if (!course.getTemplate().getId().equals(lesson.getSection().getTemplate().getId())) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Lesson not found in course");
     }
   }

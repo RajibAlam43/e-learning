@@ -201,6 +201,7 @@ public class PendingCartOrderService {
     BigDecimal totalDiscount = BigDecimal.ZERO;
     List<OrderItem> orderItems = new ArrayList<>();
     List<CheckoutOrderItemResponse> responseItems = new ArrayList<>();
+    Set<UUID> coursesCoveredByEarlierCollection = new HashSet<>();
 
     for (CreateCheckoutOrderItemRequest requestedItem : requestedItems) {
       if (requestedItem.itemType() == OrderItemType.COURSE) {
@@ -242,9 +243,18 @@ public class PendingCartOrderService {
       List<CollectionCourse> includedCourses =
           collectionCoursesByCollectionId.getOrDefault(collection.getId(), List.of());
       BigDecimal discount = BigDecimal.ZERO;
+      boolean hasCollectionOverlapDiscount = false;
       for (CollectionCourse included : includedCourses) {
-        if (ownedCourseIds.contains(included.getCourse().getId())) {
-          discount = discount.add(included.getCourse().getPriceBdt());
+        UUID includedCourseId = included.getCourse().getId();
+        if (ownedCourseIds.contains(includedCourseId)
+            || coursesCoveredByEarlierCollection.contains(includedCourseId)) {
+          BigDecimal includedPrice =
+              Boolean.TRUE.equals(included.getCourse().getIsFree())
+                  ? BigDecimal.ZERO
+                  : included.getCourse().getPriceBdt();
+          discount = discount.add(includedPrice);
+          hasCollectionOverlapDiscount |=
+              coursesCoveredByEarlierCollection.contains(includedCourseId);
         }
       }
       if (discount.compareTo(collection.getPriceBdt()) > 0) {
@@ -274,10 +284,18 @@ public class PendingCartOrderService {
               .originalPrice(price)
               .discountAmount(discount)
               .finalPrice(price.subtract(discount))
-              .discountReason(discount.signum() > 0 ? "ALREADY_OWNED_INCLUDED_COURSES" : null)
+              .discountReason(
+                  discount.signum() == 0
+                      ? null
+                      : hasCollectionOverlapDiscount
+                          ? "OVERLAPPING_COLLECTION_COURSES"
+                          : "ALREADY_OWNED_INCLUDED_COURSES")
               .build());
       subtotal = subtotal.add(price);
       totalDiscount = totalDiscount.add(discount);
+      includedCourses.stream()
+          .map(included -> included.getCourse().getId())
+          .forEach(coursesCoveredByEarlierCollection::add);
     }
 
     List<OrderItem> savedOrderItems = orderItemRepository.saveAll(orderItems);
@@ -293,6 +311,7 @@ public class PendingCartOrderService {
                 .orderItem(item)
                 .course(included.getCourse())
                 .position(included.getPosition())
+                .isMandatory(included.getIsMandatory())
                 .build());
       }
     }

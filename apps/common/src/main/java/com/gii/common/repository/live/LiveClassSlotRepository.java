@@ -13,6 +13,8 @@ import org.springframework.data.repository.query.Param;
 public interface LiveClassSlotRepository extends JpaRepository<LiveClassSlot, UUID> {
   List<LiveClassSlot> findBySectionId(UUID sectionId);
 
+  List<LiveClassSlot> findBySectionIdIn(List<UUID> sectionIds);
+
   @Lock(LockModeType.PESSIMISTIC_WRITE)
   @Query("SELECT slot FROM LiveClassSlot slot WHERE slot.id = :id")
   Optional<LiveClassSlot> findByIdForUpdate(@Param("id") UUID id);
@@ -22,12 +24,20 @@ public interface LiveClassSlotRepository extends JpaRepository<LiveClassSlot, UU
         SELECT c.id, COUNT(slot)
         FROM Course c, LiveClassSlot slot
         WHERE c.id IN :courseIds
-        AND slot.section.templateVersion.id = c.templateVersion.id
+        AND slot.section.template.id = c.template.id
         AND slot.section.status = :sectionStatus
+        AND slot.section.isMandatory = true
         AND slot.isMandatory = true
+        AND NOT EXISTS (
+          SELECT lc.id FROM LiveClass lc
+          WHERE lc.course.id = c.id
+          AND lc.slot.id = slot.id
+          AND lc.status IN :excludedStatuses
+        )
         GROUP BY c.id
       """)
   List<Object[]> countMandatoryByCourseIdsAndSectionStatus(
       @Param("courseIds") List<UUID> courseIds,
-      @Param("sectionStatus") com.gii.common.enums.PublishStatus sectionStatus);
+      @Param("sectionStatus") com.gii.common.enums.PublishStatus sectionStatus,
+      @Param("excludedStatuses") List<com.gii.common.enums.LiveClassStatus> excludedStatuses);
 }

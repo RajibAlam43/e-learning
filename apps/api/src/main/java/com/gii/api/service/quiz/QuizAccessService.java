@@ -56,11 +56,7 @@ public class QuizAccessService {
                 () ->
                     new ResponseStatusException(
                         HttpStatus.FORBIDDEN, "You do not have access to this quiz"));
-    if (!enrollment
-        .getCourse()
-        .getTemplateVersion()
-        .getId()
-        .equals(quiz.getSection().getTemplateVersion().getId())) {
+    if (!enrollment.getCourse().getTemplate().getId().equals(quiz.getSection().getTemplate().getId())) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Quiz not found in course");
     }
     curriculumAccessService.requireSectionAccess(
@@ -71,8 +67,8 @@ public class QuizAccessService {
   public Enrollment requireActiveEnrollment(UUID userId, Quiz quiz) {
     var enrollments =
         enrollmentRepository
-            .findByUserIdAndTemplateVersionIdAndStatus(
-                userId, quiz.getSection().getTemplateVersion().getId(), EnrollmentStatus.ACTIVE)
+            .findByUserIdAndTemplateIdAndStatus(
+                userId, quiz.getSection().getTemplate().getId(), EnrollmentStatus.ACTIVE)
             .stream()
             .filter(e -> !curriculumAccessService.isEnrollmentExpired(e, Instant.now()))
             .toList();
@@ -99,9 +95,9 @@ public class QuizAccessService {
     boolean matchesTemplate =
         enrollment
             .getCourse()
-            .getTemplateVersion()
+            .getTemplate()
             .getId()
-            .equals(attempt.getQuiz().getSection().getTemplateVersion().getId());
+            .equals(attempt.getQuiz().getSection().getTemplate().getId());
     if (!matchesUser
         || !matchesTemplate
         || enrollment.getStatus() != EnrollmentStatus.ACTIVE

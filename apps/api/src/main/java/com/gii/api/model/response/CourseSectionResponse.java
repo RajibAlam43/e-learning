@@ -10,4 +10,5 @@ public record CourseSectionResponse(
     String title,
     String description,
     Integer position,
+    List<CourseSectionItemResponse> items,
     List<LessonSummaryResponse> lessons) {}

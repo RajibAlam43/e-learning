@@ -1,6 +1,7 @@
 package com.gii.api.model.response.admin;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 import lombok.Builder;
 
@@ -16,4 +17,6 @@ public record AdminLessonSummaryResponse(
     Boolean isMandatory,
     Boolean isFree,
     Integer durationSeconds,
+    AdminLessonResourceSummaryResponse primaryResource,
+    List<AdminLessonResourceSummaryResponse> resources,
     Instant createdAt) {}

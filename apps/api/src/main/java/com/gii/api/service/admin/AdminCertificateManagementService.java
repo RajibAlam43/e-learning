@@ -25,7 +25,7 @@ public class AdminCertificateManagementService {
       UUID certificateId, RevokeCertificateRequest request, Authentication authentication) {
     Certificate certificate =
         certificateRepository
-            .findById(certificateId)
+            .findByIdForUpdate(certificateId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Certificate not found"));
     if (certificate.getRevokedAt() != null) {
@@ -35,6 +35,21 @@ public class AdminCertificateManagementService {
     certificate.setRevokedAt(Instant.now());
     certificate.setRevokedBy(currentUserService.getCurrentUser(authentication));
     certificate.setRevocationReason(normalizeReason(request.reason()));
+    certificateRepository.save(certificate);
+  }
+
+  public void reinstate(UUID certificateId) {
+    Certificate certificate =
+        certificateRepository
+            .findByIdForUpdate(certificateId)
+            .orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Certificate not found"));
+    if (certificate.getRevokedAt() == null) {
+      return;
+    }
+    certificate.setRevokedAt(null);
+    certificate.setRevokedBy(null);
+    certificate.setRevocationReason(null);
     certificateRepository.save(certificate);
   }
 

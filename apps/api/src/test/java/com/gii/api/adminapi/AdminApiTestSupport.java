@@ -44,10 +44,9 @@ import com.gii.common.repository.course.CategoryRepository;
 import com.gii.common.repository.course.CourseCategoryRepository;
 import com.gii.common.repository.course.CourseInstructorRepository;
 import com.gii.common.repository.course.CourseRepository;
+import com.gii.common.repository.course.CourseTemplateRepository;
 import com.gii.common.repository.course.CourseReviewRepository;
 import com.gii.common.repository.course.CourseSectionRepository;
-import com.gii.common.repository.course.CourseTemplateRepository;
-import com.gii.common.repository.course.CourseTemplateVersionRepository;
 import com.gii.common.repository.course.LessonRepository;
 import com.gii.common.repository.course.LessonResourceRepository;
 import com.gii.common.repository.course.MediaAssetRepository;
@@ -88,7 +87,6 @@ abstract class AdminApiTestSupport {
   @Autowired protected CertificateRepository certificateRepository;
   @Autowired protected CollectionCourseRepository collectionCourseRepository;
   @Autowired protected CourseRepository courseRepository;
-  @Autowired protected CourseTemplateVersionRepository courseTemplateVersionRepository;
   @Autowired protected CourseTemplateRepository courseTemplateRepository;
   @Autowired protected CourseReviewRepository courseReviewRepository;
   @Autowired protected CategoryRepository categoryRepository;
@@ -148,7 +146,6 @@ abstract class AdminApiTestSupport {
     courseInstructorRepository.deleteAll();
     courseCategoryRepository.deleteAll();
     courseRepository.deleteAll();
-    courseTemplateVersionRepository.deleteAll();
     courseTemplateRepository.deleteAll();
     categoryRepository.deleteAll();
     instructorProfileRepository.deleteAll();
@@ -222,7 +219,7 @@ abstract class AdminApiTestSupport {
   protected CourseSection section(Course course, int position) {
     return courseSectionRepository.save(
         CourseSection.builder()
-            .templateVersion(course.getTemplateVersion())
+            .template(course.getTemplate())
             .title("Section " + position)
             .slug("section-" + position + "-" + UUID.randomUUID().toString().substring(0, 6))
             .position(position)

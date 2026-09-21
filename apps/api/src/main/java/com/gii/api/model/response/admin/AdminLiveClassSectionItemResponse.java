@@ -8,6 +8,7 @@ import lombok.Builder;
 
 @Builder
 public record AdminLiveClassSectionItemResponse(
+    UUID liveClassItemId,
     UUID liveClassId,
     String title,
     String titleEn,

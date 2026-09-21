@@ -1,6 +1,7 @@
 package com.gii.api.service.student;
 
 import com.gii.api.model.response.student.StudentCertificateSummaryResponse;
+import com.gii.api.service.certificate.CertificateBackfillService;
 import com.gii.api.service.enrollment.CurrentUserService;
 import com.gii.api.service.storage.R2ObjectStorageService;
 import com.gii.common.entity.certificate.Certificate;
@@ -21,9 +22,11 @@ public class StudentCertificatesService {
   private final CurrentUserService currentUserService;
   private final CertificateRepository certificateRepository;
   private final R2ObjectStorageService objectStorageService;
+  private final CertificateBackfillService certificateBackfillService;
 
   public List<StudentCertificateSummaryResponse> execute(Authentication authentication) {
     java.util.UUID userId = currentUserService.getCurrentUserId(authentication);
+    certificateBackfillService.backfillMissingCertificates(userId);
     List<Certificate> certificates = certificateRepository.findByUserIdOrderByIssuedAtDesc(userId);
 
     return certificates.stream().map(this::toCertificateSummary).toList();

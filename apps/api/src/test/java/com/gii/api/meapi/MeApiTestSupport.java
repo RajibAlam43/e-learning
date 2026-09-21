@@ -19,9 +19,8 @@ import com.gii.common.enums.PublishStatus;
 import com.gii.common.enums.UserStatus;
 import com.gii.common.repository.certificate.CertificateRepository;
 import com.gii.common.repository.course.CourseRepository;
-import com.gii.common.repository.course.CourseSectionRepository;
 import com.gii.common.repository.course.CourseTemplateRepository;
-import com.gii.common.repository.course.CourseTemplateVersionRepository;
+import com.gii.common.repository.course.CourseSectionRepository;
 import com.gii.common.repository.course.LessonRepository;
 import com.gii.common.repository.enrollment.EnrollmentRepository;
 import com.gii.common.repository.live.LiveClassAttendanceRepository;
@@ -45,7 +44,6 @@ abstract class MeApiTestSupport {
   @Autowired protected UserProfileRepository userProfileRepository;
   @Autowired protected InstructorProfileRepository instructorProfileRepository;
   @Autowired protected CourseRepository courseRepository;
-  @Autowired protected CourseTemplateVersionRepository courseTemplateVersionRepository;
   @Autowired protected CourseTemplateRepository courseTemplateRepository;
   @Autowired protected CourseSectionRepository courseSectionRepository;
   @Autowired protected LessonRepository lessonRepository;
@@ -66,7 +64,6 @@ abstract class MeApiTestSupport {
     lessonRepository.deleteAll();
     courseSectionRepository.deleteAll();
     courseRepository.deleteAll();
-    courseTemplateVersionRepository.deleteAll();
     courseTemplateRepository.deleteAll();
     userRepository.deleteAll();
   }
@@ -123,14 +120,13 @@ abstract class MeApiTestSupport {
     course.setStatus(PublishStatus.PUBLISHED);
     course.setPublishedAt(Instant.now());
     course.setEstimatedDurationMinutes(60);
-    course.getTemplateVersion().setStatus(PublishStatus.PUBLISHED);
     return courseRepository.save(course);
   }
 
   protected CourseSection section(Course course, int position) {
     return courseSectionRepository.save(
         CourseSection.builder()
-            .templateVersion(course.getTemplateVersion())
+            .template(course.getTemplate())
             .title("Section " + position)
             .slug("section-" + position + "-" + UUID.randomUUID().toString().substring(0, 6))
             .position(position)
