@@ -1,10 +1,14 @@
 package com.gii.api.lessonapi;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.gii.api.service.storage.R2PresignedUrlService;
 import com.gii.common.enums.EnrollmentStatus;
 import com.gii.common.enums.MediaProvider;
 import com.gii.common.enums.MediaStatus;
@@ -12,13 +16,25 @@ import com.gii.common.enums.PublishStatus;
 import com.gii.common.enums.ReleaseType;
 import java.time.Instant;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 class LessonContentApiIt extends AbstractLessonApiIntegrationTest {
 
   @Autowired private MockMvc mockMvc;
+  @MockitoBean private R2PresignedUrlService r2PresignedUrlService;
+
+  @BeforeEach
+  void stubResourceViewUrls() {
+    when(r2PresignedUrlService.generateDownloadUrl(
+            any(), any(), any(), eq(R2PresignedUrlService.Disposition.INLINE)))
+        .thenReturn(
+            new R2PresignedUrlService.PresignedDownload(
+                "https://signed.test/view", Instant.now().plusSeconds(600)));
+  }
 
   @AfterEach
   void cleanup() {

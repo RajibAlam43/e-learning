@@ -70,11 +70,35 @@ public class R2PresignedUrlService {
   public PresignedDownload generateDownloadUrl(
       String fileUrlOrKey, String fileName, String mimeType) {
     return generateDownloadUrl(
-        fileUrlOrKey, fileName, mimeType, Duration.ofSeconds(downloadTtlSeconds));
+        fileUrlOrKey,
+        fileName,
+        mimeType,
+        Disposition.ATTACHMENT,
+        Duration.ofSeconds(downloadTtlSeconds));
   }
 
   public PresignedDownload generateDownloadUrl(
       String fileUrlOrKey, String fileName, String mimeType, Duration signatureDuration) {
+    return generateDownloadUrl(
+        fileUrlOrKey, fileName, mimeType, Disposition.ATTACHMENT, signatureDuration);
+  }
+
+  public PresignedDownload generateDownloadUrl(
+      String fileUrlOrKey, String fileName, String mimeType, Disposition disposition) {
+    return generateDownloadUrl(
+        fileUrlOrKey, fileName, mimeType, disposition, Duration.ofSeconds(downloadTtlSeconds));
+  }
+
+  /**
+   * Builds a signed GET URL for a resource, either as a browser-renderable inline URL (for
+   * on-page preview) or a forced download, depending on {@code disposition}.
+   */
+  public PresignedDownload generateDownloadUrl(
+      String fileUrlOrKey,
+      String fileName,
+      String mimeType,
+      Disposition disposition,
+      Duration signatureDuration) {
     String objectKey = resolveObjectKey(fileUrlOrKey);
     if (signatureDuration == null || signatureDuration.isZero() || signatureDuration.isNegative()) {
       throw new IllegalArgumentException("Download URL duration must be positive");
@@ -85,7 +109,10 @@ public class R2PresignedUrlService {
             .bucket(bucket)
             .key(objectKey)
             .responseContentDisposition(
-                "attachment; filename=\"" + resolveDownloadFileName(fileName, mimeType) + "\"");
+                disposition.headerValue()
+                    + "; filename=\""
+                    + resolveDownloadFileName(fileName, mimeType)
+                    + "\"");
 
     if (mimeType != null && !mimeType.isBlank()) {
       getRequest.responseContentType(mimeType);
@@ -176,4 +203,19 @@ public class R2PresignedUrlService {
   public record PresignedDownload(String downloadUrl, java.time.Instant expiresAt) {}
 
   public record PresignedUpload(String uploadUrl, java.time.Instant expiresAt) {}
+
+  public enum Disposition {
+    INLINE("inline"),
+    ATTACHMENT("attachment");
+
+    private final String headerValue;
+
+    Disposition(String headerValue) {
+      this.headerValue = headerValue;
+    }
+
+    public String headerValue() {
+      return headerValue;
+    }
+  }
 }

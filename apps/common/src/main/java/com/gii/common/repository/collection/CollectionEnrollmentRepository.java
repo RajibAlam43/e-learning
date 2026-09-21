@@ -38,5 +38,8 @@ public interface CollectionEnrollmentRepository extends JpaRepository<Collection
 
   List<CollectionEnrollment> findByUserIdAndStatus(UUID userId, EnrollmentStatus status);
 
+  List<CollectionEnrollment> findByUserIdAndStatusAndCompletedAtIsNotNull(
+      UUID userId, EnrollmentStatus status);
+
   boolean existsByCollectionId(UUID collectionId);
 }

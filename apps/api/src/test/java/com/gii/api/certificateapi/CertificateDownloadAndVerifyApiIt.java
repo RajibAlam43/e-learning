@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.gii.api.service.storage.R2PresignedUrlService;
 import com.gii.common.enums.PublishStatus;
+import java.time.Duration;
 import java.time.Instant;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -51,7 +52,7 @@ class CertificateDownloadAndVerifyApiIt extends AbstractCertificateApiIntegratio
             true,
             "https://cdn.test/cert2.pdf",
             instructor);
-    when(r2PresignedUrlService.generateDownloadUrl(any(), any(), any(), any()))
+    when(r2PresignedUrlService.generateDownloadUrl(any(), any(), any(), any(Duration.class)))
         .thenReturn(
             new R2PresignedUrlService.PresignedDownload(
                 "https://signed.test/cert", Instant.now().plusSeconds(600)));

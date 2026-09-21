@@ -31,6 +31,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -112,6 +113,12 @@ public class CertificateIssueService {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Course completion criteria not met");
     }
 
+    Certificate saved = issueCourseCertificate(enrollment);
+    return toResponse(saved, true, "COURSE_COMPLETED");
+  }
+
+  private Certificate issueCourseCertificate(Enrollment enrollment) {
+    User user = enrollment.getUser();
     Certificate certificate =
         Certificate.builder()
             .certificateCode(normalizeCode(generateUniqueCode()))
@@ -133,8 +140,7 @@ public class CertificateIssueService {
         saved,
         saved.getInstructorName(),
         enrollment.getCompletedAt() == null ? saved.getIssuedAt() : enrollment.getCompletedAt());
-
-    return toResponse(saved, true, "COURSE_COMPLETED");
+    return saved;
   }
 
   public CertificateIssueResponse executeCollection(
@@ -205,6 +211,13 @@ public class CertificateIssueService {
           HttpStatus.FORBIDDEN, "Collection completion criteria not met");
     }
 
+    Certificate saved = issueCollectionCertificate(collection, enrollment);
+    return toResponse(saved, true, "COLLECTION_COMPLETED");
+  }
+
+  private Certificate issueCollectionCertificate(
+      Collection collection, CollectionEnrollment enrollment) {
+    User user = enrollment.getUser();
     Certificate certificate =
         Certificate.builder()
             .certificateCode(normalizeCode(generateUniqueCode()))
@@ -222,12 +235,48 @@ public class CertificateIssueService {
             .instructorName("Global Islamic Institute")
             .build();
     Certificate saved = certificateRepository.saveAndFlush(certificate);
-    requireNotRevoked(saved);
     ensureDocument(
         saved,
         "Global Islamic Institute",
         enrollment.getCompletedAt() == null ? saved.getIssuedAt() : enrollment.getCompletedAt());
-    return toResponse(saved, true, "COLLECTION_COMPLETED");
+    return saved;
+  }
+
+  /**
+   * Re-verifies and issues a single course certificate in its own fresh transaction. Called from
+   * {@link CertificateBackfillService} once per candidate enrollment so that one failure (a
+   * concurrent duplicate, a transient PDF/storage error) can't poison a shared transaction and
+   * block certificates for the user's other completed courses.
+   */
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public void tryIssueCourseCertificate(UUID enrollmentId) {
+    Enrollment enrollment = enrollmentRepository.findById(enrollmentId).orElse(null);
+    if (enrollment == null || enrollment.getCompletedAt() == null) {
+      return;
+    }
+    if (certificateRepository
+        .findByUserIdAndCourseId(enrollment.getUser().getId(), enrollment.getCourse().getId())
+        .isPresent()) {
+      return;
+    }
+    issueCourseCertificate(enrollment);
+  }
+
+  /** Collection counterpart of {@link #tryIssueCourseCertificate(UUID)}. */
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public void tryIssueCollectionCertificate(UUID collectionEnrollmentId) {
+    CollectionEnrollment enrollment =
+        collectionEnrollmentRepository.findById(collectionEnrollmentId).orElse(null);
+    if (enrollment == null || enrollment.getCompletedAt() == null) {
+      return;
+    }
+    Collection collection = enrollment.getCollection();
+    if (certificateRepository
+        .findByUserIdAndCollectionId(enrollment.getUser().getId(), collection.getId())
+        .isPresent()) {
+      return;
+    }
+    issueCollectionCertificate(collection, enrollment);
   }
 
   private void requireNotRevoked(Certificate certificate) {

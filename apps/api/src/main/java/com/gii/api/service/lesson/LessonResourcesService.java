@@ -2,6 +2,8 @@ package com.gii.api.service.lesson;
 
 import com.gii.api.model.response.lesson.LessonResourceResponse;
 import com.gii.api.service.localization.LocalizedContentService;
+import com.gii.api.service.storage.R2PresignedUrlService;
+import com.gii.api.service.storage.R2PresignedUrlService.Disposition;
 import com.gii.common.entity.course.Lesson;
 import com.gii.common.entity.course.LessonResource;
 import com.gii.common.entity.enrollment.Enrollment;
@@ -25,6 +27,7 @@ public class LessonResourcesService {
   private final LessonAccessService lessonAccessService;
   private final LessonResourceRepository lessonResourceRepository;
   private final LocalizedContentService localizedContentService;
+  private final R2PresignedUrlService r2PresignedUrlService;
 
   public List<LessonResourceResponse> execute(UUID lessonId, Authentication authentication) {
     UUID userId = lessonAccessService.requireCurrentUserId(authentication);
@@ -50,18 +53,27 @@ public class LessonResourcesService {
         lessonResourceRepository.findByLessonIdOrderByPositionAsc(lesson.getId());
     return resources.stream()
         .filter(resource -> resource.getPurpose() == LessonResourcePurpose.SUPPLEMENTARY)
-        .map(
-            resource ->
-                LessonResourceResponse.builder()
-                    .resourceId(resource.getId())
-                    .title(localizedContentService.text(resource.getTitle(), resource.getTitleEn()))
-                    .resourceType(resource.getResourceType())
-                    .purpose(resource.getPurpose())
-                    .mimeType(resource.getMimeType())
-                    .position(resource.getPosition())
-                    // Download URL should be requested through signed endpoint.
-                    .downloadUrl(null)
-                    .build())
+        .map(this::toResponse)
         .toList();
+  }
+
+  private LessonResourceResponse toResponse(LessonResource resource) {
+    String title = localizedContentService.text(resource.getTitle(), resource.getTitleEn());
+    String viewUrl =
+        r2PresignedUrlService
+            .generateDownloadUrl(
+                resource.getFileObjectKey(), title, resource.getMimeType(), Disposition.INLINE)
+            .downloadUrl();
+    return LessonResourceResponse.builder()
+        .resourceId(resource.getId())
+        .title(title)
+        .resourceType(resource.getResourceType())
+        .purpose(resource.getPurpose())
+        .mimeType(resource.getMimeType())
+        .position(resource.getPosition())
+        // Forced-download URLs are minted on demand via the dedicated download-url endpoint.
+        .downloadUrl(null)
+        .viewUrl(viewUrl)
+        .build();
   }
 }
