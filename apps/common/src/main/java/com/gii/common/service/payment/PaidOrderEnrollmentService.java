@@ -16,7 +16,9 @@ import com.gii.common.repository.order.OrderItemCourseRepository;
 import com.gii.common.repository.order.OrderItemRepository;
 import com.gii.common.repository.order.OrderRepository;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -37,12 +39,25 @@ public class PaidOrderEnrollmentService {
 
   @Transactional
   public void grant(UUID orderId) {
-    Order order = orderRepository.findById(orderId).orElseThrow();
+    Order order = orderRepository.findByIdForUpdate(orderId).orElseThrow();
     if (order.getStatus() != OrderStatus.PAID) {
       return;
     }
     Instant now = Instant.now();
-    for (OrderItem item : orderItemRepository.findByOrderId(order.getId())) {
+    List<OrderItem> items = orderItemRepository.findByOrderId(order.getId());
+    Map<UUID, Course> purchasedCourseById = new LinkedHashMap<>();
+    for (OrderItem item : items) {
+      if (item.getItemType() == OrderItemType.COURSE) {
+        purchasedCourseById.put(item.getCourse().getId(), item.getCourse());
+      } else if (item.getItemType() == OrderItemType.COLLECTION) {
+        purchasedCourses(item).forEach(course -> purchasedCourseById.put(course.getId(), course));
+      }
+    }
+    purchasedCourseById.keySet().stream()
+        .sorted()
+        .forEach(courseId -> courseRepository.findByIdForUpdate(courseId).orElseThrow());
+
+    for (OrderItem item : items) {
       if (item.getItemType() == OrderItemType.COURSE) {
         activateOrCreateCourseEnrollment(order, item, item.getCourse(), now, item.getCollection());
       } else if (item.getItemType() == OrderItemType.COLLECTION) {
@@ -93,7 +108,6 @@ public class PaidOrderEnrollmentService {
       existing.setStatus(EnrollmentStatus.ACTIVE);
       existing.setEnrolledAt(now);
       existing.setRevokedAt(null);
-      existing.setCompletedAt(null);
       existing.setExpiresAt(enrollmentPolicyService.calculateExpiry(lockedCourse, now));
       existing.setSourceOrderItem(sourceOrderItem);
       existing.setSourceCollection(sourceCollection);
@@ -125,7 +139,6 @@ public class PaidOrderEnrollmentService {
       existing.setStatus(EnrollmentStatus.ACTIVE);
       existing.setEnrolledAt(now);
       existing.setRevokedAt(null);
-      existing.setCompletedAt(null);
       existing.setExpiresAt(null);
       existing.setSourceOrderItem(sourceOrderItem);
       collectionEnrollmentRepository.save(existing);

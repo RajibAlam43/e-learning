@@ -51,6 +51,9 @@ public class QuizAttemptResultService {
 
     Quiz quiz = attempt.getQuiz();
     Enrollment enrollment = quizAccessService.requireActiveAttemptEnrollment(userId, attempt);
+    if (attempt.getSubmittedAt() == null || attempt.getScorePct() == null) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, "Attempt not submitted");
+    }
 
     List<QuizQuestion> questions = questionRepository.findByQuizIdOrderByPositionAsc(quiz.getId());
     Map<UUID, QuizQuestion> questionById =

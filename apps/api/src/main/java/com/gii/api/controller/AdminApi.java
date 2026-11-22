@@ -529,4 +529,8 @@ public interface AdminApi {
       @PathVariable UUID certificateId,
       @Valid @RequestBody RevokeCertificateRequest request,
       Authentication authentication);
+
+  @PostMapping("/certificates/{certificateId}/reinstate")
+  @Operation(summary = "Reinstate certificate")
+  ResponseEntity<Void> reinstateCertificate(@PathVariable UUID certificateId);
 }

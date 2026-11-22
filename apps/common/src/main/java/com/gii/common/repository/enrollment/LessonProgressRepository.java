@@ -59,6 +59,8 @@ public interface LessonProgressRepository extends JpaRepository<LessonProgress, 
         AND lp.enrollment.course.id IN :courseIds
         AND lp.lesson.status = :status
         AND lp.lesson.section.status = :status
+        AND lp.lesson.isMandatory = true
+        AND lp.lesson.section.isMandatory = true
         AND lp.completedAt IS NOT NULL
         GROUP BY lp.enrollment.course.id
       """)
