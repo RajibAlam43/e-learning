@@ -21,9 +21,8 @@ import com.gii.common.enums.PublishStatus;
 import com.gii.common.enums.ReleaseType;
 import com.gii.common.enums.UserStatus;
 import com.gii.common.repository.course.CourseRepository;
-import com.gii.common.repository.course.CourseSectionRepository;
 import com.gii.common.repository.course.CourseTemplateRepository;
-import com.gii.common.repository.course.CourseTemplateVersionRepository;
+import com.gii.common.repository.course.CourseSectionRepository;
 import com.gii.common.repository.course.LessonRepository;
 import com.gii.common.repository.course.LessonResourceRepository;
 import com.gii.common.repository.course.MediaAssetRepository;
@@ -43,7 +42,6 @@ abstract class LessonApiTestSupport {
 
   @Autowired protected UserRepository userRepository;
   @Autowired protected CourseRepository courseRepository;
-  @Autowired protected CourseTemplateVersionRepository courseTemplateVersionRepository;
   @Autowired protected CourseTemplateRepository courseTemplateRepository;
   @Autowired protected CourseSectionRepository courseSectionRepository;
   @Autowired protected LessonRepository lessonRepository;
@@ -62,7 +60,6 @@ abstract class LessonApiTestSupport {
     lessonRepository.deleteAll();
     courseSectionRepository.deleteAll();
     courseRepository.deleteAll();
-    courseTemplateVersionRepository.deleteAll();
     courseTemplateRepository.deleteAll();
     userRepository.deleteAll();
   }
@@ -88,14 +85,13 @@ abstract class LessonApiTestSupport {
     course.setStatus(status);
     course.setPublishedAt(Instant.now());
     course.setEstimatedDurationMinutes(120);
-    course.getTemplateVersion().setStatus(status);
     return courseRepository.save(course);
   }
 
   protected Course repeatedCourse(Course source, String slug, User creator) {
     return courseRepository.save(
         Course.builder()
-            .templateVersion(source.getTemplateVersion())
+            .template(source.getTemplate())
             .name(source.getName())
             .slug(slug)
             .priceBdt(source.getPriceBdt())
@@ -110,7 +106,7 @@ abstract class LessonApiTestSupport {
   protected CourseSection section(Course course, int position, PublishStatus status) {
     return courseSectionRepository.save(
         CourseSection.builder()
-            .templateVersion(course.getTemplateVersion())
+            .template(course.getTemplate())
             .title("Section " + position)
             .slug("section-" + position + "-" + UUID.randomUUID().toString().substring(0, 6))
             .position(position)
@@ -189,10 +185,8 @@ abstract class LessonApiTestSupport {
       User user, Lesson lesson, boolean completed, int lastPositionSec) {
     Enrollment enrollment =
         enrollmentRepository
-            .findByUserIdAndTemplateVersionIdAndStatus(
-                user.getId(),
-                lesson.getSection().getTemplateVersion().getId(),
-                EnrollmentStatus.ACTIVE)
+            .findByUserIdAndTemplateIdAndStatus(
+                user.getId(), lesson.getSection().getTemplate().getId(), EnrollmentStatus.ACTIVE)
             .getFirst();
     return lessonProgressRepository.save(
         LessonProgress.builder()

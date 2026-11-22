@@ -10,6 +10,7 @@ import com.gii.common.enums.OrderStatus;
 import com.gii.common.enums.PaymentEventStatus;
 import com.gii.common.enums.PaymentEventType;
 import com.gii.common.repository.order.OrderRepository;
+import com.gii.common.repository.order.PaymentAttemptRepository;
 import com.gii.common.repository.order.PaymentEventRepository;
 import com.gii.common.service.payment.PaidOrderEnrollmentService;
 import java.math.BigDecimal;
@@ -47,6 +48,7 @@ public class SslcommerzValidationJobService {
   private final SqsAsyncClient sqsClient;
   private final OrderRepository orderRepository;
   private final PaymentEventRepository paymentEventRepository;
+  private final PaymentAttemptRepository paymentAttemptRepository;
   private final PaidOrderEnrollmentService paidOrderEnrollmentService;
   private final Map<String, String> queueUrlCache = new ConcurrentHashMap<>();
 
@@ -78,6 +80,7 @@ public class SslcommerzValidationJobService {
       return;
     }
     if (order.getStatus() == OrderStatus.PAID) {
+      paidOrderEnrollmentService.grant(order.getId());
       return;
     }
     if (order.getStatus() == OrderStatus.CANCELLED || order.getStatus() == OrderStatus.REFUNDED) {
@@ -92,7 +95,7 @@ public class SslcommerzValidationJobService {
 
     try {
       Map<String, Object> validated = validateByValId(job.valId());
-      validateAgainstOrder(order, validated);
+      validateAgainstOrder(order, validated, job.providerTxnId());
       String status = normalize(asString(validated.get("status")));
       if ("VALID".equals(status) || "VALIDATED".equals(status)) {
         int riskLevel = parseRiskLevel(asString(validated.get("risk_level")));
@@ -149,8 +152,12 @@ public class SslcommerzValidationJobService {
     if (job.providerTxnId() == null || job.providerTxnId().isBlank()) {
       return null;
     }
-    return orderRepository
-        .findByProviderAndProviderTxnId(OrderProvider.SSLCOMMERZ, job.providerTxnId())
+    return paymentAttemptRepository
+        .findOrderByProviderAndProviderTxnId(OrderProvider.SSLCOMMERZ, job.providerTxnId())
+        .or(
+            () ->
+                orderRepository.findByProviderAndProviderTxnId(
+                    OrderProvider.SSLCOMMERZ, job.providerTxnId()))
         .orElse(null);
   }
 
@@ -202,9 +209,10 @@ public class SslcommerzValidationJobService {
     return objectMapper.readValue(trimmed, MAP_TYPE);
   }
 
-  private void validateAgainstOrder(Order order, Map<String, Object> validated) {
+  private void validateAgainstOrder(
+      Order order, Map<String, Object> validated, String providerTxnId) {
     String tranId = normalizeTxn(asString(validated.get("tran_id")));
-    String expectedTxn = normalizeTxn(order.getProviderTxnId());
+    String expectedTxn = normalizeTxn(providerTxnId);
     if (!tranId.equals(expectedTxn)) {
       throw new IllegalStateException("Transaction mismatch");
     }

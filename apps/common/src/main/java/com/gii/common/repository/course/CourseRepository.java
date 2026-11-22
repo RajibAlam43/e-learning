@@ -23,9 +23,7 @@ public interface CourseRepository
 
   long countByStatus(PublishStatus status);
 
-  long countByTemplateVersionId(UUID templateVersionId);
-
-  List<Course> findByTemplateVersionId(UUID templateVersionId);
+  List<Course> findByTemplateId(UUID templateId);
 
   @Lock(LockModeType.PESSIMISTIC_WRITE)
   @Query("SELECT c FROM Course c WHERE c.id = :id")

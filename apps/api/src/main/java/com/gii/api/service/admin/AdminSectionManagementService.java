@@ -3,24 +3,28 @@ package com.gii.api.service.admin;
 import com.gii.api.model.request.admin.CreateSectionRequest;
 import com.gii.api.model.request.admin.UpdateSectionRequest;
 import com.gii.api.model.response.admin.AdminCourseSectionResponse;
+import com.gii.api.model.response.admin.AdminLessonResourceSummaryResponse;
 import com.gii.api.model.response.admin.AdminLessonSummaryResponse;
 import com.gii.api.model.response.admin.AdminLiveClassSectionItemResponse;
 import com.gii.api.model.response.admin.AdminQuizSummaryResponse;
 import com.gii.api.model.response.admin.AdminSectionItemResponse;
-import com.gii.api.service.course.CourseTemplateMutationGuard;
+import com.gii.api.service.progress.EnrollmentCompletionService;
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.course.CourseSection;
 import com.gii.common.entity.course.Lesson;
+import com.gii.common.entity.course.LessonResource;
 import com.gii.common.entity.course.SectionItem;
 import com.gii.common.entity.live.LiveClass;
 import com.gii.common.entity.live.LiveClassSlot;
 import com.gii.common.entity.quiz.Quiz;
+import com.gii.common.enums.LessonResourcePurpose;
 import com.gii.common.enums.PublishStatus;
 import com.gii.common.enums.ReleaseType;
 import com.gii.common.enums.SectionItemType;
 import com.gii.common.repository.course.CourseRepository;
 import com.gii.common.repository.course.CourseSectionRepository;
 import com.gii.common.repository.course.LessonRepository;
+import com.gii.common.repository.course.LessonResourceRepository;
 import com.gii.common.repository.course.SectionItemRepository;
 import com.gii.common.repository.live.LiveClassRepository;
 import com.gii.common.repository.live.LiveClassSlotRepository;
@@ -45,11 +49,12 @@ public class AdminSectionManagementService {
   private final CourseRepository courseRepository;
   private final CourseSectionRepository sectionRepository;
   private final LessonRepository lessonRepository;
+  private final LessonResourceRepository lessonResourceRepository;
   private final QuizRepository quizRepository;
   private final SectionItemRepository sectionItemRepository;
   private final LiveClassRepository liveClassRepository;
   private final LiveClassSlotRepository liveClassSlotRepository;
-  private final CourseTemplateMutationGuard templateMutationGuard;
+  private final EnrollmentCompletionService enrollmentCompletionService;
 
   public AdminCourseSectionResponse create(UUID courseId, CreateSectionRequest request) {
     Course course =
@@ -57,17 +62,16 @@ public class AdminSectionManagementService {
             .findById(courseId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found"));
-    course = templateMutationGuard.prepareForTemplateUpdate(course);
     CourseSection section =
         CourseSection.builder()
-            .templateVersion(course.getTemplateVersion())
+            .template(course.getTemplate())
             .title(request.title().trim())
             .titleEn(request.titleEn())
             .slug(request.slug().trim())
             .position(request.position())
             .description(request.description())
             .descriptionEn(request.descriptionEn())
-            .isMandatory(Boolean.TRUE.equals(request.isMandatory()))
+            .isMandatory(!Boolean.FALSE.equals(request.isMandatory()))
             .isFree(Boolean.TRUE.equals(request.isFree()))
             .releaseType(parseReleaseType(request.releaseType()))
             .releaseAt(request.releaseAt())
@@ -83,7 +87,6 @@ public class AdminSectionManagementService {
             .findById(sectionId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Section not found"));
-    templateMutationGuard.requireDraft(section.getTemplateVersion());
     if (request.title() != null) {
       section.setTitle(request.title().trim());
     }
@@ -102,6 +105,10 @@ public class AdminSectionManagementService {
     if (request.descriptionEn() != null) {
       section.setDescriptionEn(request.descriptionEn());
     }
+    boolean demotedFromMandatory =
+        request.isMandatory() != null
+            && Boolean.TRUE.equals(section.getIsMandatory())
+            && !request.isMandatory();
     if (request.isMandatory() != null) {
       section.setIsMandatory(request.isMandatory());
     }
@@ -117,7 +124,12 @@ public class AdminSectionManagementService {
     if (request.unlockAfterDays() != null) {
       section.setUnlockAfterDays(request.unlockAfterDays());
     }
-    return toResponse(sectionRepository.save(section));
+    CourseSection saved = sectionRepository.save(section);
+    if (demotedFromMandatory) {
+      sectionRepository.flush();
+      enrollmentCompletionService.refreshCoursesForTemplate(saved.getTemplate().getId());
+    }
+    return toResponse(saved);
   }
 
   public void delete(UUID sectionId) {
@@ -126,8 +138,10 @@ public class AdminSectionManagementService {
             .findById(sectionId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Section not found"));
-    templateMutationGuard.requireDraft(section.getTemplateVersion());
+    UUID templateId = section.getTemplate().getId();
     sectionRepository.delete(section);
+    sectionRepository.flush();
+    enrollmentCompletionService.refreshCoursesForTemplate(templateId);
   }
 
   public void publish(UUID sectionId) {
@@ -136,7 +150,6 @@ public class AdminSectionManagementService {
             .findById(sectionId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Section not found"));
-    templateMutationGuard.requireDraft(section.getTemplateVersion());
     section.setStatus(PublishStatus.PUBLISHED);
     if (section.getPublishedAt() == null) {
       section.setPublishedAt(Instant.now());
@@ -150,25 +163,42 @@ public class AdminSectionManagementService {
             .findById(sectionId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Section not found"));
-    templateMutationGuard.requireDraft(section.getTemplateVersion());
     section.setStatus(PublishStatus.DRAFT);
-    sectionRepository.save(section);
+    sectionRepository.saveAndFlush(section);
+    enrollmentCompletionService.refreshCoursesForTemplate(section.getTemplate().getId());
   }
 
   AdminCourseSectionResponse toResponse(CourseSection section) {
-    List<Course> courses =
-        courseRepository.findByTemplateVersionId(section.getTemplateVersion().getId());
+    List<Course> courses = courseRepository.findByTemplateId(section.getTemplate().getId());
     return toResponse(section, courses.size() == 1 ? courses.getFirst().getId() : null);
   }
 
   AdminCourseSectionResponse toResponse(CourseSection section, UUID courseId) {
+    List<SectionItem> orderedItems =
+        sectionItemRepository.findBySectionIdOrderByPositionAsc(section.getId());
+    Map<UUID, Integer> positionByItemId =
+        orderedItems.stream()
+            .collect(Collectors.toMap(SectionItem::getItemId, SectionItem::getPosition));
+    List<Lesson> lessonEntities =
+        lessonRepository.findBySectionIdOrderByPositionAsc(section.getId());
+    Map<UUID, List<LessonResource>> resourcesByLessonId =
+        lessonResourceRepository
+            .findByLessonIdInOrderByLessonIdAscPositionAsc(
+                lessonEntities.stream().map(Lesson::getId).toList())
+            .stream()
+            .collect(Collectors.groupingBy(resource -> resource.getLesson().getId()));
     List<AdminLessonSummaryResponse> lessons =
-        lessonRepository.findBySectionIdOrderByPositionAsc(section.getId()).stream()
-            .map(this::toLessonSummary)
+        lessonEntities.stream()
+            .map(
+                lesson ->
+                    toLessonSummary(
+                        lesson,
+                        positionByItemId.get(lesson.getId()),
+                        resourcesByLessonId.getOrDefault(lesson.getId(), List.of())))
             .toList();
     List<AdminQuizSummaryResponse> quizzes =
         quizRepository.findBySectionIdOrderByPositionAsc(section.getId()).stream()
-            .map(this::toQuizSummary)
+            .map(quiz -> toQuizSummary(quiz, positionByItemId.get(quiz.getId())))
             .toList();
     List<LiveClass> liveClasses =
         courseId == null
@@ -190,7 +220,7 @@ public class AdminSectionManagementService {
         liveClassSlotRepository.findBySectionId(section.getId()).stream()
             .collect(Collectors.toMap(LiveClassSlot::getId, Function.identity()));
     List<AdminSectionItemResponse> items =
-        sectionItemRepository.findBySectionIdOrderByPositionAsc(section.getId()).stream()
+        orderedItems.stream()
             .map(
                 item ->
                     toSectionItemResponse(
@@ -218,27 +248,53 @@ public class AdminSectionManagementService {
         .build();
   }
 
-  private AdminLessonSummaryResponse toLessonSummary(Lesson lesson) {
+  private AdminLessonSummaryResponse toLessonSummary(
+      Lesson lesson, Integer position, List<LessonResource> lessonResources) {
+    List<AdminLessonResourceSummaryResponse> resourceSummaries =
+        lessonResources.stream().map(this::toResourceSummary).toList();
+    AdminLessonResourceSummaryResponse primaryResource =
+        resourceSummaries.stream()
+            .filter(resource -> resource.purpose() == LessonResourcePurpose.PRIMARY_CONTENT)
+            .findFirst()
+            .orElse(null);
+    List<AdminLessonResourceSummaryResponse> supplementaryResources =
+        resourceSummaries.stream()
+            .filter(resource -> resource.purpose() == LessonResourcePurpose.SUPPLEMENTARY)
+            .toList();
     return AdminLessonSummaryResponse.builder()
         .lessonId(lesson.getId())
         .title(lesson.getTitle())
         .titleEn(lesson.getTitleEn())
         .slug(lesson.getSlug())
-        .position(lesson.getPosition())
+        .position(position)
         .lessonType(lesson.getLessonType().name())
         .status(lesson.getStatus().name())
         .isMandatory(lesson.getIsMandatory())
         .isFree(lesson.getIsFree())
         .durationSeconds(lesson.getDurationSeconds())
+        .primaryResource(primaryResource)
+        .resources(supplementaryResources)
         .createdAt(lesson.getCreatedAt())
         .build();
   }
 
-  private AdminQuizSummaryResponse toQuizSummary(Quiz quiz) {
+  private AdminLessonResourceSummaryResponse toResourceSummary(LessonResource resource) {
+    return AdminLessonResourceSummaryResponse.builder()
+        .resourceId(resource.getId())
+        .title(resource.getTitle())
+        .titleEn(resource.getTitleEn())
+        .resourceType(resource.getResourceType())
+        .purpose(resource.getPurpose())
+        .mimeType(resource.getMimeType())
+        .position(resource.getPosition())
+        .build();
+  }
+
+  private AdminQuizSummaryResponse toQuizSummary(Quiz quiz, Integer position) {
     return AdminQuizSummaryResponse.builder()
         .quizId(quiz.getId())
         .sectionId(quiz.getSection().getId())
-        .position(quiz.getPosition())
+        .position(position)
         .title(quiz.getTitle())
         .status(quiz.getStatus().name())
         .passingScorePct(quiz.getPassingScorePct())
@@ -266,6 +322,7 @@ public class AdminSectionManagementService {
       if (value != null) {
         liveClass =
             AdminLiveClassSectionItemResponse.builder()
+                .liveClassItemId(value.getSlot().getId())
                 .liveClassId(value.getId())
                 .title(value.getTitle())
                 .titleEn(value.getTitleEn())
@@ -280,7 +337,8 @@ public class AdminSectionManagementService {
         if (slot != null) {
           liveClass =
               AdminLiveClassSectionItemResponse.builder()
-                  .liveClassId(slot.getId())
+                  .liveClassItemId(slot.getId())
+                  .liveClassId(null)
                   .title(slot.getTitle())
                   .titleEn(slot.getTitleEn())
                   .scheduled(false)
