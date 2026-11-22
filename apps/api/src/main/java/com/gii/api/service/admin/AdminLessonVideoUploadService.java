@@ -2,7 +2,6 @@ package com.gii.api.service.admin;
 
 import com.gii.api.model.request.admin.CreateLessonVideoUploadRequest;
 import com.gii.api.model.response.admin.LessonVideoUploadResponse;
-import com.gii.api.service.course.CourseTemplateMutationGuard;
 import com.gii.api.service.media.MuxDirectUploadClient;
 import com.gii.common.entity.course.Lesson;
 import com.gii.common.entity.course.MuxVideoUpload;
@@ -37,7 +36,6 @@ public class AdminLessonVideoUploadService {
 
   private final LessonRepository lessonRepository;
   private final MuxDirectUploadClient muxDirectUploadClient;
-  private final CourseTemplateMutationGuard templateMutationGuard;
   private final MuxVideoUploadRepository muxVideoUploadRepository;
 
   public LessonVideoUploadResponse execute(UUID lessonId, CreateLessonVideoUploadRequest request) {
@@ -46,7 +44,6 @@ public class AdminLessonVideoUploadService {
             .findById(lessonId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lesson not found"));
-    templateMutationGuard.requireDraft(lesson.getSection().getTemplateVersion());
     if (lesson.getLessonType() != LessonType.VIDEO) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "Videos can only be uploaded to VIDEO lessons");
