@@ -8,7 +8,6 @@ import com.gii.common.repository.order.OrderRepository;
 import com.gii.common.repository.order.PaymentAttemptRepository;
 import com.gii.common.repository.order.PaymentEventRepository;
 import com.gii.common.service.payment.PaidOrderEnrollmentService;
-import com.gii.worker.config.RedisConfig;
 import com.gii.worker.config.SqsConfig;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
@@ -28,7 +27,7 @@ class SslcommerzValidationJobWiringTest {
               "payments.sslcommerz.store-password=test-pass",
               "payments.sslcommerz.validation-timeout-ms=10000",
               "payments.sslcommerz.validation.jobs.queue=gii-test-sslcommerz-validation-queue")
-          .withUserConfiguration(SqsConfig.class, TestWiringConfig.class, RedisConfig.class);
+          .withUserConfiguration(SqsConfig.class, TestWiringConfig.class);
 
   @Test
   void contextShouldWireSslcommerzValidationJobServiceWithJacksonObjectMapper() {

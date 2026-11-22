@@ -1,0 +1,89 @@
+name: Deploy Stage with Dokploy
+
+on:
+  workflow_run:
+    workflows: [Build and Publish Images]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      build_run_id:
+        description: Successful main build run ID to deploy or retry
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: release-stage
+  # Never interrupt a migration or a partially deployed release.
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: >-
+      vars.STAGE_AUTO_DEPLOY_ENABLED == 'true' &&
+      (github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_repository.full_name == github.repository))
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: stage
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Execute trusted release tooling, never code from an artifact/PR.
+          ref: main
+      - name: Verify source build
+        id: source
+        uses: actions/github-script@v7
+        env:
+          SOURCE_RUN_ID: ${{ inputs.build_run_id || github.event.workflow_run.id }}
+        with:
+          script: |
+            if (!/^\d+$/.test(process.env.SOURCE_RUN_ID)) throw new Error('Invalid run ID');
+            if (context.eventName === 'workflow_dispatch' && context.ref !== 'refs/heads/main') {
+              throw new Error('Run the deployment workflow from main');
+            }
+            const {data: run} = await github.rest.actions.getWorkflowRun({
+              ...context.repo, run_id: Number(process.env.SOURCE_RUN_ID)
+            });
+            const repository = `${context.repo.owner}/${context.repo.repo}`;
+            if (run.conclusion !== 'success' || run.head_branch !== 'main' ||
+                run.head_repository.full_name !== repository ||
+                run.path !== '.github/workflows/build.yml' ||
+                !['push', 'workflow_dispatch'].includes(run.event)) {
+              throw new Error('Only successful main image builds may deploy');
+            }
+            // workflow_run scheduling can reorder completed builds. Do not auto-deploy stale code.
+            if (context.eventName === 'workflow_run') {
+              const {data: branch} = await github.rest.repos.getBranch({...context.repo, branch: 'main'});
+              if (branch.commit.sha !== run.head_sha) throw new Error('Build superseded by newer main commit');
+            }
+            core.setOutput('run_id', String(run.id));
+            core.setOutput('sha', run.head_sha);
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-manifest
+          path: release-input
+          run-id: ${{ steps.source.outputs.run_id }}
+          github-token: ${{ github.token }}
+      - name: Migrate, deploy, and verify stage through Dokploy
+        env:
+          EXPECTED_BUILD_RUN_ID: ${{ steps.source.outputs.run_id }}
+          EXPECTED_SOURCE_SHA: ${{ steps.source.outputs.sha }}
+          DOKPLOY_URL: ${{ vars.DOKPLOY_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+          DOKPLOY_API_APPLICATION_ID: ${{ vars.DOKPLOY_API_APPLICATION_ID }}
+          DOKPLOY_WORKER_APPLICATION_ID: ${{ vars.DOKPLOY_WORKER_APPLICATION_ID }}
+          DOKPLOY_MIGRATION_COMPOSE_ID: ${{ vars.DOKPLOY_MIGRATION_COMPOSE_ID }}
+        run: python3 .github/scripts/release.py stage --manifest release-input/release.json --output staged-release
+      - name: Publish tested release for manual production deployment
+        uses: actions/upload-artifact@v4
+        with:
+          name: staged-release
+          path: staged-release/
+          if-no-files-found: error
+          retention-days: 90

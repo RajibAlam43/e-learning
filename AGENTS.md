@@ -4,19 +4,40 @@ This guide helps AI agents understand the architecture and patterns of this mult
 
 ## Architecture Overview
 
-**Multi-module Gradle monorepo** with three independently deployable services:
+**Multi-module Gradle monorepo** with two independently deployable applications and a shared library:
 - **`:api`** - REST API server (port 8080) handling user-facing features, authentication, course management
 - **`:common`** - Shared JPA entities, repositories, enums, DTOs (dependency for api & worker)
 - **`:worker`** - Async background job processor consuming SQS messages, sending emails
 
-All services share PostgreSQL database, Redis (Valkey) cache, and AWS SQS (ElasticMQ locally).
+API and worker share PostgreSQL and AWS SQS (ElasticMQ locally). Redis is not required.
+
+**Approved production hosting plan:** one Hostinger KVM 4 (4 shared vCPU / 16 GB /
+200 GB), with Dokploy, internal-only self-hosted PostgreSQL, API, Next.js and worker.
+Memory ceilings: PostgreSQL 4 GB, API 3 GB, Next.js 2 GB, worker 2 GB. CPU caps:
+Next.js 1.5, worker 1. Staging remains separate. Cloudflare fronts public services;
+hourly off-host R2/B2 database dumps target up to one hour of disaster data loss,
+with a full restore rehearsal required before launch. This supersedes the previous
+production DO droplets/managed-DB plan. Managed PostgreSQL is the first planned
+upgrade, followed by application redundancy. See `docs/deployment.md` for details.
+
+**Future DO alternative:** managed PostgreSQL with separate app and worker droplets,
+plus either a third Next.js frontend droplet managed by production Dokploy or Vercel
+Pro instead. One production Dokploy manages the DO hosts; staging stays independent.
+See the runbook's future DigitalOcean plan for database-first migration, networking,
+frontend choices and cutover. This is a future option, not a change to the Hostinger
+launch decision or authorization to provision infrastructure.
+
+**Change authorization:** the current hosting-plan revision authorizes documentation
+changes only. Ask for explicit user confirmation before changing application code,
+tests, workflows, deployment configuration or infrastructure to implement the plan.
+Do not describe proposed video/player behavior or queued exams as already implemented.
 
 **Key Config Files:**
 - Root: `settings.gradle`, `build.gradle`, `docker-compose.yml`
 - App-only runtime: `docker-compose.app-only.yml`
 - Modules: `apps/{api,common,worker}/build.gradle`, `src/main/resources/application*.properties`
 - Migrations: Flyway SQL files in `apps/api/src/main/resources/db/migration/`
-- Deployment: Shell scripts in `scripts/stage/`
+- Deployment: `docs/deployment.md`, `deploy/`, and `.github/scripts/release.py`
 - CI/CD: GitHub Actions workflows in `.github/workflows/`
 
 ## Module Structure & Import Scanning
@@ -108,7 +129,7 @@ public record AdminOrderItemResponse(
 
 ### Authentication: JWT with Refresh Token Cookies
 - **JWT issued via:** `JwtService` (used by `LoginService`, `RefreshService`)
-- **Refresh tokens stored in:** Redis cache (`RefreshTokenStoreService`)
+- **Refresh tokens stored in:** PostgreSQL (`RefreshTokenStoreService`)
 - **Cookie strategy:** `RefreshTokenCookieService` sets HttpOnly refresh_token cookie
 - **Auth extraction:** `Authentication` parameter injected in controllers from Sprint Security context
 
@@ -143,9 +164,9 @@ spring.flyway.enabled=false  # Spring doesn't auto-run; migrations handled separ
 ```
 For local Docker-only runs, `docker-compose.yml` sets `SPRING_FLYWAY_ENABLED=true` on the API container.
 
-**Deployment flow:** Server has Flyway CLI (`/opt/flyway/flyway`) for independent migrations before app startup.
+**Deployment flow:** Actions publishes API, worker and Flyway migration images to GHCR. Stage deploys automatically through Dokploy after the dedicated migration Compose container exits 0. Production releases are manual in production Dokploy, using the successful stage release artifact; Actions never triggers production. API/worker do not run hosted migrations at startup.
 
-For managed stage databases, run `scripts/stage/db-user-permissions.sql` as an admin user so the Flyway migration user can create extensions/schema objects and the app users can read/write existing and future tables/sequences.
+Create distinct migration/API/worker users, then run `deploy/db/permissions.sql` with its psql identifier variables as an authorized admin. See `docs/deployment.md` for separate stage/prod Hostinger PostgreSQL services, ownership, hourly off-host backups and cutover. Both databases are internal-only. The production env example still contains the old DO endpoint/CA and must not be copied unchanged; correcting configuration requires confirmation.
 
 ## Build & Test
 
@@ -155,6 +176,10 @@ For managed stage databases, run `scripts/stage/db-user-permissions.sql` as an a
 ```
 
 **API test split:** `test` excludes `@Tag("integration")` tests; run `./gradlew integrationTest` for the API integration suite backed by the shared Testcontainers Postgres container in `apps/api/src/test/java/com/gii/api/testsupport/SharedPostgresContainer.java`.
+
+The container defaults to PostgreSQL 18 (`ELEARNING_TEST_POSTGRES_IMAGE` overrides it).
+For a disposable native loopback DB, use `ELEARNING_TEST_DATABASE_URL` plus username/password;
+the database must end in `_test` and tests delete application data. See the runbook.
 
 **Code quality gates (configured in all modules):**
 ```bash
@@ -172,13 +197,13 @@ Outputs:
 ## Profile-Based Configuration
 
 Use Spring profiles for environment-specific settings:
-- **local:** Docker Compose services (postgres, valkey, elasticmq)
+- **local:** Docker Compose services (postgres, elasticmq)
 - **stage:** Staging AWS/external service endpoints
 - **prod:** Production AWS/external service endpoints
 
 **Property files:** `application.properties` + `application-{profile}.properties`
 
-Set via `SPRING_PROFILES_ACTIVE` env var (docker-compose, systemd service files).
+Set via `SPRING_PROFILES_ACTIVE` in Docker Compose or each Dokploy service environment.
 
 ## External Integrations
 
@@ -189,13 +214,21 @@ Set via `SPRING_PROFILES_ACTIVE` env var (docker-compose, systemd service files)
 - **Email:** Amazon SES in worker module (`EmailDeliveryService`, `SesConfig`)
 - **SMS:** Bulksmsbd OTP delivery in worker module (`SmsDeliveryService`)
 
+Launch uses Mux; review Bunny Stream around 200k delivered minutes/month or significant
+library growth. Archive originals in R2/B2 and audit the existing `MediaAsset.provider`
+and `providerAssetId` abstraction for portability before proposing schema changes.
+720p caps, 480p mobile defaults, no next-lesson preload and 15–30 second progress pings
+are planned settings/behavior to verify, not asserted current behavior. Quiz submission
+is currently synchronous; worker-queued submissions require an approved durable,
+idempotent design and frontend result-state changes. See the runbook launch checklist.
+
 ## Local Development
 
 ```bash
-# Start all services (api, worker, postgres, redis, sqs)
+# Start local services (api, worker, postgres, sqs)
 docker-compose up -d
 
-# Start only API/worker containers (when DB/Redis/SQS are external)
+# Start only API/worker containers (when DB/SQS are external)
 docker-compose -f docker-compose.app-only.yml up -d
 
 # View logs
@@ -233,4 +266,7 @@ docker-compose down
 - API controllers: `apps/api/src/main/java/com/gii/api/controller/`
 - Services: `apps/api/src/main/java/com/gii/api/service/`
 - Migrations: `apps/api/src/main/resources/db/migration/`
-- Stage deployment permissions: `scripts/stage/db-user-permissions.sql`
+- Deployment and cutover runbook: `docs/deployment.md`
+- Database permissions: `deploy/db/permissions.sql`
+- Migration job and image: `deploy/migration.compose.yml`, `deploy/migrator/Dockerfile`
+- Runtime environment examples: `deploy/env/`

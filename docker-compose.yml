@@ -16,19 +16,6 @@ services:
       timeout: 5s
       retries: 5
 
-  valkey:
-    image: valkey/valkey:8
-    container_name: elearning-valkey
-    ports:
-      - "6379:6379"
-    volumes:
-      - valkey_data:/data
-    healthcheck:
-      test: ["CMD", "valkey-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   elasticmq:
     image: softwaremill/elasticmq:latest
     container_name: elearning-elasticmq
@@ -55,9 +42,6 @@ services:
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
 
-      SPRING_DATA_REDIS_HOST: valkey
-      SPRING_DATA_REDIS_PORT: 6379
-
       AWS_REGION: us-east-1
       AWS_ACCESS_KEY_ID: dummy
       AWS_SECRET_ACCESS_KEY: dummy
@@ -81,9 +65,6 @@ services:
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
 
-      SPRING_DATA_REDIS_HOST: valkey
-      SPRING_DATA_REDIS_PORT: 6379
-
       AWS_REGION: us-east-1
       AWS_ACCESS_KEY_ID: dummy
       AWS_SECRET_ACCESS_KEY: dummy
@@ -92,4 +73,3 @@ services:
 
 volumes:
   postgres_data:
-  valkey_data:
