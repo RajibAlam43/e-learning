@@ -56,6 +56,18 @@ public class LiveClass extends BaseUuidEntity {
   @Column(name = "participant_join_url")
   private String participantJoinUrl;
 
+  @Column(name = "title_override")
+  private String titleOverride;
+
+  @Column(name = "title_en_override")
+  private String titleEnOverride;
+
+  @Column(name = "description_override")
+  private String descriptionOverride;
+
+  @Column(name = "description_en_override")
+  private String descriptionEnOverride;
+
   @JdbcTypeCode(SqlTypes.JSON)
   @Column(name = "provider_metadata", columnDefinition = "jsonb")
   private Map<String, Object> providerMetadata;
@@ -98,34 +110,34 @@ public class LiveClass extends BaseUuidEntity {
   }
 
   public String getTitle() {
-    return slot.getTitle();
+    return titleOverride != null ? titleOverride : slot.getTitle();
   }
 
   public void setTitle(String value) {
-    slot.setTitle(value);
+    titleOverride = value;
   }
 
   public String getTitleEn() {
-    return slot.getTitleEn();
+    return titleEnOverride != null ? titleEnOverride : slot.getTitleEn();
   }
 
   public void setTitleEn(String value) {
-    slot.setTitleEn(value);
+    titleEnOverride = value;
   }
 
   public String getDescription() {
-    return slot.getDescription();
+    return descriptionOverride != null ? descriptionOverride : slot.getDescription();
   }
 
   public void setDescription(String value) {
-    slot.setDescription(value);
+    descriptionOverride = value;
   }
 
   public String getDescriptionEn() {
-    return slot.getDescriptionEn();
+    return descriptionEnOverride != null ? descriptionEnOverride : slot.getDescriptionEn();
   }
 
   public void setDescriptionEn(String value) {
-    slot.setDescriptionEn(value);
+    descriptionEnOverride = value;
   }
 }

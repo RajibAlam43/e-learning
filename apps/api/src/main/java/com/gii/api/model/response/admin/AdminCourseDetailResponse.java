@@ -1,5 +1,6 @@
 package com.gii.api.model.response.admin;
 
+import com.gii.api.model.response.LessonVideoResponse;
 import com.gii.common.enums.CourseLanguage;
 import com.gii.common.enums.CourseLevel;
 import com.gii.common.enums.PublishStatus;
@@ -19,6 +20,7 @@ public record AdminCourseDetailResponse(
     List<AdminCategoryResponse> categories,
     String thumbnailObjectKey,
     String thumbnailUrl,
+    LessonVideoResponse video,
     String shortDescription,
     String shortDescriptionEn,
     String description,

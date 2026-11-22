@@ -2,10 +2,12 @@ package com.gii.common.repository.certificate;
 
 import com.gii.common.entity.certificate.Certificate;
 import com.gii.common.enums.CertificateTargetType;
+import jakarta.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -25,6 +27,10 @@ public interface CertificateRepository extends JpaRepository<Certificate, UUID> 
       UUID userId, CertificateTargetType targetType);
 
   Optional<Certificate> findByIdAndUserId(UUID id, UUID userId);
+
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
+  @Query("SELECT c FROM Certificate c WHERE c.id = :id")
+  Optional<Certificate> findByIdForUpdate(@Param("id") UUID id);
 
   List<Certificate> findByUserIdOrderByIssuedAtDesc(UUID userId);
 

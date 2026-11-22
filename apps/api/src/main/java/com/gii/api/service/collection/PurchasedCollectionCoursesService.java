@@ -18,12 +18,19 @@ public class PurchasedCollectionCoursesService {
   private final CollectionCourseRepository collectionCourseRepository;
 
   public List<Course> resolve(CollectionEnrollment enrollment) {
+    return resolveItems(enrollment).stream().map(PurchasedCourse::course).toList();
+  }
+
+  public List<PurchasedCourse> resolveItems(CollectionEnrollment enrollment) {
     if (enrollment.getSourceOrderItem() != null) {
-      List<Course> snapshot =
+      List<PurchasedCourse> snapshot =
           orderItemCourseRepository
               .findByOrderItemIdOrderByPositionAsc(enrollment.getSourceOrderItem().getId())
               .stream()
-              .map(row -> row.getCourse())
+              .map(
+                  row ->
+                      new PurchasedCourse(
+                          row.getCourse(), !Boolean.FALSE.equals(row.getIsMandatory())))
               .toList();
       if (!snapshot.isEmpty()) {
         return snapshot;
@@ -32,7 +39,11 @@ public class PurchasedCollectionCoursesService {
     return collectionCourseRepository
         .findByCollection_IdOrderByPositionAsc(enrollment.getCollection().getId())
         .stream()
-        .map(row -> row.getCourse())
+        .map(
+            row ->
+                new PurchasedCourse(row.getCourse(), !Boolean.FALSE.equals(row.getIsMandatory())))
         .toList();
   }
+
+  public record PurchasedCourse(Course course, boolean mandatory) {}
 }

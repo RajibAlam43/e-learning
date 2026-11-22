@@ -11,7 +11,9 @@ import com.gii.common.entity.course.CourseInstructor;
 import com.gii.common.entity.course.CourseReview;
 import com.gii.common.entity.course.CourseSection;
 import com.gii.common.entity.course.Lesson;
+import com.gii.common.entity.course.LessonResource;
 import com.gii.common.entity.course.MediaAsset;
+import com.gii.common.entity.course.SectionItem;
 import com.gii.common.entity.support.SupportTicket;
 import com.gii.common.entity.user.InstructorProfile;
 import com.gii.common.entity.user.User;
@@ -21,10 +23,13 @@ import com.gii.common.enums.CollectionType;
 import com.gii.common.enums.CourseLanguage;
 import com.gii.common.enums.CourseLevel;
 import com.gii.common.enums.InstructorRole;
+import com.gii.common.enums.LessonResourcePurpose;
+import com.gii.common.enums.LessonResourceType;
 import com.gii.common.enums.LessonType;
 import com.gii.common.enums.MediaProvider;
 import com.gii.common.enums.PublishStatus;
 import com.gii.common.enums.ReviewStatus;
+import com.gii.common.enums.SectionItemType;
 import com.gii.common.enums.UserStatus;
 import com.gii.common.repository.collection.CollectionCourseRepository;
 import com.gii.common.repository.collection.CollectionRepository;
@@ -35,9 +40,14 @@ import com.gii.common.repository.course.CourseRepository;
 import com.gii.common.repository.course.CourseReviewRepository;
 import com.gii.common.repository.course.CourseSectionRepository;
 import com.gii.common.repository.course.CourseTemplateRepository;
-import com.gii.common.repository.course.CourseTemplateVersionRepository;
 import com.gii.common.repository.course.LessonRepository;
+import com.gii.common.repository.course.LessonResourceRepository;
 import com.gii.common.repository.course.MediaAssetRepository;
+import com.gii.common.repository.course.SectionItemRepository;
+import com.gii.common.repository.live.LiveClassRepository;
+import com.gii.common.repository.live.LiveClassSlotRepository;
+import com.gii.common.repository.quiz.QuizQuestionRepository;
+import com.gii.common.repository.quiz.QuizRepository;
 import com.gii.common.repository.support.SupportTicketRepository;
 import com.gii.common.repository.user.InstructorProfileRepository;
 import com.gii.common.repository.user.RoleRepository;
@@ -56,12 +66,17 @@ abstract class PublicApiTestSupport {
   @Autowired protected RoleRepository roleRepository;
   @Autowired protected UserRoleRepository userRoleRepository;
   @Autowired protected CourseRepository courseRepository;
-  @Autowired protected CourseTemplateVersionRepository courseTemplateVersionRepository;
   @Autowired protected CourseTemplateRepository courseTemplateRepository;
   @Autowired protected CourseReviewRepository courseReviewRepository;
   @Autowired protected CourseSectionRepository courseSectionRepository;
   @Autowired protected LessonRepository lessonRepository;
+  @Autowired protected LessonResourceRepository lessonResourceRepository;
   @Autowired protected MediaAssetRepository mediaAssetRepository;
+  @Autowired protected SectionItemRepository sectionItemRepository;
+  @Autowired protected QuizRepository quizRepository;
+  @Autowired protected QuizQuestionRepository quizQuestionRepository;
+  @Autowired protected LiveClassRepository liveClassRepository;
+  @Autowired protected LiveClassSlotRepository liveClassSlotRepository;
   @Autowired protected CategoryRepository categoryRepository;
   @Autowired protected CollectionRepository collectionRepository;
   @Autowired protected CollectionCourseRepository collectionCourseRepository;
@@ -76,12 +91,17 @@ abstract class PublicApiTestSupport {
     collectionCourseRepository.deleteAll();
     collectionRepository.deleteAll();
     mediaAssetRepository.deleteAll();
+    lessonResourceRepository.deleteAll();
+    liveClassRepository.deleteAll();
+    liveClassSlotRepository.deleteAll();
+    quizQuestionRepository.deleteAll();
+    quizRepository.deleteAll();
+    sectionItemRepository.deleteAll();
     lessonRepository.deleteAll();
     courseSectionRepository.deleteAll();
     courseCategoryRepository.deleteAll();
     courseInstructorRepository.deleteAll();
     courseRepository.deleteAll();
-    courseTemplateVersionRepository.deleteAll();
     courseTemplateRepository.deleteAll();
     categoryRepository.deleteAll();
     instructorProfileRepository.deleteAll();
@@ -154,7 +174,6 @@ abstract class PublicApiTestSupport {
     course.setLanguage(language);
     course.setStatus(status);
     course.setPublishedAt(publishedAt);
-    course.getTemplateVersion().setStatus(status);
     return courseRepository.save(course);
   }
 
@@ -165,7 +184,7 @@ abstract class PublicApiTestSupport {
   protected void attachCategory(Course course, Category category) {
     courseCategoryRepository.save(
         CourseCategory.builder()
-            .templateVersion(course.getTemplateVersion())
+            .template(course.getTemplate())
             .category(category)
             .build());
   }
@@ -207,7 +226,7 @@ abstract class PublicApiTestSupport {
   protected CourseSection section(Course course, String slug, int position, PublishStatus status) {
     return courseSectionRepository.save(
         CourseSection.builder()
-            .templateVersion(course.getTemplateVersion())
+            .template(course.getTemplate())
             .title("Section " + position)
             .slug(slug)
             .position(position)
@@ -222,16 +241,25 @@ abstract class PublicApiTestSupport {
       int position,
       PublishStatus status,
       boolean isFree) {
-    return lessonRepository.save(
-        Lesson.builder()
+    Lesson lesson =
+        lessonRepository.save(
+            Lesson.builder()
+                .section(section)
+                .title("Lesson " + position)
+                .slug(slug)
+                .position(position)
+                .status(status)
+                .isFree(isFree)
+                .lessonType(LessonType.VIDEO)
+                .build());
+    sectionItemRepository.save(
+        SectionItem.builder()
             .section(section)
-            .title("Lesson " + position)
-            .slug(slug)
+            .itemType(SectionItemType.LESSON)
+            .itemId(lesson.getId())
             .position(position)
-            .status(status)
-            .isFree(isFree)
-            .lessonType(LessonType.VIDEO)
             .build());
+    return lesson;
   }
 
   protected MediaAsset mediaAsset(Lesson lesson, String providerAssetId) {
@@ -241,6 +269,20 @@ abstract class PublicApiTestSupport {
             .provider(MediaProvider.YOUTUBE)
             .providerAssetId(providerAssetId)
             .title("Video")
+            .build());
+  }
+
+  protected LessonResource lessonResource(
+      Lesson lesson, String title, LessonResourcePurpose purpose, int position) {
+    return lessonResourceRepository.save(
+        LessonResource.builder()
+            .lesson(lesson)
+            .title(title)
+            .resourceType(LessonResourceType.PDF)
+            .purpose(purpose)
+            .fileUrl("courses/resources/" + UUID.randomUUID() + ".pdf")
+            .mimeType("application/pdf")
+            .position(position)
             .build());
   }
 
