@@ -10,8 +10,13 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.gii.common.entity.course.LessonResource;
+import com.gii.common.enums.LessonResourcePurpose;
+import com.gii.common.enums.LessonResourceType;
 import com.gii.common.enums.LiveClassProvisioningMode;
 import com.gii.common.enums.PublishStatus;
+import com.gii.common.enums.ReleaseType;
+import java.time.Instant;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +24,47 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 class AdminCourseStructureApiIt extends AbstractAdminApiIntegrationTest {
+
+  @Test
+  void adminCourseDetailsIncludeLessonResourceSummaries() throws Exception {
+    var admin = user("Resource Summary Admin", "resource-summary-admin@example.com");
+    var course = course("Resource Summary", "resource-summary", admin);
+    var section = section(course, 1);
+    var lesson = lesson(course, section, 1);
+    lessonResourceRepository.saveAllAndFlush(
+        java.util.List.of(
+            LessonResource.builder()
+                .lesson(lesson)
+                .title("Primary PDF")
+                .titleEn("Primary PDF EN")
+                .resourceType(LessonResourceType.PDF)
+                .purpose(LessonResourcePurpose.PRIMARY_CONTENT)
+                .fileUrl("courses/resources/primary.pdf")
+                .mimeType("application/pdf")
+                .position(1)
+                .build(),
+            LessonResource.builder()
+                .lesson(lesson)
+                .title("Worksheet")
+                .titleEn("Worksheet EN")
+                .resourceType(LessonResourceType.PDF)
+                .purpose(LessonResourcePurpose.SUPPLEMENTARY)
+                .fileUrl("courses/resources/worksheet.pdf")
+                .mimeType("application/pdf")
+                .position(2)
+                .build()));
+
+    mockMvc
+        .perform(
+            get("/admin/courses/{courseId}", course.getId())
+                .with(authentication(adminAuth(admin.getId()))))
+        .andExpect(status().isOk())
+        .andExpect(
+            jsonPath("$.sections[0].items[0].lesson.primaryResource.title").value("Primary PDF"))
+        .andExpect(jsonPath("$.sections[0].items[0].lesson.resources.length()").value(1))
+        .andExpect(jsonPath("$.sections[0].items[0].lesson.resources[0].title").value("Worksheet"))
+        .andExpect(jsonPath("$.sections[0].items[0].lesson.resources[0].fileUrl").doesNotExist());
+  }
 
   @Test
   void liveClassCanBeAddedToCurriculumBeforeItIsScheduled() throws Exception {
@@ -51,7 +97,7 @@ class AdminCourseStructureApiIt extends AbstractAdminApiIntegrationTest {
         java.util.UUID.fromString(
             new com.fasterxml.jackson.databind.ObjectMapper()
                 .readTree(itemResponse)
-                .get("liveClassId")
+                .get("liveClassItemId")
                 .asText());
 
     assertThat(liveClassRepository.findByCourseIdOrderByStartsAtAsc(course.getId())).isEmpty();
@@ -242,7 +288,7 @@ class AdminCourseStructureApiIt extends AbstractAdminApiIntegrationTest {
     return java.util.UUID.fromString(
         new com.fasterxml.jackson.databind.ObjectMapper()
             .readTree(response)
-            .get("liveClassId")
+            .get("liveClassItemId")
             .asText());
   }
 
@@ -279,11 +325,20 @@ class AdminCourseStructureApiIt extends AbstractAdminApiIntegrationTest {
   }
 
   @Test
-  void repeatCourseCreatesEditableCurriculumVersionAndKeepsSourceImmutable() throws Exception {
+  void repeatCourseClonesCurriculumIndependentlyOfSource() throws Exception {
     var admin = user("Repeat Admin", "repeat-admin@example.com");
     var source = course("Repeatable Course", "repeatable-spring", admin);
+    source.setYoutubeVideoId("dQw4w9WgXcQ");
+    courseRepository.saveAndFlush(source);
     var sourceSection = section(source, 1);
     var sourceLesson = lesson(source, sourceSection, 1);
+    sourceSection.setReleaseType(ReleaseType.FIXED_DATE);
+    sourceSection.setReleaseAt(Instant.parse("2030-01-01T00:00:00Z"));
+    courseSectionRepository.saveAndFlush(sourceSection);
+    sourceLesson.setReleaseType(ReleaseType.FIXED_DATE);
+    sourceLesson.setReleaseAt(Instant.parse("2030-01-02T00:00:00Z"));
+    lessonRepository.saveAndFlush(sourceLesson);
+    var sourceMedia = mediaAsset(sourceLesson, "repeat-shared-playback");
     var sourceQuiz = quiz(source, "Versioned quiz");
     var sourceLiveClass = liveClass(source, sourceSection, sourceLesson);
 
@@ -310,6 +365,8 @@ class AdminCourseStructureApiIt extends AbstractAdminApiIntegrationTest {
                 jsonPath("$.courseId").value(org.hamcrest.Matchers.not(source.getId().toString())))
             .andExpect(jsonPath("$.slug").value("repeatable-fall"))
             .andExpect(jsonPath("$.title").value("Repeatable Course"))
+            .andExpect(jsonPath("$.video.provider").value("YOUTUBE"))
+            .andExpect(jsonPath("$.video.sourceId").value("dQw4w9WgXcQ"))
             .andExpect(jsonPath("$.studyMode").value("COHORT_BASED"))
             .andExpect(jsonPath("$.timezone").value("America/Chicago"))
             .andExpect(jsonPath("$.capacity").value(40))
@@ -324,16 +381,27 @@ class AdminCourseStructureApiIt extends AbstractAdminApiIntegrationTest {
                 .readTree(response)
                 .get("courseId")
                 .asText());
-    assertThat(courseRepository.findById(repeatedId).orElseThrow().getTemplateVersion().getId())
-        .isNotEqualTo(source.getTemplateVersion().getId());
+    var repeatedSection =
+        courseSectionRepository.findByCourseIdOrderByPositionAsc(repeatedId).getFirst();
     assertThat(courseSectionRepository.findByCourseIdOrderByPositionAsc(repeatedId))
         .hasSize(1)
         .extracting("id")
         .doesNotContain(sourceSection.getId());
+    var repeatedLesson = lessonRepository.findByCourseIdOrderByPositionAsc(repeatedId).getFirst();
     assertThat(lessonRepository.findByCourseIdOrderByPositionAsc(repeatedId))
         .hasSize(1)
         .extracting("id")
         .doesNotContain(sourceLesson.getId());
+    assertThat(repeatedSection.getReleaseType()).isEqualTo(ReleaseType.IMMEDIATE);
+    assertThat(repeatedSection.getReleaseAt()).isNull();
+    assertThat(repeatedLesson.getReleaseType()).isEqualTo(ReleaseType.IMMEDIATE);
+    assertThat(repeatedLesson.getReleaseAt()).isNull();
+    assertThat(mediaAssetRepository.findByLessonId(repeatedLesson.getId()).orElseThrow())
+        .satisfies(
+            media -> {
+              assertThat(media.getProviderAssetId()).isEqualTo(sourceMedia.getProviderAssetId());
+              assertThat(media.getPlaybackId()).isEqualTo(sourceMedia.getPlaybackId());
+            });
     assertThat(
             quizRepository.findBySectionIdOrderByPositionAsc(
                 courseSectionRepository
@@ -375,57 +443,51 @@ class AdminCourseStructureApiIt extends AbstractAdminApiIntegrationTest {
   }
 
   @Test
-  void publishedCurriculumUsesCopyOnWriteAndInUseVersionRemainsImmutable() throws Exception {
-    var admin = user("Immutable Admin", "immutable-curriculum-admin@example.com");
-    final var student = user("Immutable Student", "immutable-curriculum-student@example.com");
-    var course = course("Immutable Curriculum", "immutable-curriculum", admin);
+  void publishedCurriculumRemainsDirectlyEditableEvenWithActiveEnrollments() throws Exception {
+    var admin = user("Mutable Admin", "mutable-curriculum-admin@example.com");
+    final var student = user("Mutable Student", "mutable-curriculum-student@example.com");
+    var course = course("Mutable Curriculum", "mutable-curriculum", admin);
     var section = section(course, 1);
-    lesson(course, section, 1);
+    var mutableLesson = lesson(course, section, 1);
+    var scheduledClass = liveClass(course, section, mutableLesson);
 
     mockMvc
         .perform(
             post("/admin/courses/{courseId}/publish", course.getId())
                 .with(authentication(adminAuth(admin.getId()))))
         .andExpect(status().isOk());
-    var publishedVersionId =
-        courseRepository.findById(course.getId()).orElseThrow().getTemplateVersion().getId();
 
     mockMvc
         .perform(
             patch("/admin/courses/{courseId}", course.getId())
                 .with(authentication(adminAuth(admin.getId())))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"title\":\"Unsafe rewrite\"}"))
+                .content("{\"title\":\"Edited after publish\"}"))
         .andExpect(status().isOk());
-    var editableCourse = courseRepository.findById(course.getId()).orElseThrow();
-    assertThat(editableCourse.getTemplateVersion().getId()).isNotEqualTo(publishedVersionId);
-    assertThat(editableCourse.getStatus()).isEqualTo(com.gii.common.enums.PublishStatus.DRAFT);
-    assertThat(
-            courseTemplateVersionRepository.findById(publishedVersionId).orElseThrow().getTitle())
-        .isEqualTo("Immutable Curriculum");
+    var editedCourse = courseRepository.findById(course.getId()).orElseThrow();
+    assertThat(editedCourse.getId()).isEqualTo(course.getId());
+    assertThat(editedCourse.getTitle()).isEqualTo("Edited after publish");
+    assertThat(editedCourse.getStatus()).isEqualTo(com.gii.common.enums.PublishStatus.PUBLISHED);
+    assertThat(liveClassRepository.findById(scheduledClass.getId())).isPresent();
+
     mockMvc
         .perform(
             post("/admin/courses/{courseId}/sections", course.getId())
                 .with(authentication(adminAuth(admin.getId())))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"title\":\"Unsafe\",\"slug\":\"unsafe\",\"position\":2}"))
-        .andExpect(status().isOk());
-    mockMvc
-        .perform(
-            patch("/admin/courses/{courseId}", course.getId())
-                .with(authentication(adminAuth(admin.getId())))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"priceBdt\":2000}"))
+                .content("{\"title\":\"New Section\",\"slug\":\"new-section\",\"position\":2}"))
         .andExpect(status().isOk());
 
-    enrollment(student, editableCourse, com.gii.common.enums.EnrollmentStatus.ACTIVE);
+    enrollment(student, editedCourse, com.gii.common.enums.EnrollmentStatus.ACTIVE);
     mockMvc
         .perform(
             patch("/admin/courses/{courseId}", course.getId())
                 .with(authentication(adminAuth(admin.getId())))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"title\":\"Must remain pinned\"}"))
-        .andExpect(status().isConflict());
+                .content("{\"title\":\"Edited with active enrollment\"}"))
+        .andExpect(status().isOk());
+    assertThat(courseRepository.findById(course.getId()).orElseThrow().getTitle())
+        .isEqualTo("Edited with active enrollment");
   }
 
   @Autowired private MockMvc mockMvc;
@@ -455,12 +517,18 @@ class AdminCourseStructureApiIt extends AbstractAdminApiIntegrationTest {
                       "level":"BEGINNER",
                       "language":"EN",
                       "studyMode":"COHORT_BASED",
-                      "isFree":false
+                      "isFree":false,
+                      "video":{
+                        "provider":"YOUTUBE",
+                        "sourceId":"dQw4w9WgXcQ"
+                      }
                     }
                     """
                         .formatted(category.getId())))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.title").value("Course Alpha"))
+        .andExpect(jsonPath("$.video.provider").value("YOUTUBE"))
+        .andExpect(jsonPath("$.video.sourceId").value("dQw4w9WgXcQ"))
         .andExpect(jsonPath("$.categories[0].id").value(category.getId().toString()))
         .andExpect(jsonPath("$.status").value("DRAFT"));
 
@@ -474,7 +542,8 @@ class AdminCourseStructureApiIt extends AbstractAdminApiIntegrationTest {
             get("/admin/courses/{courseId}", course.getId())
                 .with(authentication(adminAuth(admin.getId()))))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.courseId").value(course.getId().toString()));
+        .andExpect(jsonPath("$.courseId").value(course.getId().toString()))
+        .andExpect(jsonPath("$.video.sourceId").value("dQw4w9WgXcQ"));
 
     mockMvc
         .perform(
@@ -483,7 +552,33 @@ class AdminCourseStructureApiIt extends AbstractAdminApiIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"title\":\"Course Alpha Updated\"}"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.title").value("Course Alpha Updated"));
+        .andExpect(jsonPath("$.title").value("Course Alpha Updated"))
+        .andExpect(jsonPath("$.video.sourceId").value("dQw4w9WgXcQ"));
+
+    mockMvc
+        .perform(
+            patch("/admin/courses/{courseId}", course.getId())
+                .with(authentication(adminAuth(admin.getId())))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"video\":{\"provider\":\"MUX\",\"sourceId\":\"dQw4w9WgXcQ\"}}"))
+        .andExpect(status().isBadRequest());
+
+    mockMvc
+        .perform(
+            patch("/admin/courses/{courseId}", course.getId())
+                .with(authentication(adminAuth(admin.getId())))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"video\":{\"provider\":\"YOUTUBE\",\"sourceId\":\"invalid\"}}"))
+        .andExpect(status().isBadRequest());
+
+    mockMvc
+        .perform(
+            patch("/admin/courses/{courseId}", course.getId())
+                .with(authentication(adminAuth(admin.getId())))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"video\":null}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.video").doesNotExist());
 
     mockMvc
         .perform(
@@ -574,7 +669,11 @@ class AdminCourseStructureApiIt extends AbstractAdminApiIntegrationTest {
             courseSectionRepository.findById(section.getId()).orElseThrow().getPosition())
         .isEqualTo(2);
     org.assertj.core.api.Assertions.assertThat(
-            lessonRepository.findById(lesson.getId()).orElseThrow().getPosition())
+            sectionItemRepository
+                .findByItemTypeAndItemId(
+                    com.gii.common.enums.SectionItemType.LESSON, lesson.getId())
+                .orElseThrow()
+                .getPosition())
         .isEqualTo(3);
   }
 

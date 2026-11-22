@@ -13,6 +13,7 @@ import com.gii.common.enums.PublishStatus;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -276,6 +277,70 @@ class PaymentWebhooksApiIt extends AbstractPaymentApiIntegrationTest {
 
     assertThat(orderRepository.findById(order.getId()).orElseThrow().getStatus())
         .isEqualTo(OrderStatus.FAILED);
+  }
+
+  @Test
+  void bkashWebhookFailureForHistoricalAttemptShouldLeaveCurrentAttemptPending() throws Exception {
+    var student = user("Student BKash Stale", "student-payment-bk-stale@example.com");
+    var order =
+        order(
+            student,
+            OrderStatus.PENDING,
+            OrderProvider.BKASH,
+            "bkash-current-attempt",
+            BigDecimal.valueOf(1000));
+    paymentAttempt(
+        order, OrderProvider.BKASH, "bkash-stale-attempt", Instant.now().minusSeconds(60));
+    paymentAttempt(
+        order, OrderProvider.BKASH, "bkash-current-attempt", Instant.now().plusSeconds(1200));
+
+    mockMvc
+        .perform(
+            post("/public/webhooks/payments/bkash")
+                .contentType(MediaType.TEXT_PLAIN)
+                .header("x-amz-sns-message-type", "Notification")
+                .content(
+                    bkashSnsNotification("evt-bk-stale-failed", "bkash-stale-attempt", "FAILED")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.acknowledged").value(true));
+
+    var persisted = orderRepository.findById(order.getId()).orElseThrow();
+    assertThat(persisted.getStatus()).isEqualTo(OrderStatus.PENDING);
+    assertThat(persisted.getProvider()).isEqualTo(OrderProvider.BKASH);
+    assertThat(persisted.getProviderTxnId()).isEqualTo("bkash-current-attempt");
+  }
+
+  @Test
+  void sslcommerzWebhookCancellationForHistoricalAttemptShouldLeaveCurrentAttemptPending()
+      throws Exception {
+    var student = user("Student SSL Stale", "student-payment-ssl-stale@example.com");
+    var order =
+        order(
+            student,
+            OrderStatus.PENDING,
+            OrderProvider.SSLCOMMERZ,
+            "ssl-current-attempt",
+            BigDecimal.valueOf(1000));
+    paymentAttempt(
+        order, OrderProvider.SSLCOMMERZ, "ssl-stale-attempt", Instant.now().minusSeconds(60));
+    paymentAttempt(
+        order, OrderProvider.SSLCOMMERZ, "ssl-current-attempt", Instant.now().plusSeconds(1200));
+    String payload =
+        signedSslPayload("tran_id=ssl-stale-attempt&status=CANCELLED&val_id=val-stale");
+
+    mockMvc
+        .perform(
+            post("/public/webhooks/payments/sslcommerz")
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .header("x-event-id", "evt-ssl-stale-cancelled")
+                .params(toFormParams(payload)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.acknowledged").value(true));
+
+    var persisted = orderRepository.findById(order.getId()).orElseThrow();
+    assertThat(persisted.getStatus()).isEqualTo(OrderStatus.PENDING);
+    assertThat(persisted.getProvider()).isEqualTo(OrderProvider.SSLCOMMERZ);
+    assertThat(persisted.getProviderTxnId()).isEqualTo("ssl-current-attempt");
   }
 
   @Test

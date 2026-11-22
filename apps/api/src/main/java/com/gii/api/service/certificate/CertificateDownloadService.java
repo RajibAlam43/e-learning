@@ -5,6 +5,7 @@ import com.gii.api.service.enrollment.CurrentUserService;
 import com.gii.api.service.storage.R2PresignedUrlService;
 import com.gii.common.entity.certificate.Certificate;
 import com.gii.common.repository.certificate.CertificateRepository;
+import java.time.Duration;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -45,7 +46,10 @@ public class CertificateDownloadService {
 
     var signed =
         r2PresignedUrlService.generateDownloadUrl(
-            storedObject, "Certificate-" + certificate.getTargetSlug() + ".pdf", "application/pdf");
+            storedObject,
+            "Certificate-" + certificate.getTargetSlug() + ".pdf",
+            "application/pdf",
+            Duration.ofSeconds(60));
 
     return CertificateDownloadUrlResponse.builder()
         .downloadUrl(signed.downloadUrl())

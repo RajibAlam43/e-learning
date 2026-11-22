@@ -11,8 +11,9 @@ import lombok.Builder;
 
 @Builder
 public record CreateLiveClassRequest(
-    @NotNull UUID sectionId, // Section this live class belongs to
-    @Positive Integer position, // Optional; appends to the section when omitted
+    UUID liveClassItemId, // Existing curriculum slot; required for instructors
+    UUID sectionId, // Required only by the legacy admin create flow
+    @Positive Integer position, // Admin-only legacy field; instructors cannot reorder curriculum
     @NotBlank String title,
     String titleEn,
     String description, // Optional

@@ -73,6 +73,13 @@ tasks.register('integrationTest', Test) {
     testClassesDirs = sourceSets.test.output.classesDirs
     classpath = sourceSets.test.runtimeClasspath
 
+    // The suite has several intentionally distinct Spring Boot contexts (JPA slices,
+    // provider mocks, and API-specific overrides). Spring's default cache retains up to
+    // 32 of them, which exhausts the test worker's default heap late in the suite. Keep
+    // only the recently used contexts and size the worker independently from Gradle's JVM.
+    maxHeapSize = '1g'
+    systemProperty 'spring.test.context.cache.maxSize', '4'
+
     useJUnitPlatform {
         includeTags 'integration'
     }

@@ -72,23 +72,42 @@ public class InstructorLiveClassService {
   public InstructorLiveClassResponse create(
       UUID courseId, CreateLiveClassRequest request, Authentication authentication) {
     User instructor = currentUserService.getCurrentUser(authentication);
+    if (request.liveClassItemId() == null) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "liveClassItemId is required for instructor scheduling");
+    }
+    if (request.position() != null) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Instructors cannot reorder curriculum items");
+    }
+    LiveClassSlot slot =
+        liveClassSlotRepository
+            .findByIdForUpdate(request.liveClassItemId())
+            .orElseThrow(
+                () ->
+                    new ResponseStatusException(HttpStatus.NOT_FOUND, "Live class item not found"));
     final CourseSection section =
         courseSectionRepository
-            .findAssignedSectionForInstructor(courseId, request.sectionId(), instructor.getId())
+            .findAssignedSectionForInstructor(
+                courseId, slot.getSection().getId(), instructor.getId())
             .orElseThrow(
                 () ->
                     new ResponseStatusException(
                         HttpStatus.FORBIDDEN, "Not assigned to this course section"));
     final Course course =
         courseRepository
-            .findById(courseId)
+            .findByIdForUpdate(courseId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found"));
+    if (liveClassRepository.existsByCourseIdAndSlotId(courseId, slot.getId())) {
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT, "Live class item is already scheduled for this course");
+    }
     validateSupportedProvider(request.provider());
     validateSchedule(request.startsAt(), request.endsAt());
+    validateOfferingWindow(course, request.startsAt(), request.endsAt());
     validateCapacity(request.maxCapacity());
     ensureNoProviderOverlap(request.provider(), request.startsAt(), request.endsAt());
-    int position = resolveCreatePosition(section.getId(), request.position());
 
     LiveMeetingCreateResult meeting =
         liveMeetingProvisioningService.createMeeting(
@@ -101,23 +120,14 @@ public class InstructorLiveClassService {
                 .maxCapacity(request.maxCapacity())
                 .build());
     try {
-      LiveClassSlot slot =
-          liveClassSlotRepository.saveAndFlush(
-              LiveClassSlot.builder()
-                  .section(section)
-                  .title(request.title().trim())
-                  .titleEn(request.titleEn())
-                  .description(request.description())
-                  .descriptionEn(request.descriptionEn())
-                  .expectedDurationMinutes(
-                      Math.toIntExact(
-                          Duration.between(request.startsAt(), request.endsAt()).toMinutes()))
-                  .isMandatory(true)
-                  .build());
       LiveClass liveClass =
           LiveClass.builder()
               .course(course)
               .slot(slot)
+              .titleOverride(request.title().trim())
+              .titleEnOverride(request.titleEn())
+              .descriptionOverride(request.description())
+              .descriptionEnOverride(request.descriptionEn())
               .provider(request.provider())
               .providerMeetingId(meeting.meetingId())
               .hostStartUrl(meeting.hostStartUrl())
@@ -130,13 +140,6 @@ public class InstructorLiveClassService {
               .build();
 
       LiveClass saved = liveClassRepository.saveAndFlush(liveClass);
-      sectionItemRepository.saveAndFlush(
-          SectionItem.builder()
-              .section(section)
-              .itemType(SectionItemType.LIVE_CLASS)
-              .itemId(slot.getId())
-              .position(position)
-              .build());
       return toLiveClassResponse(saved);
     } catch (RuntimeException persistenceFailure) {
       compensateCreatedMeeting(request.provider(), meeting.meetingId(), persistenceFailure);
@@ -196,6 +199,8 @@ public class InstructorLiveClassService {
       UUID liveClassId, UpdateLiveClassRequest request, Authentication authentication) {
     UUID instructorId = currentUserService.getCurrentUserId(authentication);
     LiveClass liveClass = requireOwnedLiveClass(liveClassId, instructorId);
+    final Course course =
+        courseRepository.findByIdForUpdate(liveClass.getCourse().getId()).orElseThrow();
     boolean mutatingMetadata =
         request.title() != null
             || request.titleEn() != null
@@ -225,6 +230,7 @@ public class InstructorLiveClassService {
       Instant startsAt = request.startsAt() != null ? request.startsAt() : liveClass.getStartsAt();
       Instant endsAt = request.endsAt() != null ? request.endsAt() : liveClass.getEndsAt();
       validateSchedule(startsAt, endsAt);
+      validateOfferingWindow(course, startsAt, endsAt);
       if (isApiProvisioned(liveClass)) {
         ensureNoProviderOverlap(liveClass.getProvider(), startsAt, endsAt, liveClass.getId());
       }
@@ -255,14 +261,17 @@ public class InstructorLiveClassService {
     if (request.status() != null) {
       validateStatusTransitionForUpdate(liveClass.getStatus(), request.status());
       liveClass.setStatus(request.status());
-      if (request.status() == LiveClassStatus.COMPLETED) {
+      if (request.status() == LiveClassStatus.COMPLETED
+          || request.status() == LiveClassStatus.CANCELLED
+          || request.status() == LiveClassStatus.FAILED) {
         liveClassRepository.saveAndFlush(liveClass);
         enrollmentCompletionService.refreshCourse(liveClass.getCourse().getId());
       }
     }
 
     if (request.position() != null) {
-      updatePosition(liveClass, request.position());
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Instructors cannot reorder curriculum items");
     }
 
     LiveClass updated = liveClassRepository.save(liveClass);
@@ -281,7 +290,9 @@ public class InstructorLiveClassService {
     // Cancel keeps audit history and registrants intact.
     syncProviderCancel(liveClass);
     liveClass.setStatus(LiveClassStatus.CANCELLED);
-    return toLiveClassResponse(liveClassRepository.save(liveClass));
+    LiveClass cancelled = liveClassRepository.saveAndFlush(liveClass);
+    enrollmentCompletionService.refreshCourse(cancelled.getCourse().getId());
+    return toLiveClassResponse(cancelled);
   }
 
   private void syncProviderUpdate(
@@ -336,6 +347,17 @@ public class InstructorLiveClassService {
     }
   }
 
+  private void validateOfferingWindow(Course course, Instant startsAt, Instant endsAt) {
+    if (course.getStartsAt() != null && startsAt.isBefore(course.getStartsAt())) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Live class cannot start before the course offering");
+    }
+    if (course.getEndsAt() != null && endsAt.isAfter(course.getEndsAt())) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Live class cannot end after the course offering");
+    }
+  }
+
   private void validateSupportedProvider(LiveClassProvider provider) {
     if (provider != LiveClassProvider.ZOOM && provider != LiveClassProvider.GOOGLE_MEET) {
       throw new ResponseStatusException(
@@ -362,19 +384,6 @@ public class InstructorLiveClassService {
     }
   }
 
-  private void compensateCreatedMeeting(
-      LiveClassProvider provider, String meetingId, RuntimeException persistenceFailure) {
-    try {
-      liveMeetingProvisioningService.cancelMeeting(
-          LiveMeetingCancelRequest.builder()
-              .provider(provider)
-              .providerMeetingId(meetingId)
-              .build());
-    } catch (RuntimeException compensationFailure) {
-      persistenceFailure.addSuppressed(compensationFailure);
-    }
-  }
-
   private void ensureNoProviderOverlap(
       LiveClassProvider provider, Instant startsAt, Instant endsAt, UUID excludingLiveClassId) {
     liveClassRepository.acquireProviderSchedulingLock(provider.ordinal());
@@ -390,6 +399,19 @@ public class InstructorLiveClassService {
     if (overlap) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "Provider host account already has overlapping live class");
+    }
+  }
+
+  private void compensateCreatedMeeting(
+      LiveClassProvider provider, String meetingId, RuntimeException persistenceFailure) {
+    try {
+      liveMeetingProvisioningService.cancelMeeting(
+          LiveMeetingCancelRequest.builder()
+              .provider(provider)
+              .providerMeetingId(meetingId)
+              .build());
+    } catch (RuntimeException compensationFailure) {
+      persistenceFailure.addSuppressed(compensationFailure);
     }
   }
 
@@ -531,49 +553,6 @@ public class InstructorLiveClassService {
 
   private boolean isApiProvisioned(LiveClass liveClass) {
     return liveClass.getProvisioningMode() == LiveClassProvisioningMode.API_PROVISIONED;
-  }
-
-  private int resolveCreatePosition(UUID sectionId, Integer requestedPosition) {
-    int position =
-        requestedPosition != null
-            ? requestedPosition
-            : sectionItemRepository.findMaxPositionBySectionId(sectionId) + 1;
-    ensurePositionAvailable(sectionId, position, null);
-    return position;
-  }
-
-  private void updatePosition(LiveClass liveClass, Integer requestedPosition) {
-    ensurePositionAvailable(
-        liveClass.getSection().getId(), requestedPosition, liveClass.getSlot().getId());
-    SectionItem item =
-        sectionItemRepository
-            .findByItemTypeAndItemId(SectionItemType.LIVE_CLASS, liveClass.getSlot().getId())
-            .orElseThrow(
-                () ->
-                    new ResponseStatusException(
-                        HttpStatus.INTERNAL_SERVER_ERROR, "Section item missing"));
-    item.setPosition(requestedPosition);
-    sectionItemRepository.save(item);
-  }
-
-  private void ensurePositionAvailable(
-      UUID sectionId, Integer requestedPosition, UUID currentLiveClassId) {
-    if (requestedPosition == null || requestedPosition <= 0) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "position must be positive");
-    }
-    sectionItemRepository
-        .findBySectionIdAndPosition(sectionId, requestedPosition)
-        .ifPresent(
-            item -> {
-              boolean sameLiveClass =
-                  item.getItemType() == SectionItemType.LIVE_CLASS
-                      && currentLiveClassId != null
-                      && currentLiveClassId.equals(item.getItemId());
-              if (!sameLiveClass) {
-                throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST, "Position is already used in this section");
-              }
-            });
   }
 
   private Integer positionOf(UUID liveClassId) {

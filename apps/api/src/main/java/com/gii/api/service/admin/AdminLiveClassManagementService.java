@@ -10,7 +10,6 @@ import com.gii.api.model.response.admin.AdminLiveClassItemResponse;
 import com.gii.api.model.response.admin.AdminLiveClassRegistrantResponse;
 import com.gii.api.model.response.admin.AdminLiveClassStartResponse;
 import com.gii.api.model.response.admin.AdminLiveClassSummaryResponse;
-import com.gii.api.service.course.CourseTemplateMutationGuard;
 import com.gii.api.service.live.LiveMeetingCancelRequest;
 import com.gii.api.service.live.LiveMeetingCreateRequest;
 import com.gii.api.service.live.LiveMeetingCreateResult;
@@ -68,7 +67,6 @@ public class AdminLiveClassManagementService {
   private final CourseInstructorRepository courseInstructorRepository;
   private final LiveClassSlotRepository liveClassSlotRepository;
   private final LiveMeetingProvisioningService liveMeetingProvisioningService;
-  private final CourseTemplateMutationGuard templateMutationGuard;
   private final EnrollmentCompletionService enrollmentCompletionService;
 
   @Transactional(readOnly = true)
@@ -101,7 +99,7 @@ public class AdminLiveClassManagementService {
   public AdminLiveClassDetailResponse create(UUID courseId, CreateLiveClassRequest request) {
     Course course =
         courseRepository
-            .findById(courseId)
+            .findByIdForUpdate(courseId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found"));
     CourseSection section =
@@ -110,9 +108,9 @@ public class AdminLiveClassManagementService {
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Section not found"));
     validateHierarchy(course, section);
-    templateMutationGuard.requireDraft(course.getTemplateVersion());
     validateSupportedProvider(request.provider());
     validateTimeRange(request.startsAt(), request.endsAt());
+    validateOfferingWindow(course, request.startsAt(), request.endsAt());
     validateCapacity(request.maxCapacity());
     ensureNoProviderOverlap(request.provider(), request.startsAt(), request.endsAt());
     int position = resolveCreatePosition(section.getId(), request.position());
@@ -175,7 +173,6 @@ public class AdminLiveClassManagementService {
     Course course = requireCourse(courseId);
     CourseSection section = requireSection(request.sectionId());
     validateHierarchy(course, section);
-    templateMutationGuard.requireDraft(course.getTemplateVersion());
     int position = resolveCreatePosition(section.getId(), request.position());
     LiveClassSlot slot =
         liveClassSlotRepository.save(
@@ -204,6 +201,7 @@ public class AdminLiveClassManagementService {
     final LiveClassSlot slot = requireSchedulableSlot(course, courseId, liveClassItemId);
     validateSupportedProvider(request.provider());
     validateTimeRange(request.startsAt(), request.endsAt());
+    validateOfferingWindow(course, request.startsAt(), request.endsAt());
     validateCapacity(request.maxCapacity());
     ensureNoProviderOverlap(request.provider(), request.startsAt(), request.endsAt());
     LiveMeetingCreateResult meeting =
@@ -244,6 +242,7 @@ public class AdminLiveClassManagementService {
     Course course = requireCourse(courseId);
     final LiveClassSlot slot = requireSchedulableSlot(course, courseId, liveClassItemId);
     validateTimeRange(request.startsAt(), request.endsAt());
+    validateOfferingWindow(course, request.startsAt(), request.endsAt());
     validateCapacity(request.maxCapacity());
     if (request.provider() == null) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Provider is required");
@@ -291,7 +290,7 @@ public class AdminLiveClassManagementService {
 
   private Course requireCourse(UUID courseId) {
     return courseRepository
-        .findById(courseId)
+        .findByIdForUpdate(courseId)
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found"));
   }
 
@@ -304,7 +303,8 @@ public class AdminLiveClassManagementService {
   private AdminLiveClassItemResponse toItemResponse(
       LiveClassSlot slot, int position, boolean scheduled) {
     return AdminLiveClassItemResponse.builder()
-        .liveClassId(slot.getId())
+        .liveClassItemId(slot.getId())
+        .liveClassId(null)
         .sectionId(slot.getSection().getId())
         .position(position)
         .title(slot.getTitle())
@@ -323,6 +323,8 @@ public class AdminLiveClassManagementService {
             .findById(liveClassId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Live class not found"));
+    final Course course =
+        courseRepository.findByIdForUpdate(liveClass.getCourse().getId()).orElseThrow();
     boolean mutatingMetadata =
         request.title() != null
             || request.titleEn() != null
@@ -330,13 +332,6 @@ public class AdminLiveClassManagementService {
             || request.descriptionEn() != null
             || request.startsAt() != null
             || request.endsAt() != null;
-    if (request.title() != null
-        || request.titleEn() != null
-        || request.description() != null
-        || request.descriptionEn() != null
-        || request.position() != null) {
-      templateMutationGuard.requireDraft(liveClass.getSection().getTemplateVersion());
-    }
     if (mutatingMetadata && liveClass.getStatus() != LiveClassStatus.SCHEDULED) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "Only scheduled classes can be edited");
@@ -358,6 +353,7 @@ public class AdminLiveClassManagementService {
       Instant startsAt = request.startsAt() != null ? request.startsAt() : liveClass.getStartsAt();
       Instant endsAt = request.endsAt() != null ? request.endsAt() : liveClass.getEndsAt();
       validateTimeRange(startsAt, endsAt);
+      validateOfferingWindow(course, startsAt, endsAt);
       if (isApiProvisioned(liveClass)) {
         ensureNoProviderOverlap(liveClass.getProvider(), startsAt, endsAt, liveClass.getId());
       }
@@ -388,7 +384,9 @@ public class AdminLiveClassManagementService {
       LiveClassStatus nextStatus = parseStatus(request.status());
       validateStatusTransitionForUpdate(liveClass.getStatus(), nextStatus);
       liveClass.setStatus(nextStatus);
-      if (nextStatus == LiveClassStatus.COMPLETED) {
+      if (nextStatus == LiveClassStatus.COMPLETED
+          || nextStatus == LiveClassStatus.CANCELLED
+          || nextStatus == LiveClassStatus.FAILED) {
         liveClassRepository.saveAndFlush(liveClass);
         enrollmentCompletionService.refreshCourse(liveClass.getCourse().getId());
       }
@@ -446,7 +444,9 @@ public class AdminLiveClassManagementService {
     }
     syncProviderCancel(liveClass);
     liveClass.setStatus(LiveClassStatus.CANCELLED);
-    return toDetail(liveClassRepository.save(liveClass));
+    LiveClass cancelled = liveClassRepository.saveAndFlush(liveClass);
+    enrollmentCompletionService.refreshCourse(cancelled.getCourse().getId());
+    return toDetail(cancelled);
   }
 
   private void syncProviderUpdate(
@@ -564,7 +564,7 @@ public class AdminLiveClassManagementService {
   }
 
   private void validateHierarchy(Course course, CourseSection section) {
-    if (!section.getTemplateVersion().getId().equals(course.getTemplateVersion().getId())) {
+    if (!section.getTemplate().getId().equals(course.getTemplate().getId())) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "Section does not belong to course");
     }
@@ -651,6 +651,17 @@ public class AdminLiveClassManagementService {
     if (startsAt.isBefore(Instant.now().plus(CREATE_LEAD_TIME))) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "Start time must be at least 2 minutes in the future");
+    }
+  }
+
+  private void validateOfferingWindow(Course course, Instant startsAt, Instant endsAt) {
+    if (course.getStartsAt() != null && startsAt.isBefore(course.getStartsAt())) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Live class cannot start before the course offering");
+    }
+    if (course.getEndsAt() != null && endsAt.isAfter(course.getEndsAt())) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Live class cannot end after the course offering");
     }
   }
 

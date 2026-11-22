@@ -39,6 +39,26 @@ class AdminApiContractGapIt extends AbstractAdminApiIntegrationTest {
   }
 
   @Test
+  void updateMediaAssetAllowedOnPublishedCourse() throws Exception {
+    var admin = user("Mutable Media Admin", "mutable-media-admin@example.com");
+    var creator = user("Mutable Media Creator", "mutable-media-creator@example.com");
+    var course = course("Mutable Media", "mutable-media", creator);
+    var sec = section(course, 1);
+    var lesson = lesson(course, sec, 1);
+    var asset = mediaAsset(lesson, "mutable-playback");
+    course.setStatus(com.gii.common.enums.PublishStatus.PUBLISHED);
+    courseRepository.saveAndFlush(course);
+
+    mockMvc
+        .perform(
+            patch("/admin/media-assets/{mediaAssetId}", asset.getId())
+                .with(authentication(adminAuth(admin.getId())))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"title\":\"Should Still Work\"}"))
+        .andExpect(status().isOk());
+  }
+
+  @Test
   void publishCourseWithoutStructureShouldBeRejectedByContract() throws Exception {
     var admin = user("Admin Publish Gap", "admin-publish-gap@example.com");
     var creator = user("Creator Publish Gap", "creator-publish-gap@example.com");
