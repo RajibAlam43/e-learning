@@ -5,7 +5,7 @@ import com.gii.api.model.request.lesson.UpdateLessonRequest;
 import com.gii.api.model.response.admin.AdminLessonDetailResponse;
 import com.gii.api.model.response.admin.AdminLessonResourceResponse;
 import com.gii.api.model.response.admin.AdminMediaAssetResponse;
-import com.gii.api.service.course.CourseTemplateMutationGuard;
+import com.gii.api.service.progress.EnrollmentCompletionService;
 import com.gii.api.service.storage.AssetUrlService;
 import com.gii.common.entity.course.CourseSection;
 import com.gii.common.entity.course.Lesson;
@@ -41,7 +41,7 @@ public class AdminLessonManagementService {
   private final LessonResourceRepository resourceRepository;
   private final SectionItemRepository sectionItemRepository;
   private final AssetUrlService assetUrlService;
-  private final CourseTemplateMutationGuard templateMutationGuard;
+  private final EnrollmentCompletionService enrollmentCompletionService;
 
   @Transactional(readOnly = true)
   public AdminLessonDetailResponse get(UUID lessonId) {
@@ -59,7 +59,6 @@ public class AdminLessonManagementService {
             .findById(sectionId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Section not found"));
-    templateMutationGuard.requireDraft(section.getTemplateVersion());
 
     ensurePositionAvailable(section.getId(), request.position(), null);
 
@@ -71,7 +70,7 @@ public class AdminLessonManagementService {
             .slug(request.slug().trim())
             .position(request.position())
             .lessonType(parseLessonType(request.lessonType()))
-            .isMandatory(Boolean.TRUE.equals(request.isMandatory()))
+            .isMandatory(!Boolean.FALSE.equals(request.isMandatory()))
             .isFree(Boolean.TRUE.equals(request.isFree()))
             .durationSeconds(request.durationSeconds())
             .transcriptUrl(request.transcriptUrl())
@@ -100,7 +99,6 @@ public class AdminLessonManagementService {
             .findById(lessonId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lesson not found"));
-    templateMutationGuard.requireDraft(lesson.getSection().getTemplateVersion());
     if (request.title() != null) {
       lesson.setTitle(request.title().trim());
     }
@@ -112,7 +110,6 @@ public class AdminLessonManagementService {
     }
     if (request.position() != null) {
       ensurePositionAvailable(lesson.getSection().getId(), request.position(), lesson.getId());
-      lesson.setPosition(request.position());
     }
     if (request.lessonType() != null) {
       LessonType requestedType = parseLessonType(request.lessonType());
@@ -124,6 +121,10 @@ public class AdminLessonManagementService {
       }
       lesson.setLessonType(requestedType);
     }
+    boolean demotedFromMandatory =
+        request.isMandatory() != null
+            && Boolean.TRUE.equals(lesson.getIsMandatory())
+            && !request.isMandatory();
     if (request.isMandatory() != null) {
       lesson.setIsMandatory(request.isMandatory());
     }
@@ -153,8 +154,14 @@ public class AdminLessonManagementService {
                 () ->
                     new ResponseStatusException(
                         HttpStatus.INTERNAL_SERVER_ERROR, "Section item missing"));
-    sectionItem.setPosition(saved.getPosition());
+    if (request.position() != null) {
+      sectionItem.setPosition(request.position());
+    }
     sectionItemRepository.save(sectionItem);
+    if (demotedFromMandatory) {
+      lessonRepository.flush();
+      enrollmentCompletionService.refreshCoursesForTemplate(saved.getSection().getTemplate().getId());
+    }
     return toDetail(saved);
   }
 
@@ -164,9 +171,11 @@ public class AdminLessonManagementService {
             .findById(lessonId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lesson not found"));
-    templateMutationGuard.requireDraft(lesson.getSection().getTemplateVersion());
+    UUID templateId = lesson.getSection().getTemplate().getId();
     sectionItemRepository.deleteByItemTypeAndItemId(SectionItemType.LESSON, lesson.getId());
     lessonRepository.delete(lesson);
+    lessonRepository.flush();
+    enrollmentCompletionService.refreshCoursesForTemplate(templateId);
   }
 
   public void publish(UUID lessonId) {
@@ -175,7 +184,6 @@ public class AdminLessonManagementService {
             .findById(lessonId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lesson not found"));
-    templateMutationGuard.requireDraft(lesson.getSection().getTemplateVersion());
     if (lesson.getLessonType() == LessonType.PDF
         && !resourceRepository.existsByLessonIdAndPurposeAndResourceType(
             lessonId, LessonResourcePurpose.PRIMARY_CONTENT, LessonResourceType.PDF)) {
@@ -192,9 +200,9 @@ public class AdminLessonManagementService {
             .findById(lessonId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lesson not found"));
-    templateMutationGuard.requireDraft(lesson.getSection().getTemplateVersion());
     lesson.setStatus(PublishStatus.DRAFT);
-    lessonRepository.save(lesson);
+    lessonRepository.saveAndFlush(lesson);
+    enrollmentCompletionService.refreshCoursesForTemplate(lesson.getSection().getTemplate().getId());
   }
 
   private void ensurePositionAvailable(
@@ -286,7 +294,7 @@ public class AdminLessonManagementService {
         .title(lesson.getTitle())
         .titleEn(lesson.getTitleEn())
         .slug(lesson.getSlug())
-        .position(lesson.getPosition())
+        .position(positionOf(lesson))
         .lessonType(lesson.getLessonType().name())
         .status(lesson.getStatus().name())
         .isMandatory(lesson.getIsMandatory())
@@ -319,5 +327,15 @@ public class AdminLessonManagementService {
     } catch (Exception e) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid lessonType");
     }
+  }
+
+  private Integer positionOf(Lesson lesson) {
+    return sectionItemRepository
+        .findByItemTypeAndItemId(SectionItemType.LESSON, lesson.getId())
+        .map(SectionItem::getPosition)
+        .orElseThrow(
+            () ->
+                new ResponseStatusException(
+                    HttpStatus.INTERNAL_SERVER_ERROR, "Section item missing"));
   }
 }

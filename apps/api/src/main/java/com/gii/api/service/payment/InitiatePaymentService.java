@@ -6,9 +6,11 @@ import com.gii.api.service.enrollment.CurrentUserService;
 import com.gii.api.service.payment.bkash.BkashCheckoutService;
 import com.gii.api.service.payment.sslcommerz.SslcommerzCheckoutService;
 import com.gii.common.entity.order.Order;
+import com.gii.common.entity.order.PaymentAttempt;
 import com.gii.common.enums.OrderProvider;
 import com.gii.common.enums.OrderStatus;
 import com.gii.common.repository.order.OrderRepository;
+import com.gii.common.repository.order.PaymentAttemptRepository;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
@@ -31,6 +33,7 @@ public class InitiatePaymentService {
 
   private final CurrentUserService currentUserService;
   private final OrderRepository orderRepository;
+  private final PaymentAttemptRepository paymentAttemptRepository;
   private final BkashCheckoutService bkashCheckoutService;
   private final SslcommerzCheckoutService sslcommerzCheckoutService;
   private final PendingOrderEligibilityService pendingOrderEligibilityService;
@@ -46,7 +49,7 @@ public class InitiatePaymentService {
     UUID userId = currentUserService.getCurrentUserId(authentication);
     Order order =
         orderRepository
-            .findByIdAndUserId(orderId, userId)
+            .findByIdAndUserIdForUpdate(orderId, userId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
     if (order.getStatus() != OrderStatus.PENDING) {
@@ -56,6 +59,19 @@ public class InitiatePaymentService {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Order has expired");
     }
     pendingOrderEligibilityService.validate(order);
+
+    Instant now = Instant.now();
+    PaymentAttempt reusableAttempt =
+        paymentAttemptRepository
+            .findTopByOrderIdAndProviderAndExpiresAtAfterOrderByCreatedAtDesc(
+                order.getId(), request.provider(), now)
+            .orElse(null);
+    if (reusableAttempt != null) {
+      order.setProvider(reusableAttempt.getProvider());
+      order.setProviderTxnId(reusableAttempt.getProviderTxnId());
+      orderRepository.save(order);
+      return toResponse(order, reusableAttempt);
+    }
 
     String sessionId = "pay_" + UUID.randomUUID();
     String redirectUrl =
@@ -84,18 +100,32 @@ public class InitiatePaymentService {
 
     order.setProvider(request.provider());
     order.setProviderTxnId(sessionId);
-    String callbackProviderPath =
-        request.provider() == OrderProvider.BKASH ? "bkash" : "sslcommerz";
     orderRepository.save(order);
+    PaymentAttempt attempt =
+        paymentAttemptRepository.save(
+            PaymentAttempt.builder()
+                .order(order)
+                .provider(request.provider())
+                .providerTxnId(sessionId)
+                .redirectUrl(redirectUrl)
+                .expiresAt(now.plusSeconds(PAYMENT_TIMEOUT_SECONDS))
+                .build());
+    return toResponse(order, attempt);
+  }
+
+  private PaymentInitiationResponse toResponse(Order order, PaymentAttempt attempt) {
+    String callbackProviderPath =
+        attempt.getProvider() == OrderProvider.BKASH ? "bkash" : "sslcommerz";
     return PaymentInitiationResponse.builder()
         .orderId(order.getId())
-        .provider(order.getProvider())
-        .sessionId(sessionId)
-        .redirectUrl(redirectUrl)
-        .gatewayName(order.getProvider().name())
-        .paymentUrl(redirectUrl)
-        .timeoutSeconds(PAYMENT_TIMEOUT_SECONDS)
-        .providerTransactionId(sessionId)
+        .provider(attempt.getProvider())
+        .sessionId(attempt.getProviderTxnId())
+        .redirectUrl(attempt.getRedirectUrl())
+        .gatewayName(attempt.getProvider().name())
+        .paymentUrl(attempt.getRedirectUrl())
+        .timeoutSeconds(
+            Math.max(0, Duration.between(Instant.now(), attempt.getExpiresAt()).getSeconds()))
+        .providerTransactionId(attempt.getProviderTxnId())
         .providerReference("ORDER-" + order.getId())
         .successCallbackUrl("/payments/" + callbackProviderPath + "/" + order.getId() + "/success")
         .failureCallbackUrl("/payments/" + callbackProviderPath + "/" + order.getId() + "/failed")

@@ -18,7 +18,6 @@ import com.gii.common.enums.CertificateTargetType;
 import com.gii.common.enums.EnrollmentStatus;
 import com.gii.common.enums.InstructorRole;
 import com.gii.common.repository.certificate.CertificateRepository;
-import com.gii.common.repository.collection.CollectionCourseRepository;
 import com.gii.common.repository.collection.CollectionEnrollmentRepository;
 import com.gii.common.repository.collection.CollectionRepository;
 import com.gii.common.repository.course.CourseInstructorRepository;
@@ -32,6 +31,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -50,7 +50,6 @@ public class CertificateIssueService {
   private final CourseRepository courseRepository;
   private final CollectionRepository collectionRepository;
   private final CollectionEnrollmentRepository collectionEnrollmentRepository;
-  private final CollectionCourseRepository collectionCourseRepository;
   private final EnrollmentRepository enrollmentRepository;
   private final CourseCompletionService courseCompletionService;
   private final CertificateRepository certificateRepository;
@@ -97,14 +96,29 @@ public class CertificateIssueService {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Enrollment has expired");
     }
 
-    CourseCompletion completion = courseCompletionService.get(user.getId(), courseId);
-    boolean eligible =
-        completion.totalItems() > 0 && completion.completedItems() >= completion.totalItems();
+    boolean eligible = enrollment.getCompletedAt() != null;
+    if (!eligible) {
+      CourseCompletion completion = courseCompletionService.get(user.getId(), courseId);
+      eligible = completion.totalItems() > 0 && completion.completedItems() >= completion.totalItems();
+      if (eligible) {
+        // The learner just crossed 100% but no progress event has persisted completedAt yet
+        // (e.g. this request raced ahead of EnrollmentCompletionService.refresh). Persist it now
+        // so completion stays sticky from this point on, same as the normal completion path.
+        enrollment.setCompletedAt(Instant.now());
+        enrollmentRepository.save(enrollment);
+      }
+    }
 
     if (!eligible) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Course completion criteria not met");
     }
 
+    Certificate saved = issueCourseCertificate(enrollment);
+    return toResponse(saved, true, "COURSE_COMPLETED");
+  }
+
+  private Certificate issueCourseCertificate(Enrollment enrollment) {
+    User user = enrollment.getUser();
     Certificate certificate =
         Certificate.builder()
             .certificateCode(normalizeCode(generateUniqueCode()))
@@ -126,8 +140,7 @@ public class CertificateIssueService {
         saved,
         saved.getInstructorName(),
         enrollment.getCompletedAt() == null ? saved.getIssuedAt() : enrollment.getCompletedAt());
-
-    return toResponse(saved, true, "COURSE_COMPLETED");
+    return saved;
   }
 
   public CertificateIssueResponse executeCollection(
@@ -170,26 +183,41 @@ public class CertificateIssueService {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Enrollment has expired");
     }
 
-    var courseIds =
-        purchasedCollectionCoursesService.resolve(enrollment).stream()
-            .map(course -> course.getId())
-            .distinct()
-            .toList();
-    if (courseIds.isEmpty()) {
-      throw new ResponseStatusException(
-          HttpStatus.FORBIDDEN, "Collection completion criteria not met");
+    boolean eligible = enrollment.getCompletedAt() != null;
+    if (!eligible) {
+      var courseIds =
+          purchasedCollectionCoursesService.resolveItems(enrollment).stream()
+              .filter(
+                  com.gii.api.service.collection.PurchasedCollectionCoursesService.PurchasedCourse
+                      ::mandatory)
+              .map(item -> item.course().getId())
+              .distinct()
+              .toList();
+      if (!courseIds.isEmpty()) {
+        var completions = courseCompletionService.getByCourseIds(user.getId(), courseIds);
+        int totalItems = completions.values().stream().mapToInt(CourseCompletion::totalItems).sum();
+        int completedItems =
+            completions.values().stream().mapToInt(CourseCompletion::completedItems).sum();
+        eligible = totalItems > 0 && completedItems >= totalItems;
+      }
+      if (eligible) {
+        // Same race as the course path: persist completedAt now so it stays sticky from here on.
+        enrollment.setCompletedAt(Instant.now());
+        collectionEnrollmentRepository.save(enrollment);
+      }
     }
-
-    var completions = courseCompletionService.getByCourseIds(user.getId(), courseIds);
-    int totalItems = completions.values().stream().mapToInt(CourseCompletion::totalItems).sum();
-    int completedItems =
-        completions.values().stream().mapToInt(CourseCompletion::completedItems).sum();
-    boolean eligible = totalItems > 0 && completedItems >= totalItems;
     if (!eligible) {
       throw new ResponseStatusException(
           HttpStatus.FORBIDDEN, "Collection completion criteria not met");
     }
 
+    Certificate saved = issueCollectionCertificate(collection, enrollment);
+    return toResponse(saved, true, "COLLECTION_COMPLETED");
+  }
+
+  private Certificate issueCollectionCertificate(
+      Collection collection, CollectionEnrollment enrollment) {
+    User user = enrollment.getUser();
     Certificate certificate =
         Certificate.builder()
             .certificateCode(normalizeCode(generateUniqueCode()))
@@ -207,12 +235,48 @@ public class CertificateIssueService {
             .instructorName("Global Islamic Institute")
             .build();
     Certificate saved = certificateRepository.saveAndFlush(certificate);
-    requireNotRevoked(saved);
     ensureDocument(
         saved,
         "Global Islamic Institute",
         enrollment.getCompletedAt() == null ? saved.getIssuedAt() : enrollment.getCompletedAt());
-    return toResponse(saved, true, "COLLECTION_COMPLETED");
+    return saved;
+  }
+
+  /**
+   * Re-verifies and issues a single course certificate in its own fresh transaction. Called from
+   * {@link CertificateBackfillService} once per candidate enrollment so that one failure (a
+   * concurrent duplicate, a transient PDF/storage error) can't poison a shared transaction and
+   * block certificates for the user's other completed courses.
+   */
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public void tryIssueCourseCertificate(UUID enrollmentId) {
+    Enrollment enrollment = enrollmentRepository.findById(enrollmentId).orElse(null);
+    if (enrollment == null || enrollment.getCompletedAt() == null) {
+      return;
+    }
+    if (certificateRepository
+        .findByUserIdAndCourseId(enrollment.getUser().getId(), enrollment.getCourse().getId())
+        .isPresent()) {
+      return;
+    }
+    issueCourseCertificate(enrollment);
+  }
+
+  /** Collection counterpart of {@link #tryIssueCourseCertificate(UUID)}. */
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public void tryIssueCollectionCertificate(UUID collectionEnrollmentId) {
+    CollectionEnrollment enrollment =
+        collectionEnrollmentRepository.findById(collectionEnrollmentId).orElse(null);
+    if (enrollment == null || enrollment.getCompletedAt() == null) {
+      return;
+    }
+    Collection collection = enrollment.getCollection();
+    if (certificateRepository
+        .findByUserIdAndCollectionId(enrollment.getUser().getId(), collection.getId())
+        .isPresent()) {
+      return;
+    }
+    issueCollectionCertificate(collection, enrollment);
   }
 
   private void requireNotRevoked(Certificate certificate) {

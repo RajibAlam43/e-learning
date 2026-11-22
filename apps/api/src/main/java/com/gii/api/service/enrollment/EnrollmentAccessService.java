@@ -31,8 +31,8 @@ public class EnrollmentAccessService {
 
     boolean hasAccess =
         !enrollmentRepository
-            .findByUserIdAndTemplateVersionIdAndStatus(
-                userId, lesson.getSection().getTemplateVersion().getId(), EnrollmentStatus.ACTIVE)
+            .findByUserIdAndTemplateIdAndStatus(
+                userId, lesson.getSection().getTemplate().getId(), EnrollmentStatus.ACTIVE)
             .isEmpty();
 
     if (!hasAccess) {

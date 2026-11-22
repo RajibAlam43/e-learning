@@ -9,6 +9,7 @@ import com.gii.common.entity.course.Course;
 import com.gii.common.entity.enrollment.Enrollment;
 import com.gii.common.entity.order.Order;
 import com.gii.common.entity.order.OrderItem;
+import com.gii.common.entity.order.PaymentAttempt;
 import com.gii.common.entity.order.PaymentEvent;
 import com.gii.common.entity.user.User;
 import com.gii.common.enums.CollectionType;
@@ -25,11 +26,11 @@ import com.gii.common.repository.collection.CollectionEnrollmentRepository;
 import com.gii.common.repository.collection.CollectionRepository;
 import com.gii.common.repository.course.CourseRepository;
 import com.gii.common.repository.course.CourseTemplateRepository;
-import com.gii.common.repository.course.CourseTemplateVersionRepository;
 import com.gii.common.repository.enrollment.EnrollmentRepository;
 import com.gii.common.repository.order.OrderItemCourseRepository;
 import com.gii.common.repository.order.OrderItemRepository;
 import com.gii.common.repository.order.OrderRepository;
+import com.gii.common.repository.order.PaymentAttemptRepository;
 import com.gii.common.repository.order.PaymentEventRepository;
 import com.gii.common.repository.user.UserRepository;
 import java.math.BigDecimal;
@@ -48,16 +49,17 @@ abstract class PaymentApiTestSupport {
   @Autowired protected CollectionCourseRepository collectionCourseRepository;
   @Autowired protected CollectionEnrollmentRepository collectionEnrollmentRepository;
   @Autowired protected CourseRepository courseRepository;
-  @Autowired protected CourseTemplateVersionRepository courseTemplateVersionRepository;
   @Autowired protected CourseTemplateRepository courseTemplateRepository;
   @Autowired protected EnrollmentRepository enrollmentRepository;
   @Autowired protected OrderRepository orderRepository;
   @Autowired protected OrderItemRepository orderItemRepository;
   @Autowired protected OrderItemCourseRepository orderItemCourseRepository;
   @Autowired protected PaymentEventRepository paymentEventRepository;
+  @Autowired protected PaymentAttemptRepository paymentAttemptRepository;
 
   protected void cleanupPaymentData() {
     paymentEventRepository.deleteAll();
+    paymentAttemptRepository.deleteAll();
     collectionEnrollmentRepository.deleteAll();
     enrollmentRepository.deleteAll();
     orderItemCourseRepository.deleteAll();
@@ -66,7 +68,6 @@ abstract class PaymentApiTestSupport {
     collectionCourseRepository.deleteAll();
     collectionRepository.deleteAll();
     courseRepository.deleteAll();
-    courseTemplateVersionRepository.deleteAll();
     courseTemplateRepository.deleteAll();
     userRepository.deleteAll();
   }
@@ -98,7 +99,6 @@ abstract class PaymentApiTestSupport {
     course.setIsFree(price.compareTo(BigDecimal.ZERO) == 0);
     course.setStatus(status);
     course.setPublishedAt(status == PublishStatus.PUBLISHED ? Instant.now() : null);
-    course.getTemplateVersion().setStatus(status);
     return courseRepository.save(course);
   }
 
@@ -190,6 +190,18 @@ abstract class PaymentApiTestSupport {
             .rawPayloadJson(java.util.Map.of("k", "v"))
             .status(status)
             .processedAt(Instant.now())
+            .build());
+  }
+
+  protected PaymentAttempt paymentAttempt(
+      Order order, OrderProvider provider, String txnId, Instant expiresAt) {
+    return paymentAttemptRepository.save(
+        PaymentAttempt.builder()
+            .order(order)
+            .provider(provider)
+            .providerTxnId(txnId)
+            .redirectUrl("https://payments.test/" + txnId)
+            .expiresAt(expiresAt)
             .build());
   }
 }

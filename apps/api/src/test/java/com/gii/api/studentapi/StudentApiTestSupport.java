@@ -10,6 +10,7 @@ import com.gii.common.entity.course.Course;
 import com.gii.common.entity.course.CourseAnnouncement;
 import com.gii.common.entity.course.CourseSection;
 import com.gii.common.entity.course.Lesson;
+import com.gii.common.entity.course.LessonResource;
 import com.gii.common.entity.course.SectionItem;
 import com.gii.common.entity.enrollment.Enrollment;
 import com.gii.common.entity.enrollment.LessonProgress;
@@ -25,6 +26,8 @@ import com.gii.common.entity.user.UserProfile;
 import com.gii.common.enums.CertificateTargetType;
 import com.gii.common.enums.CollectionType;
 import com.gii.common.enums.EnrollmentStatus;
+import com.gii.common.enums.LessonResourcePurpose;
+import com.gii.common.enums.LessonResourceType;
 import com.gii.common.enums.LessonType;
 import com.gii.common.enums.LiveClassProvider;
 import com.gii.common.enums.LiveClassRegistrantStatus;
@@ -41,11 +44,11 @@ import com.gii.common.repository.collection.CollectionEnrollmentRepository;
 import com.gii.common.repository.collection.CollectionRepository;
 import com.gii.common.repository.course.CourseAnnouncementRepository;
 import com.gii.common.repository.course.CourseRepository;
+import com.gii.common.repository.course.CourseTemplateRepository;
 import com.gii.common.repository.course.CourseReviewRepository;
 import com.gii.common.repository.course.CourseSectionRepository;
-import com.gii.common.repository.course.CourseTemplateRepository;
-import com.gii.common.repository.course.CourseTemplateVersionRepository;
 import com.gii.common.repository.course.LessonRepository;
+import com.gii.common.repository.course.LessonResourceRepository;
 import com.gii.common.repository.course.SectionItemRepository;
 import com.gii.common.repository.enrollment.EnrollmentRepository;
 import com.gii.common.repository.enrollment.LessonProgressRepository;
@@ -74,7 +77,6 @@ abstract class StudentApiTestSupport {
   @Autowired protected UserRepository userRepository;
   @Autowired protected UserProfileRepository userProfileRepository;
   @Autowired protected CourseRepository courseRepository;
-  @Autowired protected CourseTemplateVersionRepository courseTemplateVersionRepository;
   @Autowired protected CourseTemplateRepository courseTemplateRepository;
   @Autowired protected CourseAnnouncementRepository courseAnnouncementRepository;
   @Autowired protected CourseReviewRepository courseReviewRepository;
@@ -83,6 +85,7 @@ abstract class StudentApiTestSupport {
   @Autowired protected CollectionEnrollmentRepository collectionEnrollmentRepository;
   @Autowired protected CourseSectionRepository courseSectionRepository;
   @Autowired protected LessonRepository lessonRepository;
+  @Autowired protected LessonResourceRepository lessonResourceRepository;
   @Autowired protected SectionItemRepository sectionItemRepository;
   @Autowired protected EnrollmentRepository enrollmentRepository;
   @Autowired protected LessonProgressRepository lessonProgressRepository;
@@ -112,6 +115,7 @@ abstract class StudentApiTestSupport {
     liveClassRepository.deleteAll();
     liveClassSlotRepository.deleteAll();
     lessonProgressRepository.deleteAll();
+    lessonResourceRepository.deleteAll();
     enrollmentRepository.deleteAll();
     orderItemCourseRepository.deleteAll();
     orderItemRepository.deleteAll();
@@ -121,7 +125,6 @@ abstract class StudentApiTestSupport {
     lessonRepository.deleteAll();
     courseSectionRepository.deleteAll();
     courseRepository.deleteAll();
-    courseTemplateVersionRepository.deleteAll();
     courseTemplateRepository.deleteAll();
     userProfileRepository.deleteAll();
     userRepository.deleteAll();
@@ -186,6 +189,20 @@ abstract class StudentApiTestSupport {
         userId, null, java.util.List.of(new SimpleGrantedAuthority("ROLE_STUDENT")));
   }
 
+  protected LessonResource lessonResource(
+      Lesson lesson, String title, LessonResourcePurpose purpose, int position) {
+    return lessonResourceRepository.save(
+        LessonResource.builder()
+            .lesson(lesson)
+            .title(title)
+            .resourceType(LessonResourceType.PDF)
+            .purpose(purpose)
+            .fileUrl("courses/resources/" + UUID.randomUUID() + ".pdf")
+            .mimeType("application/pdf")
+            .position(position)
+            .build());
+  }
+
   protected User user(String fullName, String email) {
     return userRepository.save(
         User.builder()
@@ -207,14 +224,13 @@ abstract class StudentApiTestSupport {
     course.setStatus(status);
     course.setPublishedAt(Instant.now());
     course.setEstimatedDurationMinutes(300);
-    course.getTemplateVersion().setStatus(status);
     return courseRepository.save(course);
   }
 
   protected CourseSection section(Course course, int position, PublishStatus status) {
     return courseSectionRepository.save(
         CourseSection.builder()
-            .templateVersion(course.getTemplateVersion())
+            .template(course.getTemplate())
             .title("Section " + position)
             .slug("section-" + position + "-" + UUID.randomUUID().toString().substring(0, 6))
             .position(position)
@@ -283,25 +299,17 @@ abstract class StudentApiTestSupport {
   protected LessonProgress completedProgress(User user, Lesson lesson) {
     Enrollment enrollment =
         enrollmentRepository
-            .findByUserIdAndTemplateVersionIdAndStatus(
-                user.getId(),
-                lesson.getSection().getTemplateVersion().getId(),
-                EnrollmentStatus.ACTIVE)
+            .findByUserIdAndTemplateIdAndStatus(
+                user.getId(), lesson.getSection().getTemplate().getId(), EnrollmentStatus.ACTIVE)
             .stream()
             .findFirst()
             .orElseGet(
                 () ->
                     enrollment(
                         user,
-                        courseRepository.findAll().stream()
-                            .filter(
-                                course ->
-                                    course
-                                        .getTemplateVersion()
-                                        .getId()
-                                        .equals(lesson.getSection().getTemplateVersion().getId()))
-                            .findFirst()
-                            .orElseThrow(),
+                        courseRepository
+                            .findByTemplateId(lesson.getSection().getTemplate().getId())
+                            .getFirst(),
                         EnrollmentStatus.ACTIVE,
                         null));
     return lessonProgressRepository.save(
