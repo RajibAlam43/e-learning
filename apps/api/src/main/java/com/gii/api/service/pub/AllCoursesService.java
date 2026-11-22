@@ -135,7 +135,7 @@ public class AllCoursesService {
             .map(
                 order ->
                     order.getProperty().equals("title")
-                        ? new Sort.Order(order.getDirection(), "templateVersion.title")
+                        ? new Sort.Order(order.getDirection(), "template.title")
                         : order)
             .toList();
 
@@ -157,17 +157,16 @@ public class AllCoursesService {
     }
 
     List<CourseCategory> courseCategories = courseCategoryRepository.findByCourseIds(courseIds);
-    Map<UUID, List<UUID>> courseIdsByVersionId =
+    Map<UUID, List<UUID>> courseIdsByTemplateId =
         courseRepository.findAllById(courseIds).stream()
             .collect(
                 Collectors.groupingBy(
-                    course -> course.getTemplateVersion().getId(),
+                    course -> course.getTemplate().getId(),
                     Collectors.mapping(Course::getId, Collectors.toList())));
     Map<UUID, List<String>> result = new HashMap<>();
     for (CourseCategory courseCategory : courseCategories) {
       for (UUID courseId :
-          courseIdsByVersionId.getOrDefault(
-              courseCategory.getTemplateVersion().getId(), List.of())) {
+          courseIdsByTemplateId.getOrDefault(courseCategory.getTemplate().getId(), List.of())) {
         result
             .computeIfAbsent(courseId, ignored -> new java.util.ArrayList<>())
             .add(

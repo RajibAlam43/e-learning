@@ -12,6 +12,8 @@ public interface LessonResourceRepository extends JpaRepository<LessonResource, 
 
   List<LessonResource> findByLessonIdOrderByPositionAsc(UUID lessonId);
 
+  List<LessonResource> findByLessonIdInOrderByLessonIdAscPositionAsc(List<UUID> lessonIds);
+
   Optional<LessonResource> findByLessonIdAndPurpose(UUID lessonId, LessonResourcePurpose purpose);
 
   boolean existsByLessonIdAndPurposeAndResourceType(

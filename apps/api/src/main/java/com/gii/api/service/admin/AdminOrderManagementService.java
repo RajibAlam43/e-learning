@@ -9,6 +9,8 @@ import com.gii.common.entity.order.OrderItem;
 import com.gii.common.enums.OrderStatus;
 import com.gii.common.repository.order.OrderItemRepository;
 import com.gii.common.repository.order.OrderRepository;
+import com.gii.common.service.payment.PaidOrderEnrollmentService;
+import com.gii.common.service.payment.RefundedOrderEnrollmentService;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -25,6 +27,8 @@ public class AdminOrderManagementService {
 
   private final OrderRepository orderRepository;
   private final OrderItemRepository orderItemRepository;
+  private final PaidOrderEnrollmentService paidOrderEnrollmentService;
+  private final RefundedOrderEnrollmentService refundedOrderEnrollmentService;
 
   @Transactional(readOnly = true)
   public List<AdminOrderSummaryResponse> list() {
@@ -44,11 +48,12 @@ public class AdminOrderManagementService {
   public AdminOrderDetailResponse update(UUID orderId, UpdateOrderRequest request) {
     Order order =
         orderRepository
-            .findById(orderId)
+            .findByIdForUpdate(orderId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
     if (request.status() != null) {
       OrderStatus newStatus = parseStatus(request.status());
+      validateStatusTransition(order.getStatus(), newStatus);
       order.setStatus(newStatus);
       if (newStatus == OrderStatus.PAID && order.getPaidAt() == null) {
         order.setPaidAt(Instant.now());
@@ -59,6 +64,11 @@ public class AdminOrderManagementService {
     }
     // adminNote is accepted in API but not persisted until entity adds dedicated column.
     Order saved = orderRepository.save(order);
+    if (saved.getStatus() == OrderStatus.PAID) {
+      paidOrderEnrollmentService.grant(saved.getId());
+    } else if (saved.getStatus() == OrderStatus.REFUNDED) {
+      refundedOrderEnrollmentService.revoke(saved.getId());
+    }
     return toDetail(saved, request.adminNote());
   }
 
@@ -121,6 +131,16 @@ public class AdminOrderManagementService {
       return OrderStatus.valueOf(value.trim().toUpperCase());
     } catch (Exception ex) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid order status");
+    }
+  }
+
+  private void validateStatusTransition(OrderStatus current, OrderStatus next) {
+    if (current == OrderStatus.REFUNDED && next != OrderStatus.REFUNDED) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, "Refunded order is terminal");
+    }
+    if (current == OrderStatus.PAID && next != OrderStatus.PAID && next != OrderStatus.REFUNDED) {
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT, "Paid order can only remain paid or be refunded");
     }
   }
 }

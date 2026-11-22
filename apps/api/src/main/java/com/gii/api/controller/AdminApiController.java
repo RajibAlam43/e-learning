@@ -509,4 +509,10 @@ public class AdminApiController implements AdminApi {
     certificateManagementService.revoke(certificateId, request, authentication);
     return ResponseEntity.noContent().build();
   }
+
+  @Override
+  public ResponseEntity<Void> reinstateCertificate(UUID certificateId) {
+    certificateManagementService.reinstate(certificateId);
+    return ResponseEntity.noContent().build();
+  }
 }

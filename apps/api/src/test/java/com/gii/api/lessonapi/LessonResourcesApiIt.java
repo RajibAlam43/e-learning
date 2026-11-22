@@ -1,6 +1,7 @@
 package com.gii.api.lessonapi;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -46,6 +47,11 @@ class LessonResourcesApiIt extends AbstractLessonApiIntegrationTest {
         .thenReturn(
             new R2PresignedUrlService.PresignedDownload(
                 "https://signed.test/file", Instant.now().plusSeconds(600)));
+    when(r2PresignedUrlService.generateDownloadUrl(
+            any(), any(), any(), eq(R2PresignedUrlService.Disposition.INLINE)))
+        .thenReturn(
+            new R2PresignedUrlService.PresignedDownload(
+                "https://signed.test/view", Instant.now().plusSeconds(600)));
 
     mockMvc
         .perform(
@@ -56,6 +62,7 @@ class LessonResourcesApiIt extends AbstractLessonApiIntegrationTest {
                 .with(authentication(studentAuth(student.getId()))))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$[0].resourceId").value(resourceB.getId().toString()))
+        .andExpect(jsonPath("$[0].viewUrl").value("https://signed.test/view"))
         .andExpect(jsonPath("$[1].resourceId").value(resourceA.getId().toString()));
 
     mockMvc
@@ -83,6 +90,11 @@ class LessonResourcesApiIt extends AbstractLessonApiIntegrationTest {
     primary.setPurpose(LessonResourcePurpose.PRIMARY_CONTENT);
     lessonResourceRepository.save(primary);
     var supplementary = resource(lesson, 2, "Workbook");
+    when(r2PresignedUrlService.generateDownloadUrl(
+            any(), any(), any(), eq(R2PresignedUrlService.Disposition.INLINE)))
+        .thenReturn(
+            new R2PresignedUrlService.PresignedDownload(
+                "https://signed.test/view", Instant.now().plusSeconds(600)));
 
     mockMvc
         .perform(
