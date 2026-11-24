@@ -51,7 +51,7 @@ jobs:
         run: ./gradlew spotlessCheck checkstyleMain checkstyleTest --continue
       - name: Upload test reports
         if: always() && steps.changes.outputs.backend == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-reports
           path: |
@@ -154,7 +154,7 @@ jobs:
         run: python3 .github/scripts/release.py manifest --output release.json
       - name: Upload release manifest
         if: steps.changes.outputs.publish_backend == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-manifest
           path: release.json
@@ -213,7 +213,7 @@ jobs:
           JS
       - name: Upload stage frontend release
         if: steps.changes.outputs.publish_web == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: web-stage-release
           path: apps/web/web-release.json
@@ -272,7 +272,7 @@ jobs:
           JS
       - name: Upload prod frontend release
         if: steps.changes.outputs.publish_web == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: web-prod-release
           path: apps/web/web-release.json

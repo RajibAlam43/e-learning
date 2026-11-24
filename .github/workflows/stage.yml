@@ -97,7 +97,7 @@ jobs:
         run: python3 .github/scripts/release.py stage --manifest release-input/release.json --output staged-release
       - name: Publish tested release for manual production deployment
         if: steps.source.outputs.deploy_backend == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: staged-release
           path: staged-release/
