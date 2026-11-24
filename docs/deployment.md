@@ -269,6 +269,42 @@ Graph URLs to the frontend hostname; the inspected staging homepage used the API
 hostname. Keep Vercel available for a deliberate rollback window until the production
 frontend passes smoke tests.
 
+### Internal networking and public endpoints
+
+Use actual Dokploy-generated service DNS names and container ports for same-host
+server-to-server traffic. Project/environment labels alone do not establish DNS
+reachability: attach each required client to the appropriate Docker network and
+verify resolution/connectivity from inside its running container.
+
+| Caller | Destination | Connection |
+| --- | --- | --- |
+| Next.js server runtime | API | Internal HTTP service address, e.g. `http://API_INTERNAL_HOST:8080`, where auth/routing permit |
+| API | PostgreSQL | Internal JDBC service address, e.g. `jdbc:postgresql://POSTGRES_INTERNAL_HOST:5432/gii_prod_db` |
+| Worker | PostgreSQL | Internal JDBC service address with the separate worker DB role |
+| Migrator | PostgreSQL | Internal JDBC service address with the migration role; run once per release |
+| Browser | Frontend and API | Public HTTPS hostnames; Docker service names are not browser-resolvable |
+| Payment/OAuth/webhook provider | API callback | Public HTTPS hostname with the expected externally registered URL |
+| API/worker | AWS SQS/SES and other external providers | Provider endpoints; these do not become local Docker services |
+
+The worker currently consumes SQS and accesses PostgreSQL directly; do not add an
+API dependency merely to implement internal routing. Next.js calls the API rather
+than connecting directly to PostgreSQL. Keep public and server-only API base URLs
+separate; do not embed a Docker hostname in `NEXT_PUBLIC_*`. On a later Vercel move,
+server-side requests must use the public API because Vercel is outside this network.
+
+Do not use `localhost` for another container or route local DB traffic through the
+public domain. Keep DB/worker ports unpublished; frontend/API ingress goes through
+Traefik. Prefer network membership limited to the clients that need it, and do not
+assume a network named `dokploy-network` isolates every project from every other
+project. Verify the migrator's external network is attachable as required by Compose.
+
+Test server-side login/session behavior before replacing public API calls with an
+internal address. Forward only the required cookies/auth headers, preserve the real
+public HTTPS host/origin where needed, and keep callback/redirect/cookie domains public.
+Check CORS using the actual staging frontend, including
+`https://globalislamicinstitue.vercel.app` while that deployment remains in use.
+Staging and production must not share DB networks, credentials or queues.
+
 ## Cloudflare and monitoring
 
 Use Cloudflare DNS with proxied production frontend/API records, TLS **Full (strict)**,
@@ -297,6 +333,51 @@ frontend, API health and a representative user journey. Separately alert on back
 failure/staleness, disk growth, memory/OOM, CPU pressure, DB connections and queue age/
 DLQs. An external heartbeat/dead-man check must notice missing backups even when the
 VPS and Dokploy themselves are down.
+
+### Planned Sentry error tracking and log operations
+
+Add **Sentry for API, worker and Next.js** before production launch as a separate
+observability task. No Sentry SDK, DSN wiring, source-map upload or account setup is
+implemented by this documentation update. Obtain confirmation before changing code,
+dependencies, build pipelines or runtime configuration; business behavior stays outside
+this task. Dokploy metrics, local logs and external uptime/backup alerts remain in use.
+
+1. Create separate Sentry projects for API, worker and frontend under the production
+   operator's account. Start with the free Developer plan if its user access, event
+   quotas and notification options meet requirements; verify current
+   [plan allowances](https://sentry.io/pricing/) rather than assuming unlimited events
+   or free SMS/phone alerts. Keep the external phone-alerting plan independent.
+2. Select the official Spring Boot integration compatible with the pinned Java/Spring
+   versions for API/worker, and the Next.js SDK for frontend browser/server errors.
+   Verify worker listener/job failures are captured with useful stack traces while
+   expected retries/validation failures do not flood quotas or create duplicate events.
+3. Plan per-service `SENTRY_DSN`, environment (`stage`/`prod`) and release identifiers
+   derived from the deployed commit/image or frontend deployment. These names describe
+   intended integration inputs, not environment variables already wired in this repo.
+   Separate stage/prod filtering and alert routing; tag worker errors by job type
+   without including full job payloads or recipient identities.
+4. Upload frontend source maps during its CI/Vercel build so minified production errors
+   are actionable. Keep upload/auth tokens only in CI/provider secrets, never browser
+   bundles or committed files. A browser DSN is intentionally public; it is not an
+   account-management or source-map-upload token. Do not expose raw source maps publicly.
+5. Disable default PII collection and review SDK hooks/scrubbing. Exclude cookies,
+   authorization headers, passwords, JWTs, Mux/R2 signed URL query tokens, payment
+   payloads, email/phone details and exam answers. Review existing application logs
+   before exporting them; log retention/export must not silently expose these values.
+6. Start with error tracking. Leave replay/profiling disabled unless explicitly needed;
+   choose conservative trace sampling, event filters and quota controls separately.
+   Set production error alerts and monitor usage. Reporting must not delay requests,
+   prevent startup, or cause SQS jobs to fail merely because Sentry is unavailable.
+7. Validate on staging with synthetic non-sensitive errors from API, a worker job and
+   frontend browser/server code. Confirm correct project/environment/release, readable
+   stack traces, secret scrubbing, retry/deduplication behavior and notification delivery.
+   Verify the application still works when outbound Sentry reporting fails. Do not
+   manufacture a real payment, email or SMS failure to test reporting.
+
+Keep stdout/stderr logs available in Dokploy with bounded Docker log rotation and
+disk retention. Correlate errors using non-sensitive request/job identifiers; record
+deployments and migration outcomes with the release. Error tracking is not an audit
+log, uptime monitor, off-host backup or replacement for DB/queue health monitoring.
 
 ## Configure the migration service in each Dokploy
 
@@ -568,6 +649,8 @@ planned work, not a claim that changes have been implemented by this doc update.
   buffers processing; it does not remove the initial durable-write requirement.
 - Complete the off-host restore rehearsal, test phone alerts, verify Cloudflare cache
   isolation and TLS, and run final login/lesson/quiz/payment smoke tests before launch.
+- Complete the approved Sentry integration and synthetic error/alert checks for API,
+  worker and frontend; verify the internal network paths and data-cutover evidence.
 
 ### Changes requiring confirmation before implementation
 
@@ -579,6 +662,9 @@ planned work, not a claim that changes have been implemented by this doc update.
 4. Implement any missing video-original archival, provider portability, playback caps,
    mobile defaults, preload changes and progress throttling.
 5. Design and implement queued exam submissions and any early-opening changes.
+6. Add Sentry error tracking to API/worker and frontend, its build/release metadata,
+   source maps, privacy controls and alert configuration. This is observability work,
+   not authorization to change business behavior.
 
 ## Upgrade path
 
@@ -705,6 +791,13 @@ applied by this documentation. Implementing any phase requires user confirmation
 
 ## One-time stage cutover from the existing DO setup
 
+The intended destination is the separate Hostinger staging installation, not the
+production KVM 4. A KVM 1 is a budget candidate only after verifying the full staging
+stack fits 4 GB with smaller limits; do not copy the production 11 GB service budget.
+If retaining DO staging temporarily, budget for it: powered-off droplets still incur
+charges, and the managed DB remains a separate billable resource. Stopping the apps
+is not a zero-cost staging strategy. See [DO billing](https://docs.digitalocean.com/support/i-dont-recognize-a-charge-on-my-invoice/).
+
 1. Inventory the actual droplets, DB version, migration history, data size, existing
    runtime secrets, DNS, provider callback URLs, queues/DLQs and permissions. Names
    in old scripts are systemd service names, not proof of actual DO resource names.
@@ -723,13 +816,48 @@ applied by this documentation. Implementing any phase requires user confirmation
 7. Smoke-test auth, courses, payment sandbox, callbacks and email/SMS. Run an off-host
    backup and restore rehearsal. Then enable automatic stage deployment and trigger
    the selected successful main build via stage.yml if necessary.
-8. Keep the old infrastructure stopped but available for the agreed rollback window.
+8. Keep the old infrastructure stopped but available for a recorded, bounded rollback window.
    Switching back after new writes needs a data/queue reconciliation plan, not just DNS.
    Retire old resources only after validation and an independent backup. DO documents
    that destroying a database cluster also destroys its associated managed backups.
 
-Production initialization is separate: clean production DB, production credentials,
-full migration history, deliberate admin/reference data setup, then manual deployment.
+### Data selection, validation and retirement
+
+Before cutover, inventory what the DO staging database actually contains and identify
+what must survive: course/reference content, object/video identifiers and any legitimate
+records that cannot be recreated. Record the export snapshot time, source PostgreSQL
+version, migration history, dump object/checksum and the destination database. Encrypt
+the off-host export and retain its recovery credentials outside both servers.
+
+For **stage-to-stage migration**, rehearse a full consistent `pg_dump`/restore of the
+stage DB, including Flyway history, ownership and grants as described above. Validate
+representative row counts, relations, object keys and media-provider references. DB
+dumps do not contain R2/B2 objects, video files or SQS messages: verify those separately
+and keep restore rehearsals away from real outbound side effects. Preserve the existing
+stage identity/environment while changing its host; update internal endpoints and
+verify container connectivity before enabling automated deployment.
+
+For **production initialization**, create a clean DB with production credentials and
+the full migration history. Explicitly select any course/reference content to promote,
+review a reproducible import and validate IDs/relations against the production schema.
+Do not restore the whole stage DB over production or copy test users, refresh tokens,
+sandbox payments, test enrollments, stage queue state or stage secrets by default.
+Review content references to stage buckets/Mux assets and remap deliberately to the
+intended production storage/account. Any import scripts or application changes need
+confirmation before implementation. Deploy production manually after data validation.
+
+For the **old DO staging DB**, record the responsible operator and the rollback-window
+end date. Keep it inaccessible to new writers/consumers after cutover. Retain an
+independent export in R2/B2 and verify a restore without relying on DO's managed backups.
+Once the new stage is validated and the rollback window closes, obtain explicit
+retirement approval before destroying the old DB/droplets and any unused resources.
+Confirm billing afterward; snapshots, volumes or other retained resources can continue
+to incur charges. This runbook does not authorize deleting existing infrastructure.
+
+Do not confuse this stage relocation/selected-content promotion with a later migration
+of a **live production database** to DO managed PostgreSQL. That future move must preserve
+production users, payments, enrollments and progress through the controlled write pause,
+final export/restore, validation and reconciliation in the upgrade plan.
 
 ## Local verification without Docker
 
@@ -764,6 +892,9 @@ the same PostgreSQL version as the deployment target for final release qualifica
 - [Vercel plans and pricing](https://vercel.com/pricing)
 - [Cloudflare Full (strict) origin TLS](https://developers.cloudflare.com/ssl/origin-configuration/ssl-modes/full-strict/)
 - [Mux usage pricing](https://www.mux.com/docs/pricing/overview)
+- [Sentry Spring Boot integration](https://docs.sentry.io/platforms/java/guides/spring-boot/)
+- [Sentry Next.js integration](https://docs.sentry.io/platforms/javascript/guides/nextjs/)
+- [Sentry plans and quotas](https://sentry.io/pricing/)
 - [Flyway migrate](https://documentation.red-gate.com/flyway/reference/commands/migrate)
 
 Pin/test the installed Dokploy version against these API contracts before enabling

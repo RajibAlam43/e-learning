@@ -32,6 +32,18 @@ changes only. Ask for explicit user confirmation before changing application cod
 tests, workflows, deployment configuration or infrastructure to implement the plan.
 Do not describe proposed video/player behavior or queued exams as already implemented.
 
+**Planned observability:** Sentry error tracking for API, worker and Next.js, alongside
+Dokploy metrics/logs and independent phone-alerting uptime/backup checks. SDK setup,
+source maps, DSNs, privacy controls and release tags require confirmation; no Sentry
+integration is currently implemented. See the runbook's Sentry plan.
+
+**Networking/data cutover:** same-host server traffic uses verified Dokploy internal
+service names; browsers/external callbacks use public HTTPS. Worker uses SQS and DB
+directly; Next.js calls API, not DB. Preserve DO stage data through a rehearsed export/
+restore into the separate Hostinger stage; initialize production cleanly and promote
+only explicitly selected content. Record the old DO DB retirement window, retain a
+verified independent backup, and obtain approval before destructive retirement.
+
 **Key Config Files:**
 - Root: `settings.gradle`, `build.gradle`, `docker-compose.yml`
 - App-only runtime: `docker-compose.app-only.yml`

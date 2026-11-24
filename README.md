@@ -27,7 +27,9 @@ keeps staging separate; these future resources are not provisioned by this plan.
 
 Read [the deployment and migration runbook](docs/deployment.md) for infrastructure,
 GitHub configuration, secrets, database permissions, backups, cutover and releases.
-It also covers video portability, load testing and proposed application changes.
+It also covers video portability, load testing, internal/public network paths, staging
+data migration/DO retirement, and the planned Sentry integration for API, worker and
+Next.js. Sentry instrumentation is not implemented yet and requires confirmation.
 The latest hosting revision is documentation only: runtime configuration and code
 changes require user confirmation. The production environment example still contains
 obsolete DO database settings; use the runbook's internal DB settings instead.
