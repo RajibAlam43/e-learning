@@ -1,0 +1,32 @@
+# A dedicated Raw Docker Compose service in Dokploy, separate from API/worker.
+# CI substitutes only these two tokens; credentials remain in Dokploy.
+services:
+  migrate:
+    image: "__MIGRATOR_IMAGE__"
+    restart: "no"
+    labels:
+      com.gii.release: "__RELEASE_ID__"
+    environment:
+      FLYWAY_URL: ${FLYWAY_URL:?Set migration JDBC URL in Dokploy}
+      FLYWAY_USER: ${FLYWAY_USER:?Set migration user in Dokploy}
+      FLYWAY_PASSWORD: ${FLYWAY_PASSWORD:?Set migration password in Dokploy}
+    networks:
+      - database
+    configs:
+      - source: postgres-ca
+        target: /run/secrets/postgres-ca.crt
+    mem_limit: 512m
+    cpus: 1.0
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+networks:
+  database:
+    external: true
+    name: ${MIGRATION_NETWORK:-dokploy-network}
+configs:
+  postgres-ca:
+    # Empty for local stage DB; required for prod's verify-full JDBC connection.
+    # Compose 2.23.1+ supports inline config content.
+    content: ${POSTGRES_CA_CERT:-}

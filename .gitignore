@@ -55,3 +55,7 @@ docker-compose.override.yml
 # =========================
 hs_err_pid*
 replay_pid*
+
+# Python release tooling
+__pycache__/
+*.pyc

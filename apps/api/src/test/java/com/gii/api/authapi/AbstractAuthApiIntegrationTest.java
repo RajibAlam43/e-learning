@@ -29,7 +29,5 @@ abstract class AbstractAuthApiIntegrationTest extends AuthApiTestSupport {
     registry.add("spring.flyway.enabled", () -> "true");
     registry.add("app.jwt.secret", () -> "dGVzdF9zZWNyZXRfdGVzdF9zZWNyZXRfdGVzdF9zZWNyZXRfMTIz");
     registry.add("app.jwt.access-token-expiration-ms", () -> "900000");
-    registry.add("spring.data.redis.host", () -> "localhost");
-    registry.add("spring.data.redis.port", () -> "6379");
   }
 }
