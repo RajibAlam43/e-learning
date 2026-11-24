@@ -67,8 +67,10 @@ Use Node.js 24 and `npm ci` inside `apps/web`; run `npx --no-install next typege
 `npm run check`. Keep npm dependencies, .next output and real environment files ignored.
 Use the frontend directory as Docker build context; the root backend context excludes it.
 
-`build.yml` runs one CI job with conditional backend/frontend steps. Frontend checks
-run once; PRs build stage only, while relevant main builds publish stage then prod
+`build.yml` runs one CI job. Changes to either backend or frontend run both backend
+tests/packaging and frontend type checking, linting and a stage build. Publication
+is limited to changed components. These checks do not establish runtime API compatibility.
+Frontend checks run once; PRs build stage only, while relevant main builds publish stage then prod
 with distinct image tag suffixes and release artifacts. Publishing is main-only;
 frontend-only runs do not publish/deploy backend images. Public Next.js variables are build-time inputs; runtime `API_URL` can
 use the internal API service. Deployments are manual; the backend migration/release

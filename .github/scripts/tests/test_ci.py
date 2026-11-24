@@ -13,18 +13,27 @@ spec.loader.exec_module(ci)
 class CiSelectionTests(unittest.TestCase):
     def test_frontend_pr_checks_without_publishing(self):
         self.assertEqual(ci.selection("pull_request", "refs/pull/115/merge", ["apps/web/src/app.ts"]), {
-            "backend": False, "web": True, "publish_backend": False, "publish_web": False,
+            "backend": True, "web": True, "publish_backend": False, "publish_web": False,
         })
 
     def test_main_frontend_push_does_not_publish_backend(self):
         self.assertEqual(ci.selection("push", "refs/heads/main", ["apps/web/package.json"]), {
-            "backend": False, "web": True, "publish_backend": False, "publish_web": True,
+            "backend": True, "web": True, "publish_backend": False, "publish_web": True,
         })
 
-    def test_backend_main_push(self):
+    def test_backend_main_push_checks_frontend_without_republishing_it(self):
         self.assertEqual(ci.selection("push", "refs/heads/main", ["apps/api/build.gradle"]), {
-            "backend": True, "web": False, "publish_backend": True, "publish_web": False,
+            "backend": True, "web": True, "publish_backend": True, "publish_web": False,
         })
+
+    def test_backend_pr_checks_both_without_publication(self):
+        self.assertEqual(ci.selection("pull_request", "refs/pull/115/merge", ["apps/api/src/controller.java"]), {
+            "backend": True, "web": True, "publish_backend": False, "publish_web": False,
+        })
+
+    def test_combined_main_push_checks_and_publishes_both(self):
+        paths = ["apps/api/build.gradle", "apps/web/package.json"]
+        self.assertTrue(all(ci.selection("push", "refs/heads/main", paths).values()))
 
     def test_shared_workflow_checks_both(self):
         self.assertEqual(ci.components([".github/workflows/build.yml"]), (True, True))

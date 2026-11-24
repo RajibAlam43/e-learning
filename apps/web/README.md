@@ -38,7 +38,8 @@ tasks at the repository root.
 
 ## Docker and GHCR
 
-The single CI job in `.github/workflows/build.yml` checks affected components.
+The single CI job in `.github/workflows/build.yml` checks both backend and frontend
+whenever either changes.
 Frontend dependencies, type checking and linting run once. PRs build the stage
 variant without publishing. Relevant `main` pushes or a manual run from `main`
 build and publish stage, then production, using distinct tag suffixes. Each image
@@ -68,8 +69,13 @@ image cannot become a production image just by changing runtime environment valu
 Qualify both variants and record the frontend/backend versions together. The backend
 release manifest is unchanged and does not include the frontend artifact.
 
-Backend steps are skipped for frontend-only changes. Backend image publication and
-stage deployment do not run on frontend-only `main` pushes. Require the single
+Changes to either component run backend tests/packaging plus frontend type checking,
+linting and a stage build. Only changed components' images are published on main.
+Frontend checks use the committed OpenAPI
+types and do not establish runtime compatibility with the current backend. There is
+currently no browser end-to-end suite or CI regeneration of those API types.
+Backend image publication and stage deployment do not run on frontend-only `main`
+pushes. Require the single
 `CI / build` check in branch protection and remove obsolete frontend matrix checks
 if configured. The CI job also completes for documentation-only PRs.
 

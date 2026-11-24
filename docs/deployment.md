@@ -110,8 +110,12 @@ or implementation is tracked under [Launch readiness](#launch-readiness-and-app-
   `web-stage-release` / `web-prod-release` artifacts with immutable digests.
   Frontend deployment remains manual.
 
-CI selects backend/frontend steps from changed paths; shared CI changes and manual
-runs check both. Documentation-only runs complete without building images.
+Changes to either backend or frontend run both backend tests/packaging and frontend
+type checking, linting and a stage build. Images are published only for changed
+components. Shared CI changes and manual runs check both. Frontend checks use committed OpenAPI types;
+there is no CI regeneration from the current backend or browser end-to-end suite,
+so a passing build does not establish runtime API compatibility.
+Documentation-only runs complete without building images.
 Frontend-only main runs skip backend publication and automatic backend stage
 deployment. Backend and frontend release manifests stay separate; for combined
 releases, qualify both and record their image digests/commits together. A failed CI

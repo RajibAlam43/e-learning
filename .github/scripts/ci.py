@@ -46,7 +46,9 @@ def selection(event_name, ref, paths):
     backend, web = (True, True) if paths is None else components(paths)
     publish = ref == "refs/heads/main" and event_name in {"push", "workflow_dispatch"}
     return {
-        "backend": backend, "web": web,
+        # Either component changing runs both sets of checks. Publication still
+        # uses changed components so unchanged images are not republished.
+        "backend": backend or web, "web": backend or web,
         "publish_backend": backend and publish, "publish_web": web and publish,
     }
 

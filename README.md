@@ -70,6 +70,7 @@ and local-only authentication settings; it must not be used as a stage/prod temp
 Configure real integration credentials if exercising external providers locally.
 Stage uses Dokploy's separate Database/API/Worker services. Production Dokploy runs
 API/Worker/Next.js and connects to DO managed PostgreSQL. A single CI job in
-`.github/workflows/build.yml` checks affected components and publishes images only
-from `main`. Backend and frontend retain separate release artifacts; frontend-only
+`.github/workflows/build.yml` runs both backend and frontend checks/builds when
+either changes, while publishing images only for changed components from `main`.
+Backend and frontend retain separate release artifacts; frontend-only
 runs do not deploy the backend. Production and frontend deployments remain manual.
