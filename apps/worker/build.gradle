@@ -20,7 +20,7 @@ dependencies {
 
     // SQS
     implementation enforcedPlatform("software.amazon.awssdk:bom:${rootProject.awsSdkVersion}")
-    implementation 'io.awspring.cloud:spring-cloud-aws-starter-sqs:4.1.0'
+    implementation 'io.awspring.cloud:spring-cloud-aws-starter-sqs:4.2.2'
     implementation 'io.awspring.cloud:spring-cloud-aws-starter:4.1.0'
 
     // POSTGRESQL
