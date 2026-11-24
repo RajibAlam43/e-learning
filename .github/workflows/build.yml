@@ -103,7 +103,7 @@ jobs:
       - name: Publish API
         id: api
         if: steps.changes.outputs.publish_backend == 'true'
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: apps/api/Dockerfile
@@ -119,7 +119,7 @@ jobs:
       - name: Publish worker
         id: worker
         if: steps.changes.outputs.publish_backend == 'true'
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: apps/worker/Dockerfile
@@ -135,7 +135,7 @@ jobs:
       - name: Publish migrator
         id: migrator
         if: steps.changes.outputs.publish_backend == 'true'
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: deploy/migrator/Dockerfile
@@ -175,7 +175,7 @@ jobs:
       - name: Publish stage frontend
         id: web_stage
         if: steps.changes.outputs.publish_web == 'true'
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           # Package this environment before the next build replaces .next.
           context: apps/web
@@ -234,7 +234,7 @@ jobs:
       - name: Publish prod frontend
         id: web_prod
         if: steps.changes.outputs.publish_web == 'true'
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           # Package this environment before the next build replaces .next.
           context: apps/web
