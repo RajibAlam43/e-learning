@@ -67,7 +67,7 @@ jobs:
           if [ -n "$SONAR_TOKEN" ]; then
             ./gradlew sonar -Dsonar.host.url=https://sonarcloud.io -Dsonar.token="$SONAR_TOKEN"
           fi
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         if: steps.changes.outputs.web == 'true'
         with:
           node-version: 24
