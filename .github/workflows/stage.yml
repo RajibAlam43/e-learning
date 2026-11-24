@@ -2,7 +2,7 @@ name: Deploy Stage with Dokploy
 
 on:
   workflow_run:
-    workflows: [Build and Publish Images]
+    workflows: [CI]
     types: [completed]
     branches: [main]
   workflow_dispatch:
@@ -57,6 +57,18 @@ jobs:
                 !['push', 'workflow_dispatch'].includes(run.event)) {
               throw new Error('Only successful main image builds may deploy');
             }
+            const artifacts = await github.paginate(github.rest.actions.listWorkflowRunArtifacts, {
+              ...context.repo, run_id: run.id, per_page: 100
+            });
+            const manifests = artifacts.filter(artifact => artifact.name === 'release-manifest');
+            if (manifests.length === 0 && context.eventName === 'workflow_run') {
+              core.info('No backend release in this CI run; skipping backend deployment.');
+              core.setOutput('deploy_backend', 'false');
+              return;
+            }
+            if (manifests.length !== 1 || manifests[0].expired) {
+              throw new Error('A single unexpired backend release-manifest is required');
+            }
             // workflow_run scheduling can reorder completed builds. Do not auto-deploy stale code.
             if (context.eventName === 'workflow_run') {
               const {data: branch} = await github.rest.repos.getBranch({...context.repo, branch: 'main'});
@@ -64,13 +76,16 @@ jobs:
             }
             core.setOutput('run_id', String(run.id));
             core.setOutput('sha', run.head_sha);
+            core.setOutput('deploy_backend', 'true');
       - uses: actions/download-artifact@v4
+        if: steps.source.outputs.deploy_backend == 'true'
         with:
           name: release-manifest
           path: release-input
           run-id: ${{ steps.source.outputs.run_id }}
           github-token: ${{ github.token }}
       - name: Migrate, deploy, and verify stage through Dokploy
+        if: steps.source.outputs.deploy_backend == 'true'
         env:
           EXPECTED_BUILD_RUN_ID: ${{ steps.source.outputs.run_id }}
           EXPECTED_SOURCE_SHA: ${{ steps.source.outputs.sha }}
@@ -81,6 +96,7 @@ jobs:
           DOKPLOY_MIGRATION_COMPOSE_ID: ${{ vars.DOKPLOY_MIGRATION_COMPOSE_ID }}
         run: python3 .github/scripts/release.py stage --manifest release-input/release.json --output staged-release
       - name: Publish tested release for manual production deployment
+        if: steps.source.outputs.deploy_backend == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: staged-release

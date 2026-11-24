@@ -5,11 +5,12 @@
 | Environment | Services | Database operator |
 | --- | --- | --- |
 | Stage | One Hostinger VPS: Dokploy, API, worker, PostgreSQL, migration job; optional frontend | You, through Dokploy |
-| Prod | One Hostinger KVM 4: Dokploy, PostgreSQL, API, Next.js, worker and one-off migration job | You, through Dokploy; self-hosted PostgreSQL |
+| Prod | Singapore Hostinger KVM 4: Dokploy, API, Next.js, worker and one-off migration job; Singapore DO managed PostgreSQL | DigitalOcean operates production PostgreSQL |
 
-The production launch decision supersedes the earlier immediate DO deployment plan.
-DigitalOcean remains a [future production option](#future-digitalocean-production-plan),
-including a separate frontend droplet or Vercel Pro.
+The 2026-11-24 production decision supersedes the all-in-one self-hosted production
+DB plan: application compute stays on Hostinger Singapore, and PostgreSQL is managed
+by DO in Singapore from launch. Moving compute to DO remains a
+[future option](#future-digitalocean-production-plan), including a frontend droplet or Vercel Pro.
 The production KVM 4 has 4 shared vCPUs, 16 GB RAM and 200 GB disk. Keep the previously
 planned staging installation separate; the production resource budget below does
 not include a staging stack. Do not put staging on the production host by default.
@@ -20,12 +21,20 @@ independent configuration records for the same application. API, worker and fron
 share their environment's dashboard; production needs no remote deployment server
 or multi-host Swarm cluster at launch.
 
-Database, API, worker, frontend and migration are separate service entries. Routine API/worker
-deployments never recreate PostgreSQL. The migrator is a one-off container; it is
-not a database. PostgreSQL is a native Dokploy Database service with a persistent
-volume and internal networking only. Never publish its port on the host. A shared
-project does not automatically create networking or dependencies. AWS SQS, SES,
-Mux and off-host object storage remain external services.
+API, worker, frontend and migration are separate service entries; stage's database
+has its own entry too. Routine API/worker deployments never recreate PostgreSQL.
+The migrator is a one-off container; it is
+not a database. Stage PostgreSQL is a native Dokploy Database service with a persistent
+volume and no published port. Production has no application PostgreSQL container on
+the KVM 4: it connects to DO's public DB endpoint using verified TLS and trusted-source
+restrictions. Dokploy's own control-plane data services remain on the VPS. A shared
+project does not automatically create networking or dependencies. AWS SQS, SES, Mux
+and off-host object storage remain external services.
+
+The user measured approximately **1.5 ms average latency** from Hostinger Singapore
+to DO managed PostgreSQL Singapore. This is a user-reported measurement, not reproduced
+by this change or an availability/tail-latency guarantee. Record the measurement method
+and confirm pooled TLS query latency and p95/p99 API behavior under representative load.
 
 Builds and application images use Linux amd64. Provision x86-64 VPSs; add/test
 multi-platform builds before selecting ARM hosts.
@@ -34,14 +43,14 @@ multi-platform builds before selecting ARM hosts.
 
 | Service | Container memory limit | CPU limit |
 | --- | --- | --- |
-| PostgreSQL | 4 GB | Tune after load testing; no fixed cap decided |
+| Production PostgreSQL | External DO managed plan; no VPS memory allocation | Provider-managed |
 | Spring Boot API | 3 GB | Tune after load testing; no fixed cap decided |
 | Next.js | 2 GB | 1.5 vCPU |
 | Worker | 2 GB | 1 vCPU |
 | Migrator | 512 MB, temporary | 1 vCPU, temporary |
 
-The four steady-state application/database limits total 11 GB. Leave the remaining
-nominal 5 GB for Linux, Dokploy and its own services, Traefik, filesystem cache,
+The three steady-state application limits total 7 GB. Leave the remaining
+nominal 9 GB for Linux, Dokploy and its own services, Traefik, filesystem cache,
 backups and transient migration/deployment overlap. This is a starting budget, not
 a capacity guarantee. Limits are ceilings, not reservations; CPU caps do not reserve
 cores. Benchmark overlapping work on the four shared vCPUs. Avoid overlapping
@@ -52,8 +61,10 @@ them. Keep Java heap below the full container limit to allow native memory, thre
 stacks and buffers. GitHub Actions builds images; do not compile Java or Next.js on
 the production VPS during normal releases.
 
-This is a single point of failure for API, frontend, worker, database and deployment
-control. Cloudflare cannot keep dynamic requests working when the origin is down.
+The VPS is a single point of failure for API, frontend, worker and deployment control;
+its failure no longer implies losing the production DB. DO database availability/HA
+depends on the selected plan. Cloudflare cannot serve live dynamic requests when the
+application origin is down. Cross-provider routing remains an external dependency.
 Shared vCPU performance can vary. Hostinger's introductory pricing requires prepayment
 and renews at a higher rate; track the actual purchased term and renewal amount.
 The accepted disaster data-loss target is up to one hour, subject to successful
@@ -61,25 +72,29 @@ off-host backups. Recovery time is measured in the restore rehearsal, not guaran
 
 ### Documentation scope and implementation status
 
-This revision records the approved hosting and operating plan. It does not apply
-Dokploy settings, change application code, edit workflows or deployment configuration,
-or implement frontend behavior. Obtain explicit user confirmation before code or
-configuration changes. Existing uncommitted implementation work predates this revision.
+The hosting plan records intended infrastructure; it does not provision Dokploy or
+change running services. A later explicit request authorized copying the frontend
+into `apps/web` and adding its Docker/GHCR publishing workflow. Other planned
+application/configuration/infrastructure work still requires confirmation. The import
+preserves existing frontend business behavior; no Sentry/video/exam changes were added.
 
-In particular, `deploy/env/production-overrides.env.example` still describes the old
-DO managed endpoint and CA. Do not copy those DB values for this topology; use the
-internal connection settings below. The backend workflow publishes API, worker and
-migrator images only; Next.js image publication and release coordination remain a
-frontend-repository task pending approval. Application work still needing verification
+In particular, `deploy/env/production-overrides.env.example` still uses a DO **private**
+endpoint placeholder. Hostinger must use the managed cluster's **public** endpoint,
+with the verified TLS/CA settings below. Correcting that configuration file remains
+pending confirmation. A single CI job in `build.yml` publishes API, worker,
+migrator and Next.js stage/prod image variants for affected components.
+Frontend deployment stays manual. Application work needing verification
 or implementation is tracked under [Launch readiness](#launch-readiness-and-app-level-practices).
 
 ## What is implemented
 
-- `build.yml`: PR checks; tests, SDK alignment and jar packaging on `main`; publishes
-  API, worker and migrator images to GHCR after these gates succeed. Formatting and
+- `build.yml` (CI): one job with conditional backend/frontend steps on PRs, main
+  pushes and manual runs. Backend tests, SDK alignment and jar packaging are blocking;
+  image publication is restricted to main. Formatting and
   Checkstyle run as reports because the repository has pre-existing violations and
   the previous pipeline did not block on them. No production secrets.
-- `stage.yml`: after a successful main build, obtains its manifest and calls only
+- `stage.yml`: after a successful main CI run containing a backend release manifest,
+  obtains that manifest and calls only
   staging Dokploy over HTTPS. It runs migration first, checks actual container exit
   code 0, then updates API and worker digests and waits for Docker health checks.
 - Every image reference in `release.json` is digest-pinned. Unique tags are for
@@ -89,6 +104,22 @@ or implementation is tracked under [Launch readiness](#launch-readiness-and-app-
 - Production is manual in Dokploy. There is no production Actions job, webhook,
   API key, SSH connection, or deploy trigger in these workflows.
 - Redis dependencies/configuration are removed. Refresh tokens already use Postgres.
+- Frontend steps in `build.yml` install dependencies and run type checking/linting
+  once. PRs build stage without publishing. Relevant main runs build and publish
+  stage then prod as Linux amd64 images with distinct tag suffixes. They record
+  `web-stage-release` / `web-prod-release` artifacts with immutable digests.
+  Frontend deployment remains manual.
+
+Changes to either backend or frontend run both backend tests/packaging and frontend
+type checking, linting and a stage build. Images are published only for changed
+components. Shared CI changes and manual runs check both. Frontend checks use committed OpenAPI types;
+there is no CI regeneration from the current backend or browser end-to-end suite,
+so a passing build does not establish runtime API compatibility.
+Documentation-only runs complete without building images.
+Frontend-only main runs skip backend publication and automatic backend stage
+deployment. Backend and frontend release manifests stay separate; for combined
+releases, qualify both and record their image digests/commits together. A failed CI
+run cannot trigger staging deployment, even if some images were already published.
 
 Stage automation starts disabled. Set repository variable `STAGE_AUTO_DEPLOY_ENABLED`
 to `true` only after completing setup and the controlled data cutover below. Keeping
@@ -96,8 +127,9 @@ this switch off still permits builds/image publication without touching hosts.
 
 ## Provisioning: no custom host bootstrap scripts
 
-1. Provision a fresh production Hostinger KVM 4 and use its Dokploy template or the
-   official Dokploy installer. Keep stage on its own installation. Dokploy performs
+1. Provision a fresh production Hostinger KVM 4 in Singapore and a separate DO managed
+   PostgreSQL cluster in Singapore. Use the VPS Dokploy template or official installer.
+   Keep stage on its own installation. Dokploy performs
    its own host setup; no project-specific bootstrap script is required.
 2. Use separate dashboard domains, HTTPS, strong login protection/2FA, and SSH keys.
    Restrict dashboard and SSH access using provider firewalls/VPN as appropriate.
@@ -107,10 +139,13 @@ this switch off still permits builds/image publication without touching hosts.
 3. Expose API and Next.js HTTP/HTTPS through Traefik only. Do not publish PostgreSQL,
    Docker API, worker port 8080 or extra API/frontend host ports. Docker-published ports can bypass UFW;
    review provider firewall rules and external reachability explicitly.
-4. Attach API, worker and migrator to the database's internal Docker network. Keep
-   PostgreSQL's external-port field empty. Verify port 5432 is unreachable externally
-   and there is no published host binding. Admin access uses Dokploy's terminal or
-   an authenticated SSH tunnel, never a temporary public database port.
+4. For stage, attach API/worker/migrator to the DB's internal Docker network and keep
+   its external-port field empty; verify no host port is published. For production,
+   allowlist the Hostinger server's actual outbound public IP in DO trusted sources,
+   verify DNS/TLS to the public managed endpoint and mount the required CA read-only.
+   Do not expose an unrestricted DB endpoint or assume Singapore location provides
+   a shared private network between providers. Admin connections use authorized TLS
+   clients; production app services never receive DB admin credentials.
 5. Choose and pin one supported PostgreSQL major version for both environments.
    Local Compose and Testcontainers default to PostgreSQL 18. Set repository variable
    `ELEARNING_TEST_POSTGRES_IMAGE` (e.g. `postgres:18-alpine`) and align local Compose
@@ -149,7 +184,8 @@ environment where possible. Preserve release digests while they are deployed or
 eligible for rollback; Actions artifact retention is 90 days, so archive production
 release manifests outside Actions before expiry if needed for long-term history.
 
-Protect `main` and require Build and Publish Images before merging. The deployment
+Protect `main` and require `CI / build` before merging. Replace any old frontend
+matrix checks in branch protection with this single check. The deployment
 workflow accepts only successful main build artifacts from this repository; it does
 not execute tooling from a PR or artifact. Automatic releases refuse superseded main
 commits; retry a specific successful build manually when needed.
@@ -197,26 +233,28 @@ on tables owned by a different role.
 
 ### Production
 
-Create a native PostgreSQL Database service in production Dokploy with the same
-version/network/persistence discipline as stage, a 4 GB memory limit and **no external
-port**. Create a **clean** `gii_prod_db` and distinct `gii_prod_migration`, `gii_prod_api`
-and `gii_prod_worker` roles. Apply the permissions SQL with production identifiers.
+Create a **clean** `gii_prod_db` on DO managed PostgreSQL in Singapore and distinct
+`gii_prod_migration`, `gii_prod_api` and `gii_prod_worker` roles. Do not create an
+application PostgreSQL service on production Dokploy or apply the old 4 GB DB cap.
+Verify the managed version, extensions and role permissions before applying the
+permissions SQL with production identifiers through an authorized admin TLS client.
 Do not repurpose the old stage database or import stage test accounts/payments.
 Keep database admin credentials outside runtime services.
 
-Use the actual internal service hostname and port, for example:
+Use the actual DO public hostname/port and CA requirements, for example for a cluster
+requiring a downloaded CA mounted at `/run/secrets/postgres-ca.crt`:
 
 ```text
-SPRING_DATASOURCE_URL=jdbc:postgresql://PROD_POSTGRES_INTERNAL_HOST:5432/gii_prod_db
-FLYWAY_URL=jdbc:postgresql://PROD_POSTGRES_INTERNAL_HOST:5432/gii_prod_db
+SPRING_DATASOURCE_URL=jdbc:postgresql://DO_PUBLIC_HOST:25060/gii_prod_db?sslmode=verify-full&sslrootcert=/run/secrets/postgres-ca.crt
+FLYWAY_URL=jdbc:postgresql://DO_PUBLIC_HOST:25060/gii_prod_db?sslmode=verify-full&sslrootcert=/run/secrets/postgres-ca.crt
 ```
 
 Set `SPRING_DATASOURCE_USERNAME`/`SPRING_DATASOURCE_PASSWORD` separately for API and
-worker. Supply migration credentials only to the migrator. The example assumes a
-same-host non-TLS internal database connection, like stage; do not reuse that
-assumption for an external or managed DB. No DO CA is required for this topology.
-Set `POSTGRES_CA_CERT` empty for the migration template when internal TLS is not used.
-Never reuse these internal-only URLs over the public internet.
+worker. Supply migration credentials only to the migrator. Mount the required CA
+read-only in API/worker and set the migrator's `POSTGRES_CA_CERT` to its PEM value.
+Verify the actual cluster's port and certificate requirements rather than assuming
+this example applies to every DO edition. Restrict trusted sources to the required
+egress/recovery clients. Never disable server identity verification to fix connectivity.
 
 ### Runtime services
 
@@ -224,8 +262,8 @@ Create API and worker as Dokploy **Applications → Docker source** on their env
 local host. Configure registry credentials before the first deployment. Use
 `deploy/env/api.env.example` and `worker.env.example` as stage checklists. Fill every
 placeholder; use `production-overrides.env.example` as a per-service production
-checklist for non-database values only; its DO-specific database values are obsolete
-for this plan. It is not one combined environment to share between services.
+checklist, replacing its private DB host placeholder with the actual public managed
+endpoint and matching CA settings. It is not one combined environment to share between services.
 
 Preserve multiline PEM/CA values using Dokploy's quoted multiline syntax. Verify
 private-key parsing and SSL connections before cutover. Keep environment secrets at
@@ -249,16 +287,22 @@ CORS, OAuth redirects, webhooks and provider allowlists against the final domain
 ### Next.js frontend
 
 Run Next.js as a separate Dokploy application on the production host with a 2 GB
-memory limit and 1.5 vCPU cap. The existing Vercel staging site uses Next.js with
-server-side behavior; treat it as requiring a runtime until the frontend source/build
-is checked. Use a versioned, prebuilt frontend image from its own approved pipeline,
-and record its digest beside the backend release. This backend repository does not
-build or deploy that frontend image today.
+memory limit and 1.5 vCPU cap. Its Next.js App Router source now lives in `apps/web`,
+copied from the frontend repository without business/UI changes. Standalone output
+supports the container runtime. Use the stage/prod image from the independent
+`build.yml` CI job and record its digest beside the backend release. See
+[the frontend guide](../apps/web/README.md) for import provenance, local verification,
+repository build variables, image tags and artifacts. This import does not change
+the existing Vercel site or configure Dokploy remotely.
 
 Configure the frontend domain through Traefik, its real container port, health check,
 production API URL, cookie/auth behavior and runtime/build-time environment separately.
 Anything embedded as `NEXT_PUBLIC_*` is public and may require rebuilding the image
-when changed. Server-side calls can use the internal API address where compatible;
+when changed. Public URLs/Google ID and image-host allowlists are compiled into the
+stage/prod variants; changing runtime variables cannot promote one variant into the
+other. Supply any non-default `WEB_STAGE_*` / `WEB_PROD_*` repository variables before
+building, and validate Google login when used. Runtime `API_URL` remains server-only.
+Server-side calls can use the internal API address where compatible;
 browser requests must use the public HTTPS API hostname. Align frontend/backend
 versions and drain gracefully during updates. Verify the Next.js multi-instance cache
 and Server Action requirements before later adding replicas.
@@ -279,9 +323,9 @@ verify resolution/connectivity from inside its running container.
 | Caller | Destination | Connection |
 | --- | --- | --- |
 | Next.js server runtime | API | Internal HTTP service address, e.g. `http://API_INTERNAL_HOST:8080`, where auth/routing permit |
-| API | PostgreSQL | Internal JDBC service address, e.g. `jdbc:postgresql://POSTGRES_INTERNAL_HOST:5432/gii_prod_db` |
-| Worker | PostgreSQL | Internal JDBC service address with the separate worker DB role |
-| Migrator | PostgreSQL | Internal JDBC service address with the migration role; run once per release |
+| API | PostgreSQL | Prod: DO public managed JDBC endpoint with verified TLS/IP allowlist; stage: internal DB service |
+| Worker | PostgreSQL | Same environment-specific endpoint; separate worker DB role |
+| Migrator | PostgreSQL | Same environment-specific endpoint; migration role and one run per release |
 | Browser | Frontend and API | Public HTTPS hostnames; Docker service names are not browser-resolvable |
 | Payment/OAuth/webhook provider | API callback | Public HTTPS hostname with the expected externally registered URL |
 | API/worker | AWS SQS/SES and other external providers | Provider endpoints; these do not become local Docker services |
@@ -292,8 +336,9 @@ than connecting directly to PostgreSQL. Keep public and server-only API base URL
 separate; do not embed a Docker hostname in `NEXT_PUBLIC_*`. On a later Vercel move,
 server-side requests must use the public API because Vercel is outside this network.
 
-Do not use `localhost` for another container or route local DB traffic through the
-public domain. Keep DB/worker ports unpublished; frontend/API ingress goes through
+Do not use `localhost` for another container. Stage DB traffic stays internal;
+production DB traffic intentionally crosses to DO over its TLS public endpoint.
+Keep stage DB/worker ports unpublished; frontend/API ingress goes through
 Traefik. Prefer network membership limited to the clients that need it, and do not
 assume a network named `dokploy-network` isolates every project from every other
 project. Verify the migrator's external network is attachable as required by Compose.
@@ -388,16 +433,17 @@ image; it does not build source on the host.
 
 Set service-scoped environment from `deploy/env/migrator.env.example`. Set production
 values from the production checklist instead. `FLYWAY_URL` must use the migration
-user's target DB, not application credentials. For the production internal DB use:
+user's target DB, not application credentials. For the production managed DB use:
 
 ```text
-jdbc:postgresql://PROD_POSTGRES_INTERNAL_HOST:5432/gii_prod_db
+jdbc:postgresql://DO_PUBLIC_HOST:25060/gii_prod_db?sslmode=verify-full&sslrootcert=/run/secrets/postgres-ca.crt
 ```
 
 The Compose template supports a CA file using inline configs (requires Docker Compose
-2.23.1+); both environments leave `POSTGRES_CA_CERT` empty for their internal non-TLS DB.
-If the database later moves to a managed provider, configure verified TLS and its
-required CA in all clients before cutover.
+2.23.1+). Stage can leave `POSTGRES_CA_CERT` empty for its internal non-TLS DB;
+production supplies the managed cluster CA. In stage, `MIGRATION_NETWORK` attaches
+to the internal DB network; in production, use an existing app-host network with
+working DNS/internet egress. It does not make the external DO DB a local Docker service.
 Keep **Create .env file** enabled, **Randomize** and **Isolated Deployment** disabled,
 no public domains/ports, and no independent auto-deploy trigger. Do not add app/DB
 containers to this dedicated Compose definition. It has `restart: "no"`.
@@ -460,9 +506,12 @@ cancelled or times out, inspect Dokploy: a remote job may continue running.
 5. Set API's Docker image to the artifact's API digest and deploy; wait for healthy.
    Set worker's image to its worker digest and deploy; wait for healthy. Keep registry
    credentials intact. Do not rebuild images or substitute mutable tags.
-6. When the frontend changes, manually deploy its compatible, separately qualified
-   image digest in Dokploy too. It is not included in the backend staged-release
-   artifact. Record the frontend/backend pair and verify each rollout fits host RAM.
+6. When the frontend changes, download `web-prod-release` from a successful frontend
+   build and manually deploy its compatible, qualified digest in Dokploy too. Confirm
+   that commit's stage variant was tested and production public settings are correct.
+   It is not included in the backend staged-release artifact. Record both versions
+   and verify each rollout fits host RAM. Frontend-only releases need no Flyway job
+   or backend rollout; use the current compatible backend schema/version.
 7. Check login/refresh/logout, course reads, email/SMS queue processing, enrollment and
    payment flows/provider callbacks. Watch queue age, DLQs, errors and DB connections.
 8. Record digests, schema version, operator and time in your release log. Keep previous
@@ -495,13 +544,24 @@ them. Prefer a forward fix when data compatibility is uncertain.
 
 ## Backups, restore and PostgreSQL maintenance
 
-### Hourly off-host production backups
+### Managed production backups and independent exports
 
-Configure Dokploy's native PostgreSQL database backups on an hourly schedule
-(`0 * * * *`, verify the scheduler's timezone). Upload `pg_dump` backups to Cloudflare
-R2 or Backblaze B2 using a tested S3-compatible destination outside Hostinger. Use
-separate bucket prefixes and credentials for production backups, stage backups and
-original video assets. Do not rely on a copy on the VPS or Hostinger snapshots alone.
+Use DO's managed PostgreSQL backups/recovery and verify the purchased cluster's
+actual retention, recovery point, standby/HA settings and restore process before launch.
+Test a restore into an isolated cluster; managed recovery creates a new cluster and
+requires validating/reconnecting clients. Do not assume every managed plan provides
+the same HA or recovery guarantees. Restoring an older state requires reconciling
+payment events and queued jobs before processing resumes.
+
+Retain the prior **up-to-one-hour disaster data-loss target** for independent recovery
+unless explicitly revised. Plan hourly logical `pg_dump` exports from the managed DB
+to R2 or B2 outside both application hosting and the DB provider. This requires a
+separately approved/tested external-DB backup job (for example, a scheduled backup
+container managed through Dokploy), verified TLS, scoped DB/bucket credentials and
+working DO trusted sources. Dokploy's native backup for a local PostgreSQL Database
+service does not automatically cover the external production cluster. That job has
+not been implemented or configured by this change. Use separate prefixes/credentials
+for production backups, stage backups and video originals.
 
 Run a manual backup and verify the uploaded object, then verify at least one scheduled
 run. Set an explicit retention policy; a starting point is 168 hourly copies (seven
@@ -519,8 +579,9 @@ unattainable, shorten the interval or revisit the backup design. These are logic
 snapshots, not continuous WAL archiving/PITR. Take an additional backup before risky
 migrations and verify it completed.
 
-Stage remains separate: choose and document its retention/recovery window and test
-off-host backup/restore independently. Its backup credentials must not access prod.
+Stage remains separate: configure its native Dokploy PostgreSQL off-host backups and
+document its retention/recovery window. Test independently; stage backup credentials
+must not access prod. Hostinger snapshots alone do not cover the external production DB.
 
 Dokploy's documented PostgreSQL dump excludes owners and grants. Recreate roles,
 restore application objects under the migration owner, then reapply permissions and
@@ -532,26 +593,33 @@ and on a schedule; its configuration backup does not replace this application DB
 Retain image digests, PostgreSQL/Dokploy versions, secret recovery access, DNS details
 and original video inventory outside the VPS too.
 
-### Disaster recovery onto another VPS
+### Application-host failure versus database recovery
 
-Before launch, perform **one full restore rehearsal onto a separate VPS** (a DO
-droplet or Hostinger in another region is acceptable). Do not overwrite production
-to rehearse. Recovery must work without access to the original VPS.
+Before launch, rehearse rebuilding application hosting on a separate VPS and restoring
+a database copy in isolation. A DO droplet or Hostinger in another region is acceptable
+for replacement compute. Do not overwrite production to rehearse. Recovery must work
+without access to the original Hostinger VPS.
 
-1. Declare the incident, record the last usable backup snapshot and pause releases.
+1. Declare the incident and determine whether only compute or also the DB is affected.
+   If DO PostgreSQL is healthy, keep the live DB intact: replacing the VPS requires
+   reconnecting to it, not restoring an older dump and discarding valid transactions.
+   For DB recovery, record the selected backup/PITR point and pause writes/releases.
    Isolate/fence the old host if reachable. Keep replacement workers stopped and
    prevent competing writers if the old server later returns.
 2. Provision an adequately sized x86-64 VPS with persistent disk and install the
    recorded compatible Dokploy version. Restore its configuration or recreate the
    documented services. Restored services must not start processing real jobs/writes
    before their database and secrets are verified.
-3. Recover the latest verified DB dump from R2/B2. Create matching PostgreSQL, required
-   extensions and roles on an internal-only network. Restore with the migration role
-   owning application objects; reapply `deploy/db/permissions.sql`. Preserve migration
-   history. Use the recorded compatible PostgreSQL version and restore tooling.
-4. Deploy the API, worker and frontend digests recorded for that backup/schema,
+3. For a host-only failure, allowlist the replacement host egress IP and verify TLS
+   to the existing DB. For DB loss, restore a new managed cluster using DO recovery
+   or restore the latest verified independent dump to an appropriate PostgreSQL host.
+   A temporary self-hosted fallback needs additional memory/disk beyond the application
+   budget and an internal-only DB port. Verify extensions, roles, migration ownership,
+   grants and `flyway_schema_history`; use compatible PostgreSQL/restore tooling.
+4. Deploy the API, worker and frontend digests compatible with the live/recovered schema,
    configure secrets, networks and limits, and check Flyway history/schema validation.
-   Do not automatically run newer migrations or deploy `latest` during recovery.
+   Supply the actual DB endpoint/CA and keep the migrator stopped unless a deliberate
+   schema upgrade is needed. Do not deploy `latest` during recovery.
 5. Validate representative accounts, enrollments, lesson progress, quiz attempts and
    payments. Test application-role access and migration ownership. Rehearsals use
    isolated queues and sandbox/disabled external side effects, never production jobs,
@@ -572,8 +640,9 @@ to rehearse. Recovery must work without access to the original VPS.
 Record the rehearsal date, backup object/snapshot, versions/digests, elapsed recovery
 time, ownership checks and smoke-test results. Production launch requires a passing
 restore and a tested notification. Repeat after material backup/version changes.
-Recovery duration includes VPS provisioning, download, restore, validation and DNS
-transition; it is not an instant failover. Full DB restore is not routine app rollback.
+Recovery duration includes provisioning, any required restore, validation and DNS
+transition; it is not an instant failover. Full DB restore is not routine app rollback
+or a required step for an application-host replacement with a healthy managed DB.
 
 Pin PostgreSQL versions. Plan minor updates/restarts and test major upgrades separately;
 changing a container major tag is not a data migration. Persistent storage protects
@@ -618,10 +687,11 @@ to be verified or implemented with approval.
 The following is the launch checklist. Entries describe required verification or
 planned work, not a claim that changes have been implemented by this doc update.
 
-- Apply and inspect all container resource limits. Tune PostgreSQL memory per query/
-  connection as well as its 4 GB container ceiling; the ceiling is not a PostgreSQL
-  tuning configuration. Confirm disk headroom for DB growth, logs and backup scratch
-  files. Verify graceful shutdown and available rollout headroom.
+- Apply and inspect all application container limits and the managed DB's selected
+  plan/settings; no production application DB runs inside the VPS budget. For stage,
+  tune its local PostgreSQL memory/connections against its own smaller host budget.
+  Confirm VPS disk headroom for images, logs and export scratch space, and monitor
+  managed DB storage separately. Verify graceful shutdown and rollout headroom.
 - Set DB pools explicitly. The current API defaults are max 10/min idle 2; worker
   defaults are max 5/min idle 1. Set the corresponding Dokploy overrides
   `SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE` and
@@ -636,7 +706,7 @@ planned work, not a claim that changes have been implemented by this doc update.
 - Send video progress pings every **15–30 seconds**, rather than every few seconds.
   Flush appropriately on pause/end/navigation, account for browser unload limitations,
   and preserve accurate completion semantics. Verify/change this in the frontend
-  repository with approval; it is not configured by this backend runbook.
+  under `apps/web` with approval; it is not configured by this runbook.
 - Let students open exam pages early to spread loading, without revealing questions
   or starting attempts before the allowed time. Preserve server-enforced access and
   deadlines. Early loading alone does not remove database/write bursts.
@@ -654,10 +724,13 @@ planned work, not a claim that changes have been implemented by this doc update.
 
 ### Changes requiring confirmation before implementation
 
-1. Update the obsolete DO-specific production environment example and any deployment
-   configuration needed to match this plan. Infrastructure limits/backups/Cloudflare
-   settings described here have not been applied remotely.
-2. Add/adjust the frontend Docker image pipeline and manual release integration.
+1. Update the production example's private DB hostname to a public DO endpoint
+   placeholder and verify CA mounts/trusted sources. Approve/configure the external
+   managed-DB export job. Limits, backups, Cloudflare and DB settings have not been
+   applied remotely by this documentation change.
+2. Configure/test the frontend image pipeline's repository variables, GHCR read access
+   and manual Dokploy service. Source import, Dockerfile and publishing workflow are
+   implemented; deployment configuration and rollout still need operator approval.
 3. Add k6 scenarios and agreed load thresholds.
 4. Implement any missing video-original archival, provider portability, playback caps,
    mobile defaults, preload changes and progress throttling.
@@ -668,12 +741,11 @@ planned work, not a claim that changes have been implemented by this doc update.
 
 ## Upgrade path
 
-Once paying usage justifies it, move **PostgreSQL to a managed database first**. Select
-a provider/region with acceptable measured app-to-DB latency. Rehearse dump/restore
-with matching extensions, ownership and migration history; plan a controlled final
-write/worker pause, export/restore, validation, verified TLS and endpoint switch.
-Keep independent off-provider backups. A cross-provider managed DB introduces network
-latency; managed backups and HA/PITR depend on the selected plan.
+Managed PostgreSQL in Singapore is now part of the launch baseline, rather than a
+future first upgrade. Scale its plan, pooling or standby/HA configuration based on
+measured load and availability needs; retain independent exports and restore tests.
+The reported 1.5 ms mean cross-provider latency supports the selected placement,
+but does not replace production p95/p99/load measurements or outage recovery tests.
 
 Then add application redundancy: another host running compatible API/frontend/worker
 instances, health-aware traffic routing independent of a single host, and tested
@@ -684,10 +756,10 @@ load balancer/Dokploy manager located only on the failed host can still block re
 
 ### Future DigitalOcean production plan
 
-This is a planned alternative after the Hostinger launch, not an instruction to
-provision resources now. It can be adopted in phases as revenue, operational needs
-and measured latency justify the cost. Staging remains on its separate Hostinger
-installation. A move to DO does not by itself add application high availability.
+This is a future compute/frontend alternative to Hostinger, not an instruction to
+provision droplets now. DO managed PostgreSQL Singapore is already in the launch
+baseline and can remain the same cluster during a compute move. Staging remains
+on its separate Hostinger installation. Moving compute to DO does not itself add HA.
 
 | Component | Future placement | Management |
 | --- | --- | --- |
@@ -714,16 +786,16 @@ bootstrap scripts. Moving the production control plane from Hostinger requires i
 own tested configuration/secret backup and restore or deliberate service recreation;
 moving an image does not transfer dashboard configuration automatically.
 
-#### Database-first transition
+#### Current hybrid baseline and future private networking
 
-The first phase may keep API/worker/Next.js on Hostinger while PostgreSQL moves to DO
-managed hosting. Use the managed public endpoint with verified TLS and narrowly
-allowlisted Hostinger egress IPs during this phase. Measure representative request
-latency before committing; a DO private endpoint is not directly reachable from the
-Hostinger VPS. Follow the controlled database cutover and ownership checks above.
+Launch keeps API/worker/Next.js on Hostinger Singapore and PostgreSQL on DO Singapore.
+Use the managed public endpoint with verified TLS and narrowly allowlisted Hostinger
+egress IPs. A DO private endpoint is not directly reachable from Hostinger. The user
+reports 1.5 ms average latency for this pair; retain measured query/API tail-latency
+checks. There is no self-hosted production DB to migrate as a prerequisite.
 
-When backend compute moves to DO, place its droplets and managed database in the
-same region/VPC and switch API, worker and migrator to the private endpoint, retaining
+When backend compute moves to DO, place its droplets in the managed database's
+region/VPC and switch API, worker and migrator to the private endpoint, retaining
 verified TLS and required trusted-source restrictions. Evaluate Singapore first for
 the Bangladesh/South Asia audience, then validate real routes and regional product
 availability. Obtain the actual endpoint, port and certificate requirements from the
@@ -733,15 +805,15 @@ between [public and private database connections](https://docs.digitalocean.com/
 Retain independent logical backups to R2/B2 and verify managed backup/PITR retention
 and recovery on the purchased plan. Backup scheduling may need a different mechanism
 for an external managed database; the native Dokploy local-Postgres backup job must
-not be assumed to cover it automatically. Rehearse recovery before retiring the
-Hostinger database. Keep provider permissions, migration ownership and extensions
-compatible. Switching back after production writes needs reconciliation, not just
-restoring an old dump.
+not be assumed to cover it automatically. Rehearse recovery even when the managed
+recovery service is enabled. Keep provider permissions, migration ownership and
+extensions compatible. Any DB rollback after production writes needs reconciliation,
+not just restoring an old dump; an ordinary compute move keeps the live DB intact.
 
 #### Frontend option A: dedicated DO droplet
 
 Deploy Next.js as a Docker-source application on a separate frontend droplet, managed
-remotely by production Dokploy. Build its image in the frontend CI pipeline, retain
+remotely by production Dokploy. Build its image with this monorepo's `build.yml`, retain
 the digest with each release, and promote production manually. Validate memory/CPU,
 health checks, image optimization, persistent/cache needs and graceful updates.
 Use a private API address for server-side calls only where the application's auth
@@ -772,14 +844,18 @@ preview-environment isolation aligned with the public frontend/API hostnames.
 Coordinate frontend/backend versions and use an explicit production promotion step;
 do not introduce automatic production promotion as part of this documentation plan.
 Vercel uses its supported frontend build/deploy workflow rather than consuming the
-backend GHCR release artifact. Record the frontend commit/deployment identifier with
+backend GHCR release artifact. Connect the monorepo with Vercel Root Directory
+`apps/web` and set its build/runtime variables before switching from the source repo.
+Record the frontend commit/deployment identifier with
 the backend image digests and verify rollback compatibility.
 
 #### Compute and frontend cutover
 
 Prepare destination services with the currently deployed versions first, keeping a
 hosting move separate from new application/schema changes. Verify DB access, GHCR
-pulls, secrets, domains, TLS, health checks and alerts before switching traffic. Move
+pulls, secrets, domains, TLS, health checks and alerts before switching traffic. A
+compute-only move reuses the live managed DB; no dump/restore is needed unless the
+database itself changes. Move
 workers with a controlled handover and in-flight-job accounting. Verify login, lessons,
 quizzes, progress, payments/callbacks and video playback before retiring old hosts.
 Update Cloudflare's origin/DNS or the frontend domain target as applicable. Keep the
@@ -793,7 +869,8 @@ applied by this documentation. Implementing any phase requires user confirmation
 
 The intended destination is the separate Hostinger staging installation, not the
 production KVM 4. A KVM 1 is a budget candidate only after verifying the full staging
-stack fits 4 GB with smaller limits; do not copy the production 11 GB service budget.
+stack fits 4 GB with smaller limits; the production 7 GB application ceilings do not
+include stage's additional local DB and cannot be copied to this smaller VPS.
 If retaining DO staging temporarily, budget for it: powered-off droplets still incur
 charges, and the managed DB remains a separate billable resource. Stopping the apps
 is not a zero-cost staging strategy. See [DO billing](https://docs.digitalocean.com/support/i-dont-recognize-a-charge-on-my-invoice/).
@@ -855,7 +932,8 @@ Confirm billing afterward; snapshots, volumes or other retained resources can co
 to incur charges. This runbook does not authorize deleting existing infrastructure.
 
 Do not confuse this stage relocation/selected-content promotion with a later migration
-of a **live production database** to DO managed PostgreSQL. That future move must preserve
+of a **live production database** to a different cluster/provider. DO managed PostgreSQL
+Singapore is already the production baseline. Any later DB migration must preserve
 production users, payments, enrollments and progress through the controlled write pause,
 final export/restore, validation and reconciliation in the upgrade plan.
 

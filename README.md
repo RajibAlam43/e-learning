@@ -1,6 +1,7 @@
-# E-learning backend
+# E-learning monorepo
 
-Java 25 / Spring Boot monorepo: `api`, shared `common`, and asynchronous `worker`.
+Java 25 / Spring Boot applications (`api`, shared `common`, asynchronous `worker`)
+and the Next.js frontend in [`apps/web`](apps/web/README.md).
 PostgreSQL stores application data, including refresh tokens. AWS SQS connects API
 and worker; local development uses ElasticMQ. Redis is not required.
 
@@ -11,18 +12,26 @@ pushes them to GHCR. After staging is provisioned and explicitly enabled, succes
 builds deploy automatically through staging Dokploy. Production deployment is
 manual in its separate Dokploy dashboard, using the exact staging-tested digests.
 
-The production hosting plan is one Hostinger KVM 4 (4 vCPU / 16 GB / 200 GB),
-running Dokploy, internal-only self-hosted PostgreSQL, API, Next.js and worker.
-Container memory ceilings are PostgreSQL 4 GB, API 3 GB, Next.js 2 GB and worker
-2 GB; Next.js is capped at 1.5 CPU and worker at 1 CPU. Staging stays separate.
-Cloudflare fronts the public services. Hourly Dokploy database dumps go to off-host
-R2/B2, targeting up to one hour of disaster data loss; a full restore rehearsal is
-required before launch. This single-server plan replaces the earlier DO production
-topology. Upgrade the database to managed hosting first, then add app redundancy.
+The same CI job checks/builds `apps/web` and publishes stage/prod variants to GHCR
+on relevant main runs. PRs check and build without publishing. Frontend deployment remains manual; its release artifacts are
+separate from the backend manifest. Backend images are not republished on frontend-only
+`main` pushes. See the [frontend guide](apps/web/README.md) for Node.js 24, local commands,
+build variables, Docker and Vercel's `apps/web` Root Directory.
+
+Production uses one Hostinger KVM 4 in Singapore (4 vCPU / 16 GB / 200 GB) running
+Dokploy, API, Next.js and worker, plus DO managed PostgreSQL in Singapore. The user
+measured approximately 1.5 ms average host-to-DB latency. API/worker/migrator use the
+managed public endpoint with verified TLS and an allowlisted VPS egress IP.
+Memory ceilings are API 3 GB, Next.js 2 GB and worker 2 GB; Next.js is capped at
+1.5 CPU and worker at 1 CPU. No application PostgreSQL container runs on production.
+Staging stays separate with its own internal Dokploy PostgreSQL. Cloudflare fronts
+public services. Verify DO recovery and plan independent hourly R2/B2 exports for
+the retained one-hour data-loss target; the external-DB export job requires approval.
+Test restore/rebuild before launch, then add application redundancy as needed.
 
 The [future DO plan](docs/deployment.md#future-digitalocean-production-plan) covers
-managed PostgreSQL, app/worker droplets under production Dokploy, and either a third
-droplet for Next.js or Vercel Pro. It includes a phased migration from Hostinger and
+app/worker droplets under production Dokploy, keeping the existing managed DB, and
+either a third droplet for Next.js or Vercel Pro. It includes compute migration from Hostinger and
 keeps staging separate; these future resources are not provisioned by this plan.
 
 Read [the deployment and migration runbook](docs/deployment.md) for infrastructure,
@@ -30,9 +39,10 @@ GitHub configuration, secrets, database permissions, backups, cutover and releas
 It also covers video portability, load testing, internal/public network paths, staging
 data migration/DO retirement, and the planned Sentry integration for API, worker and
 Next.js. Sentry instrumentation is not implemented yet and requires confirmation.
-The latest hosting revision is documentation only: runtime configuration and code
-changes require user confirmation. The production environment example still contains
-obsolete DO database settings; use the runbook's internal DB settings instead.
+The frontend copy and its Docker/GHCR pipeline were explicitly authorized. Other
+planned changes still require user confirmation. The production environment example contains
+a private DO DB hostname placeholder; use the runbook's public managed-DB connection
+settings for Hostinger instead.
 
 ## Verification
 
@@ -58,6 +68,9 @@ docker compose up -d --build
 The local Compose file is a development setup with placeholder provider credentials
 and local-only authentication settings; it must not be used as a stage/prod template.
 Configure real integration credentials if exercising external providers locally.
-Use Dokploy's separate Database/API/Worker services for hosted environments, with
-a separate Next.js service in production. The frontend image pipeline is maintained
-separately; the backend workflow does not publish a frontend image.
+Stage uses Dokploy's separate Database/API/Worker services. Production Dokploy runs
+API/Worker/Next.js and connects to DO managed PostgreSQL. A single CI job in
+`.github/workflows/build.yml` runs both backend and frontend checks/builds when
+either changes, while publishing images only for changed components from `main`.
+Backend and frontend retain separate release artifacts; frontend-only
+runs do not deploy the backend. Production and frontend deployments remain manual.

@@ -1,0 +1,147 @@
+/* ─── Font Faces ─── */
+@font-face {
+  font-family: 'Switzer';
+  src: url('/fonts/switzer/Switzer-Light.woff2') format('woff2');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Switzer';
+  src: url('/fonts/switzer/Switzer-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Switzer';
+  src: url('/fonts/switzer/Switzer-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Switzer';
+  src: url('/fonts/switzer/Switzer-Semibold.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Switzer';
+  src: url('/fonts/switzer/Switzer-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Editors Note';
+  src: url('/fonts/editors-note/EditorsNote-Regular-iF664322be6e849.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Editors Note';
+  src: url('/fonts/editors-note/EditorsNote-Medium-iF664322be6500a.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Editors Note';
+  src: url('/fonts/editors-note/EditorsNote-Bold-iF664322be38357.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ─── Bangla Font (Anek Bangla) ─── */
+/* unicode-range ensures these files are only used for Bengali characters. */
+@font-face {
+  font-family: 'Anek Bangla';
+  src: url('/fonts/AnekBangla-Thin.woff2') format('woff2');
+  font-weight: 100;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0980-09FF, U+200C-200D, U+25CC;
+}
+@font-face {
+  font-family: 'Anek Bangla';
+  src: url('/fonts/AnekBangla-ExtraLight.woff2') format('woff2');
+  font-weight: 200;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0980-09FF, U+200C-200D, U+25CC;
+}
+@font-face {
+  font-family: 'Anek Bangla';
+  src: url('/fonts/AnekBangla-Light.woff2') format('woff2');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0980-09FF, U+200C-200D, U+25CC;
+}
+@font-face {
+  font-family: 'Anek Bangla';
+  src: url('/fonts/AnekBangla-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0980-09FF, U+200C-200D, U+25CC;
+}
+@font-face {
+  font-family: 'Anek Bangla';
+  src: url('/fonts/AnekBangla-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0980-09FF, U+200C-200D, U+25CC;
+}
+@font-face {
+  font-family: 'Anek Bangla';
+  src: url('/fonts/AnekBangla-SemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0980-09FF, U+200C-200D, U+25CC;
+}
+@font-face {
+  font-family: 'Anek Bangla';
+  src: url('/fonts/AnekBangla-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0980-09FF, U+200C-200D, U+25CC;
+}
+@font-face {
+  font-family: 'Anek Bangla';
+  src: url('/fonts/AnekBangla-ExtraBold.woff2') format('woff2');
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0980-09FF, U+200C-200D, U+25CC;
+}
+/* Fallback — Li Ador Noirrit (already in public/fonts/li-ador-noirrit/) */
+@font-face {
+  font-family: 'Li Ador Noirrit';
+  src: url('/fonts/li-ador-noirrit/Li Ador Noirrit Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Li Ador Noirrit';
+  src: url('/fonts/li-ador-noirrit/Li Ador Noirrit SemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Li Ador Noirrit';
+  src: url('/fonts/li-ador-noirrit/Li Ador Noirrit Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
