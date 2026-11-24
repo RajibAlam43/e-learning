@@ -1,19 +1,24 @@
 version: 2
+
+# One weekly version-update PR across backend, frontend and CI dependencies.
+# Security updates are handled separately by Dependabot.
+multi-ecosystem-groups:
+  all-dependencies:
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+
 updates:
   - package-ecosystem: "github-actions"
     directory: "/"
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 10
-    labels:
-      - "dependencies"
-      - "github-actions"
+    patterns: ["*"]
+    multi-ecosystem-group: "all-dependencies"
   - package-ecosystem: "gradle"
     directory: "/"
-    schedule:
-      interval: "weekly"
+    patterns: ["*"]
+    multi-ecosystem-group: "all-dependencies"
   - package-ecosystem: "npm"
     directory: "/apps/web"
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 10
+    patterns: ["*"]
+    multi-ecosystem-group: "all-dependencies"
