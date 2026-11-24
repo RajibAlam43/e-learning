@@ -1,6 +1,6 @@
-# AGENTS.md: E-Learning Backend Development Guide
+# AGENTS.md: E-Learning Development Guide
 
-This guide helps AI agents understand the architecture and patterns of this multi-service Java/Spring Boot e-learning platform.
+This guide covers the Spring Boot services and Next.js frontend in this monorepo.
 
 ## Architecture Overview
 
@@ -8,28 +8,32 @@ This guide helps AI agents understand the architecture and patterns of this mult
 - **`:api`** - REST API server (port 8080) handling user-facing features, authentication, course management
 - **`:common`** - Shared JPA entities, repositories, enums, DTOs (dependency for api & worker)
 - **`:worker`** - Async background job processor consuming SQS messages, sending emails
+- **`apps/web`** - Next.js App Router frontend (port 3000); independent npm project, not a Gradle module
 
 API and worker share PostgreSQL and AWS SQS (ElasticMQ locally). Redis is not required.
 
 **Approved production hosting plan:** one Hostinger KVM 4 (4 shared vCPU / 16 GB /
-200 GB), with Dokploy, internal-only self-hosted PostgreSQL, API, Next.js and worker.
-Memory ceilings: PostgreSQL 4 GB, API 3 GB, Next.js 2 GB, worker 2 GB. CPU caps:
-Next.js 1.5, worker 1. Staging remains separate. Cloudflare fronts public services;
-hourly off-host R2/B2 database dumps target up to one hour of disaster data loss,
-with a full restore rehearsal required before launch. This supersedes the previous
-production DO droplets/managed-DB plan. Managed PostgreSQL is the first planned
-upgrade, followed by application redundancy. See `docs/deployment.md` for details.
+200 GB) in Singapore, running Dokploy, API, Next.js and worker, plus DO managed
+PostgreSQL in Singapore. User-reported mean host-to-DB latency is approximately
+1.5 ms. No production application PostgreSQL container runs on the VPS. Memory
+ceilings: API 3 GB, Next.js 2 GB, worker 2 GB. CPU caps: Next.js 1.5, worker 1.
+Production DB clients use the DO public endpoint with verified TLS and trusted-source
+IP restrictions. Stage stays separate with internal-only Dokploy PostgreSQL.
+Cloudflare fronts public services. Verify managed recovery and plan independent
+hourly R2/B2 exports for the retained one-hour target; external-DB export setup needs
+approval. Test restore/rebuild before launch, then add app redundancy as needed.
 
-**Future DO alternative:** managed PostgreSQL with separate app and worker droplets,
+**Future DO compute alternative:** retain managed PostgreSQL with separate app and worker droplets,
 plus either a third Next.js frontend droplet managed by production Dokploy or Vercel
 Pro instead. One production Dokploy manages the DO hosts; staging stays independent.
-See the runbook's future DigitalOcean plan for database-first migration, networking,
+See the runbook's future DigitalOcean plan for compute migration, networking,
 frontend choices and cutover. This is a future option, not a change to the Hostinger
 launch decision or authorization to provision infrastructure.
 
-**Change authorization:** the current hosting-plan revision authorizes documentation
-changes only. Ask for explicit user confirmation before changing application code,
-tests, workflows, deployment configuration or infrastructure to implement the plan.
+**Change authorization:** the frontend import into `apps/web` and its Docker/GHCR
+publishing workflow were explicitly authorized. Other hosting-plan implementation,
+application changes, tests, workflow/configuration changes and infrastructure actions
+still require explicit user confirmation unless authorized by a newer request.
 Do not describe proposed video/player behavior or queued exams as already implemented.
 
 **Planned observability:** Sentry error tracking for API, worker and Next.js, alongside
@@ -39,7 +43,8 @@ integration is currently implemented. See the runbook's Sentry plan.
 
 **Networking/data cutover:** same-host server traffic uses verified Dokploy internal
 service names; browsers/external callbacks use public HTTPS. Worker uses SQS and DB
-directly; Next.js calls API, not DB. Preserve DO stage data through a rehearsed export/
+directly; production DB traffic goes to DO over verified public TLS, while stage DB
+traffic is internal. Next.js calls API, not DB. Preserve DO stage data through a rehearsed export/
 restore into the separate Hostinger stage; initialize production cleanly and promote
 only explicitly selected content. Record the old DO DB retirement window, retain a
 verified independent backup, and obtain approval before destructive retirement.
@@ -51,6 +56,22 @@ verified independent backup, and obtain approval before destructive retirement.
 - Migrations: Flyway SQL files in `apps/api/src/main/resources/db/migration/`
 - Deployment: `docs/deployment.md`, `deploy/`, and `.github/scripts/release.py`
 - CI/CD: GitHub Actions workflows in `.github/workflows/`
+- Frontend: `apps/web/package.json`, `package-lock.json`, `next.config.ts`, `Dockerfile`, `.github/workflows/web.yml`
+
+## Frontend development and delivery
+
+`apps/web` was copied from `globalislamicinstitute` at source commit
+`7b5dbcc2aa6b9380f19488b8e92984c958398d67`. Business/UI source and dependency versions
+were preserved; the original repository stays unchanged. See `apps/web/README.md`.
+Use Node.js 24 and `npm ci` inside `apps/web`; run `npx --no-install next typegen` then
+`npm run check`. Keep npm dependencies, .next output and real environment files ignored.
+Use the frontend directory as Docker build context; the root backend context excludes it.
+
+`web.yml` independently builds stage/prod frontend variants and publishes GHCR digests
+after checks. Public Next.js variables are build-time inputs; runtime `API_URL` can
+use the internal API service. Deployments are manual; the backend migration/release
+flow does not deploy the frontend. Vercel uses Root Directory `apps/web` if selected.
+No Sentry/video/exam business changes are authorized by the repository import.
 
 ## Module Structure & Import Scanning
 
@@ -178,7 +199,7 @@ For local Docker-only runs, `docker-compose.yml` sets `SPRING_FLYWAY_ENABLED=tru
 
 **Deployment flow:** Actions publishes API, worker and Flyway migration images to GHCR. Stage deploys automatically through Dokploy after the dedicated migration Compose container exits 0. Production releases are manual in production Dokploy, using the successful stage release artifact; Actions never triggers production. API/worker do not run hosted migrations at startup.
 
-Create distinct migration/API/worker users, then run `deploy/db/permissions.sql` with its psql identifier variables as an authorized admin. See `docs/deployment.md` for separate stage/prod Hostinger PostgreSQL services, ownership, hourly off-host backups and cutover. Both databases are internal-only. The production env example still contains the old DO endpoint/CA and must not be copied unchanged; correcting configuration requires confirmation.
+Create distinct migration/API/worker users, then run `deploy/db/permissions.sql` with its psql identifier variables as an authorized admin. See `docs/deployment.md` for internal stage Hostinger PostgreSQL and production DO managed PostgreSQL Singapore, ownership, backups and cutover. The production env example's private DO host must be replaced with the managed public endpoint/verified CA for Hostinger; correcting configuration requires confirmation.
 
 ## Build & Test
 

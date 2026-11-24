@@ -2,6 +2,10 @@
 .github
 .gradle
 .idea
+# Backend build contexts do not need frontend source or npm/Next.js output.
+apps/web
+**/node_modules
+**/.next
 **/.env
 **/.env.*
 **/*.pem

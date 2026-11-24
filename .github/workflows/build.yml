@@ -4,6 +4,10 @@ on:
   pull_request:
   push:
     branches: [main]
+    # Keep the required PR check, but do not publish/redeploy the backend for web-only pushes.
+    paths-ignore:
+      - 'apps/web/**'
+      - '.github/workflows/web.yml'
   workflow_dispatch:
 
 permissions:

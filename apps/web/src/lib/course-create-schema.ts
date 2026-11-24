@@ -1,0 +1,40 @@
+import { z } from 'zod'
+import { getYouTubeVideoId } from '@/lib/video-embed'
+
+export const courseSchema = z.object({
+  title: z.string().min(1, 'Bangla title is required'),
+  titleEn: z.string().optional(),
+  slug: z.string().min(1, 'Slug is required'),
+  thumbnailObjectKey: z.string().optional(),
+  videoUrl: z.string().optional().refine((value) => !value || Boolean(getYouTubeVideoId(value)), 'Enter a valid YouTube URL or 11-character video ID'),
+  shortDescription: z.string().optional(),
+  shortDescriptionEn: z.string().optional(),
+  description: z.string().optional(),
+  descriptionEn: z.string().optional(),
+  priceBdt: z.number().min(0, 'Price must be 0 or more'),
+  isFree: z.boolean().optional(),
+  level: z.enum(['BEGINNER', 'INTERMEDIATE', 'ADVANCED']),
+  language: z.enum(['BN', 'EN']),
+  studyMode: z.enum(['COHORT_BASED', 'SELF_PACED']),
+  estimatedDurationMinutes: z.number().int().min(0).optional(),
+  timezone: z.string().optional(),
+  enrollmentStartsAt: z.string().optional(),
+  enrollmentEndsAt: z.string().optional(),
+  startsAt: z.string().optional(),
+  endsAt: z.string().optional(),
+  capacity: z.number().int().min(0).optional(),
+  accessDurationDays: z.number().int().min(0, 'Access duration cannot be negative').optional(),
+  courseOutcomes: z.string().optional(),
+  courseOutcomesEn: z.string().optional(),
+  requirements: z.string().optional(),
+  requirementsEn: z.string().optional(),
+  highlights: z.string().optional(),
+  highlightsEn: z.string().optional(),
+  targetAudience: z.string().optional(),
+  targetAudienceEn: z.string().optional(),
+  prerequisites: z.string().optional(),
+  prerequisitesEn: z.string().optional(),
+  categoryIds: z.array(z.string()).min(1, 'Select at least one category'),
+})
+
+export type CourseFormValues = z.infer<typeof courseSchema>

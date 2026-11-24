@@ -1,0 +1,15 @@
+.git
+node_modules
+.next/*
+!.next/standalone
+!.next/standalone/**
+!.next/static
+!.next/static/**
+.env*
+*.log
+*.tsbuildinfo
+coverage
+out
+.vercel
+README.md
+AGENTS.md

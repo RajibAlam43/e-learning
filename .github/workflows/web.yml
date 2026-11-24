@@ -1,0 +1,127 @@
+name: Build and Publish Frontend
+
+on:
+  pull_request:
+    paths:
+      - 'apps/web/**'
+      - '.github/workflows/web.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/web/**'
+      - '.github/workflows/web.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-build-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: stage
+            variable_prefix: WEB_STAGE
+            default_app_url: https://stage.globalislamicinstitute.com
+            default_api_url: https://stage-api.globalislamicinstitute.com
+          - target: prod
+            variable_prefix: WEB_PROD
+            default_app_url: https://globalislamicinstitute.com
+            default_api_url: https://api.globalislamicinstitute.com
+    defaults:
+      run:
+        working-directory: apps/web
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      NEXT_PUBLIC_BUILD_ID: ${{ github.sha }}
+      NEXT_PUBLIC_APP_URL: ${{ vars[format('{0}_APP_URL', matrix.variable_prefix)] || matrix.default_app_url }}
+      NEXT_PUBLIC_API_URL: ${{ vars[format('{0}_API_URL', matrix.variable_prefix)] || matrix.default_api_url }}
+      NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ vars[format('{0}_GOOGLE_CLIENT_ID', matrix.variable_prefix)] }}
+      IMAGE_REMOTE_HOSTS: ${{ vars[format('{0}_IMAGE_REMOTE_HOSTS', matrix.variable_prefix)] }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Generate Next.js types
+        run: npx --no-install next typegen
+      - name: Typecheck and lint
+        run: npm run typecheck && npm run lint
+      - name: Build environment-specific frontend
+        env:
+          # Public reads during prerendering use the same environment as the client bundle.
+          API_URL: ${{ env.NEXT_PUBLIC_API_URL }}
+        run: npm run build
+      - name: Image name
+        id: image
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          echo "name=ghcr.io/${GITHUB_REPOSITORY,,}/web" >> "$GITHUB_OUTPUT"
+          echo "tag=sha-${GITHUB_SHA}-run-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${TARGET}" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v3
+        if: steps.image.outcome == 'success'
+      - uses: docker/login-action@v3
+        if: steps.image.outcome == 'success'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish frontend
+        id: publish
+        if: steps.image.outcome == 'success'
+        uses: docker/build-push-action@v6
+        with:
+          context: apps/web
+          file: apps/web/Dockerfile
+          target: ci
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.image.outputs.name }}:${{ steps.image.outputs.tag }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            com.gii.environment=${{ matrix.target }}
+          cache-from: type=gha,scope=web-${{ matrix.target }}
+          cache-to: type=gha,mode=max,scope=web-${{ matrix.target }}
+      - name: Record frontend release
+        if: steps.image.outcome == 'success'
+        env:
+          IMAGE_NAME: ${{ steps.image.outputs.name }}
+          IMAGE_DIGEST: ${{ steps.publish.outputs.digest }}
+          TARGET: ${{ matrix.target }}
+        run: |
+          node --input-type=module <<'JS'
+          import { writeFileSync } from 'node:fs';
+          const env = process.env;
+          if (!/^sha256:[a-f0-9]{64}$/.test(env.IMAGE_DIGEST ?? '')) throw new Error('Invalid image digest');
+          writeFileSync('web-release.json', JSON.stringify({
+            service: 'web', environment: env.TARGET,
+            source_sha: env.GITHUB_SHA, build_run_id: env.GITHUB_RUN_ID,
+            image: `${env.IMAGE_NAME}@${env.IMAGE_DIGEST}`,
+            public_app_url: env.NEXT_PUBLIC_APP_URL, public_api_url: env.NEXT_PUBLIC_API_URL
+          }, null, 2) + '\n');
+          JS
+      - name: Upload frontend release
+        if: steps.image.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-${{ matrix.target }}-release
+          path: apps/web/web-release.json
+          if-no-files-found: error
+          retention-days: 90

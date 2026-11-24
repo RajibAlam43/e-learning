@@ -1,0 +1,318 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "../styles/fonts.css";
+@import "../styles/interactions.css";
+
+@custom-variant dark (&:is(.dark *));
+
+.content-auto-section {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 700px;
+}
+
+/* ─── Tailwind Theme ─── */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: "Switzer", "Anek Bangla", sans-serif;
+  --font-heading: "Editors Note", "Anek Bangla", Georgia, serif;
+  --font-body: "Switzer", "Anek Bangla", system-ui, sans-serif;
+  --font-bangla: "Anek Bangla", "Li Ador Noirrit", sans-serif;
+  --font-mono: var(--font-geist-mono);
+  --container-lg: 1440px;
+  --container-xl: 1440px;
+  --container-2xl: 1440px;
+
+  /* shadcn/ui overrides */
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* Figma specific colors */
+  --color-colors-primary-generic-00: #fff;
+  --color-text-headline-secondary: #1b1c1a;
+  --color-text-body-secondary: #5e5f5c;
+  --color-text-body-primary: #49608f;
+  --color-text-headline-primary: #1c3873;
+  --color-primitive-colors-primary-generic-00: #fff;
+  --color-primitive-colors-primary-generic-white: #fff;
+  --color-primitive-colors-secondary-blue-100: #dbeafe;
+  --color-primitive-colors-secondary-blue-500: #3b82f6;
+  --color-primitive-colors-secondary-gray-100: #f5f5f5;
+  --color-primitive-colors-secondary-gray-400: #a3a3a3;
+  --color-tokens-text-body-secondary: #5e5f5c;
+  --color-tokens-text-headline-primary: #1c3873;
+  --color-tokens-text-headline-secondary: #1b1c1a;
+
+  /* Figma breakpoints */
+  --breakpoint-mq925: 925px;
+  --breakpoint-mq767: 767px;
+  --breakpoint-mq600: 600px;
+  --breakpoint-mq450: 450px;
+
+  /* Figma Box Shadows */
+  --shadow-drop-shadow-shadow-small: var(--drop-shadow-shadow-small);
+}
+
+/* ─── GII Design Tokens (light) ─── */
+:root {
+  /* shadcn/ui base */
+  --background: #ffffff;
+  --foreground: #1c3873;
+  --card: #ffffff;
+  --card-foreground: #1c3873;
+  --popover: #ffffff;
+  --popover-foreground: #1c3873;
+  --primary: #2563eb;
+  --primary-foreground: #ffffff;
+  --secondary: #f4f9ff;
+  --secondary-foreground: #1c3873;
+  --muted: #f5f5f5;
+  --muted-foreground: #5e5f5c;
+  --accent: #f4f9ff;
+  --accent-foreground: #1c3873;
+  --destructive: #ef4444;
+  --border: #e5e5e5;
+  --input: #e5e5e5;
+  --ring: #3b82f6;
+  --radius: 0.625rem;
+  --chart-1: #3b82f6;
+  --chart-2: #d0a518;
+  --chart-3: #1c3873;
+  --chart-4: #97a3bf;
+  --chart-5: #5e5f5c;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #1c3873;
+  --sidebar-primary: #3b82f6;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f4f9ff;
+  --sidebar-accent-foreground: #1c3873;
+  --sidebar-border: #e5e5e5;
+  --sidebar-ring: #3b82f6;
+
+  /* GII brand tokens */
+  --color-brand-primary-50: #e8ebf1;
+  --color-brand-primary-100: #d1d5e8;
+  --color-brand-primary-200: #97a3bf;
+  --color-brand-primary-500: #3b82f6;
+  --color-brand-primary-600: #2563eb;
+  --color-brand-primary-700: #1d4ed8;
+  --color-brand-primary-800: #0f1f3f;
+  --color-brand-primary-900: #1c3873;
+
+  --color-secondary-blue-50: #f4f9ff;
+  --color-secondary-blue-400: #60a5fa;
+  --color-secondary-blue-500: #3b82f6;
+  --color-secondary-blue-600: #2563eb;
+
+  --color-gold-50: #fffbeb;
+  --color-gold-500: #d0a518;
+  --color-gold-600: #af840b;
+  --color-gold-700: #876103;
+  --color-gold-800: #917400;
+
+  --color-neutral-50: #fdfcf8;
+  --color-neutral-100: #f5f5f5;
+  --color-neutral-200: #e5e5e5;
+  --color-neutral-400: #a3a3a3;
+  --color-neutral-600: #777774;
+  --color-neutral-900: #1b1c1a;
+
+  --color-text-headline-primary: #1c3873;
+  --color-text-headline-secondary: #1b1c1a;
+  --color-text-body-primary: #5e5f5c;
+  --color-text-body-secondary: #5e5f5c;
+
+   /* Colors - Generic */
+  --color-generic-white: #FFFFFF;
+  --color-generic-black: #000000;
+
+  /* Colors - Warning */
+  --color-warning-600: #d97706;
+
+  /* Figma Primitive Variables */
+  --drop-shadow-shadow-small: 0px 2px 6px 0px rgba(16, 24, 40, 0.06);
+  --primitive-radius-2xl: 16px;
+  --primitive-radius-md: 6px;
+  --primitive-spacing-spacing-2: 8px;
+  --primitive-spacing-spacing-4: 16px;
+  --primitive-spacing-spacing-5: 20px;
+  --primitive-spacing-spacing-6: 24px;
+  --primitive-spacing-spacing-8: 32px;
+
+  /* Typography Variables from Figma */
+  --heading-h6-semibold-desktop-font-family: "Editor\'s Note", Helvetica;
+  --heading-h6-semibold-desktop-font-size: 20px;
+  --heading-h6-semibold-desktop-font-style: normal;
+  --heading-h6-semibold-desktop-font-weight: 400;
+  --heading-h6-semibold-desktop-letter-spacing: 0px;
+  --heading-h6-semibold-desktop-line-height: 20px;
+  --label-large-medium-font-family: "Switzer", Helvetica;
+  --label-large-medium-font-size: 16px;
+  --label-large-medium-font-style: normal;
+  --label-large-medium-font-weight: 500;
+  --label-large-medium-letter-spacing: 0px;
+  --label-large-medium-line-height: 18px;
+  --label-large-regular-font-family: "Switzer", Helvetica;
+  --label-large-regular-font-size: 16px;
+  --label-large-regular-font-style: normal;
+  --label-large-regular-font-weight: 400;
+  --label-large-regular-letter-spacing: 0px;
+  --label-large-regular-line-height: 18px;
+  --label-medium-medium-font-family: "Switzer", Helvetica;
+  --label-medium-medium-font-size: 14px;
+  --label-medium-medium-font-style: normal;
+  --label-medium-medium-font-weight: 500;
+  --label-medium-medium-letter-spacing: 0px;
+  --label-medium-medium-line-height: 16px;
+  --label-medium-regular-font-family: "Switzer", Helvetica;
+  --label-medium-regular-font-size: 14px;
+  --label-medium-regular-font-style: normal;
+  --label-medium-regular-font-weight: 400;
+  --label-medium-regular-letter-spacing: 0px;
+  --label-medium-regular-line-height: 16px;
+  --label-small-regular-font-family: "Switzer", Helvetica;
+  --label-small-regular-font-size: 12px;
+  --label-small-regular-font-style: normal;
+  --label-small-regular-font-weight: 400;
+  --label-small-regular-letter-spacing: 0px;
+  --label-small-regular-line-height: 16px;
+  --paragraph-small-medium-font-family: "Switzer", Helvetica;
+  --paragraph-small-medium-font-size: 14px;
+  --paragraph-small-medium-font-style: normal;
+  --paragraph-small-medium-font-weight: 500;
+  --paragraph-small-medium-letter-spacing: 0px;
+  --paragraph-small-medium-line-height: 20px;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    font-family: "Switzer", "Anek Bangla", system-ui, sans-serif;
+  }
+
+  html[data-scroll-behavior="smooth"] {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-background text-foreground;
+    color: var(--color-text-body-secondary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: "Editors Note", "Anek Bangla", Georgia, serif;
+    color: var(--color-text-headline-primary);
+  }
+
+  /* Bangla locale — scale up root font size slightly because Anek Bangla
+     renders smaller than Switzer at the same font-size value.
+     Adjust this percentage if Bangla text still looks too small/large. */
+  html[lang="bn"] {
+    font-size: 108%;
+  }
+
+  /* ─── Element-specific Bangla size overrides ─── */
+  /* Add more selectors here if specific elements need different scaling. */
+  html[lang="bn"] h1 { font-size: 0.97em; }
+  html[lang="bn"] h2 { font-size: 0.97em; }
+}
+
+@layer utilities {
+  /* Shared page container: 1440px cap with responsive gutters. */
+  .container {
+    width: 100%;
+    max-width: 1440px !important;
+    margin-inline: auto;
+    padding-inline: 1rem !important;
+  }
+
+  @media (min-width: 640px) {
+    .container { padding-inline: 1.5rem !important; }
+  }
+
+  @media (min-width: 768px) {
+    .container { padding-inline: 2rem !important; }
+  }
+
+  @media (min-width: 1024px) {
+    .container { padding-inline: 3rem !important; }
+  }
+
+  @media (min-width: 1280px) {
+    .container { padding-inline: 4rem !important; }
+  }
+
+  @media (min-width: 1440px) {
+    .container { padding-inline: 8rem !important; }
+  }
+
+  .btn-blue-gradient {
+    background: linear-gradient(20deg, #4f67d8 0%, #3a4fc2 46.8%, #2e3fa8 78%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.18);
+  }
+  .btn-gold-gradient {
+    background: linear-gradient(20deg, #d0a518 0%, #af840b 55%, #876103 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.16);
+  }
+  .hero-overlay {
+    background: rgba(76, 54, 7, 0.6);
+    mix-blend-mode: multiply;
+  }
+  .stats-gradient {
+    background: linear-gradient(
+      to bottom,
+      rgba(63, 63, 63, 0) 0%,
+      rgb(61, 46, 18) 25%,
+      rgb(122, 101, 66) 50%,
+      rgb(196, 185, 154) 60%,
+      rgb(245, 245, 245) 100%
+    );
+  }
+  .testimonial-fade-left {
+    background: linear-gradient(270deg, rgba(245,245,245,0), rgba(245,245,245,0.8));
+  }
+  .testimonial-fade-right {
+    background: linear-gradient(270deg, rgba(245,245,245,0), rgba(245,245,245,0.8));
+    transform: rotate(180deg);
+    transform-origin: 0 0;
+  }
+}
