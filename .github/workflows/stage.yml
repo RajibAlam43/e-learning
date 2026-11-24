@@ -38,7 +38,7 @@ jobs:
           ref: main
       - name: Verify source build
         id: source
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         env:
           SOURCE_RUN_ID: ${{ inputs.build_run_id || github.event.workflow_run.id }}
         with:
