@@ -56,7 +56,7 @@ verified independent backup, and obtain approval before destructive retirement.
 - Migrations: Flyway SQL files in `apps/api/src/main/resources/db/migration/`
 - Deployment: `docs/deployment.md`, `deploy/`, and `.github/scripts/release.py`
 - CI/CD: GitHub Actions workflows in `.github/workflows/`
-- Frontend: `apps/web/package.json`, `package-lock.json`, `next.config.ts`, `Dockerfile`, `.github/workflows/web.yml`
+- Frontend: `apps/web/package.json`, `package-lock.json`, `next.config.ts`, `Dockerfile`, `.github/workflows/build.yml`
 
 ## Frontend development and delivery
 
@@ -67,8 +67,10 @@ Use Node.js 24 and `npm ci` inside `apps/web`; run `npx --no-install next typege
 `npm run check`. Keep npm dependencies, .next output and real environment files ignored.
 Use the frontend directory as Docker build context; the root backend context excludes it.
 
-`web.yml` independently builds stage/prod frontend variants and publishes GHCR digests
-after checks. Public Next.js variables are build-time inputs; runtime `API_URL` can
+`build.yml` runs one CI job with conditional backend/frontend steps. Frontend checks
+run once; PRs build stage only, while relevant main builds publish stage then prod
+with distinct image tag suffixes and release artifacts. Publishing is main-only;
+frontend-only runs do not publish/deploy backend images. Public Next.js variables are build-time inputs; runtime `API_URL` can
 use the internal API service. Deployments are manual; the backend migration/release
 flow does not deploy the frontend. Vercel uses Root Directory `apps/web` if selected.
 No Sentry/video/exam business changes are authorized by the repository import.

@@ -38,9 +38,12 @@ tasks at the repository root.
 
 ## Docker and GHCR
 
-The independent `.github/workflows/web.yml` checks frontend PR changes and builds
-two image variants on relevant `main` pushes or a manual run from `main`. It builds
-inside GitHub Actions, packages the checked standalone output using the Dockerfile's
+The single CI job in `.github/workflows/build.yml` checks affected components.
+Frontend dependencies, type checking and linting run once. PRs build the stage
+variant without publishing. Relevant `main` pushes or a manual run from `main`
+build and publish stage, then production, using distinct tag suffixes. Each image
+is packaged before the next build replaces `.next`. It builds inside GitHub
+Actions, packages the checked standalone output using the Dockerfile's
 `ci` target, and publishes Linux amd64 images under:
 
 ```text
@@ -65,10 +68,10 @@ image cannot become a production image just by changing runtime environment valu
 Qualify both variants and record the frontend/backend versions together. The backend
 release manifest is unchanged and does not include the frontend artifact.
 
-Backend PR checks still run on frontend PRs to retain existing required checks.
-Backend image publication/stage deployment does not run on frontend-only `main`
-pushes. The frontend workflow is path-filtered; do not make its checks globally
-required for unrelated PRs without a conditional required-check arrangement.
+Backend steps are skipped for frontend-only changes. Backend image publication and
+stage deployment do not run on frontend-only `main` pushes. Require the single
+`CI / build` check in branch protection and remove obsolete frontend matrix checks
+if configured. The CI job also completes for documentation-only PRs.
 
 For a complete local/container build (not dependent on host-built .next output),
 run from the repository root:

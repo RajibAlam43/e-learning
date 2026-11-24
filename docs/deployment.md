@@ -81,18 +81,20 @@ preserves existing frontend business behavior; no Sentry/video/exam changes were
 In particular, `deploy/env/production-overrides.env.example` still uses a DO **private**
 endpoint placeholder. Hostinger must use the managed cluster's **public** endpoint,
 with the verified TLS/CA settings below. Correcting that configuration file remains
-pending confirmation. The backend workflow publishes API, worker and
-migrator images only; the independent `web.yml` publishes Next.js stage/prod image
-variants from `apps/web`. Frontend deployment stays manual. Application work needing verification
+pending confirmation. A single CI job in `build.yml` publishes API, worker,
+migrator and Next.js stage/prod image variants for affected components.
+Frontend deployment stays manual. Application work needing verification
 or implementation is tracked under [Launch readiness](#launch-readiness-and-app-level-practices).
 
 ## What is implemented
 
-- `build.yml`: PR checks; tests, SDK alignment and jar packaging on `main`; publishes
-  API, worker and migrator images to GHCR after these gates succeed. Formatting and
+- `build.yml` (CI): one job with conditional backend/frontend steps on PRs, main
+  pushes and manual runs. Backend tests, SDK alignment and jar packaging are blocking;
+  image publication is restricted to main. Formatting and
   Checkstyle run as reports because the repository has pre-existing violations and
   the previous pipeline did not block on them. No production secrets.
-- `stage.yml`: after a successful main build, obtains its manifest and calls only
+- `stage.yml`: after a successful main CI run containing a backend release manifest,
+  obtains that manifest and calls only
   staging Dokploy over HTTPS. It runs migration first, checks actual container exit
   code 0, then updates API and worker digests and waits for Docker health checks.
 - Every image reference in `release.json` is digest-pinned. Unique tags are for
@@ -102,15 +104,18 @@ or implementation is tracked under [Launch readiness](#launch-readiness-and-app-
 - Production is manual in Dokploy. There is no production Actions job, webhook,
   API key, SSH connection, or deploy trigger in these workflows.
 - Redis dependencies/configuration are removed. Refresh tokens already use Postgres.
-- `web.yml`: checks/builds `apps/web` and publishes environment-specific Linux amd64
-  frontend images to GHCR. It records `web-stage-release` / `web-prod-release` artifacts
-  with immutable digests. It never triggers Dokploy or production deployment.
+- Frontend steps in `build.yml` install dependencies and run type checking/linting
+  once. PRs build stage without publishing. Relevant main runs build and publish
+  stage then prod as Linux amd64 images with distinct tag suffixes. They record
+  `web-stage-release` / `web-prod-release` artifacts with immutable digests.
+  Frontend deployment remains manual.
 
-The frontend workflow runs for frontend/workflow changes. Backend PR checks still
-run to preserve existing required checks; backend image publication and automatic
-stage deployment are skipped for frontend-only `main` pushes. Keep branch protection
-compatible with path-filtered frontend checks. For a combined release, qualify both
-workflows and record their image digests/commits together.
+CI selects backend/frontend steps from changed paths; shared CI changes and manual
+runs check both. Documentation-only runs complete without building images.
+Frontend-only main runs skip backend publication and automatic backend stage
+deployment. Backend and frontend release manifests stay separate; for combined
+releases, qualify both and record their image digests/commits together. A failed CI
+run cannot trigger staging deployment, even if some images were already published.
 
 Stage automation starts disabled. Set repository variable `STAGE_AUTO_DEPLOY_ENABLED`
 to `true` only after completing setup and the controlled data cutover below. Keeping
@@ -175,7 +180,8 @@ environment where possible. Preserve release digests while they are deployed or
 eligible for rollback; Actions artifact retention is 90 days, so archive production
 release manifests outside Actions before expiry if needed for long-term history.
 
-Protect `main` and require Build and Publish Images before merging. The deployment
+Protect `main` and require `CI / build` before merging. Replace any old frontend
+matrix checks in branch protection with this single check. The deployment
 workflow accepts only successful main build artifacts from this repository; it does
 not execute tooling from a PR or artifact. Automatic releases refuse superseded main
 commits; retry a specific successful build manually when needed.
@@ -280,7 +286,7 @@ Run Next.js as a separate Dokploy application on the production host with a 2 GB
 memory limit and 1.5 vCPU cap. Its Next.js App Router source now lives in `apps/web`,
 copied from the frontend repository without business/UI changes. Standalone output
 supports the container runtime. Use the stage/prod image from the independent
-`web.yml` pipeline and record its digest beside the backend release. See
+`build.yml` CI job and record its digest beside the backend release. See
 [the frontend guide](../apps/web/README.md) for import provenance, local verification,
 repository build variables, image tags and artifacts. This import does not change
 the existing Vercel site or configure Dokploy remotely.
@@ -803,7 +809,7 @@ not just restoring an old dump; an ordinary compute move keeps the live DB intac
 #### Frontend option A: dedicated DO droplet
 
 Deploy Next.js as a Docker-source application on a separate frontend droplet, managed
-remotely by production Dokploy. Build its image with this monorepo's `web.yml`, retain
+remotely by production Dokploy. Build its image with this monorepo's `build.yml`, retain
 the digest with each release, and promote production manually. Validate memory/CPU,
 health checks, image optimization, persistent/cache needs and graceful updates.
 Use a private API address for server-side calls only where the application's auth

@@ -1,13 +1,9 @@
-name: Build and Publish Images
+name: CI
 
 on:
   pull_request:
   push:
     branches: [main]
-    # Keep the required PR check, but do not publish/redeploy the backend for web-only pushes.
-    paths-ignore:
-      - 'apps/web/**'
-      - '.github/workflows/web.yml'
   workflow_dispatch:
 
 permissions:
@@ -20,7 +16,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 75
     permissions:
       contents: read
       packages: write
@@ -31,22 +27,30 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+      - name: Select affected components
+        id: changes
+        run: python3 .github/scripts/ci.py
       - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        if: steps.changes.outputs.backend == 'true'
         with:
           distribution: temurin
           java-version: 25
           cache: gradle
       - name: Verify release automation
-        run: python3 -m unittest discover -s .github/scripts/tests -v
-      - name: Test, check, and package
+        run: |
+          python3 -m unittest discover -s .github/scripts/tests -v
+          node --test .github/scripts/tests/test_stage.cjs
+      - name: Test and package backend
+        if: steps.changes.outputs.backend == 'true'
         run: ./gradlew clean verifyAwsSdkVersionAlignment test :api:integrationTest bootJar
       - name: Report existing formatting and Checkstyle backlog
+        if: steps.changes.outputs.backend == 'true'
         # These were not blocking in the previous pipeline. Keep the migration
         # focused; tighten this gate after the existing repository backlog is fixed.
         continue-on-error: true
         run: ./gradlew spotlessCheck checkstyleMain checkstyleTest --continue
       - name: Upload test reports
-        if: always()
+        if: always() && steps.changes.outputs.backend == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: test-reports
@@ -55,7 +59,7 @@ jobs:
             apps/*/build/test-results/
           retention-days: 7
       - name: SonarQube analysis
-        if: github.event_name != 'pull_request'
+        if: steps.changes.outputs.publish_backend == 'true'
         continue-on-error: true
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -63,9 +67,27 @@ jobs:
           if [ -n "$SONAR_TOKEN" ]; then
             ./gradlew sonar -Dsonar.host.url=https://sonarcloud.io -Dsonar.token="$SONAR_TOKEN"
           fi
+      - uses: actions/setup-node@v6
+        if: steps.changes.outputs.web == 'true'
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - name: Install locked dependencies
+        if: steps.changes.outputs.web == 'true'
+        working-directory: apps/web
+        run: npm ci --no-audit --no-fund
+      - name: Generate Next.js types
+        if: steps.changes.outputs.web == 'true'
+        working-directory: apps/web
+        run: npx --no-install next typegen
+      - name: Typecheck and lint
+        if: steps.changes.outputs.web == 'true'
+        working-directory: apps/web
+        run: npm run typecheck && npm run lint
       - name: Image names
         id: images
-        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        if: steps.changes.outputs.publish_backend == 'true' || steps.changes.outputs.publish_web == 'true'
         shell: bash
         run: |
           echo "prefix=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
@@ -80,7 +102,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Publish API
         id: api
-        if: steps.images.outcome == 'success'
+        if: steps.changes.outputs.publish_backend == 'true'
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -96,7 +118,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=api
       - name: Publish worker
         id: worker
-        if: steps.images.outcome == 'success'
+        if: steps.changes.outputs.publish_backend == 'true'
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -112,7 +134,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=worker
       - name: Publish migrator
         id: migrator
-        if: steps.images.outcome == 'success'
+        if: steps.changes.outputs.publish_backend == 'true'
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -124,17 +146,135 @@ jobs:
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
       - name: Record immutable release
-        if: steps.images.outcome == 'success'
+        if: steps.changes.outputs.publish_backend == 'true'
         env:
           API_DIGEST: ${{ steps.api.outputs.digest }}
           WORKER_DIGEST: ${{ steps.worker.outputs.digest }}
           MIGRATOR_DIGEST: ${{ steps.migrator.outputs.digest }}
         run: python3 .github/scripts/release.py manifest --output release.json
       - name: Upload release manifest
-        if: steps.images.outcome == 'success'
+        if: steps.changes.outputs.publish_backend == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: release-manifest
           path: release.json
+          if-no-files-found: error
+          retention-days: 90
+      - name: Build stage frontend
+        if: steps.changes.outputs.web == 'true'
+        working-directory: apps/web
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+          NEXT_PUBLIC_BUILD_ID: ${{ github.sha }}
+          NEXT_PUBLIC_APP_URL: ${{ vars.WEB_STAGE_APP_URL || 'https://stage.globalislamicinstitute.com' }}
+          NEXT_PUBLIC_API_URL: ${{ vars.WEB_STAGE_API_URL || 'https://stage-api.globalislamicinstitute.com' }}
+          API_URL: ${{ vars.WEB_STAGE_API_URL || 'https://stage-api.globalislamicinstitute.com' }}
+          NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ vars.WEB_STAGE_GOOGLE_CLIENT_ID }}
+          IMAGE_REMOTE_HOSTS: ${{ vars.WEB_STAGE_IMAGE_REMOTE_HOSTS }}
+        run: npm run build
+      - name: Publish stage frontend
+        id: web_stage
+        if: steps.changes.outputs.publish_web == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          # Package this environment before the next build replaces .next.
+          context: apps/web
+          file: apps/web/Dockerfile
+          target: ci
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.images.outputs.prefix }}/web:${{ steps.images.outputs.tag }}-stage
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            com.gii.environment=stage
+          cache-from: type=gha,scope=web-stage
+          cache-to: type=gha,mode=max,scope=web-stage
+      - name: Record stage frontend release
+        if: steps.changes.outputs.publish_web == 'true'
+        env:
+          IMAGE_NAME: ${{ steps.images.outputs.prefix }}/web
+          IMAGE_DIGEST: ${{ steps.web_stage.outputs.digest }}
+          TARGET: stage
+          NEXT_PUBLIC_APP_URL: ${{ vars.WEB_STAGE_APP_URL || 'https://stage.globalislamicinstitute.com' }}
+          NEXT_PUBLIC_API_URL: ${{ vars.WEB_STAGE_API_URL || 'https://stage-api.globalislamicinstitute.com' }}
+        working-directory: apps/web
+        run: |
+          node --input-type=module <<'JS'
+          import { writeFileSync } from 'node:fs';
+          const env = process.env;
+          if (!/^sha256:[a-f0-9]{64}$/.test(env.IMAGE_DIGEST ?? '')) throw new Error('Invalid image digest');
+          writeFileSync('web-release.json', JSON.stringify({
+            service: 'web', environment: env.TARGET,
+            source_sha: env.GITHUB_SHA, build_run_id: env.GITHUB_RUN_ID,
+            image: `${env.IMAGE_NAME}@${env.IMAGE_DIGEST}`,
+            public_app_url: env.NEXT_PUBLIC_APP_URL, public_api_url: env.NEXT_PUBLIC_API_URL
+          }, null, 2) + '\n');
+          JS
+      - name: Upload stage frontend release
+        if: steps.changes.outputs.publish_web == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-stage-release
+          path: apps/web/web-release.json
+          if-no-files-found: error
+          retention-days: 90
+      - name: Build prod frontend
+        if: steps.changes.outputs.publish_web == 'true'
+        working-directory: apps/web
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+          NEXT_PUBLIC_BUILD_ID: ${{ github.sha }}
+          NEXT_PUBLIC_APP_URL: ${{ vars.WEB_PROD_APP_URL || 'https://globalislamicinstitute.com' }}
+          NEXT_PUBLIC_API_URL: ${{ vars.WEB_PROD_API_URL || 'https://api.globalislamicinstitute.com' }}
+          API_URL: ${{ vars.WEB_PROD_API_URL || 'https://api.globalislamicinstitute.com' }}
+          NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ vars.WEB_PROD_GOOGLE_CLIENT_ID }}
+          IMAGE_REMOTE_HOSTS: ${{ vars.WEB_PROD_IMAGE_REMOTE_HOSTS }}
+        run: npm run build
+      - name: Publish prod frontend
+        id: web_prod
+        if: steps.changes.outputs.publish_web == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          # Package this environment before the next build replaces .next.
+          context: apps/web
+          file: apps/web/Dockerfile
+          target: ci
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.images.outputs.prefix }}/web:${{ steps.images.outputs.tag }}-prod
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            com.gii.environment=prod
+          cache-from: type=gha,scope=web-prod
+          cache-to: type=gha,mode=max,scope=web-prod
+      - name: Record prod frontend release
+        if: steps.changes.outputs.publish_web == 'true'
+        env:
+          IMAGE_NAME: ${{ steps.images.outputs.prefix }}/web
+          IMAGE_DIGEST: ${{ steps.web_prod.outputs.digest }}
+          TARGET: prod
+          NEXT_PUBLIC_APP_URL: ${{ vars.WEB_PROD_APP_URL || 'https://globalislamicinstitute.com' }}
+          NEXT_PUBLIC_API_URL: ${{ vars.WEB_PROD_API_URL || 'https://api.globalislamicinstitute.com' }}
+        working-directory: apps/web
+        run: |
+          node --input-type=module <<'JS'
+          import { writeFileSync } from 'node:fs';
+          const env = process.env;
+          if (!/^sha256:[a-f0-9]{64}$/.test(env.IMAGE_DIGEST ?? '')) throw new Error('Invalid image digest');
+          writeFileSync('web-release.json', JSON.stringify({
+            service: 'web', environment: env.TARGET,
+            source_sha: env.GITHUB_SHA, build_run_id: env.GITHUB_RUN_ID,
+            image: `${env.IMAGE_NAME}@${env.IMAGE_DIGEST}`,
+            public_app_url: env.NEXT_PUBLIC_APP_URL, public_api_url: env.NEXT_PUBLIC_API_URL
+          }, null, 2) + '\n');
+          JS
+      - name: Upload prod frontend release
+        if: steps.changes.outputs.publish_web == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-prod-release
+          path: apps/web/web-release.json
           if-no-files-found: error
           retention-days: 90

@@ -12,8 +12,8 @@ pushes them to GHCR. After staging is provisioned and explicitly enabled, succes
 builds deploy automatically through staging Dokploy. Production deployment is
 manual in its separate Dokploy dashboard, using the exact staging-tested digests.
 
-The independent frontend workflow checks/builds `apps/web` and publishes stage/prod
-variants to GHCR. Frontend deployment remains manual; its release artifacts are
+The same CI job checks/builds `apps/web` and publishes stage/prod variants to GHCR
+on relevant main runs. PRs check and build without publishing. Frontend deployment remains manual; its release artifacts are
 separate from the backend manifest. Backend images are not republished on frontend-only
 `main` pushes. See the [frontend guide](apps/web/README.md) for Node.js 24, local commands,
 build variables, Docker and Vercel's `apps/web` Root Directory.
@@ -69,5 +69,7 @@ The local Compose file is a development setup with placeholder provider credenti
 and local-only authentication settings; it must not be used as a stage/prod template.
 Configure real integration credentials if exercising external providers locally.
 Stage uses Dokploy's separate Database/API/Worker services. Production Dokploy runs
-API/Worker/Next.js and connects to DO managed PostgreSQL. The frontend pipeline lives in this
-repository's `web.yml`; the backend workflow/release artifact remains independent.
+API/Worker/Next.js and connects to DO managed PostgreSQL. A single CI job in
+`.github/workflows/build.yml` checks affected components and publishes images only
+from `main`. Backend and frontend retain separate release artifacts; frontend-only
+runs do not deploy the backend. Production and frontend deployments remain manual.
