@@ -278,6 +278,14 @@ jobs:
           path: apps/web/web-release.json
           if-no-files-found: error
           retention-days: 90
+      - name: Upload migration Compose
+        if: steps.changes.outputs.publish_backend == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: migration-compose
+          path: deploy/migration.compose.yml
+          if-no-files-found: error
+          retention-days: 90
       - name: Update latest image tags
         # Advance moving tags after all required checks, builds and artifacts succeed.
         if: >-

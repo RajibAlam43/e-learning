@@ -85,6 +85,13 @@ and unique tags for exact promotion/rollback. Aliases mean last published, not
 stage-qualified; frontend aliases retain separate build-time settings. Automatic
 stage release tooling remains digest-pinned and Actions never triggers production.
 
+`deploy/migration.compose.yml` is directly usable by a Dokploy GitHub-source Compose
+service: `MIGRATOR_IMAGE` defaults to the prebuilt GHCR migrator's `latest`, with
+`pull_policy: always`, and optional `MIGRATION_RELEASE_ID` labels the deployment.
+Keep production auto-deploy disabled; secrets/CA stay in Dokploy. CI also publishes
+a `migration-compose` artifact on backend publications. Stage automation still uses
+Raw source and renders this same file to an exact digest and release ID.
+
 ## Module Structure & Import Scanning
 
 Each service scans `com.gii.api`, `com.gii.common`, `com.gii.worker` respectively:

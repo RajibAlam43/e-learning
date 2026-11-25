@@ -72,7 +72,15 @@ def render_migration(image, release_id):
     if not re.fullmatch(r"[a-zA-Z0-9._-]+", release_id):
         raise ValueError("Unsafe release ID")
     template = (ROOT / "deploy/migration.compose.yml").read_text()
-    return template.replace("__MIGRATOR_IMAGE__", image).replace("__RELEASE_ID__", release_id)
+    replacements = {
+        "${MIGRATOR_IMAGE:-ghcr.io/rajibalam43/e-learning/migrator:latest}": image,
+        "${MIGRATION_RELEASE_ID:-manual}": release_id,
+    }
+    for token, value in replacements.items():
+        if template.count(token) != 1:
+            raise ValueError("Migration Compose defaults changed; update release rendering")
+        template = template.replace(token, value)
+    return template
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):

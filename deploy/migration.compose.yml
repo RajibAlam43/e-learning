@@ -1,11 +1,13 @@
-# A dedicated Raw Docker Compose service in Dokploy, separate from API/worker.
-# CI substitutes only these two tokens; credentials remain in Dokploy.
+# A dedicated Docker Compose service in Dokploy, separate from API/worker.
+# Dokploy can load this file from GitHub; credentials remain in Dokploy.
+# Staging release tooling replaces these two defaults with a digest/release ID.
 services:
   migrate:
-    image: "__MIGRATOR_IMAGE__"
+    image: "${MIGRATOR_IMAGE:-ghcr.io/rajibalam43/e-learning/migrator:latest}"
+    pull_policy: always
     restart: "no"
     labels:
-      com.gii.release: "__RELEASE_ID__"
+      com.gii.release: "${MIGRATION_RELEASE_ID:-manual}"
     environment:
       FLYWAY_URL: ${FLYWAY_URL:?Set migration JDBC URL in Dokploy}
       FLYWAY_USER: ${FLYWAY_USER:?Set migration user in Dokploy}
