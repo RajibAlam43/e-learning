@@ -278,3 +278,35 @@ jobs:
           path: apps/web/web-release.json
           if-no-files-found: error
           retention-days: 90
+      - name: Update latest image tags
+        # Advance moving tags after all required checks, builds and artifacts succeed.
+        if: >-
+          github.ref == 'refs/heads/main' &&
+          (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+          (steps.changes.outputs.publish_backend == 'true' || steps.changes.outputs.publish_web == 'true')
+        shell: bash
+        env:
+          IMAGE_PREFIX: ${{ steps.images.outputs.prefix }}
+          PUBLISH_BACKEND: ${{ steps.changes.outputs.publish_backend }}
+          PUBLISH_WEB: ${{ steps.changes.outputs.publish_web }}
+          API_DIGEST: ${{ steps.api.outputs.digest }}
+          WORKER_DIGEST: ${{ steps.worker.outputs.digest }}
+          MIGRATOR_DIGEST: ${{ steps.migrator.outputs.digest }}
+          WEB_STAGE_DIGEST: ${{ steps.web_stage.outputs.digest }}
+          WEB_PROD_DIGEST: ${{ steps.web_prod.outputs.digest }}
+        run: |
+          set -euo pipefail
+          if [ "$PUBLISH_BACKEND" = 'true' ]; then
+            docker buildx imagetools create --prefer-index=false \
+              --tag "$IMAGE_PREFIX/api:latest" "$IMAGE_PREFIX/api@$API_DIGEST"
+            docker buildx imagetools create --prefer-index=false \
+              --tag "$IMAGE_PREFIX/worker:latest" "$IMAGE_PREFIX/worker@$WORKER_DIGEST"
+            docker buildx imagetools create --prefer-index=false \
+              --tag "$IMAGE_PREFIX/migrator:latest" "$IMAGE_PREFIX/migrator@$MIGRATOR_DIGEST"
+          fi
+          if [ "$PUBLISH_WEB" = 'true' ]; then
+            docker buildx imagetools create --prefer-index=false \
+              --tag "$IMAGE_PREFIX/web:stage-latest" "$IMAGE_PREFIX/web@$WEB_STAGE_DIGEST"
+            docker buildx imagetools create --prefer-index=false \
+              --tag "$IMAGE_PREFIX/web:prod-latest" "$IMAGE_PREFIX/web@$WEB_PROD_DIGEST"
+          fi

@@ -52,6 +52,13 @@ ghcr.io/rajibalam43/e-learning/web:sha-COMMIT-run-RUN-ATTEMPT-stage
 ghcr.io/rajibalam43/e-learning/web:sha-COMMIT-run-RUN-ATTEMPT-prod
 ```
 
+The final main CI step also updates `web:stage-latest` and `web:prod-latest` from
+their corresponding published digests after all required checks, builds and release
+artifact uploads finish. Use the matching environment alias for a fixed Dokploy
+image field, then pull/redeploy manually. Unique tags and digest manifests remain
+available for exact release selection and rollback. There is no shared `web:latest`
+because the two bundles embed different public settings.
+
 `web-stage-release` / `web-prod-release` artifacts contain `web-release.json` with the
 immutable image digest, source commit and public URLs. Configure repository variables
 before adopting the workflow:
@@ -96,8 +103,10 @@ does not require the API/database to be online.
 
 ## Deployment remains manual
 
-Create a Dokploy Docker-source application for the frontend and use the environment's
-image digest. Configure GHCR read credentials, container port 3000, its public domain,
+Create a Dokploy Docker-source application for the frontend and use `web:stage-latest`
+or `web:prod-latest`, or the environment's recorded image digest for an exact release.
+The production alias identifies the latest production-configured build; confirm its
+stage variant was qualified before release. Configure GHCR read credentials, container port 3000, its public domain,
 the planned 2 GB / 1.5 CPU limits and a server-only `API_URL` using the real internal
 API service name where compatible. The non-root container starts `node server.js`.
 Do not build on the live VPS. No workflow added here triggers Dokploy or production.

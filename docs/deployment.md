@@ -97,10 +97,12 @@ or implementation is tracked under [Launch readiness](#launch-readiness-and-app-
   obtains that manifest and calls only
   staging Dokploy over HTTPS. It runs migration first, checks actual container exit
   code 0, then updates API and worker digests and waits for Docker health checks.
-- Every image reference in `release.json` is digest-pinned. Unique tags are for
-  discovery; deployment uses `ghcr.io/...@sha256:...`, never `latest`.
+- Every image reference in `release.json` is digest-pinned. Automatic stage releases
+  and artifact-based production promotion use `ghcr.io/...@sha256:...`. Unique tags
+  and digests remain available alongside moving aliases for manual deployments.
 - A successful stage release publishes `staged-release`: `release.json`, a rendered
-  `migration.compose.yml`, and `PRODUCTION.md`. Production uses those exact images.
+  `migration.compose.yml`, and `PRODUCTION.md`. Following that artifact promotes the
+  exact stage-tested backend images.
 - Production is manual in Dokploy. There is no production Actions job, webhook,
   API key, SSH connection, or deploy trigger in these workflows.
 - Redis dependencies/configuration are removed. Refresh tokens already use Postgres.
@@ -109,6 +111,11 @@ or implementation is tracked under [Launch readiness](#launch-readiness-and-app-
   stage then prod as Linux amd64 images with distinct tag suffixes. They record
   `web-stage-release` / `web-prod-release` artifacts with immutable digests.
   Frontend deployment remains manual.
+- The final main CI step updates `api:latest`, `worker:latest`, `migrator:latest`,
+  `web:stage-latest` and `web:prod-latest` from the just-published image digests.
+  It runs after required checks, builds and release artifact uploads finish, and
+  only updates aliases for components published by that run. PRs and branch manual
+  runs never update these tags. Tagging copies existing manifests without rebuilding.
 
 Changes to either backend or frontend run both backend tests/packaging and frontend
 type checking, linting and a stage build. Images are published only for changed
@@ -493,6 +500,23 @@ main build. Do not deploy concurrently from the stage dashboard. If the workflow
 cancelled or times out, inspect Dokploy: a remote job may continue running.
 
 ### Manual production: no GitHub-triggered deployment
+
+For manual deployments in either stage or production, Dokploy can keep the fixed
+image names `ghcr.io/rajibalam43/e-learning/api:latest`, `worker:latest` and
+`migrator:latest` under the same GHCR prefix, with `web:stage-latest` or
+`web:prod-latest` for the frontend. Pull the updated image and redeploy when ready;
+publishing an alias does not update running containers or trigger production.
+The production frontend alias is the latest production-configured bundle, not a
+separate production approval. Qualify the corresponding stage build before release.
+
+These aliases identify the last publication for each component, not necessarily
+the release qualified on stage. Registry tag updates are separate operations, so
+coordinate migration, API and worker versions and record the actual deployed digests.
+When releasing a specific stage-tested version or rolling back, use the retained
+digest manifests. A manual Compose migration must still pull/recreate the job and
+verify exit 0 before application rollout, as described in the migration section.
+
+For exact artifact-based promotion, follow these steps:
 
 1. Select a **successful Deploy Stage with Dokploy run** and download its
    `staged-release` artifact. The build's release-manifest alone is not staging approval.
