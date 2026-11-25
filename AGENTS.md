@@ -77,6 +77,14 @@ use the internal API service. Deployments are manual; the backend migration/rele
 flow does not deploy the frontend. Vercel uses Root Directory `apps/web` if selected.
 No Sentry/video/exam business changes are authorized by the repository import.
 
+The final CI step publishes moving aliases from the new digests: `api:latest`,
+`worker:latest`, `migrator:latest`, `web:stage-latest` and `web:prod-latest`.
+Only published components' aliases advance, after required checks/builds/artifacts.
+Manual stage/prod Dokploy deployments may use these aliases; keep digest manifests
+and unique tags for exact promotion/rollback. Aliases mean last published, not
+stage-qualified; frontend aliases retain separate build-time settings. Automatic
+stage release tooling remains digest-pinned and Actions never triggers production.
+
 ## Module Structure & Import Scanning
 
 Each service scans `com.gii.api`, `com.gii.common`, `com.gii.worker` respectively:

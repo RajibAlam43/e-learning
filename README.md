@@ -10,13 +10,31 @@ and worker; local development uses ElasticMQ. Redis is not required.
 GitHub Actions tests and builds API, worker and migration images on `main`, then
 pushes them to GHCR. After staging is provisioned and explicitly enabled, successful
 builds deploy automatically through staging Dokploy. Production deployment is
-manual in its separate Dokploy dashboard, using the exact staging-tested digests.
+manual in its separate Dokploy dashboard. Release manifests retain exact digests
+for promotion and rollback; manual deployments can also use the moving tags below.
 
 The same CI job checks/builds `apps/web` and publishes stage/prod variants to GHCR
 on relevant main runs. PRs check and build without publishing. Frontend deployment remains manual; its release artifacts are
 separate from the backend manifest. Backend images are not republished on frontend-only
 `main` pushes. See the [frontend guide](apps/web/README.md) for Node.js 24, local commands,
 build variables, Docker and Vercel's `apps/web` Root Directory.
+
+After all required CI checks, builds and release artifact uploads finish, the final
+step updates moving tags for the components published by that main run:
+
+```text
+ghcr.io/rajibalam43/e-learning/api:latest
+ghcr.io/rajibalam43/e-learning/worker:latest
+ghcr.io/rajibalam43/e-learning/migrator:latest
+ghcr.io/rajibalam43/e-learning/web:stage-latest
+ghcr.io/rajibalam43/e-learning/web:prod-latest
+```
+
+These can be configured once in Dokploy for manual pull/redeployment in stage or
+production. Publishing does not itself replace running containers. Moving tags
+refer to the last publication, not necessarily a stage-qualified release; record
+deployed digests and coordinate migration/API/worker versions. See the
+[release runbook](docs/deployment.md#manual-production-no-github-triggered-deployment).
 
 Production uses one Hostinger KVM 4 in Singapore (4 vCPU / 16 GB / 200 GB) running
 Dokploy, API, Next.js and worker, plus DO managed PostgreSQL in Singapore. The user
