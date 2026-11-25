@@ -36,6 +36,12 @@ refer to the last publication, not necessarily a stage-qualified release; record
 deployed digests and coordinate migration/API/worker versions. See the
 [release runbook](docs/deployment.md#manual-production-no-github-triggered-deployment).
 
+For the migrator, Dokploy can read `deploy/migration.compose.yml` directly from this
+GitHub repository on `main`, with auto-deploy disabled. It pulls `migrator:latest`
+when you deploy; database credentials and the CA stay in Dokploy. CI also uploads
+the file as `migration-compose` on backend publications. No manual YAML editing is
+needed. See the [migration setup](docs/deployment.md#configure-the-migration-service-in-each-dokploy).
+
 Production uses one Hostinger KVM 4 in Singapore (4 vCPU / 16 GB / 200 GB) running
 Dokploy, API, Next.js and worker, plus DO managed PostgreSQL in Singapore. The user
 measured approximately 1.5 ms average host-to-DB latency. API/worker/migrator use the

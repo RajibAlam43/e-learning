@@ -434,9 +434,26 @@ log, uptime monitor, off-host backup or replacement for DB/queue health monitori
 ## Configure the migration service in each Dokploy
 
 Create a **Docker Compose** service named `migrator` in the same environment as API
-and worker. Use **Raw** source and **Docker Compose**, not Stack. Run it on the local
-Hostinger host for each environment. It consumes a prebuilt GHCR
-image; it does not build source on the host.
+and worker. Use **Docker Compose**, not Stack, on the local Hostinger host. It consumes
+a prebuilt GHCR image; it does not build source on the host.
+
+For manual production with moving tags, select **GitHub** source, authorize repository
+read access, choose `rajibalam43/e-learning`, branch `main`, and Compose path
+`./deploy/migration.compose.yml`. Keep auto-deploy disabled: clicking Deploy fetches
+the file and pulls `migrator:latest`. GHCR credentials authenticate the image pull;
+GitHub source access authenticates the repository fetch. Secrets and the CA are
+configured once in the service environment, not committed. The file has no `build`
+section. Main backend publications also upload it as the `migration-compose` artifact
+if Raw source is preferred; no hand-editing of YAML placeholders is required.
+
+`MIGRATOR_IMAGE` optionally overrides the default with an exact release digest.
+`MIGRATION_RELEASE_ID` optionally labels the release (default `manual`). For repeat
+runs of the same image, ensure the one-off container is recreated as described below.
+The file uses `pull_policy: always`; publishing a new tag never triggers production.
+
+Automated staging continues to require **Raw** source so its release helper can supply
+the verified digest and unique release label. Switching production to GitHub source
+does not change staging or add a GitHub Actions production trigger.
 
 Set service-scoped environment from `deploy/env/migrator.env.example`. Set production
 values from the production checklist instead. `FLYWAY_URL` must use the migration
@@ -456,16 +473,18 @@ no public domains/ports, and no independent auto-deploy trigger. Do not add app/
 containers to this dedicated Compose definition. It has `restart: "no"`.
 
 For stage, automation supplies the rendered Compose content before deploying it.
-For production, paste the `migration.compose.yml` from the successful staged-release
-artifact. Do not deploy the repository's unsubstituted `__...__` template. A new release
-label forces Compose to replace the previous job container. To rerun the same release
+For exact artifact-based production promotion, use Raw source and the rendered
+`migration.compose.yml` from the successful staged-release artifact, or use GitHub
+source with `MIGRATOR_IMAGE` set to that artifact's migrator digest and a unique
+`MIGRATION_RELEASE_ID`. A new release label forces Compose to replace the previous
+job container. To rerun the same release
 manually, append `--force-recreate` to the **full default Compose command shown in
 Dokploy** (its custom command replaces the whole default), or change the release label.
 
 For the initial stage cutover, before automation is enabled, download `release.json`
 from a successful main build's `release-manifest` artifact. Copy the repository's
-migration template into stage Dokploy, replace `__MIGRATOR_IMAGE__` with that manifest's
-`images.migrator` digest and `__RELEASE_ID__` with a unique label such as
+migration file into stage Dokploy, set `MIGRATOR_IMAGE` in its environment to that
+manifest's `images.migrator` digest and `MIGRATION_RELEASE_ID` to a unique label such as
 `initial-cutover-BUILD_RUN_ID`, then deploy and verify exit 0. Set initial API/worker
 image fields from the same manifest. After cutover, enable/retry stage automation to
 produce the successful staged-release artifact required for production promotion.
