@@ -6,7 +6,7 @@ RUN ./gradlew :worker:bootJar --no-daemon
 FROM eclipse-temurin:25-jre-noble AS runtime
 WORKDIR /app
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl \
+    && apt-get install -y --no-install-recommends curl ffmpeg \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --system appgroup \
     && useradd --system --gid appgroup appuser

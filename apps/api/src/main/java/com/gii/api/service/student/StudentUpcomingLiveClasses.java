@@ -83,7 +83,10 @@ public class StudentUpcomingLiveClasses {
             ? registrant.getParticipantJoinUrl()
             : liveClass.effectiveParticipantJoinUrl();
     boolean canJoin = isLive && isRegistered && joinUrl != null;
-    User instructor = courseInstructorResolver.primaryInstructor(liveClass.getCourse());
+    User instructor =
+        liveClass.getLeadInstructor() != null
+            ? liveClass.getLeadInstructor()
+            : courseInstructorResolver.primaryInstructor(liveClass.getCourse());
 
     return StudentLiveClassSummaryResponse.builder()
         .liveClassId(liveClass.getId())

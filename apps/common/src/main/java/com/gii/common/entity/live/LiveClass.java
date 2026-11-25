@@ -3,6 +3,7 @@ package com.gii.common.entity.live;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.gii.common.entity.common.BaseUuidEntity;
 import com.gii.common.entity.course.Course;
+import com.gii.common.entity.user.User;
 import com.gii.common.enums.LiveClassProvider;
 import com.gii.common.enums.LiveClassProvisioningMode;
 import com.gii.common.enums.LiveClassStatus;
@@ -37,6 +38,11 @@ public class LiveClass extends BaseUuidEntity {
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
   @JoinColumn(name = "course_offering_id", nullable = false)
   private Course course;
+
+  @JsonIgnore
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "lead_instructor_id")
+  private User leadInstructor;
 
   @JsonIgnore
   @ManyToOne(fetch = FetchType.EAGER, optional = false, cascade = CascadeType.MERGE)
@@ -97,6 +103,9 @@ public class LiveClass extends BaseUuidEntity {
 
   /** Provider host start URL. */
   public String effectiveHostStartUrl() {
+    if (provider == LiveClassProvider.GOOGLE_MEET) {
+      return participantJoinUrl;
+    }
     return hostStartUrl;
   }
 

@@ -6,6 +6,7 @@ import com.gii.api.model.response.instructor.InstructorLiveClassResponse;
 import com.gii.api.model.response.instructor.InstructorLiveClassStartResponse;
 import com.gii.api.model.response.instructor.LiveClassRegistrantSummaryResponse;
 import com.gii.api.service.enrollment.CurrentUserService;
+import com.gii.api.service.live.LiveClassSchedulingService;
 import com.gii.api.service.live.LiveMeetingCancelRequest;
 import com.gii.api.service.live.LiveMeetingCreateRequest;
 import com.gii.api.service.live.LiveMeetingCreateResult;
@@ -66,6 +67,7 @@ public class InstructorLiveClassService {
   private final LiveClassRegistrantRepository liveClassRegistrantRepository;
   private final LiveClassAttendanceRepository liveClassAttendanceRepository;
   private final LiveMeetingProvisioningService liveMeetingProvisioningService;
+  private final LiveClassSchedulingService scheduling;
   private final LocalizedContentService localizedContentService;
   private final EnrollmentCompletionService enrollmentCompletionService;
 
@@ -83,17 +85,15 @@ public class InstructorLiveClassService {
     LiveClassSlot slot =
         liveClassSlotRepository
             .findByIdForUpdate(request.liveClassItemId())
-            .orElseThrow(
-                () ->
-                    new ResponseStatusException(HttpStatus.NOT_FOUND, "Live class item not found"));
+            .orElseThrow(() ->
+                new ResponseStatusException(HttpStatus.NOT_FOUND, "Live class item not found"));
     final CourseSection section =
         courseSectionRepository
             .findAssignedSectionForInstructor(
                 courseId, slot.getSection().getId(), instructor.getId())
-            .orElseThrow(
-                () ->
-                    new ResponseStatusException(
-                        HttpStatus.FORBIDDEN, "Not assigned to this course section"));
+            .orElseThrow(() ->
+                new ResponseStatusException(
+                    HttpStatus.FORBIDDEN, "Not assigned to this course section"));
     final Course course =
         courseRepository
             .findByIdForUpdate(courseId)
@@ -107,7 +107,10 @@ public class InstructorLiveClassService {
     validateSchedule(request.startsAt(), request.endsAt());
     validateOfferingWindow(course, request.startsAt(), request.endsAt());
     validateCapacity(request.maxCapacity());
-    ensureNoProviderOverlap(request.provider(), request.startsAt(), request.endsAt());
+    User leadTeacher = instructor;
+    List<String> coHostEmails = scheduling.courseCoHosts(course, request.provider());
+    scheduling.ensureAvailable(
+        request.provider(), leadTeacher, request.startsAt(), request.endsAt(), null);
 
     LiveMeetingCreateResult meeting =
         liveMeetingProvisioningService.createMeeting(
@@ -118,6 +121,7 @@ public class InstructorLiveClassService {
                 .startsAt(request.startsAt())
                 .endsAt(request.endsAt())
                 .maxCapacity(request.maxCapacity())
+                .coHostEmails(coHostEmails)
                 .build());
     try {
       LiveClass liveClass =
@@ -129,6 +133,8 @@ public class InstructorLiveClassService {
               .descriptionOverride(request.description())
               .descriptionEnOverride(request.descriptionEn())
               .provider(request.provider())
+              .leadInstructor(leadTeacher)
+              .providerMetadata(meeting.metadata())
               .providerMeetingId(meeting.meetingId())
               .hostStartUrl(meeting.hostStartUrl())
               .participantJoinUrl(meeting.participantJoinUrl())
@@ -142,7 +148,7 @@ public class InstructorLiveClassService {
       LiveClass saved = liveClassRepository.saveAndFlush(liveClass);
       return toLiveClassResponse(saved);
     } catch (RuntimeException persistenceFailure) {
-      compensateCreatedMeeting(request.provider(), meeting.meetingId(), persistenceFailure);
+      compensateCreatedMeeting(request.provider(), meeting, persistenceFailure);
       throw persistenceFailure;
     }
   }
@@ -162,6 +168,7 @@ public class InstructorLiveClassService {
           HttpStatus.BAD_REQUEST, "Live class meeting is not provisioned");
     }
 
+    scheduling.prepareGoogle(liveClass);
     liveClass.setStatus(LiveClassStatus.LIVE);
     liveClassRepository.save(liveClass);
 
@@ -232,7 +239,12 @@ public class InstructorLiveClassService {
       validateSchedule(startsAt, endsAt);
       validateOfferingWindow(course, startsAt, endsAt);
       if (isApiProvisioned(liveClass)) {
-        ensureNoProviderOverlap(liveClass.getProvider(), startsAt, endsAt, liveClass.getId());
+        scheduling.ensureAvailable(
+            liveClass.getProvider(),
+            liveClass.getLeadInstructor(),
+            startsAt,
+            endsAt,
+            liveClass.getId());
       }
       syncProviderUpdate(
           liveClass,
@@ -260,6 +272,9 @@ public class InstructorLiveClassService {
 
     if (request.status() != null) {
       validateStatusTransitionForUpdate(liveClass.getStatus(), request.status());
+      if (request.status() == LiveClassStatus.CANCELLED) {
+        syncProviderCancel(liveClass);
+      }
       liveClass.setStatus(request.status());
       if (request.status() == LiveClassStatus.COMPLETED
           || request.status() == LiveClassStatus.CANCELLED
@@ -327,12 +342,13 @@ public class InstructorLiveClassService {
         LiveMeetingCancelRequest.builder()
             .provider(liveClass.getProvider())
             .providerMeetingId(liveClass.effectiveMeetingId())
+            .metadata(liveClass.getProviderMetadata())
             .build());
   }
 
   private LiveClass requireOwnedLiveClass(UUID liveClassId, UUID instructorId) {
     return liveClassRepository
-        .findByIdAssignedToInstructor(liveClassId, instructorId)
+        .findByIdAssignedToInstructorForUpdate(liveClassId, instructorId)
         .orElseThrow(
             () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Live class not found"));
   }
@@ -372,43 +388,16 @@ public class InstructorLiveClassService {
     }
   }
 
-  private void ensureNoProviderOverlap(
-      LiveClassProvider provider, Instant startsAt, Instant endsAt) {
-    liveClassRepository.acquireProviderSchedulingLock(provider.ordinal());
-    boolean overlap =
-        liveClassRepository.existsOverlappingByProvider(
-            provider, List.of(LiveClassStatus.SCHEDULED, LiveClassStatus.LIVE), startsAt, endsAt);
-    if (overlap) {
-      throw new ResponseStatusException(
-          HttpStatus.BAD_REQUEST, "Provider host account already has overlapping live class");
-    }
-  }
-
-  private void ensureNoProviderOverlap(
-      LiveClassProvider provider, Instant startsAt, Instant endsAt, UUID excludingLiveClassId) {
-    liveClassRepository.acquireProviderSchedulingLock(provider.ordinal());
-    boolean overlap =
-        liveClassRepository.findAll().stream()
-            .filter(
-                lc ->
-                    !lc.getId().equals(excludingLiveClassId)
-                        && lc.getProvider() == provider
-                        && (lc.getStatus() == LiveClassStatus.SCHEDULED
-                            || lc.getStatus() == LiveClassStatus.LIVE))
-            .anyMatch(lc -> lc.getStartsAt().isBefore(endsAt) && lc.getEndsAt().isAfter(startsAt));
-    if (overlap) {
-      throw new ResponseStatusException(
-          HttpStatus.BAD_REQUEST, "Provider host account already has overlapping live class");
-    }
-  }
-
   private void compensateCreatedMeeting(
-      LiveClassProvider provider, String meetingId, RuntimeException persistenceFailure) {
+      LiveClassProvider provider,
+      LiveMeetingCreateResult meeting,
+      RuntimeException persistenceFailure) {
     try {
       liveMeetingProvisioningService.cancelMeeting(
           LiveMeetingCancelRequest.builder()
               .provider(provider)
-              .providerMeetingId(meetingId)
+              .providerMeetingId(meeting.meetingId())
+              .metadata(meeting.metadata())
               .build());
     } catch (RuntimeException compensationFailure) {
       persistenceFailure.addSuppressed(compensationFailure);
@@ -440,25 +429,23 @@ public class InstructorLiveClassService {
 
     List<LiveClassRegistrantSummaryResponse> registrantSummaries =
         registrants.stream()
-            .map(
-                registrant -> {
-                  AttendanceSummary attendance =
-                      attendanceByUserId.get(registrant.getUser().getId());
+            .map(registrant -> {
+              AttendanceSummary attendance = attendanceByUserId.get(registrant.getUser().getId());
 
-                  return LiveClassRegistrantSummaryResponse.builder()
-                      .registrantId(registrant.getId())
-                      .userId(registrant.getUser().getId())
-                      .studentName(registrant.getUser().getFullName())
-                      .studentEmail(registrant.getUser().getEmail())
-                      .status(registrant.getStatus())
-                      .providerRegistrantId(registrant.getProviderRegistrantId())
-                      .attended(attendance != null)
-                      .joinedAt(attendance != null ? attendance.joinedAt() : null)
-                      .leftAt(attendance != null ? attendance.leftAt() : null)
-                      .durationSeconds(attendance != null ? attendance.durationSeconds() : null)
-                      .registeredAt(registrant.getCreatedAt())
-                      .build();
-                })
+              return LiveClassRegistrantSummaryResponse.builder()
+                  .registrantId(registrant.getId())
+                  .userId(registrant.getUser().getId())
+                  .studentName(registrant.getUser().getFullName())
+                  .studentEmail(registrant.getUser().getEmail())
+                  .status(registrant.getStatus())
+                  .providerRegistrantId(registrant.getProviderRegistrantId())
+                  .attended(attendance != null)
+                  .joinedAt(attendance != null ? attendance.joinedAt() : null)
+                  .leftAt(attendance != null ? attendance.leftAt() : null)
+                  .durationSeconds(attendance != null ? attendance.durationSeconds() : null)
+                  .registeredAt(registrant.getCreatedAt())
+                  .build();
+            })
             .toList();
 
     int attendedStudents = attendanceByUserId.size();
@@ -477,8 +464,14 @@ public class InstructorLiveClassService {
             localizedContentService.text(
                 liveClass.getSection().getTitle(), liveClass.getSection().getTitleEn()))
         .position(positionOf(liveClass.getId()))
-        .instructorName(primaryInstructorName(liveClass.getCourse()))
-        .instructorEmail(primaryInstructorEmail(liveClass.getCourse()))
+        .instructorName(
+            liveClass.getLeadInstructor() != null
+                ? liveClass.getLeadInstructor().getFullName()
+                : primaryInstructorName(liveClass.getCourse()))
+        .instructorEmail(
+            liveClass.getLeadInstructor() != null
+                ? liveClass.getLeadInstructor().getEmail()
+                : primaryInstructorEmail(liveClass.getCourse()))
         .startsAt(liveClass.getStartsAt())
         .endsAt(liveClass.getEndsAt())
         .durationMinutes(

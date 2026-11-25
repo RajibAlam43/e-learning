@@ -397,6 +397,8 @@ class AdminOperationsApiIt extends AbstractAdminApiIntegrationTest {
                             Instant.now().plusSeconds(6200))))
         .andExpect(status().isBadRequest());
 
+    assignment(course, creator);
+
     mockMvc
         .perform(
             post("/live-classes/courses/{courseId}", course.getId())
@@ -427,10 +429,11 @@ class AdminOperationsApiIt extends AbstractAdminApiIntegrationTest {
     var creator = user("Creator Provider", "creator-provider@example.com");
     var course = course("Provider Course", "provider-course", creator);
     var sec = section(course, 1);
+    assignment(course, creator);
 
     when(liveMeetingProvisioningService.createMeeting(any()))
         .thenThrow(
-            new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Google Calendar API unavailable"));
+            new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Google Meet API unavailable"));
 
     mockMvc
         .perform(
