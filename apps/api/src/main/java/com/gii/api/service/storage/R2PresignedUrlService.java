@@ -24,6 +24,7 @@ public class R2PresignedUrlService {
   private final String accessKeyId;
   private final String secretAccessKey;
   private final String bucket;
+  private final String publicBucket;
   private final long downloadTtlSeconds;
   private final long uploadTtlSeconds;
   private final String region;
@@ -33,6 +34,7 @@ public class R2PresignedUrlService {
       @Value("${storage.r2.access-key-id}") String accessKeyId,
       @Value("${storage.r2.secret-access-key}") String secretAccessKey,
       @Value("${storage.r2.bucket}") String bucket,
+      @Value("${storage.r2.public-bucket}") String publicBucket,
       @Value("${storage.r2.download-url-ttl-seconds}") long downloadTtlSeconds,
       @Value("${storage.r2.upload-url-ttl-seconds:600}") long uploadTtlSeconds,
       @Value("${storage.r2.region}") String region) {
@@ -40,16 +42,31 @@ public class R2PresignedUrlService {
     this.accessKeyId = accessKeyId;
     this.secretAccessKey = secretAccessKey;
     this.bucket = bucket;
+    this.publicBucket = publicBucket;
     this.downloadTtlSeconds = downloadTtlSeconds;
     this.uploadTtlSeconds = uploadTtlSeconds;
     this.region = region;
   }
 
   public PresignedUpload generateUploadUrl(String objectKey, String contentType, long sizeBytes) {
+    return presignUpload(bucket, objectKey, contentType, sizeBytes);
+  }
+
+  /** Signs thumbnail uploads to the bucket served by the public assets domain. */
+  public PresignedUpload generateThumbnailUploadUrl(
+      String objectKey, String contentType, long sizeBytes) {
+    if (publicBucket == null || publicBucket.isBlank()) {
+      throw new IllegalStateException("R2 public bucket is not configured");
+    }
+    return presignUpload(publicBucket, objectKey, contentType, sizeBytes);
+  }
+
+  private PresignedUpload presignUpload(
+      String targetBucket, String objectKey, String contentType, long sizeBytes) {
     Duration signatureDuration = Duration.ofSeconds(uploadTtlSeconds);
     PutObjectRequest putObjectRequest =
         PutObjectRequest.builder()
-            .bucket(bucket)
+            .bucket(targetBucket)
             .key(objectKey)
             .contentType(contentType)
             .contentLength(sizeBytes)
@@ -90,8 +107,8 @@ public class R2PresignedUrlService {
   }
 
   /**
-   * Builds a signed GET URL for a resource, either as a browser-renderable inline URL (for
-   * on-page preview) or a forced download, depending on {@code disposition}.
+   * Builds a signed GET URL for a resource, either as a browser-renderable inline URL (for on-page
+   * preview) or a forced download, depending on {@code disposition}.
    */
   public PresignedDownload generateDownloadUrl(
       String fileUrlOrKey,

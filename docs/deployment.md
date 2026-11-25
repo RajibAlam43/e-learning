@@ -291,6 +291,63 @@ Production payment URLs and worker SMS URL must be explicitly supplied; no live
 provider endpoint is guessed in configuration. Check cookies, proxy forwarding,
 CORS, OAuth redirects, webhooks and provider allowlists against the final domains.
 
+### R2 private files and public thumbnails
+
+Only thumbnail uploads use `R2_PUBLIC_BUCKET`. Lesson resource uploads, certificate
+generation and signed downloads continue to use `R2_BUCKET`. Object keys, database
+rows, authorization and frontend contracts are unchanged. Production requires the
+new public-bucket setting before deploying the updated API image. Local/stage fall
+back to the existing bucket when it is absent for compatibility; configure a separate
+public bucket there too before exposing thumbnails from a new setup.
+
+1. Keep `gii-prod-files` private: public development URL and direct bucket custom
+   domains stay disabled. Create a separate `gii-prod-public` bucket for thumbnails,
+   using Standard storage. Never put private files, certificates, originals or
+   database backups in the public bucket.
+2. Give the API's R2 S3 access keys **Object Read & Write** permission scoped to both
+   buckets. The worker and frontend do not need these credentials. Use the generated
+   S3 Access Key ID/Secret Access Key, not the separate Cloudflare API-token value.
+3. On both buckets, configure CORS for the real frontend origins. Production example:
+
+   ```json
+   [
+     {
+       "AllowedOrigins": [
+         "https://globalislamicinstitute.com",
+         "https://www.globalislamicinstitute.com"
+       ],
+       "AllowedMethods": ["GET", "HEAD", "PUT"],
+       "AllowedHeaders": ["*"],
+       "ExposeHeaders": ["ETag", "Content-Disposition"],
+       "MaxAgeSeconds": 3600
+     }
+   ]
+   ```
+
+   CORS permits browser requests; private objects still require signed URLs.
+4. Set API environment `R2_BUCKET=gii-prod-files` and
+   `R2_PUBLIC_BUCKET=gii-prod-public`, with the existing Cloudflare account ID and
+   the scoped S3 keys. For existing data, copy only `thumbnails/` objects to the new
+   public bucket, preserving their keys. Retain the private originals during cutover;
+   no schema migration is needed. Publishing the old mixed bucket would expose
+   private lesson files and certificates.
+5. In **R2 → gii-prod-public → Settings → Custom Domains**, connect
+   `assets.globalislamicinstitute.com`. Confirm any existing record/domain mapping
+   before changing it. Let R2 configure its domain routing/certificate; this hostname
+   serves R2, not the VPS. The API's production `assets.base-url` already uses it and
+   the frontend image allowlist already includes it. A frontend rebuild is unnecessary.
+6. Merge the storage change, wait for successful main CI to publish the backend
+   images, then deploy the API from GHCR with the new environment. Keep the migration
+   and worker versions coordinated with that release; this change adds no Flyway SQL.
+7. Verify a thumbnail upload signs the public bucket and renders through the assets
+   domain. Verify a lesson file/certificate remains in the private bucket, opens via
+   its authorized signed-download flow, and is unavailable anonymously or through
+   the public assets hostname. Check browser uploads for CORS failures too.
+
+See [R2 S3 credentials](https://developers.cloudflare.com/r2/get-started/s3/),
+[CORS](https://developers.cloudflare.com/r2/buckets/cors/) and
+[public custom domains](https://developers.cloudflare.com/r2/buckets/public-buckets/).
+
 ### Next.js frontend
 
 Run Next.js as a separate Dokploy application on the production host with a 2 GB

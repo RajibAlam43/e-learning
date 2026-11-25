@@ -41,6 +41,15 @@ Dokploy metrics/logs and independent phone-alerting uptime/backup checks. SDK se
 source maps, DSNs, privacy controls and release tags require confirmation; no Sentry
 integration is currently implemented. See the runbook's Sentry plan.
 
+**R2 storage:** the approved split routes only thumbnail uploads to `R2_PUBLIC_BUCKET`.
+`R2_BUCKET` remains private for lesson files and certificates, including signed
+downloads. Production requires `R2_PUBLIC_BUCKET` explicitly; stage/local default to
+the existing bucket for compatibility. For new setups, configure distinct private
+and public buckets in each environment. Only the public bucket gets the assets
+custom domain. API R2 credentials must cover both buckets. Existing thumbnails need
+copying to the public bucket with their object keys preserved before cutover; do not
+publish the private bucket. No schema or frontend changes are needed.
+
 **Networking/data cutover:** same-host server traffic uses verified Dokploy internal
 service names; browsers/external callbacks use public HTTPS. Worker uses SQS and DB
 directly; production DB traffic goes to DO over verified public TLS, while stage DB

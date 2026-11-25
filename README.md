@@ -53,6 +53,11 @@ public services. Verify DO recovery and plan independent hourly R2/B2 exports fo
 the retained one-hour data-loss target; the external-DB export job requires approval.
 Test restore/rebuild before launch, then add application redundancy as needed.
 
+R2 uses a private `R2_BUCKET` for lesson files/certificates and a public
+`R2_PUBLIC_BUCKET` for thumbnails. Production requires the latter explicitly;
+connect `assets.globalislamicinstitute.com` only to the public bucket. See the
+[R2 setup and existing-thumbnail cutover](docs/deployment.md#r2-private-files-and-public-thumbnails).
+
 The [future DO plan](docs/deployment.md#future-digitalocean-production-plan) covers
 app/worker droplets under production Dokploy, keeping the existing managed DB, and
 either a third droplet for Next.js or Vercel Pro. It includes compute migration from Hostinger and

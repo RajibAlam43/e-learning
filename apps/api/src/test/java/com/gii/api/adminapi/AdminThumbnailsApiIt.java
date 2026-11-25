@@ -21,7 +21,8 @@ import org.springframework.test.web.servlet.MockMvc;
       "storage.r2.account-id=test-account",
       "storage.r2.access-key-id=test-access",
       "storage.r2.secret-access-key=test-secret",
-      "storage.r2.bucket=test-bucket"
+      "storage.r2.bucket=test-bucket",
+      "storage.r2.public-bucket=test-public-bucket"
     })
 class AdminThumbnailsApiIt extends AbstractAdminApiIntegrationTest {
 
@@ -56,7 +57,11 @@ class AdminThumbnailsApiIt extends AbstractAdminApiIntegrationTest {
                 .value(
                     org.hamcrest.Matchers.matchesPattern(
                         "thumbnails/courses/course-cover-[0-9a-f]{8}\\.webp")))
-        .andExpect(jsonPath("$.uploadUrl").isNotEmpty())
+        .andExpect(
+            jsonPath("$.uploadUrl")
+                .value(
+                    org.hamcrest.Matchers.startsWith(
+                        "https://test-account.r2.cloudflarestorage.com/test-public-bucket/thumbnails/")))
         .andExpect(jsonPath("$.method").value("PUT"))
         .andExpect(jsonPath("$.contentType").value("image/webp"))
         .andExpect(jsonPath("$.sizeBytes").value(1024))
