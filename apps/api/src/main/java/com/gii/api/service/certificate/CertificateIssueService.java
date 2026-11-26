@@ -1,8 +1,8 @@
 package com.gii.api.service.certificate;
 
 import com.gii.api.model.response.certificate.CertificateIssueResponse;
+import com.gii.api.service.academic.AcademicAchievementService;
 import com.gii.api.service.certificate.CertificateDocumentService.StoredCertificateDocument;
-import com.gii.api.service.collection.PurchasedCollectionCoursesService;
 import com.gii.api.service.enrollment.CurrentUserService;
 import com.gii.api.service.localization.LocalizedContentService;
 import com.gii.api.service.progress.CourseCompletionService;
@@ -52,12 +52,14 @@ public class CertificateIssueService {
   private final CollectionEnrollmentRepository collectionEnrollmentRepository;
   private final EnrollmentRepository enrollmentRepository;
   private final CourseCompletionService courseCompletionService;
+  private final com.gii.api.service.progress.CollectionRequirementsCompletionService
+      collectionRequirements;
   private final CertificateRepository certificateRepository;
   private final CourseInstructorRepository courseInstructorRepository;
   private final CertificateDocumentService certificateDocumentService;
   private final R2ObjectStorageService objectStorageService;
   private final LocalizedContentService localizedContentService;
-  private final PurchasedCollectionCoursesService purchasedCollectionCoursesService;
+  private final AcademicAchievementService academicAchievementService;
 
   public CertificateIssueResponse executeCourse(UUID courseId, Authentication authentication) {
     User user = currentUserService.getCurrentUser(authentication);
@@ -76,10 +78,8 @@ public class CertificateIssueService {
     Enrollment enrollment =
         enrollmentRepository
             .findByUserIdAndCourseIdForUpdate(user.getId(), courseId)
-            .orElseThrow(
-                () ->
-                    new ResponseStatusException(
-                        HttpStatus.FORBIDDEN, "Not enrolled in this course"));
+            .orElseThrow(() ->
+                new ResponseStatusException(HttpStatus.FORBIDDEN, "Not enrolled in this course"));
 
     // Re-check after lock so concurrent issue requests become idempotent.
     existing = certificateRepository.findByUserIdAndCourseId(user.getId(), courseId).orElse(null);
@@ -99,13 +99,15 @@ public class CertificateIssueService {
     boolean eligible = enrollment.getCompletedAt() != null;
     if (!eligible) {
       CourseCompletion completion = courseCompletionService.get(user.getId(), courseId);
-      eligible = completion.totalItems() > 0 && completion.completedItems() >= completion.totalItems();
+      eligible =
+          completion.totalItems() > 0 && completion.completedItems() >= completion.totalItems();
       if (eligible) {
         // The learner just crossed 100% but no progress event has persisted completedAt yet
         // (e.g. this request raced ahead of EnrollmentCompletionService.refresh). Persist it now
         // so completion stays sticky from this point on, same as the normal completion path.
         enrollment.setCompletedAt(Instant.now());
         enrollmentRepository.save(enrollment);
+        academicAchievementService.awardCompletion(enrollment);
       }
     }
 
@@ -163,10 +165,9 @@ public class CertificateIssueService {
     CollectionEnrollment enrollment =
         collectionEnrollmentRepository
             .findByUserIdAndCollectionIdForUpdate(user.getId(), collectionId)
-            .orElseThrow(
-                () ->
-                    new ResponseStatusException(
-                        HttpStatus.FORBIDDEN, "Not enrolled in this collection"));
+            .orElseThrow(() ->
+                new ResponseStatusException(
+                    HttpStatus.FORBIDDEN, "Not enrolled in this collection"));
 
     existing =
         certificateRepository.findByUserIdAndCollectionId(user.getId(), collectionId).orElse(null);
@@ -185,21 +186,7 @@ public class CertificateIssueService {
 
     boolean eligible = enrollment.getCompletedAt() != null;
     if (!eligible) {
-      var courseIds =
-          purchasedCollectionCoursesService.resolveItems(enrollment).stream()
-              .filter(
-                  com.gii.api.service.collection.PurchasedCollectionCoursesService.PurchasedCourse
-                      ::mandatory)
-              .map(item -> item.course().getId())
-              .distinct()
-              .toList();
-      if (!courseIds.isEmpty()) {
-        var completions = courseCompletionService.getByCourseIds(user.getId(), courseIds);
-        int totalItems = completions.values().stream().mapToInt(CourseCompletion::totalItems).sum();
-        int completedItems =
-            completions.values().stream().mapToInt(CourseCompletion::completedItems).sum();
-        eligible = totalItems > 0 && completedItems >= totalItems;
-      }
+      eligible = collectionRequirements.isComplete(enrollment);
       if (eligible) {
         // Same race as the course path: persist completedAt now so it stays sticky from here on.
         enrollment.setCompletedAt(Instant.now());

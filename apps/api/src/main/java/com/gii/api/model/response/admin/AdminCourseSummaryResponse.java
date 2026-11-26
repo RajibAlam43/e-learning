@@ -21,4 +21,7 @@ public record AdminCourseSummaryResponse(
     Integer featuredPosition,
     Instant featuredAt,
     Instant publishedAt,
-    Instant createdAt) {}
+    Instant createdAt,
+    UUID courseTemplateId,
+    Integer credits,
+    UUID semesterId) {}

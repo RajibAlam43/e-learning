@@ -53,6 +53,20 @@ public class R2ObjectStorageService {
     }
   }
 
+  public software.amazon.awssdk.services.s3.model.HeadObjectResponse head(String key) {
+    validateConfig();
+    try (S3Client client = buildClient()) {
+      return client.headObject(
+          software.amazon.awssdk.services.s3.model.HeadObjectRequest.builder()
+              .bucket(bucket)
+              .key(key)
+              .build());
+    } catch (SdkException exception) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Supporting file is unavailable; upload it again", exception);
+    }
+  }
+
   public String storageLocation(String objectKey) {
     return "r2://" + bucket + "/" + objectKey;
   }

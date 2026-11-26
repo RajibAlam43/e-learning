@@ -331,7 +331,7 @@ class AdminCourseStructureApiIt extends AbstractAdminApiIntegrationTest {
     source.setYoutubeVideoId("dQw4w9WgXcQ");
     courseRepository.saveAndFlush(source);
     var sourceSection = section(source, 1);
-    var sourceLesson = lesson(source, sourceSection, 1);
+    final var sourceLesson = lesson(source, sourceSection, 1);
     sourceSection.setReleaseType(ReleaseType.FIXED_DATE);
     sourceSection.setReleaseAt(Instant.parse("2030-01-01T00:00:00Z"));
     courseSectionRepository.saveAndFlush(sourceSection);
@@ -350,16 +350,18 @@ class AdminCourseStructureApiIt extends AbstractAdminApiIntegrationTest {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(
                         """
-                        {
-                          "slug":"repeatable-fall",
-                          "priceBdt":1800,
-                          "studyMode":"COHORT_BASED",
-                          "timezone":"America/Chicago",
-                          "startsAt":"2030-09-01T14:00:00Z",
-                          "endsAt":"2030-12-15T14:00:00Z",
-                          "capacity":40
-                        }
-                        """))
+                          {
+                            "slug":"repeatable-fall",
+                            "priceBdt":1800,
+                            "studyMode":"COHORT_BASED",
+                            "semesterId":"%s",
+                            "timezone":"America/Chicago",
+                            "startsAt":"2030-09-01T14:00:00Z",
+                            "endsAt":"2030-12-15T14:00:00Z",
+                            "capacity":40
+                          }
+                        """
+                            .formatted(academicSemester().getId())))
             .andExpect(status().isOk())
             .andExpect(
                 jsonPath("$.courseId").value(org.hamcrest.Matchers.not(source.getId().toString())))
@@ -397,11 +399,10 @@ class AdminCourseStructureApiIt extends AbstractAdminApiIntegrationTest {
     assertThat(repeatedLesson.getReleaseType()).isEqualTo(ReleaseType.IMMEDIATE);
     assertThat(repeatedLesson.getReleaseAt()).isNull();
     assertThat(mediaAssetRepository.findByLessonId(repeatedLesson.getId()).orElseThrow())
-        .satisfies(
-            media -> {
-              assertThat(media.getProviderAssetId()).isEqualTo(sourceMedia.getProviderAssetId());
-              assertThat(media.getPlaybackId()).isEqualTo(sourceMedia.getPlaybackId());
-            });
+        .satisfies(media -> {
+          assertThat(media.getProviderAssetId()).isEqualTo(sourceMedia.getProviderAssetId());
+          assertThat(media.getPlaybackId()).isEqualTo(sourceMedia.getPlaybackId());
+        });
     assertThat(
             quizRepository.findBySectionIdOrderByPositionAsc(
                 courseSectionRepository
@@ -517,6 +518,7 @@ class AdminCourseStructureApiIt extends AbstractAdminApiIntegrationTest {
                       "level":"BEGINNER",
                       "language":"EN",
                       "studyMode":"COHORT_BASED",
+                      "semesterId":"%s",
                       "isFree":false,
                       "video":{
                         "provider":"YOUTUBE",
@@ -524,7 +526,7 @@ class AdminCourseStructureApiIt extends AbstractAdminApiIntegrationTest {
                       }
                     }
                     """
-                        .formatted(category.getId())))
+                        .formatted(category.getId(), academicSemester().getId())))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.title").value("Course Alpha"))
         .andExpect(jsonPath("$.video.provider").value("YOUTUBE"))

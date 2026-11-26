@@ -2,6 +2,8 @@ import { z } from 'zod'
 import { getYouTubeVideoId } from '@/lib/video-embed'
 
 export const courseSchema = z.object({
+  credits: z.number().int().positive('Credits must be a positive whole number').optional(),
+  semesterId: z.string().optional(),
   title: z.string().min(1, 'Bangla title is required'),
   titleEn: z.string().optional(),
   slug: z.string().min(1, 'Slug is required'),

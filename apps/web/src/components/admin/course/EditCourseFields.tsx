@@ -14,6 +14,7 @@ import {
 import { ThumbnailUploader } from '@/components/admin/shared/ThumbnailUploader'
 import type { useAdminCategories } from '@/hooks/useAdmin'
 import type { courseEditValues } from '@/lib/course-edit-values'
+import { CourseAcademicFields } from './CourseAcademicFields'
 import { TIMEZONES } from '@/lib/timezones'
 
 type Props = {
@@ -25,6 +26,9 @@ type Props = {
 
 export function EditCourseFields({ form, setForm, categories, handleChange }: Props) {
   return <>
+          <CourseAcademicFields credits={form.credits} semesterId={form.semesterId}
+            onCreditsChange={value => handleChange('credits', value)}
+            onSemesterChange={value => handleChange('semesterId', value)} />
           <div className="grid grid-cols-2 gap-3">
             <FormField label="Title (English) *">
               <Input

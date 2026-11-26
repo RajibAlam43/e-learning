@@ -67,6 +67,7 @@ public class PendingCartOrderService {
   private final LocalizedContentService localizedContentService;
   private final OfferingEnrollmentPolicyService offeringEnrollmentPolicyService;
   private final PendingOrderEligibilityService pendingOrderEligibilityService;
+  private final com.gii.common.service.payment.CoursePrerequisiteEligibilityService prerequisites;
 
   public CheckoutOrderResponse execute(
       CreateCheckoutOrderRequest request, Authentication authentication) {
@@ -163,29 +164,25 @@ public class PendingCartOrderService {
             .map(Course::getId)
             .collect(java.util.stream.Collectors.toSet());
 
+    Order reusablePendingOrder = findReusablePendingOrder(user.getId(), requestedItems);
+    if (reusablePendingOrder != null) {
+      pendingOrderEligibilityService.validate(reusablePendingOrder);
+      return toCheckoutResponse(reusablePendingOrder, user);
+    }
+
     Set<UUID> offeringsToReserve = new HashSet<>(requestedCourseIds);
     offeringsToReserve.addAll(collectionCourseIdsInCart);
     offeringsToReserve.removeAll(ownedCourseIds);
     Instant checkoutTime = now;
     offeringsToReserve.stream()
         .sorted()
-        .map(
-            courseId ->
-                courseRepository
-                    .findByIdForUpdate(courseId)
-                    .orElseThrow(
-                        () ->
-                            new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found")))
-        .forEach(
-            course ->
-                offeringEnrollmentPolicyService.validateCheckout(
-                    course, user.getId(), checkoutTime));
-
-    Order reusablePendingOrder = findReusablePendingOrder(user.getId(), requestedItems);
-    if (reusablePendingOrder != null) {
-      pendingOrderEligibilityService.validate(reusablePendingOrder);
-      return toCheckoutResponse(reusablePendingOrder, user);
-    }
+        .map(courseId ->
+            courseRepository
+                .findByIdForUpdate(courseId)
+                .orElseThrow(
+                    () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found")))
+        .forEach(course ->
+            offeringEnrollmentPolicyService.validateCheckout(course, user.getId(), checkoutTime));
 
     Order order =
         orderRepository.save(
@@ -316,6 +313,15 @@ public class PendingCartOrderService {
       }
     }
     orderItemCourseRepository.saveAll(collectionSnapshots);
+    orderRepository.flush();
+    prerequisites.recordForOrder(
+        order,
+        java.util.stream.Stream.concat(
+                requestedCourseIds.stream(), collectionCourseIdsInCart.stream())
+            .distinct()
+            .sorted()
+            .map(id -> courseRepository.findById(id).orElseThrow())
+            .toList());
 
     BigDecimal totalAmount = subtotal.subtract(totalDiscount);
     order.setAmountBdt(totalAmount);
@@ -447,30 +453,29 @@ public class PendingCartOrderService {
     BigDecimal totalAmount = subtotal.subtract(totalDiscount);
     List<CheckoutOrderItemResponse> responseItems =
         items.stream()
-            .map(
-                item ->
-                    CheckoutOrderItemResponse.builder()
-                        .itemType(item.getItemType())
-                        .courseId(item.getCourse() != null ? item.getCourse().getId() : null)
-                        .collectionId(
-                            item.getCollection() != null ? item.getCollection().getId() : null)
-                        .courseName(
-                            localizedContentService.text(
-                                item.getTitleSnapshot(), item.getTitleSnapshotEn()))
-                        .courseSlug(
+            .map(item ->
+                CheckoutOrderItemResponse.builder()
+                    .itemType(item.getItemType())
+                    .courseId(item.getCourse() != null ? item.getCourse().getId() : null)
+                    .collectionId(
+                        item.getCollection() != null ? item.getCollection().getId() : null)
+                    .courseName(
+                        localizedContentService.text(
+                            item.getTitleSnapshot(), item.getTitleSnapshotEn()))
+                    .courseSlug(
+                        item.getCourse() != null
+                            ? item.getCourse().getSlug()
+                            : item.getCollection().getSlug())
+                    .courseThumbnailUrl(
+                        assetUrlService.publicUrl(
                             item.getCourse() != null
-                                ? item.getCourse().getSlug()
-                                : item.getCollection().getSlug())
-                        .courseThumbnailUrl(
-                            assetUrlService.publicUrl(
-                                item.getCourse() != null
-                                    ? item.getCourse().getThumbnailObjectKey()
-                                    : item.getCollection().getThumbnailObjectKey()))
-                        .originalPrice(item.getPriceBdt())
-                        .discountAmount(item.getDiscountBdt())
-                        .finalPrice(item.getPriceBdt().subtract(item.getDiscountBdt()))
-                        .discountReason(null)
-                        .build())
+                                ? item.getCourse().getThumbnailObjectKey()
+                                : item.getCollection().getThumbnailObjectKey()))
+                    .originalPrice(item.getPriceBdt())
+                    .discountAmount(item.getDiscountBdt())
+                    .finalPrice(item.getPriceBdt().subtract(item.getDiscountBdt()))
+                    .discountReason(null)
+                    .build())
             .toList();
 
     Instant expiresAt = order.getCreatedAt().plusSeconds(ORDER_EXPIRY_SECONDS);

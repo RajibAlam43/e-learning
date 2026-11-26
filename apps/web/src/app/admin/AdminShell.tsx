@@ -14,6 +14,8 @@ const adminPrimaryMenu = [
   { href: '/admin/teachers', icon: SquareUser, label: 'Teachers' },
   { href: '/admin/courses', icon: '/images/book-icon.png', label: 'Courses' },
   { href: '/admin/categories', icon: BookOpen, label: 'Categories' },
+  { href: '/admin/semesters', icon: BookOpen, label: 'Semesters' },
+  { href: '/admin/waivers', icon: BookOpen, label: 'Credit Waivers' },
   { href: '/admin/programs', icon: '/images/calendar-program.png', label: 'Programs' },
   { href: '/admin/live-classes', icon: '/images/live-icon.png', label: 'Live Classes' },
   { href: '/admin/payments', icon: '/images/price.png', label: 'Payments' },

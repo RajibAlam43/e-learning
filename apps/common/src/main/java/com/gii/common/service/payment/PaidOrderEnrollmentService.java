@@ -63,10 +63,8 @@ public class PaidOrderEnrollmentService {
       } else if (item.getItemType() == OrderItemType.COLLECTION) {
         activateOrCreateCollectionEnrollment(order, item, now);
         purchasedCourses(item)
-            .forEach(
-                course ->
-                    activateOrCreateCourseEnrollment(
-                        order, item, course, now, item.getCollection()));
+            .forEach(course ->
+                activateOrCreateCourseEnrollment(order, item, course, now, item.getCollection()));
       }
     }
   }
@@ -104,7 +102,8 @@ public class PaidOrderEnrollmentService {
       if (alreadyOccupiesSeat) {
         return;
       }
-      enrollmentPolicyService.validateActivation(lockedCourse, order.getCreatedAt(), now);
+      enrollmentPolicyService.validateActivation(
+          lockedCourse, order.getUser().getId(), order.getId(), order.getCreatedAt(), now);
       existing.setStatus(EnrollmentStatus.ACTIVE);
       existing.setEnrolledAt(now);
       existing.setRevokedAt(null);
@@ -115,7 +114,8 @@ public class PaidOrderEnrollmentService {
       return;
     }
 
-    enrollmentPolicyService.validateActivation(lockedCourse, order.getCreatedAt(), now);
+    enrollmentPolicyService.validateActivation(
+        lockedCourse, order.getUser().getId(), order.getId(), order.getCreatedAt(), now);
     enrollmentRepository.saveAndFlush(
         Enrollment.builder()
             .user(order.getUser())

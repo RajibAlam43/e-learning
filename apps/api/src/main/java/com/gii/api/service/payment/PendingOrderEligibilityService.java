@@ -56,10 +56,9 @@ public class PendingOrderEligibilityService {
         .distinct()
         .sorted(Comparator.naturalOrder())
         .map(this::lockCourse)
-        .forEach(
-            course ->
-                offeringEnrollmentPolicyService.validateCheckout(
-                    course, order.getUser().getId(), now));
+        .forEach(course ->
+            offeringEnrollmentPolicyService.validateCheckout(
+                course, order.getUser().getId(), now, order.getId()));
   }
 
   private Course lockCourse(UUID courseId) {

@@ -4,6 +4,8 @@ import { toDateTimeInput } from '@/lib/date-time'
 
 export function courseEditValues(course: AdminCourseDetail) {
   return {
+    credits: course.credits ?? 3,
+    semesterId: course.semester?.semesterId ?? '',
     title: course.title ?? '',
     titleEn: course.titleEn ?? '',
     slug: course.slug ?? '',

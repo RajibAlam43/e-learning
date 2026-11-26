@@ -1,15 +1,10 @@
 package com.gii.api.service.progress;
 
-import com.gii.api.service.collection.PurchasedCollectionCoursesService;
-import com.gii.api.service.collection.PurchasedCollectionCoursesService.PurchasedCourse;
-import com.gii.api.service.progress.CourseCompletionService.CourseCompletion;
 import com.gii.common.entity.collection.CollectionEnrollment;
 import com.gii.common.enums.EnrollmentStatus;
 import com.gii.common.repository.collection.CollectionCourseRepository;
 import com.gii.common.repository.collection.CollectionEnrollmentRepository;
 import java.time.Instant;
-import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -27,8 +22,7 @@ public class CollectionEnrollmentCompletionService {
 
   private final CollectionEnrollmentRepository collectionEnrollmentRepository;
   private final CollectionCourseRepository collectionCourseRepository;
-  private final CourseCompletionService courseCompletionService;
-  private final PurchasedCollectionCoursesService purchasedCollectionCoursesService;
+  private final CollectionRequirementsCompletionService requirements;
 
   @Transactional
   public void refresh(UUID userId, UUID collectionId) {
@@ -41,21 +35,7 @@ public class CollectionEnrollmentCompletionService {
         || enrollment.getCompletedAt() != null) {
       return;
     }
-    List<UUID> courseIds =
-        purchasedCollectionCoursesService.resolveItems(enrollment).stream()
-            .filter(PurchasedCourse::mandatory)
-            .map(item -> item.course().getId())
-            .distinct()
-            .toList();
-    if (courseIds.isEmpty()) {
-      return;
-    }
-    Map<UUID, CourseCompletion> completions =
-        courseCompletionService.getByCourseIds(userId, courseIds);
-    int totalItems = completions.values().stream().mapToInt(CourseCompletion::totalItems).sum();
-    int completedItems =
-        completions.values().stream().mapToInt(CourseCompletion::completedItems).sum();
-    if (totalItems > 0 && completedItems >= totalItems) {
+    if (requirements.isComplete(enrollment)) {
       enrollment.setCompletedAt(Instant.now());
       collectionEnrollmentRepository.save(enrollment);
     }

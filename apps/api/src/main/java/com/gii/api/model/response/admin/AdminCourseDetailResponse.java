@@ -1,6 +1,7 @@
 package com.gii.api.model.response.admin;
 
 import com.gii.api.model.response.LessonVideoResponse;
+import com.gii.api.model.response.academic.SemesterResponse;
 import com.gii.common.enums.CourseLanguage;
 import com.gii.common.enums.CourseLevel;
 import com.gii.common.enums.PublishStatus;
@@ -60,4 +61,7 @@ public record AdminCourseDetailResponse(
     Instant createdAt,
     Instant updatedAt,
     List<AdminCourseSectionResponse> sections,
-    List<AdminInstructorSummaryResponse> instructors) {}
+    List<AdminInstructorSummaryResponse> instructors,
+    UUID courseTemplateId,
+    Integer credits,
+    SemesterResponse semester) {}

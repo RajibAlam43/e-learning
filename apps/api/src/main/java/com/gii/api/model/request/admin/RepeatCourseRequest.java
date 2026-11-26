@@ -7,6 +7,7 @@ import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.UUID;
 import lombok.Builder;
 
 /** Offering-specific data for another run of an existing course curriculum. */
@@ -22,4 +23,5 @@ public record RepeatCourseRequest(
     Instant startsAt,
     Instant endsAt,
     @Positive Integer capacity,
-    @Positive Integer accessDurationDays) {}
+    @Positive Integer accessDurationDays,
+    UUID semesterId) {}

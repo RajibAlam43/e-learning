@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { CoursePrerequisiteEditor } from '@/components/admin/course/CoursePrerequisiteEditor'
 import dynamic from 'next/dynamic'
 import { Pencil } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -59,6 +60,8 @@ export function CourseOverviewTab({ course }: CourseOverviewTabProps) {
                 : '-'
             }
           />
+          <InfoField label="Credits" value={String(course.credits ?? 3)} />
+          <InfoField label="Semester" value={course.semester?.name ?? 'Not assigned'} />
           <InfoField label="Target Audience" value={course.targetAudience} />
           <InfoField label="Target Audience (English)" value={course.targetAudienceEn} />
           <InfoField label="Prerequisites" value={course.prerequisites} />
@@ -81,6 +84,8 @@ export function CourseOverviewTab({ course }: CourseOverviewTabProps) {
       <ListBlock title="Requirements (English)" items={course.requirementsEn} />
       <ListBlock title="Highlights" items={course.highlights} />
       <ListBlock title="Highlights (English)" items={course.highlightsEn} />
+
+      {course.courseId && course.courseTemplateId && <CoursePrerequisiteEditor courseId={course.courseId} templateId={course.courseTemplateId} />}
 
       {course.courseId && (
         <EditCourseDialog

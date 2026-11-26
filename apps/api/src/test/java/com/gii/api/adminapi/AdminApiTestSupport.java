@@ -1,6 +1,7 @@
 package com.gii.api.adminapi;
 
 import com.gii.api.testsupport.CourseTestData;
+import com.gii.common.entity.academic.Semester;
 import com.gii.common.entity.collection.Collection;
 import com.gii.common.entity.collection.CollectionCourse;
 import com.gii.common.entity.collection.CollectionCourseId;
@@ -37,6 +38,7 @@ import com.gii.common.enums.PublishStatus;
 import com.gii.common.enums.QuestionType;
 import com.gii.common.enums.SectionItemType;
 import com.gii.common.enums.UserStatus;
+import com.gii.common.repository.academic.SemesterRepository;
 import com.gii.common.repository.certificate.CertificateRepository;
 import com.gii.common.repository.collection.CollectionCourseRepository;
 import com.gii.common.repository.collection.CollectionRepository;
@@ -44,9 +46,9 @@ import com.gii.common.repository.course.CategoryRepository;
 import com.gii.common.repository.course.CourseCategoryRepository;
 import com.gii.common.repository.course.CourseInstructorRepository;
 import com.gii.common.repository.course.CourseRepository;
-import com.gii.common.repository.course.CourseTemplateRepository;
 import com.gii.common.repository.course.CourseReviewRepository;
 import com.gii.common.repository.course.CourseSectionRepository;
+import com.gii.common.repository.course.CourseTemplateRepository;
 import com.gii.common.repository.course.LessonRepository;
 import com.gii.common.repository.course.LessonResourceRepository;
 import com.gii.common.repository.course.MediaAssetRepository;
@@ -83,6 +85,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 abstract class AdminApiTestSupport {
 
   @Autowired protected UserRepository userRepository;
+  @Autowired protected SemesterRepository semesterRepository;
   @Autowired protected CollectionRepository collectionRepository;
   @Autowired protected CertificateRepository certificateRepository;
   @Autowired protected CollectionCourseRepository collectionCourseRepository;
@@ -117,7 +120,15 @@ abstract class AdminApiTestSupport {
   @Autowired protected OrderRepository orderRepository;
   @Autowired protected AppSettingRepository appSettingRepository;
 
+  @Autowired
+  protected com.gii.common.repository.academic.CourseWaiverRequestRepository waiverRepository;
+
+  @Autowired
+  protected com.gii.common.repository.academic.CoursePrerequisiteRepository prerequisiteRepository;
+
   protected void cleanupAdminData() {
+    waiverRepository.deleteAll();
+    prerequisiteRepository.deleteAll();
     appSettingRepository.deleteAll();
     certificateRepository.deleteAll();
     courseReviewRepository.deleteAll();
@@ -147,10 +158,23 @@ abstract class AdminApiTestSupport {
     courseCategoryRepository.deleteAll();
     courseRepository.deleteAll();
     courseTemplateRepository.deleteAll();
+    semesterRepository.deleteAll();
     categoryRepository.deleteAll();
     instructorProfileRepository.deleteAll();
     userRoleRepository.deleteAll();
     userRepository.deleteAll();
+  }
+
+  protected Semester academicSemester() {
+    return semesterRepository.saveAndFlush(
+        Semester.builder()
+            .code(UUID.randomUUID().toString())
+            .name("Test academic semester")
+            .startsAt(Instant.parse("2030-01-01T00:00:00Z"))
+            .endsAt(Instant.parse("2031-01-01T00:00:00Z"))
+            .registrationStartsAt(Instant.parse("2029-11-01T00:00:00Z"))
+            .registrationEndsAt(Instant.parse("2030-09-15T00:00:00Z"))
+            .build());
   }
 
   protected Collection collection(String title, String slug, User creator, PublishStatus status) {
