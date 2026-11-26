@@ -23,6 +23,12 @@ MANIFEST = {
     },
 }
 IDS = {"api": "api-id", "worker": "worker-id", "migrator": "migration-id"}
+WEB_IDS = {"api": IDS["api"], "worker": IDS["worker"], "web": "web-id"}
+WEB_MANIFEST = {
+    "service": "web", "environment": "stage", "source_sha": SHA, "build_run_id": "123",
+    "image": f"ghcr.io/{REPOSITORY}/web@sha256:" + "4" * 64,
+    "public_app_url": "https://stage.example.test", "public_api_url": "https://api-stage.example.test",
+}
 
 
 class FakeDokploy(release.Dokploy):
@@ -39,6 +45,9 @@ class FakeDokploy(release.Dokploy):
         self.health = "healthy"
         self.fail_deployment = None
         self.wrong_image = False
+        self.environment_overrides = {}
+        self.source_overrides = {}
+        self.server_id = None
 
     def request(self, endpoint, payload=None, **query):
         self.calls.append((endpoint, payload, query))
@@ -47,9 +56,10 @@ class FakeDokploy(release.Dokploy):
         if endpoint in ("application.one", "compose.one"):
             identity = query.get("applicationId", query.get("composeId"))
             return {
-                "name": identity, "appName": identity, "environmentId": "env-stage",
-                "sourceType": "raw" if identity == IDS["migrator"] else "docker",
-                "composeType": "docker-compose", "serverId": None,
+                "name": identity, "appName": identity,
+                "environmentId": self.environment_overrides.get(identity, "env-stage"),
+                "sourceType": self.source_overrides.get(identity, "raw" if identity == IDS["migrator"] else "docker"),
+                "composeType": "docker-compose", "serverId": self.server_id,
                 "env": f"SPRING_PROFILES_ACTIVE={self.runtime_profile}",
             }
         if endpoint.startswith("deployment."):
@@ -80,8 +90,9 @@ class FakeDokploy(release.Dokploy):
                     "State": {"Status": "exited", "ExitCode": self.migration_exit},
                 }
             service = "api" if identity == IDS["api"] else "worker"
+            image = WEB_MANIFEST["image"] if identity == WEB_IDS["web"] else MANIFEST["images"][service]
             return {
-                "Config": {"Image": "old" if self.wrong_image else MANIFEST["images"][service]},
+                "Config": {"Image": "old" if self.wrong_image else image},
                 "State": {"Running": True, "Health": {"Status": self.health}},
             }
         if endpoint.endswith(".update"):
@@ -90,6 +101,89 @@ class FakeDokploy(release.Dokploy):
 
 
 class ReleaseTest(unittest.TestCase):
+    def test_frontend_manifest_refuses_production_mutable_images_and_wrong_provenance(self):
+        self.assertEqual(release.validate_web_manifest(WEB_MANIFEST, REPOSITORY, SHA, "123"), WEB_MANIFEST)
+        for key, value in (
+            ("environment", "prod"), ("service", "api"), ("source_sha", "b" * 40),
+            ("build_run_id", "999"), ("image", f"ghcr.io/{REPOSITORY}/web:stage-latest"),
+            ("image", "ghcr.io/other/repo/web@sha256:" + "4" * 64),
+        ):
+            with self.subTest(key=key):
+                with self.assertRaises(ValueError):
+                    release.validate_web_manifest({**WEB_MANIFEST, key: value}, REPOSITORY, SHA, "123")
+
+    def test_frontend_only_release_updates_only_web_and_inspects_the_remote_server(self):
+        client = FakeDokploy()
+        client.server_id = "stage-vps"
+        release.stage_web_release(client, WEB_MANIFEST, WEB_IDS, "stage-456-1")
+        changes = [row for row in client.calls if row[1] is not None]
+        self.assertEqual([row[0] for row in changes], ["application.update", "application.deploy"])
+        self.assertEqual(changes[0][1], {"applicationId": WEB_IDS["web"], "dockerImage": WEB_MANIFEST["image"]})
+        inspections = [row for row in client.calls if row[0].startswith("docker.")]
+        self.assertTrue(inspections)
+        self.assertTrue(all(row[2]["serverId"] == "stage-vps" for row in inspections))
+
+    def test_frontend_preflight_rejects_wrong_environment_source_or_profile_before_mutation(self):
+        for reason in ("production", "different environment", "source", "profile", "busy", "duplicate", "worker id"):
+            client = FakeDokploy()
+            ids = WEB_IDS.copy()
+            if reason == "production":
+                client.environment_name = "production"
+            elif reason == "different environment":
+                client.environment_overrides[WEB_IDS["web"]] = "env-prod"
+            elif reason == "source":
+                client.source_overrides[WEB_IDS["web"]] = "github"
+            elif reason == "profile":
+                client.runtime_profile = "prod"
+            elif reason == "busy":
+                client.jobs[WEB_IDS["web"]] = [{"title": "other", "status": "running"}]
+            elif reason == "duplicate":
+                ids["web"] = ids["api"]
+            else:
+                ids["web"] = ids["worker"]
+            with self.subTest(reason=reason):
+                with self.assertRaises((ValueError, RuntimeError)):
+                    release.stage_web_release(client, WEB_MANIFEST, ids, "stage-456-1")
+                self.assertFalse(any(row[1] is not None for row in client.calls))
+
+    def test_failed_unhealthy_or_old_frontend_does_not_count_as_a_successful_release(self):
+        for reason in ("deployment", "unhealthy", "old image"):
+            client = FakeDokploy()
+            if reason == "deployment":
+                client.fail_deployment = WEB_IDS["web"]
+            elif reason == "unhealthy":
+                client.health = "unhealthy"
+            else:
+                client.wrong_image = True
+            with self.subTest(reason=reason):
+                with self.assertRaises(RuntimeError):
+                    release.stage_web_release(client, WEB_MANIFEST, WEB_IDS, "stage-456-1")
+
+    def test_frontend_command_records_only_the_successfully_deployed_stage_manifest(self):
+        env = {
+            "GITHUB_REPOSITORY": REPOSITORY, "EXPECTED_SOURCE_SHA": SHA, "EXPECTED_BUILD_RUN_ID": "123",
+            "GITHUB_RUN_ID": "456", "GITHUB_RUN_ATTEMPT": "1", "DOKPLOY_URL": "https://stage.example.test",
+            "DOKPLOY_API_KEY": "secret", "DOKPLOY_API_APPLICATION_ID": IDS["api"],
+            "DOKPLOY_WEB_APPLICATION_ID": WEB_IDS["web"],
+            "DOKPLOY_WORKER_APPLICATION_ID": IDS["worker"],
+        }
+        for failure in (False, True):
+            with self.subTest(failure=failure), tempfile.TemporaryDirectory() as temp:
+                manifest = Path(temp) / "web-release.json"
+                manifest.write_text(json.dumps(WEB_MANIFEST))
+                output = Path(temp) / "deployed"
+                client = FakeDokploy()
+                client.wrong_image = failure
+                argv = ["release.py", "stage-web", "--manifest", str(manifest), "--output", str(output)]
+                with patch.dict("os.environ", env), patch.object(release.sys, "argv", argv), patch.object(release, "Dokploy", return_value=client):
+                    if failure:
+                        with self.assertRaises(RuntimeError):
+                            release.main()
+                        self.assertFalse(output.exists())
+                    else:
+                        release.main()
+                        self.assertEqual(json.loads((output / "web-release.json").read_text()), WEB_MANIFEST)
+
     def test_manifest_accepts_only_the_successful_builds_immutable_images(self):
         self.assertEqual(release.validate_manifest(MANIFEST, REPOSITORY.upper(), SHA, "123"), MANIFEST)
 

@@ -10,12 +10,13 @@ and worker; local development uses ElasticMQ. Redis is not required.
 GitHub Actions tests and builds API, worker and migration images on `main`, then
 pushes them to GHCR. After staging is provisioned and explicitly enabled, successful
 builds deploy automatically through staging Dokploy. Production deployment is
-manual in its separate Dokploy dashboard. Release manifests retain exact digests
+manual in its production Dokploy environment. Release manifests retain exact digests
 for promotion and rollback; manual deployments can also use the moving tags below.
 
 The same CI job checks/builds `apps/web` and publishes stage/prod variants to GHCR
-on relevant main runs. PRs check and build without publishing. Frontend deployment remains manual; its release artifacts are
-separate from the backend manifest. Backend images are not republished on frontend-only
+on relevant main runs. PRs check and build without publishing. Once enabled, staging
+frontend deployment is automatic through Dokploy; production remains manual. Frontend
+release artifacts are separate from the backend manifest. Backend images are not republished on frontend-only
 `main` pushes. See the [frontend guide](apps/web/README.md) for Node.js 24, local commands,
 build variables, Docker and Vercel's `apps/web` Root Directory.
 
@@ -106,4 +107,5 @@ API/Worker/Next.js and connects to DO managed PostgreSQL. A single CI job in
 `.github/workflows/build.yml` runs both backend and frontend checks/builds when
 either changes, while publishing images only for changed components from `main`.
 Backend and frontend retain separate release artifacts; frontend-only
-runs do not deploy the backend. Production and frontend deployments remain manual.
+runs deploy only the stage frontend. Production deployments remain manual. Configure
+the [staging deployment settings](docs/deployment.md#ghcr-and-github-setup) before enabling automation.

@@ -29,24 +29,46 @@ async function check({ event = 'workflow_run', artifacts = [{ name: 'release-man
   return { outputs, branchReads };
 }
 
-test('frontend-only CI skips backend deployment', async () => {
+test('documentation-only CI skips deployment', async () => {
   assert.deepEqual(await check({ artifacts: [] }), {
-    outputs: { deploy_backend: 'false' }, branchReads: 0,
+    outputs: { deploy_backend: 'false', deploy_web: 'false' }, branchReads: 0,
   });
 });
 
-test('successful backend CI supplies deployment provenance', async () => {
-  assert.deepEqual((await check()).outputs, { run_id: '123', sha: 'commit', deploy_backend: 'true' });
+test('frontend-only CI deploys the frontend without deploying the backend', async () => {
+  const result = await check({ artifacts: [{ name: 'web-stage-release', expired: false }] });
+  assert.deepEqual(result.outputs, { run_id: '123', sha: 'commit', deploy_backend: 'false', deploy_web: 'true' });
+  assert.equal(result.branchReads, 1);
 });
 
-test('manual retry requires a backend artifact and main workflow ref', async () => {
+test('combined release deploys both components', async () => {
+  assert.deepEqual((await check({ artifacts: [{ name: 'release-manifest' }, { name: 'web-stage-release' }] })).outputs,
+    { run_id: '123', sha: 'commit', deploy_backend: 'true', deploy_web: 'true' });
+});
+
+test('production frontend artifact cannot trigger a frontend deployment', async () => {
+  assert.deepEqual((await check({ artifacts: [{ name: 'web-prod-release' }] })).outputs,
+    { deploy_backend: 'false', deploy_web: 'false' });
+});
+
+test('successful backend CI supplies deployment provenance', async () => {
+  assert.deepEqual((await check()).outputs, { run_id: '123', sha: 'commit', deploy_backend: 'true', deploy_web: 'false' });
+});
+
+test('manual retry requires a published release artifact and main workflow ref', async () => {
   await assert.rejects(check({ event: 'workflow_dispatch', artifacts: [] }), /release-manifest/);
   await assert.rejects(check({ event: 'workflow_dispatch', ref: 'refs/heads/feature' }), /from main/);
+});
+
+test('manual retry also accepts a frontend-only release', async () => {
+  assert.equal((await check({ event: 'workflow_dispatch', artifacts: [{ name: 'web-stage-release' }] })).outputs.deploy_web, 'true');
 });
 
 test('expired and duplicate manifests are refused', async () => {
   await assert.rejects(check({ artifacts: [{ name: 'release-manifest', expired: true }] }), /unexpired/);
   await assert.rejects(check({ artifacts: [{ name: 'release-manifest' }, { name: 'release-manifest' }] }), /single/);
+  await assert.rejects(check({ artifacts: [{ name: 'web-stage-release', expired: true }] }), /unexpired/);
+  await assert.rejects(check({ artifacts: [{ name: 'web-stage-release' }, { name: 'web-stage-release' }] }), /single/);
 });
 
 test('failed, PR, foreign and wrong-workflow runs are refused before skipping', async () => {
@@ -60,4 +82,15 @@ test('failed, PR, foreign and wrong-workflow runs are refused before skipping', 
 test('superseded backend runs do not auto-deploy', async () => {
   await assert.rejects(check({ current: 'newer-commit' }), /superseded/);
   assert.equal((await check({ event: 'workflow_dispatch', current: 'newer-commit' })).outputs.deploy_backend, 'true');
+});
+
+test('superseded frontend-only runs do not auto-deploy', async () => {
+  await assert.rejects(check({ current: 'newer-commit', artifacts: [{ name: 'web-stage-release' }] }), /superseded/);
+});
+
+test('combined frontend deployment waits for successful backend deployment', () => {
+  const backend = workflow.indexOf('      - name: Migrate, deploy, and verify stage');
+  const frontend = workflow.indexOf('      - name: Deploy and verify stage frontend');
+  assert.ok(backend >= 0 && frontend > backend);
+  assert.match(workflow.slice(frontend), /if: success\(\) && steps\.source\.outputs\.deploy_web == 'true'/);
 });

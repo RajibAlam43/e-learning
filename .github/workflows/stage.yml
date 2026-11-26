@@ -29,7 +29,7 @@ jobs:
       (github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.head_repository.full_name == github.repository))
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     environment: stage
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -61,13 +61,20 @@ jobs:
               ...context.repo, run_id: run.id, per_page: 100
             });
             const manifests = artifacts.filter(artifact => artifact.name === 'release-manifest');
-            if (manifests.length === 0 && context.eventName === 'workflow_run') {
-              core.info('No backend release in this CI run; skipping backend deployment.');
+            const webManifests = artifacts.filter(artifact => artifact.name === 'web-stage-release');
+            for (const [name, matches] of [['release-manifest', manifests], ['web-stage-release', webManifests]]) {
+              if (matches.length > 1 || matches.some(artifact => artifact.expired)) {
+                throw new Error(`A single unexpired ${name} is required when published`);
+              }
+            }
+            if (manifests.length === 0 && webManifests.length === 0 && context.eventName === 'workflow_run') {
+              core.info('No published release in this CI run; skipping deployment.');
               core.setOutput('deploy_backend', 'false');
+              core.setOutput('deploy_web', 'false');
               return;
             }
-            if (manifests.length !== 1 || manifests[0].expired) {
-              throw new Error('A single unexpired backend release-manifest is required');
+            if (manifests.length === 0 && webManifests.length === 0) {
+              throw new Error('At least one unexpired release-manifest or web-stage-release is required');
             }
             // workflow_run scheduling can reorder completed builds. Do not auto-deploy stale code.
             if (context.eventName === 'workflow_run') {
@@ -76,12 +83,20 @@ jobs:
             }
             core.setOutput('run_id', String(run.id));
             core.setOutput('sha', run.head_sha);
-            core.setOutput('deploy_backend', 'true');
+            core.setOutput('deploy_backend', String(manifests.length === 1));
+            core.setOutput('deploy_web', String(webManifests.length === 1));
       - uses: actions/download-artifact@v4
         if: steps.source.outputs.deploy_backend == 'true'
         with:
           name: release-manifest
           path: release-input
+          run-id: ${{ steps.source.outputs.run_id }}
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        if: steps.source.outputs.deploy_web == 'true'
+        with:
+          name: web-stage-release
+          path: web-release-input
           run-id: ${{ steps.source.outputs.run_id }}
           github-token: ${{ github.token }}
       - name: Migrate, deploy, and verify stage through Dokploy
@@ -95,6 +110,26 @@ jobs:
           DOKPLOY_WORKER_APPLICATION_ID: ${{ vars.DOKPLOY_WORKER_APPLICATION_ID }}
           DOKPLOY_MIGRATION_COMPOSE_ID: ${{ vars.DOKPLOY_MIGRATION_COMPOSE_ID }}
         run: python3 .github/scripts/release.py stage --manifest release-input/release.json --output staged-release
+      - name: Deploy and verify stage frontend through Dokploy
+        # Combined releases must finish migration and backend rollout first.
+        if: success() && steps.source.outputs.deploy_web == 'true'
+        env:
+          EXPECTED_BUILD_RUN_ID: ${{ steps.source.outputs.run_id }}
+          EXPECTED_SOURCE_SHA: ${{ steps.source.outputs.sha }}
+          DOKPLOY_URL: ${{ vars.DOKPLOY_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+          DOKPLOY_API_APPLICATION_ID: ${{ vars.DOKPLOY_API_APPLICATION_ID }}
+          DOKPLOY_WEB_APPLICATION_ID: ${{ vars.DOKPLOY_WEB_APPLICATION_ID }}
+          DOKPLOY_WORKER_APPLICATION_ID: ${{ vars.DOKPLOY_WORKER_APPLICATION_ID }}
+        run: python3 .github/scripts/release.py stage-web --manifest web-release-input/web-release.json --output staged-web-release
+      - name: Record deployed stage frontend
+        if: success() && steps.source.outputs.deploy_web == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: staged-web-release
+          path: staged-web-release/
+          if-no-files-found: error
+          retention-days: 90
       - name: Publish tested release for manual production deployment
         if: steps.source.outputs.deploy_backend == 'true'
         uses: actions/upload-artifact@v4
