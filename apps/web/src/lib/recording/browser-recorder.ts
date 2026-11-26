@@ -6,6 +6,7 @@ import type { LocalRecording } from './local-recordings'
 export interface RecorderState {
   stage: 'idle' | 'preparing' | 'ready' | 'recording' | 'stopped' | 'uploading' | 'queued';
   error: string; uploadError: string; bytes: number; uploaded: number; sampleUrl: string; seconds: number
+  recovery?: LocalRecording
 }
 export function supportedRecordingMime(): string | null {
   if (typeof MediaRecorder === 'undefined') return null
@@ -148,7 +149,7 @@ export class BrowserClassRecorder {
           const meta = { ...this.metadata!, chunkCount: index + 1, bytes: this.metadata!.bytes + event.data.size }
           this.metadata = meta
           try { await saveLocal(meta, event.data); this.emergency.delete(index) }
-          catch { this.storageFailed = true; this.emit({ error: 'Browser storage failed. Keep this page open and download the recording.' }); void this.stop(); return }
+          catch { this.storageFailed = true; this.emit({ bytes: meta.bytes, recovery: this.recoveryCopy(), error: 'Browser storage failed. Keep this page open and download the recording.' }); void this.stop(); return }
           this.emit({ bytes: meta.bytes })
           if (meta.bytes > meta.maxBytes - 32 * 1024 * 1024) void this.stop()
           void this.pump()
@@ -184,7 +185,7 @@ export class BrowserClassRecorder {
     await this.writes
     await this.write(async () => { this.metadata = { ...this.metadata!, phase: 'stopped' }; if (!this.storageFailed) await saveLocal(this.metadata) })
     this.finishRequested = true
-    this.emit({ stage: 'stopped' })
+    this.emit({ stage: 'stopped', recovery: this.recoveryCopy() })
     await this.pumping
     await this.pump()
   }
@@ -251,6 +252,7 @@ export class BrowserClassRecorder {
     }
   }
   async download() { if (this.metadata) await downloadLocal(this.metadata, this.emergency) }
+  recoveryCopy() { return this.emergency.size && this.metadata ? { ...this.metadata } : undefined }
   hasUnsavedWork() { return Boolean(this.metadata && this.metadata.phase !== 'queued') || this.state.stage === 'recording' }
   private releaseMedia() {
     this.display?.getTracks().forEach(track => track.stop()); this.microphone?.getTracks().forEach(track => track.stop())

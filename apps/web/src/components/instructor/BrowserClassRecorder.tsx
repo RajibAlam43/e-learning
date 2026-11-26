@@ -22,6 +22,8 @@ export function BrowserClassRecorder({ classId }: { classId: string }) {
   const details = useQuery({ queryKey: ['recording-class', classId, ownerId], queryFn: () => recordingService.list(classId), refetchInterval: 10000 })
   const video = useRef<HTMLVideoElement>(null)
   const engine = useRef<Recorder | null>(null)
+  const recoveryRecorders = useRef(new Map<string, Recorder>())
+  const [recoveries, setRecoveries] = useState<LocalRecording[]>([])
   const [state, setState] = useState(initial)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -37,7 +39,11 @@ export function BrowserClassRecorder({ classId }: { classId: string }) {
       setState, stream => { if (video.current) video.current.srcObject = stream })
     engine.current = recorder
     void listLocal(ownerId, classId).then(setLocals).catch(failure => setError(message(failure)))
-    const unload = (event: BeforeUnloadEvent) => { if (engine.current?.hasUnsavedWork()) { event.preventDefault(); event.returnValue = '' } }
+    const unload = (event: BeforeUnloadEvent) => {
+      if (engine.current?.hasUnsavedWork() || [...recoveryRecorders.current.values()].some(recorder => recorder.recoveryCopy())) {
+        event.preventDefault(); event.returnValue = ''
+      }
+    }
     window.addEventListener('beforeunload', unload)
     return () => { engine.current?.dispose(); engine.current = null; window.removeEventListener('beforeunload', unload) }
   }, [ownerId, classId])
@@ -60,10 +66,24 @@ export function BrowserClassRecorder({ classId }: { classId: string }) {
     finally { setBusy(false) }
   }
   const resetRecorder = () => {
+    const recovery = engine.current?.recoveryCopy()
+    if (recovery) {
+      recoveryRecorders.current.set(recovery.localId, engine.current!)
+      setRecoveries(previous => [...previous.filter(local => local.localId !== recovery.localId), recovery])
+    }
     engine.current?.dispose()
     engine.current = new Recorder(ownerId!, () => useAuthStore.getState().user?.id === ownerId,
       setState, stream => { if (video.current) video.current.srcObject = stream })
     setState(initial)
+  }
+  const memoryCopies = [...recoveries, ...(state.recovery ? [state.recovery] : [])]
+  const recoveryIds = new Set(memoryCopies.map(local => local.localId))
+  const localCopies = [...new Map([...locals, ...memoryCopies].filter(local => local.ownerId === ownerId && local.classId === classId).map(local => [local.localId, local])).values()]
+  const downloadCopy = async (local: LocalRecording) => {
+    const recorder = recoveryRecorders.current.get(local.localId)
+      ?? (engine.current?.recoveryCopy()?.localId === local.localId ? engine.current : undefined)
+    if (recorder) await recorder.download()
+    else await downloadLocal(local)
   }
   const failure = error || state.error || state.uploadError || (details.error ? message(details.error) : '')
   const stageLabel = ({ idle: bn ? 'শুরু করার জন্য প্রস্তুত' : 'Not recording', preparing: bn ? 'ট্যাব ও মাইক্রোফোন নির্বাচন করুন' : 'Selecting capture sources', ready: bn ? 'অডিও পরীক্ষা করুন' : 'Check your audio', recording: bn ? 'রেকর্ড হচ্ছে' : 'Recording', stopped: bn ? 'রেকর্ডিং বন্ধ হয়েছে' : 'Recording stopped', uploading: bn ? 'আপলোড হচ্ছে' : 'Uploading', queued: bn ? 'আপলোড সম্পূর্ণ — যাচাই হচ্ছে' : 'Uploaded — validating' })[state.stage]
@@ -102,11 +122,11 @@ export function BrowserClassRecorder({ classId }: { classId: string }) {
     </section>
     <section className='space-y-3'><h2 className='text-xl'>{bn ? 'এই ডিভাইসে সংরক্ষিত রেকর্ডিং' : 'Recordings saved on this device'}</h2>
       <p className='max-w-prose text-sm text-slate-600'>{bn ? 'সংযোগ বিচ্ছিন্ন হলে এখানে ফিরে আপলোড চালিয়ে যেতে পারবেন। বাধাগ্রস্ত রেকর্ডিংয়ের শেষ কয়েক সেকেন্ড অনুপস্থিত থাকতে পারে।' : 'Return here to resume an interrupted upload. An interrupted recording may be missing its last few seconds.'}</p>
-      {locals.length === 0 ? <p className='text-sm text-slate-600'>{bn ? 'এখনো কোনো স্থানীয় রেকর্ডিং নেই।' : 'No local recordings yet.'}</p> : <ul className='divide-y divide-slate-200 rounded-xl border border-slate-200 bg-white'>
-        {locals.map(local => <li key={local.localId} className='flex flex-wrap items-center justify-between gap-3 p-4'><div className='space-y-1'><p className='text-sm font-medium text-[#1c3873]'>{new Date(local.startedAt).toLocaleString()} · {amount(local.bytes)}</p><p className='text-sm text-slate-600'>{local.phase === 'queued' ? (bn ? 'আপলোড হয়েছে; নিচে যাচাইয়ের অবস্থা দেখুন।' : 'Uploaded; check validation status below.') : (bn ? 'স্থানীয় কপি রাখা আছে।' : 'Local copy retained.')}</p></div>
+      {localCopies.length === 0 ? <p className='text-sm text-slate-600'>{bn ? 'এখনো কোনো স্থানীয় রেকর্ডিং নেই।' : 'No local recordings yet.'}</p> : <ul className='divide-y divide-slate-200 rounded-xl border border-slate-200 bg-white'>
+        {localCopies.map(local => <li key={local.localId} data-recording-id={local.recordingId} className='flex flex-wrap items-center justify-between gap-3 p-4'><div className='space-y-1'><p className='text-sm font-medium text-[#1c3873]'>{new Date(local.startedAt).toLocaleString()} · {amount(local.bytes)}</p><p className='text-sm text-slate-600'>{recoveryIds.has(local.localId) ? (bn ? 'এই কপির কিছু অংশ শুধু এই পৃষ্ঠায় আছে। পৃষ্ঠা বন্ধ করার আগে ডাউনলোড করুন।' : 'Part of this copy is held only in this page. Download before closing it.') : local.phase === 'queued' ? (bn ? 'আপলোড হয়েছে; নিচে যাচাইয়ের অবস্থা দেখুন।' : 'Uploaded; check validation status below.') : (bn ? 'স্থানীয় কপি রাখা আছে।' : 'Local copy retained.')}</p></div>
           <div className='flex flex-wrap gap-2'>
-            {local.phase !== 'queued' && ['idle', 'queued'].includes(state.stage) && <button type='button' disabled={busy || !local.bytes} className={`${action} border border-slate-300 hover:bg-slate-50`} onClick={() => void run(async () => { resetRecorder(); await engine.current!.recover(local); await engine.current!.retry() })}>{bn ? 'আপলোড চালিয়ে যান' : 'Resume upload'}</button>}
-            <button type='button' className={`${action} border border-slate-300 hover:bg-slate-50`} disabled={busy || local.phase === 'recording' && state.stage === 'recording'} onClick={() => void run(() => downloadLocal(local))}>{bn ? 'ডাউনলোড' : 'Download'}</button>
+            {local.phase !== 'queued' && !recoveryIds.has(local.localId) && ['idle', 'queued'].includes(state.stage) && <button type='button' disabled={busy || !local.bytes} className={`${action} border border-slate-300 hover:bg-slate-50`} onClick={() => void run(async () => { resetRecorder(); await engine.current!.recover(local); await engine.current!.retry() })}>{bn ? 'আপলোড চালিয়ে যান' : 'Resume upload'}</button>}
+            <button type='button' className={`${action} border border-slate-300 hover:bg-slate-50`} disabled={busy || local.phase === 'recording' && state.stage === 'recording'} onClick={() => void run(() => downloadCopy(local))}>{bn ? 'ডাউনলোড' : 'Download'}</button>
             {local.phase === 'queued' && <button type='button' className={`${action} text-red-700 hover:bg-red-50`} disabled={busy} onClick={() => { if (window.confirm(bn ? 'এই ডিভাইসের কপি মুছবেন? সার্ভারের রেকর্ডিং থাকবে।' : 'Delete this device’s copy? The server recording will remain.')) void run(() => removeLocal(local)) }}>{bn ? 'স্থানীয় কপি মুছুন' : 'Remove local copy'}</button>}
           </div></li>)}
       </ul>}

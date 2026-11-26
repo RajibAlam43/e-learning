@@ -76,6 +76,22 @@ async page => {
       if (type === 'beforeunload') window.pilotUnloadHandlers.push(listener);
       return addListener(type, listener, options);
     };
+    // Retain the real encoder output to compare recovery downloads byte-for-byte.
+    window.pilotTrackBlobs = false;
+    window.pilotRecordedBlobs = [];
+    window.pilotDownloads = [];
+    const recorderStart = MediaRecorder.prototype.start;
+    MediaRecorder.prototype.start = function (...args) {
+      if (window.pilotTrackBlobs) this.addEventListener('dataavailable', event => {
+        if (event.data.size) window.pilotRecordedBlobs.push(event.data);
+      });
+      return recorderStart.apply(this, args);
+    };
+    const createURL = URL.createObjectURL.bind(URL);
+    URL.createObjectURL = blob => {
+      if (window.pilotTrackBlobs) window.pilotDownloads.push(blob);
+      return createURL(blob);
+    };
     const sources = [];
     const audio = frequency => {
       const context = new AudioContext(), oscillator = context.createOscillator(), destination = context.createMediaStreamDestination();
@@ -159,5 +175,82 @@ async page => {
     page.getByRole('button', { name: 'Download local copy', exact: true }).click(),
   ]);
   await download.saveAs('/tmp/elearning-recorder-test/captured.mp4');
-  return { capabilities, parts: parts.size, recovery: true, overflow, errors };
+  const recoveryCases = [];
+  const saveRecovery = async (button, expected, filename) => {
+    const [saved] = await Promise.all([page.waitForEvent('download'), button.click()]);
+    await saved.saveAs(`/tmp/elearning-recorder-test/${filename}.mp4`);
+    const hash = await page.evaluate(async () => {
+      const blob = window.pilotDownloads.at(-1);
+      return [...new Uint8Array(await crypto.subtle.digest('SHA-256', await blob.arrayBuffer()))].map(byte => byte.toString(16).padStart(2, '0')).join('');
+    });
+    if (hash !== expected) throw new Error('Recovery download lost recording bytes: ' + filename);
+  };
+  // Exercise both a failure on the first chunk and after a durable prefix exists.
+  for (const failAt of [1, 2]) {
+    if (await page.getByRole('button', { name: 'Record another', exact: true }).count()) {
+      await page.getByRole('button', { name: 'Record another', exact: true }).click();
+    }
+    await page.evaluate(failAt => {
+      window.pilotTrackBlobs = true;
+      window.pilotRecordedBlobs = [];
+      window.pilotDownloads = [];
+      let writes = 0;
+      const put = IDBObjectStore.prototype.put;
+      window.pilotRestoreWrites = () => { IDBObjectStore.prototype.put = put; };
+      IDBObjectStore.prototype.put = function (value, key) {
+        if (this.transaction.db.name === 'lms-class-recordings' && value instanceof Blob && ++writes >= failAt) {
+          this.transaction.abort();
+          throw new DOMException('Injected full IndexedDB', 'QuotaExceededError');
+        }
+        return put.call(this, value, key);
+      };
+    }, failAt);
+    await select.click();
+    await page.getByRole('button', { name: 'Start recording', exact: true }).click();
+    await page.getByText('Recording stopped', { exact: true }).waitFor({ timeout: 20000 });
+    await page.getByRole('alert').filter({ hasText: 'Browser storage failed' }).waitFor();
+    if (recordings.at(-1).status !== 'UPLOADING') throw new Error('Storage-failed recording was published');
+    const { bytes: expectedBytes, hash: expectedHash } = await page.evaluate(async () => {
+      const blob = new Blob(window.pilotRecordedBlobs);
+      return { bytes: blob.size, hash: [...new Uint8Array(await crypto.subtle.digest('SHA-256', await blob.arrayBuffer()))].map(byte => byte.toString(16).padStart(2, '0')).join('') };
+    });
+    if (!expectedBytes) throw new Error('Missing captured encoder bytes');
+    const newestId = recordings.at(-1).id;
+    const durable = await page.evaluate(async recordingId => {
+      const db = await new Promise((resolve, reject) => {
+        const request = indexedDB.open('lms-class-recordings');
+        request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+      });
+      try {
+        const store = db.transaction('recordings').objectStore('recordings');
+        const read = request => new Promise((resolve, reject) => {
+          request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+        });
+        const [rows, keys] = await Promise.all([read(store.getAll()), read(store.getAllKeys())]);
+        const meta = rows.find(row => row.recordingId === recordingId);
+        return rows.reduce((total, row, index) => total + (typeof keys[index] === 'string' && keys[index].startsWith(`chunk:${meta.localId}:`) ? row.size : 0), 0);
+      } finally { db.close(); }
+    }, newestId);
+    if (durable >= expectedBytes || failAt === 1 && durable !== 0 || failAt === 2 && !durable) {
+      throw new Error('Fault injection did not leave an unwritten recording suffix');
+    }
+    await saveRecovery(page.getByRole('button', { name: 'Download local copy', exact: true }), expectedHash, `recovery-${failAt}-before-reset`);
+    await page.getByRole('button', { name: 'Record another', exact: true }).click();
+    const row = page.locator(`[data-recording-id="${newestId}"]`);
+    await row.getByText('Part of this copy is held only in this page. Download before closing it.', { exact: true }).waitFor();
+    if (await row.getByRole('button', { name: 'Resume upload', exact: true }).count()) throw new Error('Offered IndexedDB-only recovery for volatile recording');
+    await saveRecovery(row.getByRole('button', { name: 'Download', exact: true }), expectedHash, `recovery-${failAt}-after-reset`);
+    const warned = await page.evaluate(() => { const event = new Event('beforeunload', { cancelable: true }); window.dispatchEvent(event); return event.defaultPrevented; });
+    if (!warned) throw new Error('Lost unsaved-data warning after replacing active recorder');
+    await page.evaluate(() => window.pilotRestoreWrites());
+    recoveryCases.push({ id: newestId, expectedHash, bytes: expectedBytes, durable });
+  }
+  // Starting another capture must not replace either older in-memory recovery copy.
+  await select.click();
+  await page.getByRole('button', { name: 'Cancel selection', exact: true }).click();
+  for (const [index, saved] of recoveryCases.entries()) {
+    await saveRecovery(page.locator(`[data-recording-id="${saved.id}"]`).getByRole('button', { name: 'Download', exact: true }), saved.expectedHash, `recovery-${index}-after-next-capture`);
+  }
+  if (errors.length) throw new Error(JSON.stringify(errors));
+  return { capabilities, parts: parts.size, recovery: true, overflow, storageRecovery: recoveryCases, errors };
 }

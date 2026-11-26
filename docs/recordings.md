@@ -182,8 +182,11 @@ same recording by Web Locks, and retained for download after upload. This is loc
 browser storage, not a server backup: private browsing, clearing site data, storage
 pressure, OS/device failure or eviction can remove it. Download an important local copy;
 never promise lossless browser recording. A storage error stops capture and preserves
-available in-memory chunks for download while the page stays open; it blocks automatic
-publication of an incomplete recording.
+available in-memory chunks for download while the recorder page stays open; it blocks
+automatic publication of an incomplete recording. Choosing **Record another** retains
+that recorder's recovery data. Its entry in the local recordings list downloads the full
+copy, including unwritten chunks, and identifies that some bytes are held only in this
+page. The unsaved-data warning continues to cover these retained recovery copies.
 
 The feature stops near the eight-hour/8-GiB server limits. Desktop Chrome capability
 checks do not prove every OS/audio setup works; exercise a real class with both teacher
