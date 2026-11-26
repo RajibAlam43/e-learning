@@ -17,6 +17,14 @@ import org.springframework.web.bind.annotation.RequestMapping;
 @RequestMapping("/student/collections")
 @PreAuthorize("hasRole('STUDENT')")
 public interface ProgramCurriculumStudentApi {
+  @org.springframework.web.bind.annotation.PostMapping("/{id}/registrations")
+  @Operation(summary = "Register for an included course offering using your active program")
+  ResponseEntity<com.gii.api.model.response.academic.ProgramRegistrationResponse> register(
+      @PathVariable UUID id,
+      @jakarta.validation.Valid @org.springframework.web.bind.annotation.RequestBody
+          com.gii.api.model.request.admin.RegisterProgramCourseRequest request,
+      Authentication authentication);
+
   @GetMapping("/{id}/curriculum")
   @Operation(summary = "Read your original graduation requirements and available program courses")
   ResponseEntity<StudentProgramCurriculumResponse> curriculum(

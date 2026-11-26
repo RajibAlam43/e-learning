@@ -38,6 +38,16 @@ import lombok.experimental.SuperBuilder;
     })
 public class Enrollment extends CreatedOnlyUuidEntity {
 
+  @Column(nullable = false)
+  @Builder.Default
+  private boolean programAccessManaged = false;
+
+  @Column(nullable = false)
+  @Builder.Default
+  private boolean independentAccessAvailable = false;
+
+  private Instant independentAccessExpiresAt;
+
   @JsonIgnore
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
   @JoinColumn(name = "user_id", nullable = false)

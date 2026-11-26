@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
+import Link from 'next/link'
 import { Users, RefreshCw, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react'
 import { format } from 'date-fns'
 import { AdminPageHeader } from '@/components/admin/shared/AdminPageHeader'
@@ -29,7 +30,7 @@ const roleLabels: Record<string, string> = {
 const columns: Column<AdminUserSummary>[] = [
   {
     key: 'name', header: 'Name',
-    render: (user) => <span className="font-medium [overflow-wrap:anywhere]">{user.fullName}</span>,
+    render: (user) => <Link href={`/admin/students/${user.userId}/registrations`} className="font-medium text-[#1c3873] underline underline-offset-4 [overflow-wrap:anywhere]">{user.fullName}</Link>,
   },
   {
     key: 'email', header: 'Email',

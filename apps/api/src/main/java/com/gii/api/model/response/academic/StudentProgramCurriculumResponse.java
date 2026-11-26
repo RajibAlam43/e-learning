@@ -11,6 +11,7 @@ public record StudentProgramCurriculumResponse(
     ProgramCreditProgressResponse creditProgress,
     Instant expiresAt,
     boolean accessActive,
+    ProgramAllowanceResponse electiveAllowance,
     List<AvailableProgramCourse> availableCourses) {
   public record AvailableProgramCourse(
       UUID courseId,
@@ -20,5 +21,8 @@ public record StudentProgramCurriculumResponse(
       int credits,
       PublishStatus status,
       boolean mandatoryForGraduation,
-      boolean enrolled) {}
+      boolean enrolled,
+      Integer earnedCredits,
+      ProgramRegistrationResponse registration,
+      List<ProgramOfferingResponse> offerings) {}
 }

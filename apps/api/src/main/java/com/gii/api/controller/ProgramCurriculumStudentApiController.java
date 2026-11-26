@@ -14,6 +14,16 @@ import org.springframework.web.bind.annotation.RestController;
 public class ProgramCurriculumStudentApiController implements ProgramCurriculumStudentApi {
   private final StudentProgramCurriculumService programs;
   private final CurrentUserService users;
+  private final com.gii.api.service.academic.ProgramCourseRegistrationService registrations;
+
+  @Override
+  public ResponseEntity<com.gii.api.model.response.academic.ProgramRegistrationResponse> register(
+      UUID id,
+      com.gii.api.model.request.admin.RegisterProgramCourseRequest request,
+      Authentication authentication) {
+    return ResponseEntity.ok(
+        registrations.register(users.getCurrentUserId(authentication), id, request.courseId()));
+  }
 
   @Override
   public ResponseEntity<StudentProgramCurriculumResponse> curriculum(

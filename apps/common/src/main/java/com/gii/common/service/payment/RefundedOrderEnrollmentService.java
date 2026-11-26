@@ -25,6 +25,9 @@ public class RefundedOrderEnrollmentService {
   private final OrderItemRepository orderItemRepository;
   private final EnrollmentRepository enrollmentRepository;
   private final CollectionEnrollmentRepository collectionEnrollmentRepository;
+  private final EnrollmentMutationLockService mutationLock;
+  private final ProgramCourseAccessService programAccess;
+  private final CourseEnrollmentPolicyService enrollmentPolicy;
 
   @Transactional
   public void revoke(UUID orderId) {
@@ -35,6 +38,8 @@ public class RefundedOrderEnrollmentService {
 
     Instant now = Instant.now();
     UUID userId = order.getUser().getId();
+    mutationLock.lock(userId);
+    programAccess.lockManagedEnrollments(userId);
     for (Enrollment enrollment : enrollmentRepository.findBySourceOrderIdForUpdate(orderId)) {
       List<OrderItem> alternatives =
           orderItemRepository.findPaidCourseEntitlementsExcludingOrder(
@@ -43,7 +48,20 @@ public class RefundedOrderEnrollmentService {
         OrderItem alternative = alternatives.getFirst();
         enrollment.setSourceOrderItem(alternative);
         enrollment.setSourceCollection(alternative.getCollection());
+        if (enrollment.isProgramAccessManaged()) {
+          enrollment.setIndependentAccessAvailable(false);
+          programAccess.independentGrant(
+              enrollment,
+              enrollmentPolicy.calculateExpiry(
+                  enrollment.getCourse(),
+                  alternative.getOrder().getPaidAt() == null
+                      ? alternative.getOrder().getCreatedAt()
+                      : alternative.getOrder().getPaidAt()));
+        }
         continue;
+      }
+      if (enrollment.isProgramAccessManaged()) {
+        enrollment.setIndependentAccessAvailable(false);
       }
       enrollment.setStatus(EnrollmentStatus.REFUNDED);
       enrollment.setRevokedAt(now);
@@ -67,5 +85,6 @@ public class RefundedOrderEnrollmentService {
       enrollment.setStatus(EnrollmentStatus.REFUNDED);
       enrollment.setRevokedAt(now);
     }
+    programAccess.refreshUser(userId);
   }
 }

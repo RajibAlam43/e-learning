@@ -67,6 +67,11 @@ public class PendingCartOrderService {
   private final LocalizedContentService localizedContentService;
   private final OfferingEnrollmentPolicyService offeringEnrollmentPolicyService;
   private final PendingOrderEligibilityService pendingOrderEligibilityService;
+  private final com.gii.api.service.academic.ProgramRegistrationAllowanceService programAllowance;
+  private final com.gii.common.repository.academic.ProgramCourseRegistrationRepository
+      programRegistrations;
+  private final com.gii.api.service.collection.PurchasedCollectionCoursesService
+      purchasedCurriculum;
   private final com.gii.common.service.payment.ProgramSnapshotService programSnapshots;
   private final com.gii.common.service.payment.CoursePrerequisiteEligibilityService prerequisites;
 
@@ -135,6 +140,25 @@ public class PendingCartOrderService {
       }
     }
 
+    for (UUID requested : requestedCourseIds) {
+      var course = coursesById.get(requested);
+      if (prerequisites.hasCredit(user.getId(), course.getTemplate().getId())) {
+        continue;
+      }
+      for (var row : collectionCoursesForCart) {
+        var program = row.getCollection();
+        if (program.isCreditBased()
+            && row.getCourse().getTemplate().getId().equals(course.getTemplate().getId())
+            && (!Boolean.FALSE.equals(row.getIsMandatory())
+                || course.getCredits() <= program.getElectiveCreditLimit())) {
+          throw new ResponseStatusException(
+              HttpStatus.CONFLICT,
+              "This course can be registered through the selected program; "
+                  + "remove its separate purchase");
+        }
+      }
+    }
+
     // Case 2: if user owns collection containing the course, block standalone course purchase.
     Set<UUID> ownedCollectionIds =
         collectionEnrollmentRepository
@@ -150,8 +174,46 @@ public class PendingCartOrderService {
               new ArrayList<>(ownedCollectionIds));
       Set<UUID> blockedCourseIds =
           ownedCollectionCourses.stream()
+              .filter(cc -> !cc.getCollection().isCreditBased())
               .map(cc -> cc.getCourse().getId())
               .collect(java.util.stream.Collectors.toSet());
+      for (var entitlement :
+          collectionEnrollmentRepository.findByUserIdAndStatus(
+              user.getId(), EnrollmentStatus.ACTIVE)) {
+        if (!com.gii.api.service.academic.ProgramCourseRegistrationService.active(
+            entitlement, now)) {
+          continue;
+        }
+        var selected =
+            programRegistrations.findByProgramEnrollmentIdAndStatus(
+                entitlement.getId(), com.gii.common.enums.ProgramRegistrationStatus.ACTIVE);
+        var budget = programAllowance.get(entitlement, selected);
+        var included = purchasedCurriculum.resolveItems(entitlement);
+        for (UUID requested : requestedCourseIds) {
+          if (blockedCourseIds.contains(requested)) {
+            continue;
+          }
+          var course = coursesById.get(requested);
+          var template = course.getTemplate().getId();
+          if (prerequisites.hasCredit(user.getId(), template)
+              || selected.stream().anyMatch(r -> r.getCourseTemplateId().equals(template))) {
+            continue;
+          }
+          var item =
+              included.stream()
+                  .filter(c -> c.course().getTemplate().getId().equals(template))
+                  .findFirst()
+                  .orElse(null);
+          if (item != null
+              && (item.mandatory()
+                  || budget.remaining() == null
+                  || course.getCredits() <= budget.remaining())) {
+            throw new ResponseStatusException(
+                HttpStatus.CONFLICT,
+                "Open My Programs to register for this course using your program access");
+          }
+        }
+      }
       for (UUID courseId : requestedCourseIds) {
         if (blockedCourseIds.contains(courseId)) {
           throw new ResponseStatusException(

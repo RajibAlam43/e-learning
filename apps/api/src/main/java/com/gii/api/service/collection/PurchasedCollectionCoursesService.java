@@ -17,6 +17,8 @@ public class PurchasedCollectionCoursesService {
   private final OrderItemCourseRepository orderItemCourseRepository;
   private final CollectionCourseRepository collectionCourseRepository;
   private final com.gii.common.repository.course.CourseRepository courseRepository;
+  private final com.gii.common.repository.academic.ProgramCourseRegistrationRepository
+      registrations;
 
   public List<Course> resolve(CollectionEnrollment enrollment) {
     return resolveItems(enrollment).stream().map(PurchasedCourse::course).toList();
@@ -32,6 +34,13 @@ public class PurchasedCollectionCoursesService {
             enrollment.getCollection().getId())) {
       byTemplate.putIfAbsent(
           row.getCourse().getTemplate().getId(), new PurchasedCourse(row.getCourse(), false));
+    }
+    for (var r :
+        registrations.findByProgramEnrollmentIdAndStatus(
+            enrollment.getId(), com.gii.common.enums.ProgramRegistrationStatus.ACTIVE)) {
+      byTemplate.putIfAbsent(
+          r.getCourseTemplateId(),
+          new PurchasedCourse(r.getEnrollment().getCourse(), r.isMandatory()));
     }
     return List.copyOf(byTemplate.values());
   }

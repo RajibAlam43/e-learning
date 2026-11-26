@@ -1,8 +1,8 @@
 # Semesters and academic credits
 
-Steps 1–3 provide institution semesters, course credits, reusable cohort offerings,
-completion-based achievements, prerequisites, credit waivers and program curricula.
-Cohort registration and manual enrollment are subsequent steps.
+Steps 1–4 provide institution semesters, course credits, reusable cohort offerings,
+academic achievements, prerequisites, credit waivers, program curricula and deferred
+course/cohort registration. Manual enrollment is the next step.
 
 ## Administration
 
@@ -182,12 +182,11 @@ program completion records remain intact.
 Credit-based program purchase grants **program entitlement**, not automatic enrollment
 into every included course/cohort and not a cohort seat reservation. It is independent
 of individual course prerequisites, registration dates and seat capacity. The separate
-cohort registration API/UI, including elective selection and reservation of allowance,
-is **step 4 and is not implemented here**. Course-level purchase/free-enrollment checks
-remain enforced. The student program page shows original requirements, credit progress,
+course/cohort registration flow, including elective selection and reservation of allowance,
+is implemented in step 4 below. Course-level purchase/free-enrollment checks remain enforced. The student program page shows original requirements, credit progress,
 access expiry and the current/previous course catalog; it offers study links only for
-actual course enrollments. Completing the remaining registration step is required
-before newly purchased program entitlement can be used to enroll in courses.
+actual course enrollments. Students now use the offering choices described below to
+turn program entitlement into individual course access.
 
 | Method | Route | Purpose |
 | --- | --- | --- |
@@ -200,3 +199,73 @@ responses add program requirements and published/planned syllabus metadata. Appl
 **V26** after V25 through the migrator, then deploy the matching API, worker and web
 images together. No new environment variables are needed. Local tests and implementation
 do not migrate or deploy a hosted environment.
+
+
+## Deferred course and cohort registration (step 4)
+
+Open **My Programs → a program** to choose an offering for each included course.
+The list includes published cohorts of the same academic template, including cohorts
+created after the program was purchased. Planned courses remain visible until an
+offering is published. Each offering shows semester, study dates, credits, access
+end date, seat availability and any registration blocker. Self-paced offerings use
+the same registration route.
+
+Registration requires an active, unexpired program entitlement and a published,
+included course template. New course enrollments enforce prerequisites/approved
+waivers, semester and offering registration windows, and capacity. A program purchase
+itself still grants no seats. The registration transaction locks the offering and
+serializes the student's enrollment changes, so simultaneous requests cannot take
+the last seat twice or spend the same elective allowance. Retrying the same selection
+returns the original record and does not renew access or reserve another seat.
+
+There is one active selection per student/program/course template, and a student
+cannot select another simultaneous unfinished cohort of that template. An existing
+valid enrollment can be linked through **Use program access** without taking another
+seat or repeating admission checks. Independent course access is preserved, and
+valid grants from another program are combined. Registration grants expire at the
+earlier of the course access duration and the program access end. Refunds and
+withdrawals recalculate access using the remaining valid sources, so they neither
+remove separately funded access nor leave a refunded program's access active.
+
+For credit-based programs, optional course selections reserve their credit value at
+registration. Reused eligible elective achievements also occupy allowance; a selected
+course and its achievement count once. Extra academic credits are capped at the
+program's original elective allowance. Mandatory classifications and limits come
+from the purchaser's original contract, not later edits. Existing legacy purchasers
+keep their uncapped bundle entitlement. Selected later additions remain available
+if they are subsequently removed from the current program catalog.
+
+Courses with awarded academic credit require no new program registration. Existing
+valid course access remains usable. Completing a different cohort cannot duplicate
+that academic credit. Programs direct students away from separately purchasing a
+course they can already register through their entitlement, including in a mixed
+program/course cart. An extra elective beyond the available program allowance can
+be bought separately through ordinary checkout, with its usual prerequisite, date
+and capacity checks; it does not increase the graduation credit allowance.
+
+**Admin → Students → click a student's name** opens the paged registration history.
+Administrators can withdraw an unfinished selection with a required reason. The
+reviewer, timestamp and reason are retained; new choices create separate history
+records. Withdrawal releases an unfinished elective reservation and any access
+provided solely by that choice. Completed courses or awarded academic credits cannot
+be withdrawn to release allowance. Students cannot withdraw their own choices.
+Date/capacity overrides and general manual enrollment remain step 5.
+
+| Method | Route | Purpose |
+| --- | --- | --- |
+| POST | `/student/collections/{id}/registrations` | Register for an included `courseId` offering |
+| GET | `/student/collections/{id}/curriculum` | Offerings, blockers, active selection and remaining allowance |
+| GET | `/admin/students/{userId}/program-registrations?page=0` | Registration history, 50 entries per page |
+| POST | `/admin/students/{userId}/program-registrations/{id}/withdraw` | Withdraw an unfinished selection with `reason` |
+
+Apply **V27** after V26 through the existing migrator. It adds registration records
+and access-source bookkeeping; it does not change existing enrollments or invent
+historical selections. Deploy matching API, worker and web images after migration.
+No new environment variables, cloud services or hosted-environment changes are needed
+for this implementation. Verification includes real PostgreSQL concurrency/access tests
+and mocked-API browser flows on desktop and mobile.
+
+The final complete integration run passed on a disposable native PostgreSQL 17 database
+using the existing loopback test override after Docker's PostgreSQL 18 container failed
+to initialize with a local disk I/O error. Earlier registration/concurrency checks passed
+on PostgreSQL 18. No test configuration or hosted database setting was changed.

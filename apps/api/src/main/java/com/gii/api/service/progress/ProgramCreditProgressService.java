@@ -17,6 +17,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class ProgramCreditProgressService {
   private final AcademicAchievementRepository achievements;
   private final CollectionCourseRepository courses;
+  private final com.gii.common.repository.academic.ProgramCourseRegistrationRepository
+      registrations;
 
   public ProgramCreditProgressResponse get(CollectionEnrollment enrollment) {
     var snapshot = enrollment.getProgramSnapshot();
@@ -34,6 +36,10 @@ public class ProgramCreditProgressService {
     courses
         .findByCollection_IdOrderByPositionAsc(enrollment.getCollection().getId())
         .forEach(c -> eligible.add(c.getCourse().getTemplate().getId()));
+    registrations
+        .findByProgramEnrollmentIdAndStatus(
+            enrollment.getId(), com.gii.common.enums.ProgramRegistrationStatus.ACTIVE)
+        .forEach(r -> eligible.add(r.getCourseTemplateId()));
     var awards = new HashMap<UUID, Integer>();
     achievements
         .findByUserIdOrderByAchievedAtDesc(enrollment.getUser().getId())

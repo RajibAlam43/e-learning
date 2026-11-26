@@ -353,6 +353,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/student/collections/{id}/registrations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Register for an included course offering using your active program */
+        post: operations["register"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/student/collections/{collectionId}/certificate/generate": {
         parameters: {
             query?: never;
@@ -593,7 +610,7 @@ export interface paths {
          * Register a new user
          * @description Register with email/phone and password. At least one of email or phone is required.
          */
-        post: operations["register"];
+        post: operations["register_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1072,6 +1089,23 @@ export interface paths {
         put?: never;
         /** Create a direct R2 thumbnail upload URL */
         post: operations["createThumbnailUpload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/students/{userId}/program-registrations/{id}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Withdraw an unfinished course choice with an audit reason */
+        post: operations["withdraw"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3057,6 +3091,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/students/{userId}/program-registrations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read a student's latest program registration history */
+        get: operations["history"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/students/{userId}/academic-record": {
         parameters: {
             query?: never;
@@ -3419,6 +3470,37 @@ export interface components {
             wasEligible?: boolean;
             eligibilityReason?: string;
             message?: string;
+        };
+        RegisterProgramCourseRequest: {
+            /** Format: uuid */
+            courseId: string;
+        };
+        ProgramRegistrationResponse: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            programId?: string;
+            programTitle?: string;
+            /** Format: uuid */
+            courseTemplateId?: string;
+            /** Format: uuid */
+            courseId?: string;
+            courseTitle?: string;
+            cohortName?: string;
+            /** Format: int32 */
+            credits?: number;
+            mandatory?: boolean;
+            /** @enum {string} */
+            status?: "ACTIVE" | "WITHDRAWN";
+            /** Format: date-time */
+            registeredAt?: string;
+            /** Format: date-time */
+            accessExpiresAt?: string;
+            /** Format: date-time */
+            withdrawnAt?: string;
+            withdrawnByName?: string;
+            withdrawalReason?: string;
+            canWithdraw?: boolean;
         };
         PartUrl: {
             url?: string;
@@ -3827,6 +3909,9 @@ export interface components {
             sizeBytes?: number;
             /** Format: date-time */
             expiresAt?: string;
+        };
+        WithdrawProgramRegistrationRequest: {
+            reason: string;
         };
         CreateQuizChoiceRequest: {
             choiceText: string;
@@ -5393,6 +5478,18 @@ export interface components {
             status?: "DRAFT" | "PUBLISHED" | "ARCHIVED";
             mandatoryForGraduation?: boolean;
             enrolled?: boolean;
+            /** Format: int32 */
+            earnedCredits?: number;
+            registration?: components["schemas"]["ProgramRegistrationResponse"];
+            offerings?: components["schemas"]["ProgramOfferingResponse"][];
+        };
+        ProgramAllowanceResponse: {
+            /** Format: int32 */
+            limit?: number;
+            /** Format: int64 */
+            used?: number;
+            /** Format: int64 */
+            remaining?: number;
         };
         ProgramCreditProgressResponse: {
             /** Format: int32 */
@@ -5409,12 +5506,36 @@ export interface components {
             mandatoryCoursesRequired?: number;
             complete?: boolean;
         };
+        ProgramOfferingResponse: {
+            /** Format: uuid */
+            courseId?: string;
+            name?: string;
+            slug?: string;
+            /** @enum {string} */
+            studyMode?: "COHORT_BASED" | "SELF_PACED";
+            semester?: components["schemas"]["SemesterResponse"];
+            /** Format: date-time */
+            startsAt?: string;
+            /** Format: date-time */
+            endsAt?: string;
+            timezone?: string;
+            /** Format: int32 */
+            credits?: number;
+            /** Format: date-time */
+            accessExpiresAt?: string;
+            /** Format: int64 */
+            seatsAvailable?: number;
+            canRegister?: boolean;
+            blockedReason?: string;
+            missingPrerequisites?: components["schemas"]["Requirement"][];
+        };
         StudentProgramCurriculumResponse: {
             graduationRequirements?: components["schemas"]["ProgramSnapshot"];
             creditProgress?: components["schemas"]["ProgramCreditProgressResponse"];
             /** Format: date-time */
             expiresAt?: string;
             accessActive?: boolean;
+            electiveAllowance?: components["schemas"]["ProgramAllowanceResponse"];
             availableCourses?: components["schemas"]["AvailableProgramCourse"][];
         };
         StudentCollectionCourseProgressResponse: {
@@ -6215,13 +6336,13 @@ export interface components {
             empty?: boolean;
         };
         PageableObject: {
-            sort?: components["schemas"]["SortObject"];
-            unpaged?: boolean;
             paged?: boolean;
             /** Format: int32 */
             pageNumber?: number;
             /** Format: int32 */
             pageSize?: number;
+            unpaged?: boolean;
+            sort?: components["schemas"]["SortObject"];
             /** Format: int64 */
             offset?: number;
         };
@@ -7137,6 +7258,32 @@ export interface operations {
             };
         };
     };
+    register: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegisterProgramCourseRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ProgramRegistrationResponse"];
+                };
+            };
+        };
+    };
     issueOrGetCollectionCertificate: {
         parameters: {
             query?: never;
@@ -7569,7 +7716,7 @@ export interface operations {
             };
         };
     };
-    register: {
+    register_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -8589,6 +8736,33 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ThumbnailUploadResponse"];
+                };
+            };
+        };
+    };
+    withdraw: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WithdrawProgramRegistrationRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ProgramRegistrationResponse"];
                 };
             };
         };
@@ -12140,6 +12314,30 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["AdminSupportTicketResponse"][];
+                };
+            };
+        };
+    };
+    history: {
+        parameters: {
+            query?: {
+                page?: number;
+            };
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ProgramRegistrationResponse"][];
                 };
             };
         };

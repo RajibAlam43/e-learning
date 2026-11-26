@@ -36,6 +36,8 @@ public class PaidOrderEnrollmentService {
   private final CollectionCourseRepository collectionCourseRepository;
   private final CourseRepository courseRepository;
   private final CourseEnrollmentPolicyService enrollmentPolicyService;
+  private final EnrollmentMutationLockService mutationLock;
+  private final ProgramCourseAccessService programAccess;
 
   @Transactional
   public void grant(UUID orderId) {
@@ -43,6 +45,7 @@ public class PaidOrderEnrollmentService {
     if (order.getStatus() != OrderStatus.PAID) {
       return;
     }
+    mutationLock.lock(order.getUser().getId());
     Instant now = Instant.now();
     List<OrderItem> items = orderItemRepository.findByOrderId(order.getId());
     Map<UUID, Course> purchasedCourseById = new LinkedHashMap<>();
@@ -107,6 +110,12 @@ public class PaidOrderEnrollmentService {
           existing.getStatus() == EnrollmentStatus.ACTIVE
               && (existing.getExpiresAt() == null || existing.getExpiresAt().isAfter(now));
       if (alreadyOccupiesSeat) {
+        if (existing.isProgramAccessManaged()) {
+          existing.setSourceOrderItem(sourceOrderItem);
+          existing.setSourceCollection(sourceCollection);
+          programAccess.independentGrant(
+              existing, enrollmentPolicyService.calculateExpiry(lockedCourse, now));
+        }
         return;
       }
       enrollmentPolicyService.validateActivation(
@@ -117,6 +126,9 @@ public class PaidOrderEnrollmentService {
       existing.setExpiresAt(enrollmentPolicyService.calculateExpiry(lockedCourse, now));
       existing.setSourceOrderItem(sourceOrderItem);
       existing.setSourceCollection(sourceCollection);
+      if (existing.isProgramAccessManaged()) {
+        programAccess.independentGrant(existing, existing.getExpiresAt());
+      }
       enrollmentRepository.save(existing);
       return;
     }

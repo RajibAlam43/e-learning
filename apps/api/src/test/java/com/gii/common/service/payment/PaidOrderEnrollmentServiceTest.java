@@ -46,6 +46,8 @@ class PaidOrderEnrollmentServiceTest {
   @Mock private CourseRepository courseRepository;
   @Mock private CourseEnrollmentPolicyService enrollmentPolicyService;
 
+  @Mock private EnrollmentMutationLockService mutationLock;
+  @Mock private ProgramCourseAccessService programAccess;
   private PaidOrderEnrollmentService service;
 
   private PaidOrderEnrollmentService newService() {
@@ -57,7 +59,9 @@ class PaidOrderEnrollmentServiceTest {
         collectionEnrollmentRepository,
         collectionCourseRepository,
         courseRepository,
-        enrollmentPolicyService);
+        enrollmentPolicyService,
+        mutationLock,
+        programAccess);
   }
 
   @Test
@@ -74,8 +78,7 @@ class PaidOrderEnrollmentServiceTest {
 
   @Test
   void reEnrollmentPreservesCompletedAtOnExpiredEnrollment() {
-    assertReEnrollmentPreservesCompletedAt(
-        EnrollmentStatus.ACTIVE, Instant.now().minusSeconds(60));
+    assertReEnrollmentPreservesCompletedAt(EnrollmentStatus.ACTIVE, Instant.now().minusSeconds(60));
   }
 
   private void assertReEnrollmentPreservesCompletedAt(
@@ -84,7 +87,7 @@ class PaidOrderEnrollmentServiceTest {
 
     UUID userId = UUID.randomUUID();
     UUID courseId = UUID.randomUUID();
-    UUID orderId = UUID.randomUUID();
+    final UUID orderId = UUID.randomUUID();
 
     User user = User.builder().fullName("Student").email("student@example.com").build();
     user.setId(userId);
@@ -94,7 +97,8 @@ class PaidOrderEnrollmentServiceTest {
     course.setStatus(PublishStatus.PUBLISHED);
     course.setIsFree(false);
 
-    Order order = Order.builder().user(user).amountBdt(BigDecimal.TEN).status(OrderStatus.PAID).build();
+    Order order =
+        Order.builder().user(user).amountBdt(BigDecimal.TEN).status(OrderStatus.PAID).build();
     order.setId(orderId);
     order.setCreatedAt(Instant.now().minusSeconds(700_000));
 
@@ -149,13 +153,14 @@ class PaidOrderEnrollmentServiceTest {
     service = newService();
 
     UUID userId = UUID.randomUUID();
-    UUID collectionId = UUID.randomUUID();
-    UUID orderId = UUID.randomUUID();
+    final UUID collectionId = UUID.randomUUID();
+    final UUID orderId = UUID.randomUUID();
 
     User user = User.builder().fullName("Student").email("student@example.com").build();
     user.setId(userId);
 
-    Order order = Order.builder().user(user).amountBdt(BigDecimal.TEN).status(OrderStatus.PAID).build();
+    Order order =
+        Order.builder().user(user).amountBdt(BigDecimal.TEN).status(OrderStatus.PAID).build();
     order.setId(orderId);
     order.setCreatedAt(Instant.now().minusSeconds(700_000));
 

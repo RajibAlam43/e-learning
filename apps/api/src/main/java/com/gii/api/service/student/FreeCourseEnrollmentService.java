@@ -25,10 +25,13 @@ public class FreeCourseEnrollmentService {
   private final CourseRepository courseRepository;
   private final EnrollmentRepository enrollmentRepository;
   private final OfferingEnrollmentPolicyService enrollmentPolicyService;
+  private final com.gii.common.service.payment.EnrollmentMutationLockService mutationLock;
+  private final com.gii.common.service.payment.ProgramCourseAccessService programAccess;
 
   @Transactional
   public void execute(UUID courseId, Authentication authentication) {
     User user = currentUserService.getCurrentUser(authentication);
+    mutationLock.lock(user.getId());
     Course course =
         courseRepository
             .findByIdForUpdate(courseId)
@@ -45,6 +48,12 @@ public class FreeCourseEnrollmentService {
     if (existing != null
         && existing.getStatus() == EnrollmentStatus.ACTIVE
         && (existing.getExpiresAt() == null || existing.getExpiresAt().isAfter(now))) {
+      if (existing.isProgramAccessManaged()) {
+        existing.setSourceOrderItem(null);
+        existing.setSourceCollection(null);
+        programAccess.independentGrant(
+            existing, enrollmentPolicyService.calculateExpiry(course, now));
+      }
       return;
     }
 
@@ -67,5 +76,8 @@ public class FreeCourseEnrollmentService {
     existing.setExpiresAt(enrollmentPolicyService.calculateExpiry(course, now));
     existing.setSourceOrderItem(null);
     existing.setSourceCollection(null);
+    if (existing.isProgramAccessManaged()) {
+      programAccess.independentGrant(existing, existing.getExpiresAt());
+    }
   }
 }

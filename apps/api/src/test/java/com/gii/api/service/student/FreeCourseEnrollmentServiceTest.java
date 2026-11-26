@@ -38,6 +38,10 @@ class FreeCourseEnrollmentServiceTest {
   @Mock private OfferingEnrollmentPolicyService enrollmentPolicyService;
   @Mock private Authentication authentication;
 
+  @Mock private com.gii.common.service.payment.EnrollmentMutationLockService mutationLock;
+  @Mock private com.gii.common.service.payment.ProgramCourseAccessService programAccess;
+  @Mock private com.gii.common.service.payment.CourseEnrollmentPolicyService commonPolicy;
+
   @InjectMocks private FreeCourseEnrollmentService service;
 
   @Test
@@ -81,8 +85,7 @@ class FreeCourseEnrollmentServiceTest {
 
   @Test
   void reEnrollmentPreservesCompletedAtOnExpiredEnrollment() {
-    assertReEnrollmentPreservesCompletedAt(
-        EnrollmentStatus.ACTIVE, Instant.now().minusSeconds(60));
+    assertReEnrollmentPreservesCompletedAt(EnrollmentStatus.ACTIVE, Instant.now().minusSeconds(60));
   }
 
   private void assertReEnrollmentPreservesCompletedAt(
