@@ -18,6 +18,8 @@ const STATUS_MAP: Record<string, { label: string; variant: StatusVariant }> = {
   LIVE: { label: 'Live', variant: 'success' },
   COMPLETED: { label: 'Completed', variant: 'default' },
   ACTIVE: { label: 'Active', variant: 'success' },
+  SUSPENDED: { label: 'Suspended', variant: 'warning' },
+  DELETED: { label: 'Deleted', variant: 'default' },
   INACTIVE: { label: 'Inactive', variant: 'default' },
 }
 

@@ -71,6 +71,7 @@ export const QUERY_KEYS = {
   certificateVerification: (code: string) => ['certificates', 'verify', code] as const,
 
   // Admin
+  adminUsers: (params: object) => ['admin', 'users', params] as const,
   adminCourses: () => ['admin', 'courses'] as const,
   adminCourse: (id: string) => ['admin', 'courses', id] as const,
   adminInstructors: () => ['admin', 'instructors'] as const,

@@ -4,6 +4,8 @@ import com.gii.common.entity.user.User;
 import com.gii.common.enums.UserStatus;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -13,6 +15,19 @@ public interface UserRepository extends JpaRepository<User, UUID> {
   Optional<User> findByEmail(String email);
 
   Optional<User> findByPhone(String phone);
+
+  @Query(
+      """
+      SELECT u FROM User u
+      WHERE (lower(u.fullName) LIKE :pattern ESCAPE '!'
+         OR lower(u.email) LIKE :pattern ESCAPE '!'
+         OR u.phone LIKE :pattern ESCAPE '!')
+        AND EXISTS (
+          SELECT ur FROM UserRole ur
+          WHERE ur.user = u AND ur.role.name = 'STUDENT'
+        )
+      """)
+  Page<User> searchStudents(@Param("pattern") String pattern, Pageable pageable);
 
   @Query(
       """

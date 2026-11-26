@@ -2,13 +2,18 @@ package com.gii.common.repository.user;
 
 import com.gii.common.entity.user.UserRole;
 import com.gii.common.entity.user.UserRoleId;
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface UserRoleRepository extends JpaRepository<UserRole, UserRoleId> {
 
   List<UserRole> findByUserId(UUID userId);
+
+  @EntityGraph(attributePaths = "role")
+  List<UserRole> findAllByUserIdIn(Collection<UUID> userIds);
 
   boolean existsByUserIdAndRoleName(UUID userId, String roleName);
 

@@ -73,6 +73,10 @@ planned changes still require user confirmation. The production environment exam
 a private DO DB hostname placeholder; use the runbook's public managed-DB connection
 settings for Hostinger instead.
 
+The [admin student directory API](docs/admin-users.md) provides paginated name/email/phone
+search over accounts with the Student role, including those with other roles, no orders,
+or only a phone number.
+
 ## Verification
 
 ```sh
