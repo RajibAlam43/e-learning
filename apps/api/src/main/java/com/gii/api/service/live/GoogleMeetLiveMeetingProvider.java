@@ -1,6 +1,5 @@
 package com.gii.api.service.live;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.gii.common.enums.LiveClassProvider;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -16,7 +15,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
-import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import org.springframework.web.server.ResponseStatusException;
@@ -27,21 +25,11 @@ public class GoogleMeetLiveMeetingProvider implements LiveMeetingProvider {
   private static final Duration TIMEOUT = Duration.ofSeconds(30);
   public static final String MANAGED_HOSTS = "googleManagedCoHosts";
   private final WebClient.Builder webClientBuilder;
+  private final GoogleMeetCredentialsService credentials;
+  private final GoogleMeetCalendarService calendar;
 
   @Value("${integrations.google-meet.base-url:https://meet.googleapis.com/v2}")
   private String baseUrl;
-
-  @Value("${integrations.google-oauth.token-url}")
-  private String oauthTokenUrl;
-
-  @Value("${integrations.google-oauth.client-id}")
-  private String oauthClientId;
-
-  @Value("${integrations.google-oauth.client-secret}")
-  private String oauthClientSecret;
-
-  @Value("${integrations.google-oauth.refresh-token}")
-  private String oauthRefreshToken;
 
   @Override
   public LiveClassProvider provider() {
@@ -50,21 +38,33 @@ public class GoogleMeetLiveMeetingProvider implements LiveMeetingProvider {
 
   @Override
   public LiveMeetingCreateResult create(LiveMeetingCreateRequest request) {
-    List<String> emails = normalizeEmails(request.coHostEmails());
-    if (emails.isEmpty()) {
+    GoogleMeetCredentialsService.Grant grant = credentials.forCreation(request.primaryTeacherId());
+    if ("CALENDAR".equals(grant.apiKind())) {
+      return calendar.createTeacherMeeting(request, grant);
+    }
+    List<String> emails =
+        "SHARED".equals(grant.mode()) ? normalizeEmails(request.coHostEmails()) : List.of();
+    if (emails.isEmpty() && "SHARED".equals(grant.mode())) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "Google Meet requires a teacher email");
     }
-    WebClient client = client();
+    WebClient client = client(grant);
     Space space =
         client
             .post()
             .uri("/spaces")
             .bodyValue(
-                Map.of(
-                    "config",
-                    Map.of(
-                        "accessType", "RESTRICTED", "moderation", "ON", "entryPointAccess", "ALL")))
+                "SHARED".equals(grant.mode())
+                    ? Map.of(
+                        "config",
+                        Map.of(
+                            "accessType",
+                            "RESTRICTED",
+                            "moderation",
+                            "ON",
+                            "entryPointAccess",
+                            "ALL"))
+                    : Map.of())
             .retrieve()
             .bodyToMono(Space.class)
             .block(TIMEOUT);
@@ -75,7 +75,26 @@ public class GoogleMeetLiveMeetingProvider implements LiveMeetingProvider {
       throw new ResponseStatusException(
           HttpStatus.BAD_GATEWAY, "Google Meet returned no meeting space");
     }
-    Map<String, Object> metadata = synchronize(client, space.name(), emails, Map.of());
+    Map<String, Object> metadata =
+        "SHARED".equals(grant.mode())
+            ? synchronize(client, space.name(), emails, grant.metadata())
+            : grant.metadata();
+    if (credentials.calendarEnabled()) {
+      try {
+        metadata = calendar.synchronize(request, grant, space.meetingUri(), metadata);
+      } catch (RuntimeException failure) {
+        try {
+          cancel(
+              LiveMeetingCancelRequest.builder()
+                  .providerMeetingId(space.name())
+                  .metadata(metadata)
+                  .build());
+        } catch (RuntimeException cleanup) {
+          failure.addSuppressed(cleanup);
+        }
+        throw failure;
+      }
+    }
     return LiveMeetingCreateResult.builder()
         .meetingId(space.name())
         .hostStartUrl(space.meetingUri())
@@ -86,13 +105,30 @@ public class GoogleMeetLiveMeetingProvider implements LiveMeetingProvider {
 
   @Override
   public void update(LiveMeetingUpdateRequest request) {
-    // Meet spaces have no schedule, title or Calendar event. These remain in the LMS.
+    if (request.metadata() != null
+        && request.metadata().get("googleCalendarEventId") instanceof String id) {
+      calendar.update(
+          LiveMeetingCreateRequest.builder()
+              .title(request.title())
+              .description(request.description())
+              .startsAt(request.startsAt())
+              .endsAt(request.endsAt())
+              .calendarGuestEmails(request.calendarGuestEmails())
+              .build(),
+          credentials.forMeeting(request.metadata()),
+          id,
+          null);
+    }
   }
 
   public Map<String, Object> synchronizeCoHosts(
       String name, List<String> emails, Map<String, Object> previousMetadata) {
     requireSpaceName(name);
-    WebClient client = client();
+    GoogleMeetCredentialsService.Grant grant = credentials.forMeeting(previousMetadata);
+    if (!credentials.hasCoHosts(previousMetadata)) {
+      return previousMetadata;
+    }
+    WebClient client = client(grant);
     client
         .patch()
         .uri(uri -> uri.path("/" + name).queryParam("updateMask", "config.moderation").build())
@@ -105,23 +141,35 @@ public class GoogleMeetLiveMeetingProvider implements LiveMeetingProvider {
 
   @Override
   public void cancel(LiveMeetingCancelRequest request) {
-    if (!isSpaceName(request.providerMeetingId())) {
-      // Legacy Calendar events aren't Meet resource names. No Calendar API calls remain.
+    if (!isSpaceName(request.providerMeetingId())
+        && (request.metadata() == null
+            || !"CALENDAR".equals(request.metadata().get("googleApiKind")))) {
       return;
     }
-    WebClient client = client();
+    GoogleMeetCredentialsService.Grant grant = credentials.forMeeting(request.metadata());
+    if ("CALENDAR".equals(grant.apiKind())) {
+      calendar.delete(grant, request.metadata().get("googleCalendarEventId").toString());
+      return;
+    }
+    if (!isSpaceName(request.providerMeetingId())) {
+      // Unstamped historical Calendar IDs aren't Meet resource names.
+      return;
+    }
+    WebClient client = client(grant);
     String name = request.providerMeetingId();
-    client
-        .patch()
-        .uri(uri ->
-            uri.path("/" + name)
-                .queryParam("updateMask", "config.accessType,config.moderation")
-                .build())
-        .bodyValue(Map.of("config", Map.of("accessType", "RESTRICTED", "moderation", "ON")))
-        .retrieve()
-        .toBodilessEntity()
-        .block(TIMEOUT);
-    synchronize(client, name, List.of(), request.metadata());
+    if (credentials.hasCoHosts(request.metadata())) {
+      client
+          .patch()
+          .uri(uri ->
+              uri.path("/" + name)
+                  .queryParam("updateMask", "config.accessType,config.moderation")
+                  .build())
+          .bodyValue(Map.of("config", Map.of("accessType", "RESTRICTED", "moderation", "ON")))
+          .retrieve()
+          .toBodilessEntity()
+          .block(TIMEOUT);
+      synchronize(client, name, List.of(), request.metadata());
+    }
     client
         .post()
         .uri("/" + name + ":endActiveConference")
@@ -129,6 +177,10 @@ public class GoogleMeetLiveMeetingProvider implements LiveMeetingProvider {
         .retrieve()
         .toBodilessEntity()
         .block(TIMEOUT);
+    if (request.metadata() != null
+        && request.metadata().get("googleCalendarEventId") instanceof String id) {
+      calendar.delete(grant, id);
+    }
     // Meet has no spaces.delete method. Cancellation revokes managed co-hosts and LMS access.
   }
 
@@ -266,33 +318,19 @@ public class GoogleMeetLiveMeetingProvider implements LiveMeetingProvider {
     return normalized;
   }
 
-  private WebClient client() {
-    if (oauthClientId.isBlank() || oauthClientSecret.isBlank() || oauthRefreshToken.isBlank()) {
-      throw new ResponseStatusException(
-          HttpStatus.SERVICE_UNAVAILABLE, "Configure Google organizer OAuth credentials");
+  public Map<String, Object> synchronizeCalendar(
+      LiveMeetingCreateRequest request, String meetingUri, Map<String, Object> metadata) {
+    if (!credentials.calendarEnabled() && !metadata.containsKey("googleCalendarEventId")) {
+      return metadata;
     }
-    Token token =
-        webClientBuilder
-            .build()
-            .post()
-            .uri(oauthTokenUrl)
-            .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-            .body(
-                BodyInserters.fromFormData("client_id", oauthClientId)
-                    .with("client_secret", oauthClientSecret)
-                    .with("refresh_token", oauthRefreshToken)
-                    .with("grant_type", "refresh_token"))
-            .retrieve()
-            .bodyToMono(Token.class)
-            .block(TIMEOUT);
-    if (token == null || token.accessToken() == null || token.accessToken().isBlank()) {
-      throw new ResponseStatusException(
-          HttpStatus.BAD_GATEWAY, "Could not authorize Google organizer");
-    }
+    return calendar.synchronize(request, credentials.forMeeting(metadata), meetingUri, metadata);
+  }
+
+  private WebClient client(GoogleMeetCredentialsService.Grant grant) {
     return webClientBuilder
         .clone()
         .baseUrl(baseUrl)
-        .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + token.accessToken())
+        .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + grant.accessToken())
         .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
         .defaultStatusHandler(
             status -> status.isError(),
@@ -329,6 +367,4 @@ public class GoogleMeetLiveMeetingProvider implements LiveMeetingProvider {
   private record Member(String name, String email, String role) {}
 
   private record Members(List<Member> members, String nextPageToken) {}
-
-  private record Token(@JsonProperty("access_token") String accessToken) {}
 }

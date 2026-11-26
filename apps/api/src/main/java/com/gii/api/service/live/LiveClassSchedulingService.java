@@ -33,15 +33,20 @@ public class LiveClassSchedulingService {
   private final CourseInstructorRepository instructors;
   private final CourseInstructorResolver instructorResolver;
   private final GoogleMeetLiveMeetingProvider google;
+  private final GoogleMeetCredentialsService credentials;
 
   public User primaryInstructor(Course course) {
     return instructorResolver.primaryInstructor(course);
   }
 
   public List<String> courseCoHosts(Course course, LiveClassProvider provider) {
-    if (provider != LiveClassProvider.GOOGLE_MEET) {
+    if (provider != LiveClassProvider.GOOGLE_MEET || !credentials.sharedEnabled()) {
       return List.of();
     }
+    return assignedTeacherEmails(course);
+  }
+
+  private List<String> assignedTeacherEmails(Course course) {
     List<String> emails =
         instructors.findByCourseId(course.getId()).stream()
             .map(assignment -> teacherEmail(assignment.getInstructor()))
@@ -55,6 +60,51 @@ public class LiveClassSchedulingService {
     }
     checkHostLimit(emails);
     return emails;
+  }
+
+  public User leadForCreation(Course course, User schedulingTeacher, LiveClassProvider provider) {
+    if (provider == LiveClassProvider.GOOGLE_MEET && !credentials.sharedEnabled()) {
+      var primary =
+          instructors.findByCourseId(course.getId()).stream()
+              .filter(
+                  assignment -> assignment.getRole() == com.gii.common.enums.InstructorRole.PRIMARY)
+              .toList();
+      if (primary.size() != 1) {
+        throw new ResponseStatusException(
+            HttpStatus.BAD_REQUEST,
+            "Assign exactly one primary teacher to own Google Meet classes");
+      }
+      return primary.getFirst().getInstructor();
+    }
+    return schedulingTeacher != null ? schedulingTeacher : primaryInstructor(course);
+  }
+
+  public List<String> calendarGuests(Course course) {
+    return instructors.findByCourseId(course.getId()).stream()
+        .map(assignment -> assignment.getInstructor().getEmail())
+        .filter(email -> email != null && email.matches("[^\\s@]+@[^\\s@]+\\.[^\\s@]+"))
+        .map(email -> email.toLowerCase(Locale.ROOT))
+        .distinct()
+        .sorted()
+        .toList();
+  }
+
+  public List<String> calendarGuests(LiveClass liveClass) {
+    List<String> emails = new ArrayList<>(calendarGuests(liveClass.getCourse()));
+    Object manual =
+        liveClass.getProviderMetadata() == null
+            ? null
+            : liveClass.getProviderMetadata().get(MANUAL_HOSTS);
+    if (manual instanceof List<?> values) {
+      values.forEach(email -> emails.add(email.toString()));
+    }
+    return emails.stream().distinct().sorted().toList();
+  }
+
+  public boolean canManageCoHosts(LiveClass liveClass) {
+    return credentials.hasCoHosts(liveClass.getProviderMetadata())
+        && (GoogleMeetLiveMeetingProvider.isSpaceName(liveClass.effectiveMeetingId())
+            || credentials.sharedEnabled());
   }
 
   public String teacherEmail(User user) {
@@ -91,8 +141,7 @@ public class LiveClassSchedulingService {
   }
 
   public List<String> coHosts(LiveClass liveClass) {
-    List<String> emails =
-        new ArrayList<>(courseCoHosts(liveClass.getCourse(), liveClass.getProvider()));
+    List<String> emails = new ArrayList<>(assignedTeacherEmails(liveClass.getCourse()));
     Map<String, Object> metadata = liveClass.getProviderMetadata();
     Object manual = metadata == null ? null : metadata.get(MANUAL_HOSTS);
     if (manual instanceof List<?> values) {
@@ -110,7 +159,22 @@ public class LiveClassSchedulingService {
         || liveClass.getProvisioningMode() != LiveClassProvisioningMode.API_PROVISIONED) {
       return;
     }
-    List<String> emails = coHosts(liveClass);
+    var request =
+        LiveMeetingCreateRequest.builder()
+            .provider(LiveClassProvider.GOOGLE_MEET)
+            .title(liveClass.getTitle())
+            .description(liveClass.getDescription())
+            .startsAt(liveClass.getStartsAt())
+            .endsAt(liveClass.getEndsAt())
+            .calendarGuestEmails(calendarGuests(liveClass))
+            .build();
+    if (liveClass.getProviderMetadata() != null
+        && "CALENDAR".equals(liveClass.getProviderMetadata().get("googleApiKind"))) {
+      liveClass.setProviderMetadata(
+          google.synchronizeCalendar(request, null, liveClass.getProviderMetadata()));
+      return;
+    }
+    List<String> emails = canManageCoHosts(liveClass) ? coHosts(liveClass) : List.of();
     if (!GoogleMeetLiveMeetingProvider.isSpaceName(liveClass.effectiveMeetingId())) {
       if (liveClass.getStatus() != LiveClassStatus.SCHEDULED) {
         throw new ResponseStatusException(
@@ -119,9 +183,8 @@ public class LiveClassSchedulingService {
                 + " add co-hosts in Google Meet instead");
       }
       User lead =
-          liveClass.getLeadInstructor() != null
-              ? liveClass.getLeadInstructor()
-              : primaryInstructor(liveClass.getCourse());
+          leadForCreation(
+              liveClass.getCourse(), liveClass.getLeadInstructor(), LiveClassProvider.GOOGLE_MEET);
       ensureAvailable(
           liveClass.getProvider(),
           lead,
@@ -137,6 +200,8 @@ public class LiveClassSchedulingService {
                   .startsAt(liveClass.getStartsAt())
                   .endsAt(liveClass.getEndsAt())
                   .maxCapacity(liveClass.getMaxCapacity())
+                  .primaryTeacherId(lead == null ? null : lead.getId())
+                  .calendarGuestEmails(calendarGuests(liveClass))
                   .coHostEmails(emails)
                   .build());
       Map<String, Object> metadata =
@@ -157,6 +222,13 @@ public class LiveClassSchedulingService {
       liveClass.setProviderMetadata(
           google.synchronizeCoHosts(
               liveClass.effectiveMeetingId(), emails, liveClass.getProviderMetadata()));
+    }
+    if (liveClass.getProviderMetadata() != null
+        && (credentials.calendarEnabled()
+            || liveClass.getProviderMetadata().containsKey("googleCalendarEventId"))) {
+      liveClass.setProviderMetadata(
+          google.synchronizeCalendar(
+              request, liveClass.effectiveParticipantJoinUrl(), liveClass.getProviderMetadata()));
     }
   }
 

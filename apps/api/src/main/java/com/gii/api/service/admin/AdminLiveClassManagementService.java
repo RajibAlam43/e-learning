@@ -114,7 +114,7 @@ public class AdminLiveClassManagementService {
     validateTimeRange(request.startsAt(), request.endsAt());
     validateOfferingWindow(course, request.startsAt(), request.endsAt());
     validateCapacity(request.maxCapacity());
-    User leadTeacher = scheduling.primaryInstructor(course);
+    User leadTeacher = scheduling.leadForCreation(course, null, request.provider());
     List<String> coHostEmails = scheduling.courseCoHosts(course, request.provider());
     scheduling.ensureAvailable(
         request.provider(), leadTeacher, request.startsAt(), request.endsAt(), null);
@@ -130,6 +130,8 @@ public class AdminLiveClassManagementService {
                 .endsAt(request.endsAt())
                 .maxCapacity(request.maxCapacity())
                 .coHostEmails(coHostEmails)
+                .primaryTeacherId(leadTeacher == null ? null : leadTeacher.getId())
+                .calendarGuestEmails(scheduling.calendarGuests(course))
                 .build());
 
     try {
@@ -211,7 +213,7 @@ public class AdminLiveClassManagementService {
     validateTimeRange(request.startsAt(), request.endsAt());
     validateOfferingWindow(course, request.startsAt(), request.endsAt());
     validateCapacity(request.maxCapacity());
-    User leadTeacher = scheduling.primaryInstructor(course);
+    User leadTeacher = scheduling.leadForCreation(course, null, request.provider());
     List<String> coHostEmails = scheduling.courseCoHosts(course, request.provider());
     scheduling.ensureAvailable(
         request.provider(), leadTeacher, request.startsAt(), request.endsAt(), null);
@@ -225,6 +227,8 @@ public class AdminLiveClassManagementService {
                 .endsAt(request.endsAt())
                 .maxCapacity(request.maxCapacity())
                 .coHostEmails(coHostEmails)
+                .primaryTeacherId(leadTeacher == null ? null : leadTeacher.getId())
+                .calendarGuestEmails(scheduling.calendarGuests(course))
                 .build());
     try {
       LiveClass liveClass =
@@ -485,6 +489,8 @@ public class AdminLiveClassManagementService {
         LiveMeetingUpdateRequest.builder()
             .provider(liveClass.getProvider())
             .providerMeetingId(liveClass.effectiveMeetingId())
+            .metadata(liveClass.getProviderMetadata())
+            .calendarGuestEmails(scheduling.calendarGuests(liveClass))
             .title(title)
             .description(description)
             .startsAt(startsAt)

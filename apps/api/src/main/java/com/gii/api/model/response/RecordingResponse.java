@@ -17,7 +17,11 @@ public record RecordingResponse(
     String failureMessage) {
   @Builder
   public record ClassRecordings(
-      boolean enabled, String title, String meetingUrl, List<RecordingResponse> recordings) {}
+      boolean enabled,
+      String title,
+      String meetingUrl,
+      List<RecordingResponse> recordings,
+      String classStatus) {}
 
   @Builder
   public record UploadSession(

@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
@@ -14,6 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gii.api.service.live.GoogleMeetCredentialsService;
 import com.gii.api.service.live.GoogleMeetLiveMeetingProvider;
 import com.gii.api.service.live.LiveClassSchedulingService;
 import com.gii.api.service.live.LiveMeetingCreateRequest;
@@ -40,11 +42,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.server.ResponseStatusException;
 
 class GoogleMeetSchedulingApiIt extends AbstractInstructorApiIntegrationTest {
   @Autowired private MockMvc mvc;
+  @Autowired private GoogleMeetCredentialsService credentials;
   @MockitoBean private GoogleMeetLiveMeetingProvider google;
 
   @BeforeEach
@@ -59,6 +63,24 @@ class GoogleMeetSchedulingApiIt extends AbstractInstructorApiIntegrationTest {
   @AfterEach
   void cleanup() {
     cleanupInstructorData();
+    ReflectionTestUtils.setField(credentials, "shared", true);
+  }
+
+  @Test
+  void teacherModeRejectsLegacyCoHostUpgradeButRetainsExistingSharedSpaceRoles() throws Exception {
+    ReflectionTestUtils.setField(credentials, "shared", false);
+    var legacy = googleClass("legacy-teacher-mode", "old-calendar-id");
+    User admin = user("Admin", "admin-teacher-mode@example.com");
+    mvc.perform(
+            post("/admin/live-classes/{id}/co-hosts", legacy.getId())
+                .with(authentication(adminAuth(admin.getId()))))
+        .andExpect(status().isConflict());
+    verify(google, never()).create(any());
+    var sharedSpace = googleClass("existing-shared", "spaces/existing");
+    mvc.perform(
+            post("/admin/live-classes/{id}/co-hosts", sharedSpace.getId())
+                .with(authentication(adminAuth(admin.getId()))))
+        .andExpect(status().isOk());
   }
 
   @Test

@@ -58,7 +58,8 @@ public class LiveClassRecordingService {
         liveClass.effectiveHostStartUrl(),
         recordings.findByLiveClassIdOrderByCreatedAtDesc(classId).stream()
             .map(this::response)
-            .toList());
+            .toList(),
+        liveClass.getStatus().name());
   }
 
   @Transactional(readOnly = true)

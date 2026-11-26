@@ -2,11 +2,12 @@
 
 This change adds backend support for recordings produced by a browser webpage or a
 Chrome extension. `method` records which client produced each recording; both use
-the same upload, validation and publication flow. **No recorder frontend or extension
-is included or deployed.** Teachers cannot record through the current LMS UI yet.
+the same upload, validation and publication flow. **The browser recorder is now included**
+in the instructor live-classes screen. The Chrome extension remains deferred. Nothing
+is deployed or enabled automatically; recording storage and worker setup are still required.
 
 Recordings use a dedicated private AWS S3 bucket and signed CloudFront delivery.
-Existing R2 storage, Mux lesson videos and meeting scheduling are unchanged. This
+Existing R2 storage and Mux lesson videos are unchanged. This
 does not enable Google Meet's native recording. The separate scheduling changes in
 `docs/google-meet.md` cover co-host roles and concurrent classes.
 
@@ -57,9 +58,9 @@ also use `credentials: 'omit'`, and the recording token in its own header.
 
 Statuses are `UPLOADING → QUEUED → PROCESSING → READY`, or `FAILED`. A recording is
 available to authorized students immediately after the worker marks it READY.
-Publication is an API state change; this does not add buttons, notifications or
-recording links to existing frontend responses. The eventual clients must poll
-status and request playback through these APIs.
+Publication is an API state change. The teacher recorder polls validation status;
+existing student screens are not wired to these new recording endpoints by this change.
+Student-player integration and notifications remain separate work.
 
 ## Worker processing and cost
 
@@ -140,5 +141,51 @@ and CloudFront signatures.
 Before enabling a real pilot, validate a representative Chrome recording through
 the configured S3/CloudFront stack: confirm both audio sources, seek in HLS and MP4,
 reject unsigned URLs/direct S3 access, and test authorized/expired enrollment and
-upload interruption. Browser/extension capture, teacher installation, student UI
-integration and real teacher trials are explicitly deferred by the backend-only scope.
+upload interruption. The browser client can now be tested in staging. Extension capture, student UI
+integration and real teacher trials remain separate from automated verification.
+
+
+## Browser recorder
+
+The repeatable local UI smoke test is `tests/browser-recorder-smoke.js`. Start Next.js
+on port 3100 with `NEXT_PUBLIC_API_URL=http://127.0.0.1:18080`, create
+`/tmp/elearning-recorder-test`, and run it using a disposable Chrome Playwright CLI session
+as documented in the script. It intercepts all API/storage traffic, uses real Chrome
+encoding of synthetic tab/microphone streams, and tests capture errors, cancellation,
+multipart accounting, credential isolation and recovery after a lost completion response.
+
+Teachers open **Record class** from their Google Meet class card. The recorder route is
+`/instructor/live-classes/{classId}/record`. Desktop Chrome over HTTPS is required (HTTP
+localhost works in development). Only this route permits microphone/display capture in
+Permissions-Policy; the rest of the site's existing restrictions remain.
+
+1. Open Meet, select its **Chrome tab** and enable **Share tab audio**. Grant separate
+   microphone permission. Both sources are mixed into one audio track without speaker
+   monitoring. Headphones can reduce acoustic echo.
+2. Check both level meters and the five-second recorded sample before the class. Codec
+   capability is tested on the actual device; unavailable H.264/AAC encoding blocks recording
+   rather than silently producing WebM that needs server transcoding.
+3. Start recording. The browser encodes approximately 720p/15 fps video locally, saves
+   chunks in IndexedDB and uploads complete 8-MiB parts directly to S3. Google paid native
+   recording is not required. Server packaging uses stream copy; normal infrastructure,
+   storage and delivery costs remain.
+4. Stop and finish upload. Validation queues automatically. A network error pauses uploads
+   while recording can continue locally. Retry uploads or return to this device/browser's
+   recorder page after an interruption. Previously uploaded part numbers are reused.
+5. Keep the tab/device awake until recording and upload finish. A crash/forced close can
+   lose the last uncommitted interval. Recovery resumes uploading saved bytes, not a new
+   continuation of the recording. A lost completion response is reconciled against server
+   status, so it doesn't require starting over.
+
+Local data is scoped to the LMS user and class, guarded against concurrent use of the
+same recording by Web Locks, and retained for download after upload. This is local
+browser storage, not a server backup: private browsing, clearing site data, storage
+pressure, OS/device failure or eviction can remove it. Download an important local copy;
+never promise lossless browser recording. A storage error stops capture and preserves
+available in-memory chunks for download while the page stays open; it blocks automatic
+publication of an incomplete recording.
+
+The feature stops near the eight-hour/8-GiB server limits. Desktop Chrome capability
+checks do not prove every OS/audio setup works; exercise a real class with both teacher
+microphone and remote Meet audio before a pilot. Automated UI tests use synthetic streams
+and fake upload endpoints, not Google Meet, production S3 or CloudFront.

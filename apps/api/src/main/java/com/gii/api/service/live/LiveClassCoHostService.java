@@ -43,6 +43,12 @@ public class LiveClassCoHostService {
       throw new ResponseStatusException(
           HttpStatus.CONFLICT, "Co-hosts can only be added to scheduled or live classes");
     }
+    if (!scheduling.canManageCoHosts(liveClass)) {
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT,
+          "This teacher-owned meeting has no LMS-managed co-hosts."
+              + " Shared organizer mode applies to new classes.");
+    }
     String email =
         requestedEmail == null
             ? scheduling.teacherEmail(users.getCurrentUser(authentication))

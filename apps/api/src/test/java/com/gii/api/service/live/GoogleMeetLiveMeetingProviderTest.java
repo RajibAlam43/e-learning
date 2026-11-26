@@ -2,6 +2,9 @@ package com.gii.api.service.live;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -57,13 +60,19 @@ class GoogleMeetLiveMeetingProviderTest {
     server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
     server.createContext("/", this::handle);
     server.start();
-    provider = new GoogleMeetLiveMeetingProvider(WebClient.builder());
+    var credentials = mock(GoogleMeetCredentialsService.class);
+    when(credentials.forCreation(any()))
+        .thenReturn(
+            new GoogleMeetCredentialsService.Grant("access", "SHARED", null, null, null, "MEET"));
+    when(credentials.forMeeting(any()))
+        .thenReturn(
+            new GoogleMeetCredentialsService.Grant("access", "SHARED", null, null, null, "MEET"));
+    when(credentials.hasCoHosts(any())).thenReturn(true);
+    provider =
+        new GoogleMeetLiveMeetingProvider(
+            WebClient.builder(), credentials, mock(GoogleMeetCalendarService.class));
     String origin = "http://127.0.0.1:" + server.getAddress().getPort();
     ReflectionTestUtils.setField(provider, "baseUrl", origin + "/v2");
-    ReflectionTestUtils.setField(provider, "oauthTokenUrl", origin + "/token");
-    ReflectionTestUtils.setField(provider, "oauthClientId", "client");
-    ReflectionTestUtils.setField(provider, "oauthClientSecret", "secret");
-    ReflectionTestUtils.setField(provider, "oauthRefreshToken", "refresh");
   }
 
   @AfterEach
