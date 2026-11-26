@@ -81,7 +81,15 @@ linting and a stage build. Only changed components' images are published on main
 Frontend checks use the committed OpenAPI
 types and do not establish runtime compatibility with the current backend. There is
 currently no browser end-to-end suite or CI regeneration of those API types.
-Backend image publication and stage deployment do not run on frontend-only `main`
+After successful main CI, enabled `stage.yml` deployment consumes `web-stage-release`
+and deploys its exact image through Dokploy. Frontend-only runs deploy only the frontend;
+combined runs wait for migration/API/worker success before deploying the frontend.
+Set `DOKPLOY_WEB_APPLICATION_ID` in GitHub Environment `stage`, alongside the other
+Dokploy deployment variables and key in the [runbook](../../docs/deployment.md).
+The deployed image must pass its Docker health check. A `staged-web-release` artifact
+records the deployed stage digest. Production stays manual and uses the **prod** image
+from `web-prod-release`; never promote the stage bundle to production.
+Backend image publication and deployment do not run on frontend-only `main`
 pushes. Require the single
 `CI / build` check in branch protection and remove obsolete frontend matrix checks
 if configured. The CI job also completes for documentation-only PRs.

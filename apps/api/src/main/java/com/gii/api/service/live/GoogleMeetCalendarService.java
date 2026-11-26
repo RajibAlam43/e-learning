@@ -1,7 +1,7 @@
 package com.gii.api.service.live;
 
 import java.time.Duration;
-import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -157,11 +157,14 @@ public class GoogleMeetCalendarService {
     event.put(
         "start",
         Map.of(
-            "dateTime", request.startsAt().atOffset(ZoneOffset.UTC).toString(), "timeZone", "UTC"));
+            "dateTime",
+            DateTimeFormatter.ISO_INSTANT.format(request.startsAt()),
+            "timeZone",
+            "UTC"));
     event.put(
         "end",
         Map.of(
-            "dateTime", request.endsAt().atOffset(ZoneOffset.UTC).toString(), "timeZone", "UTC"));
+            "dateTime", DateTimeFormatter.ISO_INSTANT.format(request.endsAt()), "timeZone", "UTC"));
     List<String> emails =
         request.calendarGuestEmails() == null ? List.of() : request.calendarGuestEmails();
     event.put(
@@ -182,12 +185,30 @@ public class GoogleMeetCalendarService {
         .defaultStatusHandler(
             status -> status.isError(),
             response ->
-                reactor.core.publisher.Mono.error(
-                    new ResponseStatusException(
-                        HttpStatus.BAD_GATEWAY,
-                        "Google Calendar request failed. Reconnect the owner"
-                            + " with Calendar permission.")))
+                response
+                    .releaseBody()
+                    .then(
+                        reactor.core.publisher.Mono.error(
+                            new ResponseStatusException(
+                                HttpStatus.BAD_GATEWAY,
+                                failureMessage(response.statusCode().value())))))
         .build();
+  }
+
+  private static String failureMessage(int status) {
+    return switch (status) {
+      case 400 ->
+          "Google Calendar rejected the event details (HTTP 400)."
+              + " Check the class times and whether the owner's calendar supports Google Meet.";
+      case 401 ->
+          "Google Calendar authorization expired or is invalid (HTTP 401)."
+              + " Reconnect the owner with Calendar permission.";
+      case 403 ->
+          "Google Calendar denied the request (HTTP 403)."
+              + " Check Calendar permission, API enablement and account restrictions.";
+      case 429 -> "Google Calendar rate limit reached (HTTP 429). Try again later.";
+      default -> "Google Calendar request failed (HTTP " + status + "). Try again later.";
+    };
   }
 
   private record CalendarEvent(String id, String hangoutLink) {}

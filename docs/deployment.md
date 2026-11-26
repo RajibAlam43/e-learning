@@ -4,7 +4,7 @@
 
 | Environment | Services | Database operator |
 | --- | --- | --- |
-| Stage | One Hostinger VPS: Dokploy, API, worker, PostgreSQL, migration job; optional frontend | You, through Dokploy |
+| Stage | Separate Hostinger VPS: API, worker, Next.js, PostgreSQL and migration job; managed remotely by the existing Dokploy dashboard | You, through Dokploy |
 | Prod | Singapore Hostinger KVM 4: Dokploy, API, Next.js, worker and one-off migration job; Singapore DO managed PostgreSQL | DigitalOcean operates production PostgreSQL |
 
 The 2026-11-24 production decision supersedes the all-in-one self-hosted production
@@ -12,14 +12,16 @@ DB plan: application compute stays on Hostinger Singapore, and PostgreSQL is man
 by DO in Singapore from launch. Moving compute to DO remains a
 [future option](#future-digitalocean-production-plan), including a frontend droplet or Vercel Pro.
 The production KVM 4 has 4 shared vCPUs, 16 GB RAM and 200 GB disk. Keep the previously
-planned staging installation separate; the production resource budget below does
+planned staging workloads separate; the production resource budget below does
 not include a staging stack. Do not put staging on the production host by default.
 
-Use independent stage and production Dokploy installations. Create an `e-learning`
-project in each, with environments named `stage` and `prod`, respectively. These are
-independent configuration records for the same application. API, worker and frontend
-share their environment's dashboard; production needs no remote deployment server
-or multi-host Swarm cluster at launch.
+The current staging setup reuses `https://dokploy.globalislamicinstitute.com`:
+project **GII stage**, environment **stage**, remote deployment server **GII Stage VPS**.
+Production retains its existing project/environment and remains manually deployed.
+All staging services, including PostgreSQL and the migrator, belong on the staging VPS.
+A second Dokploy installation is optional; the dashboard and its administrative
+credentials are shared, while staging workloads and storage are on a separate host.
+No multi-host Swarm cluster is required.
 
 API, worker, frontend and migration are separate service entries; stage's database
 has its own entry too. Routine API/worker deployments never recreate PostgreSQL.
@@ -83,7 +85,7 @@ endpoint placeholder. Hostinger must use the managed cluster's **public** endpoi
 with the verified TLS/CA settings below. Correcting that configuration file remains
 pending confirmation. A single CI job in `build.yml` publishes API, worker,
 migrator and Next.js stage/prod image variants for affected components.
-Frontend deployment stays manual. Application work needing verification
+Stage frontend deployment is automatic when enabled; production remains manual. Application work needing verification
 or implementation is tracked under [Launch readiness](#launch-readiness-and-app-level-practices).
 
 ## What is implemented
@@ -93,24 +95,27 @@ or implementation is tracked under [Launch readiness](#launch-readiness-and-app-
   image publication is restricted to main. Formatting and
   Checkstyle run as reports because the repository has pre-existing violations and
   the previous pipeline did not block on them. No production secrets.
-- `stage.yml`: after a successful main CI run containing a backend release manifest,
-  obtains that manifest and calls only
-  staging Dokploy over HTTPS. It runs migration first, checks actual container exit
-  code 0, then updates API and worker digests and waits for Docker health checks.
+- `stage.yml`: after a successful main CI run, obtains any published backend
+  `release-manifest` and/or `web-stage-release` and calls Dokploy over HTTPS using
+  the staging service IDs. Backend releases run migration first, check actual container
+  exit code 0, then update API and worker digests and wait for Docker health checks.
+  Frontend-only runs deploy only web. Combined runs deploy web after backend success.
+  Web must pass its Docker health check; `staged-web-release` records its deployed digest.
 - Every image reference in `release.json` is digest-pinned. Automatic stage releases
   and artifact-based production promotion use `ghcr.io/...@sha256:...`. Unique tags
   and digests remain available alongside moving aliases for manual deployments.
 - A successful stage release publishes `staged-release`: `release.json`, a rendered
   `migration.compose.yml`, and `PRODUCTION.md`. Following that artifact promotes the
   exact stage-tested backend images.
-- Production is manual in Dokploy. There is no production Actions job, webhook,
-  API key, SSH connection, or deploy trigger in these workflows.
+- Production is manual in Dokploy. These workflows do not target production services.
+  The shared dashboard URL can manage both environments, so restrict the automation
+  account to stage wherever supported; an owner/admin key can also access production.
 - Redis dependencies/configuration are removed. Refresh tokens already use Postgres.
 - Frontend steps in `build.yml` install dependencies and run type checking/linting
   once. PRs build stage without publishing. Relevant main runs build and publish
   stage then prod as Linux amd64 images with distinct tag suffixes. They record
   `web-stage-release` / `web-prod-release` artifacts with immutable digests.
-  Frontend deployment remains manual.
+  Stage frontend deployment is automatic when enabled; production stays manual.
 - The final main CI step updates `api:latest`, `worker:latest`, `migrator:latest`,
   `web:stage-latest` and `web:prod-latest` from the just-published image digests.
   It runs after required checks, builds and release artifact uploads finish, and
@@ -123,8 +128,8 @@ components. Shared CI changes and manual runs check both. Frontend checks use co
 there is no CI regeneration from the current backend or browser end-to-end suite,
 so a passing build does not establish runtime API compatibility.
 Documentation-only runs complete without building images.
-Frontend-only main runs skip backend publication and automatic backend stage
-deployment. Backend and frontend release manifests stay separate; for combined
+Frontend-only main runs skip backend publication/deployment and deploy only the
+stage frontend. Backend and frontend release manifests stay separate; for combined
 releases, qualify both and record their image digests/commits together. A failed CI
 run cannot trigger staging deployment, even if some images were already published.
 
@@ -136,11 +141,11 @@ this switch off still permits builds/image publication without touching hosts.
 
 1. Provision a fresh production Hostinger KVM 4 in Singapore and a separate DO managed
    PostgreSQL cluster in Singapore. Use the VPS Dokploy template or official installer.
-   Keep stage on its own installation. Dokploy performs
+   Keep stage on its separate VPS and register it as a Remote Server in the existing dashboard. Dokploy performs
    its own host setup; no project-specific bootstrap script is required.
-2. Use separate dashboard domains, HTTPS, strong login protection/2FA, and SSH keys.
+2. Use HTTPS, strong dashboard login protection/2FA, and SSH keys.
    Restrict dashboard and SSH access using provider firewalls/VPN as appropriate.
-   The GitHub staging runner must reach staging's HTTPS API. Its API key needs service
+   The GitHub staging runner must reach the dashboard's HTTPS API. Its account needs service
    read/update, deployment read/create and Docker read permissions on these services.
    Container inspection can expose environment values: restrict that key accordingly.
 3. Expose API and Next.js HTTP/HTTPS through Traefik only. Do not publish PostgreSQL,
@@ -182,7 +187,7 @@ ghcr.io/rajibalam43/e-learning/worker
 ghcr.io/rajibalam43/e-learning/migrator
 ```
 
-Configure a read-only GHCR credential in each Dokploy installation's Registry section.
+Configure a read-only GHCR credential in Dokploy's Registry section for the deployment hosts.
 Also configure the API and worker Docker source's private-registry credentials. Check
 that both stage and production hosts can pull the packages; keep
 credentials in Dokploy rather than adding them to Compose files. Migration Compose
@@ -201,18 +206,43 @@ Create GitHub Environment **stage** and add:
 
 | Kind | Name | Value |
 | --- | --- | --- |
-| Variable | `DOKPLOY_URL` | Stage dashboard HTTPS origin, without `/api` |
+| Variable | `DOKPLOY_URL` | `https://dokploy.globalislamicinstitute.com`, without `/api` |
 | Variable | `DOKPLOY_API_APPLICATION_ID` | Stage API application ID |
 | Variable | `DOKPLOY_WORKER_APPLICATION_ID` | Stage worker application ID |
+| Variable | `DOKPLOY_WEB_APPLICATION_ID` | Stage frontend application ID |
 | Variable | `DOKPLOY_MIGRATION_COMPOSE_ID` | Stage migration Compose service ID |
-| Secret | `DOKPLOY_API_KEY` | Stage-only key with permissions described above |
+| Secret | `DOKPLOY_API_KEY` | Key from the deployment account with the permissions described above |
 
-The enable switch is a **repository** variable, not an environment variable. Stage
+In Dokploy, all services must be in environment **stage** (exact spelling). API,
+worker and web use Docker source. API/worker explicitly set `SPRING_PROFILES_ACTIVE=stage`.
+The migrator uses **Raw / Docker Compose**, with Create .env enabled and Randomize,
+Isolated Deployment and independent autodeploy disabled. Its runtime environment
+keeps the staging database credentials and network; Actions supplies the Compose
+content from the repository for each backend release. Keep each service's independent
+autodeploy toggle off to avoid a second trigger racing the coordinated release.
+
+The enable switch `STAGE_AUTO_DEPLOY_ENABLED=true` is a **repository** variable, not an environment variable. Stage
 does not need approval reviewers for automatic deployment. Optional repository secret
 `SONAR_TOKEN` enables non-blocking analysis. Database, AWS, payments and runtime
 credentials are now configured in Dokploy, not copied from GitHub to host `.env` files.
 After cutover, retire old GitHub SSH/runtime secrets and old deployment keys only
-after confirming nothing else uses them. Never give the stage key access to prod.
+after confirming nothing else uses them. Prefer a member account restricted to
+`GII stage` / `stage`, with API/CLI access, Docker inspection and the required service
+permissions. Generate its key in Settings -> Profile -> API/CLI Keys. Do not assume
+that an owner/admin key is stage-scoped merely because it is stored in GitHub's
+`stage` environment; it retains that account's dashboard permissions.
+
+After the workflow changes are merged and all four services are configured, enable
+the repository switch, then manually run **CI** on `main` once. This publishes both
+components and automatically starts **Deploy Stage with Dokploy**, exercising the
+whole path. Later main merges deploy only the components that CI published. A failed
+migration/backend rollout prevents frontend deployment in combined releases. Manual
+deployment retries accept a successful main CI run ID containing either release
+artifact. Keep production service IDs and deployment triggers out of these settings.
+
+Frontend artifacts are environment-specific: the deployed stage frontend digest
+cannot be used as the production bundle. Production promotion uses the corresponding
+CI run's `web-prod-release` artifact and remains manual.
 
 ## Database setup and application configuration
 
@@ -859,7 +889,7 @@ load balancer/Dokploy manager located only on the failed host can still block re
 This is a future compute/frontend alternative to Hostinger, not an instruction to
 provision droplets now. DO managed PostgreSQL Singapore is already in the launch
 baseline and can remain the same cluster during a compute move. Staging remains
-on its separate Hostinger installation. Moving compute to DO does not itself add HA.
+on its separate Hostinger staging VPS. Moving compute to DO does not itself add HA.
 
 | Component | Future placement | Management |
 | --- | --- | --- |
@@ -967,7 +997,7 @@ applied by this documentation. Implementing any phase requires user confirmation
 
 ## One-time stage cutover from the existing DO setup
 
-The intended destination is the separate Hostinger staging installation, not the
+The intended destination is the separate Hostinger staging VPS, not the
 production KVM 4. A KVM 1 is a budget candidate only after verifying the full staging
 stack fits 4 GB with smaller limits; the production 7 GB application ceilings do not
 include stage's additional local DB and cannot be copied to this smaller VPS.

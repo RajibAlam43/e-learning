@@ -61,6 +61,9 @@ export type AdminLessonDetail = components['schemas']['AdminLessonDetailResponse
 export type AdminQuizDetail = components['schemas']['AdminQuizDetailResponse']
 export type AdminMediaAsset = components['schemas']['AdminMediaAssetResponse']
 
+// ─── Admin User Types ───
+export type { AdminUserSummary, AdminUsersPage, AdminUsersParams } from './admin-users'
+
 // ─── Admin Instructor Types ───
 export type AdminInstructorSummary = components['schemas']['AdminInstructorSummaryResponse']
 export type AdminInstructorDetail = components['schemas']['AdminInstructorDetailResponse']

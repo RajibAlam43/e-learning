@@ -82,8 +82,11 @@ is limited to changed components. These checks do not establish runtime API comp
 Frontend checks run once; PRs build stage only, while relevant main builds publish stage then prod
 with distinct image tag suffixes and release artifacts. Publishing is main-only;
 frontend-only runs do not publish/deploy backend images. Public Next.js variables are build-time inputs; runtime `API_URL` can
-use the internal API service. Deployments are manual; the backend migration/release
-flow does not deploy the frontend. Vercel uses Root Directory `apps/web` if selected.
+use the internal API service. Enabled `stage.yml` deploys each published component:
+frontend-only runs deploy only web; combined releases deploy web after successful
+migration/API/worker rollout. Production stays manual. GitHub Environment `stage`
+requires `DOKPLOY_WEB_APPLICATION_ID` as well as the backend service IDs, URL and key.
+Vercel uses Root Directory `apps/web` if selected.
 No Sentry/video/exam business changes are authorized by the repository import.
 
 The final CI step publishes moving aliases from the new digests: `api:latest`,
@@ -100,6 +103,13 @@ service: `MIGRATOR_IMAGE` defaults to the prebuilt GHCR migrator's `latest`, wit
 Keep production auto-deploy disabled; secrets/CA stay in Dokploy. CI also publishes
 a `migration-compose` artifact on backend publications. Stage automation still uses
 Raw source and renders this same file to an exact digest and release ID.
+
+Stage is now project `GII stage`, environment `stage`, on remote server `GII Stage VPS`,
+managed by the existing dashboard at `https://dokploy.globalislamicinstitute.com`.
+The staging workloads/database remain on their separate VPS; a second dashboard is
+not required. Stage automation must target only the staging service IDs. On the shared
+dashboard, restrict the automation account's permissions to stage where supported;
+an owner API key is not stage-scoped just because its name says stage.
 
 ## Module Structure & Import Scanning
 

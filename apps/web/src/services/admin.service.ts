@@ -1,6 +1,8 @@
 import { apiClient } from '@/lib/api-client'
 import { collectPages } from '@/lib/pagination'
 import type {
+  AdminUsersPage,
+  AdminUsersParams,
   AdminCourseSummary,
   AdminCourseDetail,
   AdminInstructorSummary,
@@ -47,6 +49,8 @@ import type {
 } from '@/types'
 
 export const adminService = {
+  getUsers: async (params: AdminUsersParams, signal?: AbortSignal) =>
+    (await apiClient.get<AdminUsersPage>('/admin/users', { params, signal })).data,
   getCategories: async () => (await apiClient.get<AdminCategory[]>('/admin/categories')).data,
   createCategory: async (data: CreateCategoryRequest) => (await apiClient.post<AdminCategory>('/admin/categories', data)).data,
   updateCategory: async (id: string, data: Partial<CreateCategoryRequest>) => (await apiClient.patch<AdminCategory>(`/admin/categories/${id}`, data)).data,

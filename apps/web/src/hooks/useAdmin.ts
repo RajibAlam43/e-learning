@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { adminService } from '@/services/admin.service'
 import { QUERY_KEYS } from '@/constants/queryKeys'
 import type {
+  AdminUsersParams,
   CreateCourseRequest,
   UpdateCourseRequest,
   CreateInstructorRequest,
@@ -29,6 +30,16 @@ import type {
   CreateLessonVideoUploadRequest, RepeatCourseRequest, CreateLiveClassItemRequest, ScheduleLiveClassRequest,
   ScheduleExternalLiveClassRequest, AdminLessonDetail,
 } from '@/types'
+
+// ─── Users ───
+
+export function useAdminUsers(params: AdminUsersParams) {
+  return useQuery({
+    queryKey: QUERY_KEYS.adminUsers(params),
+    queryFn: ({ signal }) => adminService.getUsers(params, signal),
+    staleTime: 0,
+  })
+}
 
 // ─── Courses ───
 

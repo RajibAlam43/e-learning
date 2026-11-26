@@ -68,6 +68,20 @@ def create_manifest():
     return validate_manifest(data, repository)
 
 
+def validate_web_manifest(data, repository, source_sha, build_run_id):
+    if data.get("service") != "web" or data.get("environment") != "stage":
+        raise ValueError("Only a stage frontend release may deploy automatically")
+    if data.get("source_sha") != source_sha or not re.fullmatch(r"[0-9a-f]{40}", source_sha):
+        raise ValueError("Frontend revision differs from successful build")
+    if str(data.get("build_run_id")) != build_run_id or not re.fullmatch(r"[1-9][0-9]*", build_run_id):
+        raise ValueError("Frontend manifest belongs to another build run")
+    prefix = f"ghcr.io/{repository.lower()}/web@"
+    image = data.get("image")
+    if not isinstance(image, str) or not image.startswith(prefix) or not DIGEST.fullmatch(image[len(prefix):]):
+        raise ValueError("Frontend must use an immutable image from this repository")
+    return data
+
+
 def render_migration(image, release_id):
     if not re.fullmatch(r"[a-zA-Z0-9._-]+", release_id):
         raise ValueError("Unsafe release ID")
@@ -267,6 +281,30 @@ def stage_release(client, manifest, ids, release_id):
     return compose
 
 
+def stage_web_release(client, manifest, ids, release_id):
+    if len(set(ids.values())) != len(ids):
+        raise ValueError("Frontend, API and worker must be distinct services")
+    api = client.request("application.one", applicationId=ids["api"])
+    web = client.request("application.one", applicationId=ids["web"])
+    environment_id = api.get("environmentId")
+    if not environment_id or web.get("environmentId") != environment_id:
+        raise ValueError("Frontend and API must belong to the same staging environment")
+    environment = client.request("environment.one", environmentId=environment_id)
+    if environment.get("name") != "stage":
+        raise ValueError("Automation only targets an environment named stage; production is manual")
+    if web.get("sourceType") != "docker":
+        raise ValueError("Frontend must use Dokploy's Docker source")
+    profiles = re.findall(r"(?m)^\s*SPRING_PROFILES_ACTIVE\s*=\s*([^\r\n]*)", api.get("env") or "")
+    if not profiles or profiles[-1].strip().strip("\"'") != "stage":
+        raise ValueError("Set SPRING_PROFILES_ACTIVE=stage explicitly on the staging API")
+    client.assert_idle("application", ids["web"])
+    image = manifest["image"]
+    client.request("application.update", {"applicationId": ids["web"], "dockerImage": image})
+    client.deploy("application", ids["web"], release_id + "-web")
+    client.wait_healthy(web, image)
+    print("Frontend is healthy on the stage release image", flush=True)
+
+
 def write_release(directory, manifest, compose):
     directory.mkdir(parents=True, exist_ok=True)
     (directory / "release.json").write_text(json.dumps(manifest, indent=2) + "\n")
@@ -275,7 +313,7 @@ def write_release(directory, manifest, compose):
         "# Staging-verified release", "",
         f"Commit: `{manifest['source_sha']}`", "",
         f"Staging run: {required('GITHUB_SERVER_URL')}/{required('GITHUB_REPOSITORY')}/actions/runs/{required('GITHUB_RUN_ID')}", "",
-        "Production is manual in its own Dokploy installation:", "",
+        "Production is manual in its production Dokploy environment:", "",
         "1. Confirm a recovery point and schema compatibility; serialize production releases.",
         "2. Paste migration.compose.yml into the production migrator's Raw Compose source.",
         "3. Deploy the migrator; verify its container exited with code 0 (deployment Done is insufficient).",
@@ -295,9 +333,28 @@ def main():
     stage = commands.add_parser("stage")
     stage.add_argument("--manifest", type=Path, required=True)
     stage.add_argument("--output", type=Path, required=True)
+    web = commands.add_parser("stage-web")
+    web.add_argument("--manifest", type=Path, required=True)
+    web.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     if args.command == "manifest":
         args.output.write_text(json.dumps(create_manifest(), indent=2) + "\n")
+        return
+    if args.command == "stage-web":
+        manifest = validate_web_manifest(
+            json.loads(args.manifest.read_text()), required("GITHUB_REPOSITORY"),
+            required("EXPECTED_SOURCE_SHA"), required("EXPECTED_BUILD_RUN_ID"),
+        )
+        ids = {
+            "api": required("DOKPLOY_API_APPLICATION_ID"),
+            "worker": required("DOKPLOY_WORKER_APPLICATION_ID"),
+            "web": required("DOKPLOY_WEB_APPLICATION_ID"),
+        }
+        release_id = "stage-" + required("GITHUB_RUN_ID") + "-" + required("GITHUB_RUN_ATTEMPT")
+        client = Dokploy(required("DOKPLOY_URL"), required("DOKPLOY_API_KEY"))
+        stage_web_release(client, manifest, ids, release_id)
+        args.output.mkdir(parents=True, exist_ok=True)
+        (args.output / "web-release.json").write_text(json.dumps(manifest, indent=2) + "\n")
         return
     manifest = validate_manifest(
         json.loads(args.manifest.read_text()), required("GITHUB_REPOSITORY"),

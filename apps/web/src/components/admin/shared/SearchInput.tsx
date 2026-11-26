@@ -7,10 +7,11 @@ interface SearchInputProps {
   value?: string
   onChange: (value: string) => void
   placeholder?: string
+  ariaLabel?: string
   className?: string
 }
 
-export function SearchInput({ value: controlledValue, onChange, placeholder = 'Search...', className }: SearchInputProps) {
+export function SearchInput({ value: controlledValue, onChange, placeholder = 'Search...', ariaLabel, className }: SearchInputProps) {
   const [input, setInput] = useState(controlledValue ?? '')
   const displayValue = controlledValue ?? input
 
@@ -27,6 +28,7 @@ export function SearchInput({ value: controlledValue, onChange, placeholder = 'S
         value={displayValue}
         onChange={(e) => setInput(e.target.value)}
         placeholder={placeholder}
+        aria-label={ariaLabel ?? placeholder}
         className="h-10 w-full rounded-lg border border-[#e5e5e5] bg-white pl-10 pr-3 text-sm text-[#1b1c1a] outline-none transition-colors focus:border-[#1c3873]"
       />
     </div>
