@@ -55,7 +55,13 @@ public class RefundedOrderEnrollmentService {
           orderItemRepository.findPaidCollectionEntitlementsExcludingOrder(
               userId, enrollment.getCollection().getId(), orderId);
       if (!alternatives.isEmpty()) {
-        enrollment.setSourceOrderItem(alternatives.getFirst());
+        OrderItem alternative = alternatives.getFirst();
+        enrollment.setSourceOrderItem(alternative);
+        enrollment.setExpiresAt(ProgramSnapshotService.expiresAt(alternative));
+        if (alternative.getProgramSnapshot() != null
+            && alternative.getProgramSnapshot().creditBased()) {
+          enrollment.setEnrolledAt(alternative.getOrder().getPaidAt());
+        }
         continue;
       }
       enrollment.setStatus(EnrollmentStatus.REFUNDED);

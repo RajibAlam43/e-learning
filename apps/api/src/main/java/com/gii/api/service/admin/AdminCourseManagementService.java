@@ -33,7 +33,7 @@ import com.gii.common.enums.MediaProvider;
 import com.gii.common.enums.PublishStatus;
 import com.gii.common.enums.SectionItemType;
 import com.gii.common.enums.StudyMode;
-import com.gii.common.repository.collection.CollectionCourseRepository;
+import com.gii.common.repository.collection.CollectionRepository;
 import com.gii.common.repository.course.CategoryRepository;
 import com.gii.common.repository.course.CourseCategoryRepository;
 import com.gii.common.repository.course.CourseInstructorRepository;
@@ -78,7 +78,7 @@ public class AdminCourseManagementService {
   private final CourseInstructorRepository instructorRepository;
   private final EnrollmentRepository enrollmentRepository;
   private final LiveClassRepository liveClassRepository;
-  private final CollectionCourseRepository collectionCourseRepository;
+  private final CollectionRepository collectionRepository;
   private final CurrentUserService currentUserService;
   private final AdminSectionManagementService sectionManagementService;
   private final AssetUrlService assetUrlService;
@@ -401,8 +401,7 @@ public class AdminCourseManagementService {
             .findById(courseId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found"));
-    if (collectionCourseRepository.existsByCourseIdAndCollectionStatus(
-        courseId, PublishStatus.PUBLISHED)) {
+    if (collectionRepository.existsLegacyPublishedMembership(courseId, PublishStatus.PUBLISHED)) {
       throw new ResponseStatusException(
           HttpStatus.CONFLICT, "Course belongs to a published collection");
     }

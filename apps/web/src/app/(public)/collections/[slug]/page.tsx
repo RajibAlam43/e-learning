@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { ProgramRequirementsSummary } from '@/components/academic/ProgramRequirementsSummary'
 import { notFound } from 'next/navigation'
 import { getLocale, getTranslations } from 'next-intl/server'
 import { getServerCollection, isNotFoundError } from '@/services/public-server.service'
@@ -36,10 +37,11 @@ export default async function CollectionDetailPage({ params }: Props) {
       <p className="text-xs font-semibold uppercase tracking-wide text-[#8c7355]">{item.collectionType}</p>
       <h1 className="mt-2 font-heading text-4xl text-[#1c3873]">{item.title}</h1>
       <p className="mt-4 max-w-3xl text-slate-600">{item.description ?? item.shortDescription}</p>
+      <ProgramRequirementsSummary requirements={item.programRequirements} />
       <div className="mt-8 rounded-2xl bg-slate-50 p-6">
         <h2 className="font-heading text-2xl text-[#1c3873]">{t('includedCourses')}</h2>
         <ul className="mt-4 divide-y divide-slate-200">
-          {(item.courses ?? []).map(course => <li key={course.id} className="py-3"><span className="font-medium">{course.title}</span></li>)}
+          {(item.courses ?? []).map(course => <li key={course.id} className="py-3"><span className="font-medium">{course.title}</span>{course.credits != null && <span className="ml-2 text-sm text-slate-600">{course.credits} credits · {course.isMandatory ? 'Mandatory' : 'Elective'}{course.available === false ? ' · Planned' : ''}</span>}</li>)}
         </ul>
       </div>
     </main>

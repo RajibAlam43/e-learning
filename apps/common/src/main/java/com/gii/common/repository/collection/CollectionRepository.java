@@ -16,4 +16,19 @@ public interface CollectionRepository
   List<Collection> findByIdInAndStatus(List<UUID> ids, PublishStatus status);
 
   long countByStatus(PublishStatus status);
+
+  @org.springframework.data.jpa.repository.Query(
+      """
+      select count(cc)>0 from CollectionCourse cc
+      where cc.course.id=:courseId and cc.collection.status=:status
+        and cc.collection.requiredCredits is null
+      """)
+  boolean existsLegacyPublishedMembership(
+      @org.springframework.data.repository.query.Param("courseId") UUID courseId,
+      @org.springframework.data.repository.query.Param("status") PublishStatus status);
+
+  @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+  @org.springframework.data.jpa.repository.Query("select c from Collection c where c.id=:id")
+  Optional<Collection> findByIdForUpdate(
+      @org.springframework.data.repository.query.Param("id") UUID id);
 }

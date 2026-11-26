@@ -39,6 +39,9 @@ public class PendingOrderEligibilityService {
       if (item.getCollection().getStatus() != PublishStatus.PUBLISHED) {
         throw new ResponseStatusException(HttpStatus.CONFLICT, "Collection is not available");
       }
+      if (item.getProgramSnapshot() != null && item.getProgramSnapshot().creditBased()) {
+        continue;
+      }
       List<Course> purchasedCourses =
           orderItemCourseRepository.findByOrderItemIdOrderByPositionAsc(item.getId()).stream()
               .map(snapshot -> snapshot.getCourse())

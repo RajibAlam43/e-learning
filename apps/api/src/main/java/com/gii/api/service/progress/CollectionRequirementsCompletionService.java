@@ -14,10 +14,14 @@ public class CollectionRequirementsCompletionService {
   private final PurchasedCollectionCoursesService purchased;
   private final CourseCompletionService completion;
   private final CoursePrerequisiteEligibilityService eligibility;
+  private final ProgramCreditProgressService programProgress;
 
   public boolean isComplete(CollectionEnrollment enrollment) {
+    if (enrollment.getProgramSnapshot() != null && enrollment.getProgramSnapshot().creditBased()) {
+      return programProgress.get(enrollment).complete();
+    }
     var required =
-        purchased.resolveItems(enrollment).stream()
+        purchased.resolveRequiredItems(enrollment).stream()
             .filter(PurchasedCollectionCoursesService.PurchasedCourse::mandatory)
             .toList();
     if (required.isEmpty()) {

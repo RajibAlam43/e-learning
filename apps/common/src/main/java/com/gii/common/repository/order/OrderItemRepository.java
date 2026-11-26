@@ -14,22 +14,18 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, UUID> {
   boolean existsByCollectionId(UUID collectionId);
 
   @Query(
-      """
-      SELECT oi
-      FROM OrderItem oi
-      WHERE oi.order.user.id = :userId
-      AND oi.order.status = com.gii.common.enums.OrderStatus.PAID
-      AND oi.order.id <> :excludedOrderId
-      AND (
-        (oi.itemType = com.gii.common.enums.OrderItemType.COURSE AND oi.course.id = :courseId)
-        OR
-        (oi.itemType = com.gii.common.enums.OrderItemType.COLLECTION AND EXISTS (
-          SELECT snapshot.id FROM OrderItemCourse snapshot
-          WHERE snapshot.orderItem.id = oi.id AND snapshot.course.id = :courseId
-        ))
-      )
-      ORDER BY oi.order.paidAt DESC, oi.id DESC
-      """)
+      value =
+          """
+          SELECT oi.* FROM order_items oi JOIN orders o ON o.id=oi.order_id
+          WHERE o.user_id=:userId AND o.status='PAID' AND o.id<>:excludedOrderId
+          AND (
+            (oi.item_type='COURSE' AND oi.course_offering_id=:courseId)
+            OR (oi.item_type='COLLECTION' AND oi.program_snapshot->>'requiredCredits' IS NULL
+              AND EXISTS(SELECT 1 FROM order_item_courses s
+                WHERE s.order_item_id=oi.id AND s.course_offering_id=:courseId))
+          ) ORDER BY o.paid_at DESC,oi.id DESC
+          """,
+      nativeQuery = true)
   List<OrderItem> findPaidCourseEntitlementsExcludingOrder(
       @Param("userId") UUID userId,
       @Param("courseId") UUID courseId,
@@ -52,21 +48,18 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, UUID> {
       @Param("excludedOrderId") UUID excludedOrderId);
 
   @Query(
-      """
-      SELECT COUNT(DISTINCT oi.order.id)
-      FROM OrderItem oi
-      WHERE oi.order.status = com.gii.common.enums.OrderStatus.PENDING
-      AND oi.order.createdAt > :createdAfter
-      AND oi.order.user.id <> :userId
-      AND (
-        (oi.itemType = com.gii.common.enums.OrderItemType.COURSE AND oi.course.id = :courseId)
-        OR
-        (oi.itemType = com.gii.common.enums.OrderItemType.COLLECTION AND EXISTS (
-          SELECT snapshot.id FROM OrderItemCourse snapshot
-          WHERE snapshot.orderItem.id = oi.id AND snapshot.course.id = :courseId
-        ))
-      )
-      """)
+      value =
+          """
+          SELECT COUNT(DISTINCT o.id) FROM order_items oi JOIN orders o ON o.id=oi.order_id
+          WHERE o.status='PENDING' AND o.created_at>:createdAfter AND o.user_id<>:userId
+          AND (
+            (oi.item_type='COURSE' AND oi.course_offering_id=:courseId)
+            OR (oi.item_type='COLLECTION' AND oi.program_snapshot->>'requiredCredits' IS NULL
+              AND EXISTS(SELECT 1 FROM order_item_courses s
+                WHERE s.order_item_id=oi.id AND s.course_offering_id=:courseId))
+          )
+          """,
+      nativeQuery = true)
   long countPendingReservations(
       @Param("courseId") UUID courseId,
       @Param("userId") UUID userId,

@@ -36,6 +36,10 @@ import lombok.experimental.SuperBuilder;
     })
 public class CollectionEnrollment extends CreatedOnlyUuidEntity {
 
+  @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
+  @Column(name = "program_snapshot", columnDefinition = "jsonb")
+  private com.gii.common.dto.academic.ProgramSnapshot programSnapshot;
+
   @JsonIgnore
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
   @JoinColumn(name = "user_id", nullable = false)

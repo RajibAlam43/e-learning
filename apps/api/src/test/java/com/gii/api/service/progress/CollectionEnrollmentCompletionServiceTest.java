@@ -9,13 +9,11 @@ import static org.mockito.Mockito.when;
 import com.gii.api.service.collection.PurchasedCollectionCoursesService;
 import com.gii.api.testsupport.CourseTestData;
 import com.gii.common.entity.collection.Collection;
-import com.gii.common.entity.collection.CollectionCourse;
 import com.gii.common.entity.collection.CollectionEnrollment;
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.user.User;
 import com.gii.common.enums.CollectionType;
 import com.gii.common.enums.EnrollmentStatus;
-import com.gii.common.repository.collection.CollectionCourseRepository;
 import com.gii.common.repository.collection.CollectionEnrollmentRepository;
 import java.time.Instant;
 import java.util.List;
@@ -32,7 +30,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class CollectionEnrollmentCompletionServiceTest {
 
   @Mock private CollectionEnrollmentRepository collectionEnrollmentRepository;
-  @Mock private CollectionCourseRepository collectionCourseRepository;
   @Mock private CourseCompletionService courseCompletionService;
   @Mock private PurchasedCollectionCoursesService purchasedCollectionCoursesService;
 
@@ -44,9 +41,11 @@ class CollectionEnrollmentCompletionServiceTest {
     service =
         new CollectionEnrollmentCompletionService(
             collectionEnrollmentRepository,
-            collectionCourseRepository,
             new CollectionRequirementsCompletionService(
-                purchasedCollectionCoursesService, courseCompletionService, eligibility));
+                purchasedCollectionCoursesService,
+                courseCompletionService,
+                eligibility,
+                org.mockito.Mockito.mock(ProgramCreditProgressService.class)));
   }
 
   @Test
@@ -70,7 +69,7 @@ class CollectionEnrollmentCompletionServiceTest {
 
     when(collectionEnrollmentRepository.findByUserIdAndCollectionIdForUpdate(userId, collectionId))
         .thenReturn(Optional.of(enrollment));
-    when(purchasedCollectionCoursesService.resolveItems(enrollment))
+    when(purchasedCollectionCoursesService.resolveRequiredItems(enrollment))
         .thenReturn(List.of(new PurchasedCollectionCoursesService.PurchasedCourse(courseA, true)));
     when(courseCompletionService.getByCourseIds(userId, List.of(courseA.getId())))
         .thenReturn(
@@ -115,7 +114,7 @@ class CollectionEnrollmentCompletionServiceTest {
   @Test
   void refreshCollectionsForCourseOnlyRefreshesActiveEnrollments() {
     final UUID userId = UUID.randomUUID();
-    UUID courseId = UUID.randomUUID();
+    final UUID courseId = UUID.randomUUID();
     UUID activeCollectionId = UUID.randomUUID();
     UUID inactiveCollectionId = UUID.randomUUID();
 
@@ -134,19 +133,8 @@ class CollectionEnrollmentCompletionServiceTest {
             .build();
     inactiveCollection.setId(inactiveCollectionId);
 
-    CollectionCourse activeMembership =
-        CollectionCourse.builder().collection(activeCollection).build();
-    CollectionCourse inactiveMembership =
-        CollectionCourse.builder().collection(inactiveCollection).build();
-
-    when(collectionCourseRepository.findByCourse_Id(courseId))
-        .thenReturn(List.of(activeMembership, inactiveMembership));
-    when(collectionEnrollmentRepository.existsByUserIdAndCollectionIdAndStatus(
-            userId, activeCollectionId, EnrollmentStatus.ACTIVE))
-        .thenReturn(true);
-    when(collectionEnrollmentRepository.existsByUserIdAndCollectionIdAndStatus(
-            userId, inactiveCollectionId, EnrollmentStatus.ACTIVE))
-        .thenReturn(false);
+    when(collectionEnrollmentRepository.findByUserIdAndStatus(userId, EnrollmentStatus.ACTIVE))
+        .thenReturn(List.of(CollectionEnrollment.builder().collection(activeCollection).build()));
     when(collectionEnrollmentRepository.findByUserIdAndCollectionIdForUpdate(
             userId, activeCollectionId))
         .thenReturn(Optional.empty());

@@ -1,8 +1,8 @@
 # Semesters and academic credits
 
-Steps 1 and 2 provide institution semesters, course credits, reusable cohort offerings,
-completion-based achievements, enforced prerequisites and credit-bearing waivers.
-Program credit requirements and manual enrollment belong to later steps.
+Steps 1–3 provide institution semesters, course credits, reusable cohort offerings,
+completion-based achievements, prerequisites, credit waivers and program curricula.
+Cohort registration and manual enrollment are subsequent steps.
 
 ## Administration
 
@@ -84,8 +84,8 @@ course templates. Rules are shared by all cohorts and are separate from the exis
 free-text prerequisite descriptions. Self-links, duplicates and indirect cycles are
 rejected; concurrent graph edits are serialized in PostgreSQL.
 
-Standalone checkout, free enrollment, collection checkout and payment fulfillment use
-the same prerequisite policy. A completed enrollment in any cohort or an academic
+Standalone checkout, free enrollment, legacy bundle checkout and course payment
+fulfillment use the same prerequisite policy. A completed enrollment in any cohort or an academic
 credit award for the required template satisfies the rule. Historical completions
 qualify without automatically backfilling their academic credits. Merely owning or
 buying a prerequisite does not satisfy it, including buying both courses together.
@@ -112,8 +112,8 @@ The unique student/template award constraint also covers simultaneous course
 completion and waiver approval. An existing award is preserved, including its original
 credits and source. Exemptions satisfy subsequent prerequisites and mandatory collection
 requirements across cohorts, without changing lesson progress, exams, attendance or
-issuing a course-completion certificate. Program credit/elective graduation rules remain
-part of the later program steps.
+issuing a course-completion certificate. Credit-based program rules are added in step 3
+below; expanded graduation administration belongs to the later graduation step.
 
 Supporting files use the existing **private** R2 bucket and credentials, never the
 public thumbnail bucket. The API checks ownership, object existence, size and MIME
@@ -137,3 +137,66 @@ Abandoned uploads can remain in storage; no automatic orphan cleanup is introduc
 Request lists have 50 entries per page. Apply **V25** after V24 through the migrator,
 then deploy the compatible API, worker and frontend together. No production data or
 infrastructure is changed by local implementation or tests.
+
+
+## Program curricula and purchase contracts (step 3)
+
+Open **Admin → Programs → Manage program** to edit program details and curriculum.
+Select published or planned/unpublished courses, reorder them, and mark each mandatory
+or elective. Multiple cohorts of the same template are one academic course and cannot
+be listed twice in a credit-based curriculum. Planned courses expose their title and
+credits in the program syllabus, but their individual course page and study content
+remain unpublished.
+
+Saving credit requirements opts the program into credit-based purchases. Legacy
+collections retain their existing bundle behavior until configured; legacy publishing
+still requires published courses. Credit-based programs can remain published while
+courses and requirements are edited. Publication and checkout reject graduation
+requirements that cannot be reached: the total must include all mandatory course
+credits and fit within the offered electives and configured elective credit allowance.
+New purchases capture their own rules, so changing these settings affects future buyers.
+
+Set expected duration in months. Access defaults to that duration **plus 24 months**;
+an explicit access duration overrides it. A confirmed program payment creates program
+access ending that many calendar months after the payment confirmation time, calculated
+in UTC. A delayed payment worker or duplicate callback cannot extend this period.
+Legacy enrollments retain their existing end dates, including any lifetime access;
+no retrospective expiry or credit target is invented.
+
+The original course requirements, mandatory flags, total credits, elective allowance
+and access duration are copied to the order at checkout and to the enrollment at
+payment. They are immutable in PostgreSQL. Migration V26 freezes historical bundle
+requirements using the purchased course snapshot where available, with current
+membership as the legacy fallback. Adding/removing/reclassifying courses later does
+not rewrite an existing student's original mandatory requirements or graduation target.
+
+Purchased students see the union of their original curriculum and later program
+additions. New additions are optional for existing students. Their credits can count
+within that student's original elective allowance. Removed original courses remain
+part of the purchased contract. Only achievements belonging to eligible templates
+count, once per template within a program. Approved waiver credits count, and the same
+achievement can count toward multiple eligible programs. Elective credits are capped;
+unrelated courses cannot replace a missing mandatory requirement. Legacy course and
+program completion records remain intact.
+
+Credit-based program purchase grants **program entitlement**, not automatic enrollment
+into every included course/cohort and not a cohort seat reservation. It is independent
+of individual course prerequisites, registration dates and seat capacity. The separate
+cohort registration API/UI, including elective selection and reservation of allowance,
+is **step 4 and is not implemented here**. Course-level purchase/free-enrollment checks
+remain enforced. The student program page shows original requirements, credit progress,
+access expiry and the current/previous course catalog; it offers study links only for
+actual course enrollments. Completing the remaining registration step is required
+before newly purchased program entitlement can be used to enroll in courses.
+
+| Method | Route | Purpose |
+| --- | --- | --- |
+| GET | `/admin/collections/{id}` | Details, current courses and program requirements |
+| PUT | `/admin/collections/{id}/curriculum` | Atomically save requirements and ordered courses |
+| GET | `/student/collections/{id}/curriculum` | Own original requirements, credit progress and available courses |
+
+The existing program create/edit/publish routes remain available. Public collection
+responses add program requirements and published/planned syllabus metadata. Apply
+**V26** after V25 through the migrator, then deploy the matching API, worker and web
+images together. No new environment variables are needed. Local tests and implementation
+do not migrate or deploy a hosted environment.

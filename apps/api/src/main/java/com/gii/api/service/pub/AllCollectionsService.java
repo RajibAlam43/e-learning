@@ -58,8 +58,11 @@ public class AllCollectionsService {
     List<CollectionCourse> collectionCourses =
         collectionIds.isEmpty()
             ? List.of()
-            : collectionCourseRepository.findByCollection_IdInWithCourseStatus(
-                collectionIds, PublishStatus.PUBLISHED);
+            : collectionCourseRepository.findByCollection_IdInWithCourse(collectionIds).stream()
+                .filter(c ->
+                    c.getCollection().isCreditBased()
+                        || c.getCourse().getStatus() == PublishStatus.PUBLISHED)
+                .toList();
 
     Map<UUID, List<UUID>> courseIdsByCollectionId = new HashMap<>();
     for (CollectionCourse collectionCourse : collectionCourses) {
@@ -71,6 +74,7 @@ public class AllCollectionsService {
 
     List<UUID> allCourseIds =
         collectionCourses.stream()
+            .filter(c -> c.getCourse().getStatus() == PublishStatus.PUBLISHED)
             .map(collectionCourse -> collectionCourse.getCourse().getId())
             .distinct()
             .toList();
@@ -78,32 +82,29 @@ public class AllCollectionsService {
 
     List<CollectionSummaryResponse> content =
         collections.stream()
-            .map(
-                collection -> {
-                  List<UUID> courseIds =
-                      courseIdsByCollectionId.getOrDefault(collection.getId(), List.of());
-                  LinkedHashSet<String> instructorNames = new LinkedHashSet<>();
-                  for (UUID courseId : courseIds) {
-                    instructorNames.addAll(
-                        instructorNamesByCourseId.getOrDefault(courseId, List.of()));
-                  }
-                  return CollectionSummaryResponse.builder()
-                      .id(collection.getId())
-                      .title(
-                          localizedContentService.text(
-                              collection.getTitle(), collection.getTitleEn()))
-                      .slug(collection.getSlug())
-                      .collectionType(collection.getType())
-                      .shortDescription(
-                          localizedContentService.text(
-                              collection.getShortDescription(), collection.getShortDescriptionEn()))
-                      .thumbnailUrl(assetUrlService.publicUrl(collection.getThumbnailObjectKey()))
-                      .priceBdt(collection.getPriceBdt())
-                      .publishedAt(collection.getPublishedAt())
-                      .courseCount(courseIds.size())
-                      .instructorNames(instructorNames.stream().sorted().toList())
-                      .build();
-                })
+            .map(collection -> {
+              List<UUID> courseIds =
+                  courseIdsByCollectionId.getOrDefault(collection.getId(), List.of());
+              LinkedHashSet<String> instructorNames = new LinkedHashSet<>();
+              for (UUID courseId : courseIds) {
+                instructorNames.addAll(instructorNamesByCourseId.getOrDefault(courseId, List.of()));
+              }
+              return CollectionSummaryResponse.builder()
+                  .id(collection.getId())
+                  .title(
+                      localizedContentService.text(collection.getTitle(), collection.getTitleEn()))
+                  .slug(collection.getSlug())
+                  .collectionType(collection.getType())
+                  .shortDescription(
+                      localizedContentService.text(
+                          collection.getShortDescription(), collection.getShortDescriptionEn()))
+                  .thumbnailUrl(assetUrlService.publicUrl(collection.getThumbnailObjectKey()))
+                  .priceBdt(collection.getPriceBdt())
+                  .publishedAt(collection.getPublishedAt())
+                  .courseCount(courseIds.size())
+                  .instructorNames(instructorNames.stream().sorted().toList())
+                  .build();
+            })
             .toList();
 
     return PageResponse.<CollectionSummaryResponse>builder()

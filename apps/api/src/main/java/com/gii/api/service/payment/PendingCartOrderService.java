@@ -67,6 +67,7 @@ public class PendingCartOrderService {
   private final LocalizedContentService localizedContentService;
   private final OfferingEnrollmentPolicyService offeringEnrollmentPolicyService;
   private final PendingOrderEligibilityService pendingOrderEligibilityService;
+  private final com.gii.common.service.payment.ProgramSnapshotService programSnapshots;
   private final com.gii.common.service.payment.CoursePrerequisiteEligibilityService prerequisites;
 
   public CheckoutOrderResponse execute(
@@ -108,14 +109,18 @@ public class PendingCartOrderService {
     final Map<UUID, List<CollectionCourse>> collectionCoursesByCollectionId =
         groupByCollection(collectionCoursesForCart);
     if (collectionCoursesForCart.stream()
-        .anyMatch(row -> row.getCourse().getStatus() != PublishStatus.PUBLISHED)) {
+        .anyMatch(row ->
+            !row.getCollection().isCreditBased()
+                && row.getCourse().getStatus() != PublishStatus.PUBLISHED)) {
       throw new ResponseStatusException(
           HttpStatus.CONFLICT, "A selected collection contains an unavailable course");
     }
 
     Set<UUID> collectionCourseIdsInCart = new HashSet<>();
     for (CollectionCourse cc : collectionCoursesForCart) {
-      collectionCourseIdsInCart.add(cc.getCourse().getId());
+      if (!cc.getCollection().isCreditBased()) {
+        collectionCourseIdsInCart.add(cc.getCourse().getId());
+      }
     }
 
     // Case 3: block course+collection overlap inside the same cart.
@@ -154,6 +159,10 @@ public class PendingCartOrderService {
               "This course is already covered by one of your owned collections.");
         }
       }
+    }
+
+    if (requestedCollectionIds.stream().anyMatch(ownedCollectionIds::contains)) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, "Already enrolled in this program");
     }
 
     // Case 1: collection price is reduced by already-owned included courses.
@@ -239,9 +248,15 @@ public class PendingCartOrderService {
       Collection collection = collectionsById.get(requestedItem.collectionId());
       List<CollectionCourse> includedCourses =
           collectionCoursesByCollectionId.getOrDefault(collection.getId(), List.of());
+      try {
+        programSnapshots.validate(programSnapshots.capture(collection, includedCourses));
+      } catch (com.gii.common.service.payment.EnrollmentPolicyViolationException exception) {
+        throw new ResponseStatusException(HttpStatus.CONFLICT, exception.getMessage(), exception);
+      }
       BigDecimal discount = BigDecimal.ZERO;
       boolean hasCollectionOverlapDiscount = false;
-      for (CollectionCourse included : includedCourses) {
+      for (CollectionCourse included :
+          collection.isCreditBased() ? List.<CollectionCourse>of() : includedCourses) {
         UUID includedCourseId = included.getCourse().getId();
         if (ownedCourseIds.contains(includedCourseId)
             || coursesCoveredByEarlierCollection.contains(includedCourseId)) {
@@ -264,6 +279,7 @@ public class PendingCartOrderService {
               .order(order)
               .itemType(OrderItemType.COLLECTION)
               .collection(collection)
+              .programSnapshot(programSnapshots.capture(collection, includedCourses))
               .titleSnapshot(collection.getTitle())
               .titleSnapshotEn(collection.getTitleEn())
               .priceBdt(price)
@@ -290,9 +306,10 @@ public class PendingCartOrderService {
               .build());
       subtotal = subtotal.add(price);
       totalDiscount = totalDiscount.add(discount);
-      includedCourses.stream()
-          .map(included -> included.getCourse().getId())
-          .forEach(coursesCoveredByEarlierCollection::add);
+      (collection.isCreditBased() ? List.<CollectionCourse>of() : includedCourses)
+          .stream()
+              .map(included -> included.getCourse().getId())
+              .forEach(coursesCoveredByEarlierCollection::add);
     }
 
     List<OrderItem> savedOrderItems = orderItemRepository.saveAll(orderItems);
@@ -392,7 +409,16 @@ public class PendingCartOrderService {
       return Map.of();
     }
     List<Collection> collections =
-        collectionRepository.findByIdInAndStatus(ids, PublishStatus.PUBLISHED);
+        ids.stream()
+            .distinct()
+            .sorted()
+            .map(id ->
+                collectionRepository
+                    .findByIdForUpdate(id)
+                    .orElseThrow(() ->
+                        new ResponseStatusException(HttpStatus.NOT_FOUND, "Collection not found")))
+            .filter(c -> c.getStatus() == PublishStatus.PUBLISHED)
+            .toList();
     Map<UUID, Collection> map =
         collections.stream().collect(java.util.stream.Collectors.toMap(Collection::getId, c -> c));
     if (map.size() != new HashSet<>(ids).size()) {

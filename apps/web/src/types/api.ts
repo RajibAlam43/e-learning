@@ -202,6 +202,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/collections/{id}/curriculum": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Save program graduation requirements and mandatory/elective courses */
+        put: operations["saveCurriculum"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/webhooks/mux": {
         parameters: {
             query?: never;
@@ -2197,6 +2214,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/student/collections/{id}/curriculum": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read your original graduation requirements and available program courses */
+        get: operations["curriculum"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/student/collections/{collectionId}": {
         parameters: {
             query?: never;
@@ -3208,6 +3242,92 @@ export interface components {
             /** Format: uuid */
             courseTemplateId?: string;
             requiredCourses?: components["schemas"]["CourseOption"][];
+        };
+        Item: {
+            /** Format: uuid */
+            courseId: string;
+            /** Format: int32 */
+            position: number;
+            isMandatory?: boolean;
+        };
+        SaveProgramCurriculumRequest: {
+            /** Format: int32 */
+            requiredCredits: number;
+            /** Format: int32 */
+            electiveCreditLimit: number;
+            /** Format: int32 */
+            expectedDurationMonths: number;
+            /** Format: int32 */
+            accessDurationMonths?: number;
+            items: components["schemas"]["Item"][];
+        };
+        AdminCollectionCourseResponse: {
+            /** Format: uuid */
+            courseId?: string;
+            courseTitle?: string;
+            courseSlug?: string;
+            /** Format: int32 */
+            position?: number;
+            isMandatory?: boolean;
+            /** Format: uuid */
+            courseTemplateId?: string;
+            /** Format: int32 */
+            credits?: number;
+            /** @enum {string} */
+            status?: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+        };
+        AdminCollectionDetailResponse: {
+            /** Format: uuid */
+            collectionId?: string;
+            programRequirements?: components["schemas"]["ProgramSnapshot"];
+            /** Format: int32 */
+            accessDurationMonths?: number;
+            title?: string;
+            titleEn?: string;
+            slug?: string;
+            /** @enum {string} */
+            collectionType?: "PACK" | "TRACK" | "DIPLOMA" | "DEGREE";
+            thumbnailObjectKey?: string;
+            thumbnailUrl?: string;
+            shortDescription?: string;
+            shortDescriptionEn?: string;
+            description?: string;
+            descriptionEn?: string;
+            priceBdt?: number;
+            /** @enum {string} */
+            status?: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+            /** Format: date-time */
+            publishedAt?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            updatedAt?: string;
+            courses?: components["schemas"]["AdminCollectionCourseResponse"][];
+        };
+        CourseRequirement: {
+            /** Format: uuid */
+            courseId?: string;
+            /** Format: uuid */
+            courseTemplateId?: string;
+            title?: string;
+            /** Format: int32 */
+            credits?: number;
+            mandatory?: boolean;
+            /** Format: int32 */
+            position?: number;
+        };
+        ProgramSnapshot: {
+            /** @enum {string} */
+            collectionType?: "PACK" | "TRACK" | "DIPLOMA" | "DEGREE";
+            /** Format: int32 */
+            requiredCredits?: number;
+            /** Format: int32 */
+            electiveCreditLimit?: number;
+            /** Format: int32 */
+            expectedDurationMonths?: number;
+            /** Format: int32 */
+            accessDurationMonths?: number;
+            courses?: components["schemas"]["CourseRequirement"][];
         };
         CreateWaiverRequest: {
             /** Format: uuid */
@@ -4488,47 +4608,6 @@ export interface components {
             descriptionEn?: string;
             priceBdt: number;
         };
-        AdminCollectionCourseResponse: {
-            /** Format: uuid */
-            courseId?: string;
-            courseTitle?: string;
-            courseSlug?: string;
-            /** Format: int32 */
-            position?: number;
-            isMandatory?: boolean;
-        };
-        AdminCollectionDetailResponse: {
-            /** Format: uuid */
-            collectionId?: string;
-            title?: string;
-            titleEn?: string;
-            slug?: string;
-            /** @enum {string} */
-            collectionType?: "PACK" | "TRACK" | "DIPLOMA" | "DEGREE";
-            thumbnailObjectKey?: string;
-            thumbnailUrl?: string;
-            shortDescription?: string;
-            shortDescriptionEn?: string;
-            description?: string;
-            descriptionEn?: string;
-            priceBdt?: number;
-            /** @enum {string} */
-            status?: "DRAFT" | "PUBLISHED" | "ARCHIVED";
-            /** Format: date-time */
-            publishedAt?: string;
-            /** Format: date-time */
-            createdAt?: string;
-            /** Format: date-time */
-            updatedAt?: string;
-            courses?: components["schemas"]["AdminCollectionCourseResponse"][];
-        };
-        Item: {
-            /** Format: uuid */
-            courseId: string;
-            /** Format: int32 */
-            position: number;
-            isMandatory?: boolean;
-        };
         SetCollectionCoursesRequest: {
             items: components["schemas"]["Item"][];
         };
@@ -5301,6 +5380,43 @@ export interface components {
             /** Format: date-time */
             expiresAt?: string;
         };
+        AvailableProgramCourse: {
+            /** Format: uuid */
+            courseId?: string;
+            /** Format: uuid */
+            courseTemplateId?: string;
+            title?: string;
+            slug?: string;
+            /** Format: int32 */
+            credits?: number;
+            /** @enum {string} */
+            status?: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+            mandatoryForGraduation?: boolean;
+            enrolled?: boolean;
+        };
+        ProgramCreditProgressResponse: {
+            /** Format: int32 */
+            requiredCredits?: number;
+            /** Format: int64 */
+            earnedCredits?: number;
+            /** Format: int64 */
+            electiveCreditsCounted?: number;
+            /** Format: int32 */
+            electiveCreditLimit?: number;
+            /** Format: int32 */
+            mandatoryCoursesCompleted?: number;
+            /** Format: int32 */
+            mandatoryCoursesRequired?: number;
+            complete?: boolean;
+        };
+        StudentProgramCurriculumResponse: {
+            graduationRequirements?: components["schemas"]["ProgramSnapshot"];
+            creditProgress?: components["schemas"]["ProgramCreditProgressResponse"];
+            /** Format: date-time */
+            expiresAt?: string;
+            accessActive?: boolean;
+            availableCourses?: components["schemas"]["AvailableProgramCourse"][];
+        };
         StudentCollectionCourseProgressResponse: {
             /** Format: uuid */
             courseId?: string;
@@ -5708,10 +5824,16 @@ export interface components {
             /** Format: int32 */
             position?: number;
             isMandatory?: boolean;
+            /** Format: uuid */
+            courseTemplateId?: string;
+            /** Format: int32 */
+            credits?: number;
+            available?: boolean;
         };
         CollectionDetailsResponse: {
             /** Format: uuid */
             id?: string;
+            programRequirements?: components["schemas"]["ProgramSnapshot"];
             title?: string;
             slug?: string;
             /** @enum {string} */
@@ -6673,6 +6795,32 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["PrerequisiteResponse"];
+                };
+            };
+        };
+    };
+    saveCurriculum: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveProgramCurriculumRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminCollectionDetailResponse"];
                 };
             };
         };
@@ -10620,6 +10768,28 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["StudentCollectionSummaryResponse"][];
+                };
+            };
+        };
+    };
+    curriculum: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["StudentProgramCurriculumResponse"];
                 };
             };
         };

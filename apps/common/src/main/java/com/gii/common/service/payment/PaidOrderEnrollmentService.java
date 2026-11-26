@@ -49,7 +49,7 @@ public class PaidOrderEnrollmentService {
     for (OrderItem item : items) {
       if (item.getItemType() == OrderItemType.COURSE) {
         purchasedCourseById.put(item.getCourse().getId(), item.getCourse());
-      } else if (item.getItemType() == OrderItemType.COLLECTION) {
+      } else if (item.getItemType() == OrderItemType.COLLECTION && !deferredProgram(item)) {
         purchasedCourses(item).forEach(course -> purchasedCourseById.put(course.getId(), course));
       }
     }
@@ -62,11 +62,18 @@ public class PaidOrderEnrollmentService {
         activateOrCreateCourseEnrollment(order, item, item.getCourse(), now, item.getCollection());
       } else if (item.getItemType() == OrderItemType.COLLECTION) {
         activateOrCreateCollectionEnrollment(order, item, now);
+        if (deferredProgram(item)) {
+          continue;
+        }
         purchasedCourses(item)
             .forEach(course ->
                 activateOrCreateCourseEnrollment(order, item, course, now, item.getCollection()));
       }
     }
+  }
+
+  private boolean deferredProgram(OrderItem item) {
+    return item.getProgramSnapshot() != null && item.getProgramSnapshot().creditBased();
   }
 
   private List<Course> purchasedCourses(OrderItem item) {
@@ -136,10 +143,23 @@ public class PaidOrderEnrollmentService {
                 order.getUser().getId(), sourceOrderItem.getCollection().getId())
             .orElse(null);
     if (existing != null) {
+      // Retries must not renew access or replace the original academic contract.
+      if (existing.getSourceOrderItem() != null
+          && existing.getSourceOrderItem().getId().equals(sourceOrderItem.getId())) {
+        return;
+      }
+      if (existing.getProgramSnapshot() != null
+          && existing.getStatus() == EnrollmentStatus.ACTIVE
+          && (existing.getExpiresAt() == null || existing.getExpiresAt().isAfter(now))) {
+        return;
+      }
       existing.setStatus(EnrollmentStatus.ACTIVE);
-      existing.setEnrolledAt(now);
+      existing.setEnrolledAt(deferredProgram(sourceOrderItem) ? order.getPaidAt() : now);
       existing.setRevokedAt(null);
-      existing.setExpiresAt(null);
+      existing.setExpiresAt(ProgramSnapshotService.expiresAt(sourceOrderItem));
+      if (existing.getProgramSnapshot() == null) {
+        existing.setProgramSnapshot(sourceOrderItem.getProgramSnapshot());
+      }
       existing.setSourceOrderItem(sourceOrderItem);
       collectionEnrollmentRepository.save(existing);
       return;
@@ -148,9 +168,11 @@ public class PaidOrderEnrollmentService {
         CollectionEnrollment.builder()
             .user(order.getUser())
             .collection(sourceOrderItem.getCollection())
+            .programSnapshot(sourceOrderItem.getProgramSnapshot())
+            .expiresAt(ProgramSnapshotService.expiresAt(sourceOrderItem))
             .sourceOrderItem(sourceOrderItem)
             .status(EnrollmentStatus.ACTIVE)
-            .enrolledAt(now)
+            .enrolledAt(deferredProgram(sourceOrderItem) ? order.getPaidAt() : now)
             .build());
   }
 }
