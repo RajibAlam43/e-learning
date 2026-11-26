@@ -14,12 +14,18 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @Tag("integration")
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("local")
+@TestPropertySource(
+    properties = {
+      "integrations.google-meet.shared-organizer-enabled=true",
+      "integrations.google-meet.calendar-sync-enabled=false"
+    })
 abstract class AbstractInstructorApiIntegrationTest extends InstructorApiTestSupport {
   @MockitoBean protected LiveMeetingProvisioningService liveMeetingProvisioningService;
 

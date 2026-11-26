@@ -48,10 +48,8 @@ public class StudentJoinLiveClassesService {
         enrollmentRepository
             .findByUserIdAndCourseIdAndStatus(
                 userId, liveClass.getCourse().getId(), EnrollmentStatus.ACTIVE)
-            .orElseThrow(
-                () ->
-                    new ResponseStatusException(
-                        HttpStatus.FORBIDDEN, "Not enrolled in this course"));
+            .orElseThrow(() ->
+                new ResponseStatusException(HttpStatus.FORBIDDEN, "Not enrolled in this course"));
 
     if (enrollment.getExpiresAt() != null && !enrollment.getExpiresAt().isAfter(Instant.now())) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Enrollment expired");
@@ -80,7 +78,10 @@ public class StudentJoinLiveClassesService {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Join link is unavailable");
     }
     studentLearningStreakTrackerService.recordActivity(userId, now);
-    User instructor = courseInstructorResolver.primaryInstructor(liveClass.getCourse());
+    User instructor =
+        liveClass.getLeadInstructor() != null
+            ? liveClass.getLeadInstructor()
+            : courseInstructorResolver.primaryInstructor(liveClass.getCourse());
 
     return StudentLiveClassJoinResponse.builder()
         .liveClassId(liveClass.getId())

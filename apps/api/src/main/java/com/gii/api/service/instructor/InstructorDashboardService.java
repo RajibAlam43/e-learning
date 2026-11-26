@@ -99,16 +99,15 @@ public class InstructorDashboardService {
 
     List<InstructorCourseSnapshotResponse> snapshots =
         courses.stream()
-            .map(
-                course ->
-                    toCourseSnapshot(
-                        course,
-                        roleByCourseId.get(course.getId()),
-                        activeEnrollmentsByCourseId,
-                        completedEnrollmentsByCourseId,
-                        sectionCountByCourseId,
-                        lessonCountByCourseId,
-                        liveClassCountByCourseId))
+            .map(course ->
+                toCourseSnapshot(
+                    course,
+                    roleByCourseId.get(course.getId()),
+                    activeEnrollmentsByCourseId,
+                    completedEnrollmentsByCourseId,
+                    sectionCountByCourseId,
+                    lessonCountByCourseId,
+                    liveClassCountByCourseId))
             .toList();
 
     List<LiveClass> upcoming =
@@ -239,7 +238,7 @@ public class InstructorDashboardService {
         .registeredStudents(
             approvedRegistrantCountByLiveClassId.getOrDefault(liveClass.getId(), 0L))
         .maxCapacity(null)
-        .startUrl("/instructor/live-classes/" + liveClass.getId() + "/start")
+        .startUrl(liveClass.effectiveHostStartUrl())
         .detailsUrl("/instructor/live-classes/" + liveClass.getId())
         .build();
   }

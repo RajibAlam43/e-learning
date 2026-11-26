@@ -54,24 +54,24 @@ public class SecurityConfig {
         .cors(Customizer.withDefaults())
         .sessionManagement(
             session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-        .authorizeHttpRequests(
-            auth ->
-                auth.requestMatchers(
-                        "/actuator/health",
-                        "/public/**",
-                        "/webhooks/**",
-                        "/payments/sslcommerz/*/success",
-                        "/payments/sslcommerz/*/failed",
-                        "/payments/sslcommerz/*/cancelled",
-                        "/payments/bkash/*/success",
-                        "/payments/bkash/*/failed",
-                        "/payments/bkash/*/cancelled",
-                        "/v3/api-docs/**",
-                        "/swagger-ui/**",
-                        "/swagger-ui.html")
-                    .permitAll()
-                    .anyRequest()
-                    .authenticated())
+        .authorizeHttpRequests(auth ->
+            auth.requestMatchers(
+                    "/actuator/health",
+                    "/public/**",
+                    "/recording-uploads/**",
+                    "/webhooks/**",
+                    "/payments/sslcommerz/*/success",
+                    "/payments/sslcommerz/*/failed",
+                    "/payments/sslcommerz/*/cancelled",
+                    "/payments/bkash/*/success",
+                    "/payments/bkash/*/failed",
+                    "/payments/bkash/*/cancelled",
+                    "/v3/api-docs/**",
+                    "/swagger-ui/**",
+                    "/swagger-ui.html")
+                .permitAll()
+                .anyRequest()
+                .authenticated())
         .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
     return http.build();
@@ -96,18 +96,28 @@ public class SecurityConfig {
               .filter(value -> value != null && !value.isBlank())
               .toList());
     } else if (hasValues(allowedOrigins)) {
-      config.setAllowedOrigins(
-          allowedOrigins.stream().filter(value -> value != null && !value.isBlank()).toList());
+      List<String> configuredOrigins =
+          allowedOrigins.stream().filter(value -> value != null && !value.isBlank()).toList();
+      config.setAllowedOrigins(configuredOrigins);
     } else {
       throw new IllegalStateException(
-          "CORS is not configured. Set app.cors.allowed-origins or app.cors.allowed-origin-patterns.");
+          "CORS is not configured. Set app.cors.allowed-origins"
+              + " or app.cors.allowed-origin-patterns.");
     }
 
     config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
     config.setAllowedHeaders(List.of("*"));
     config.setAllowCredentials(true);
 
-    UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+    final UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+    // Only these capability-token endpoints are callable by the pilot extension.
+    // They accept no cookies or LMS bearer tokens; every operation verifies its recording token.
+    CorsConfiguration uploads = new CorsConfiguration();
+    uploads.setAllowedOrigins(List.of("*"));
+    uploads.setAllowedMethods(List.of("POST", "OPTIONS"));
+    uploads.setAllowedHeaders(List.of("Content-Type", "X-Recording-Token"));
+    uploads.setAllowCredentials(false);
+    source.registerCorsConfiguration("/recording-uploads/**", uploads);
     source.registerCorsConfiguration("/**", config);
 
     return source;

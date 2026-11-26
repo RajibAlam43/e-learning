@@ -10,6 +10,7 @@ import com.gii.api.model.response.admin.AdminLiveClassItemResponse;
 import com.gii.api.model.response.admin.AdminLiveClassRegistrantResponse;
 import com.gii.api.model.response.admin.AdminLiveClassStartResponse;
 import com.gii.api.model.response.admin.AdminLiveClassSummaryResponse;
+import com.gii.api.service.live.LiveClassSchedulingService;
 import com.gii.api.service.live.LiveMeetingCancelRequest;
 import com.gii.api.service.live.LiveMeetingCreateRequest;
 import com.gii.api.service.live.LiveMeetingCreateResult;
@@ -67,6 +68,7 @@ public class AdminLiveClassManagementService {
   private final CourseInstructorRepository courseInstructorRepository;
   private final LiveClassSlotRepository liveClassSlotRepository;
   private final LiveMeetingProvisioningService liveMeetingProvisioningService;
+  private final LiveClassSchedulingService scheduling;
   private final EnrollmentCompletionService enrollmentCompletionService;
 
   @Transactional(readOnly = true)
@@ -112,7 +114,10 @@ public class AdminLiveClassManagementService {
     validateTimeRange(request.startsAt(), request.endsAt());
     validateOfferingWindow(course, request.startsAt(), request.endsAt());
     validateCapacity(request.maxCapacity());
-    ensureNoProviderOverlap(request.provider(), request.startsAt(), request.endsAt());
+    User leadTeacher = scheduling.leadForCreation(course, null, request.provider());
+    List<String> coHostEmails = scheduling.courseCoHosts(course, request.provider());
+    scheduling.ensureAvailable(
+        request.provider(), leadTeacher, request.startsAt(), request.endsAt(), null);
     int position = resolveCreatePosition(section.getId(), request.position());
 
     LiveMeetingCreateResult meeting =
@@ -124,6 +129,9 @@ public class AdminLiveClassManagementService {
                 .startsAt(request.startsAt())
                 .endsAt(request.endsAt())
                 .maxCapacity(request.maxCapacity())
+                .coHostEmails(coHostEmails)
+                .primaryTeacherId(leadTeacher == null ? null : leadTeacher.getId())
+                .calendarGuestEmails(scheduling.calendarGuests(course))
                 .build());
 
     try {
@@ -146,6 +154,8 @@ public class AdminLiveClassManagementService {
                   .course(course)
                   .slot(slot)
                   .provider(request.provider())
+                  .leadInstructor(leadTeacher)
+                  .providerMetadata(meeting.metadata())
                   .providerMeetingId(meeting.meetingId())
                   .hostStartUrl(meeting.hostStartUrl())
                   .participantJoinUrl(meeting.participantJoinUrl())
@@ -164,7 +174,7 @@ public class AdminLiveClassManagementService {
               .build());
       return toDetail(saved);
     } catch (RuntimeException persistenceFailure) {
-      compensateCreatedMeeting(request.provider(), meeting.meetingId(), persistenceFailure);
+      compensateCreatedMeeting(request.provider(), meeting, persistenceFailure);
       throw persistenceFailure;
     }
   }
@@ -203,7 +213,10 @@ public class AdminLiveClassManagementService {
     validateTimeRange(request.startsAt(), request.endsAt());
     validateOfferingWindow(course, request.startsAt(), request.endsAt());
     validateCapacity(request.maxCapacity());
-    ensureNoProviderOverlap(request.provider(), request.startsAt(), request.endsAt());
+    User leadTeacher = scheduling.leadForCreation(course, null, request.provider());
+    List<String> coHostEmails = scheduling.courseCoHosts(course, request.provider());
+    scheduling.ensureAvailable(
+        request.provider(), leadTeacher, request.startsAt(), request.endsAt(), null);
     LiveMeetingCreateResult meeting =
         liveMeetingProvisioningService.createMeeting(
             LiveMeetingCreateRequest.builder()
@@ -213,6 +226,9 @@ public class AdminLiveClassManagementService {
                 .startsAt(request.startsAt())
                 .endsAt(request.endsAt())
                 .maxCapacity(request.maxCapacity())
+                .coHostEmails(coHostEmails)
+                .primaryTeacherId(leadTeacher == null ? null : leadTeacher.getId())
+                .calendarGuestEmails(scheduling.calendarGuests(course))
                 .build());
     try {
       LiveClass liveClass =
@@ -221,6 +237,8 @@ public class AdminLiveClassManagementService {
                   .course(course)
                   .slot(slot)
                   .provider(request.provider())
+                  .leadInstructor(leadTeacher)
+                  .providerMetadata(meeting.metadata())
                   .providerMeetingId(meeting.meetingId())
                   .hostStartUrl(meeting.hostStartUrl())
                   .participantJoinUrl(meeting.participantJoinUrl())
@@ -232,7 +250,7 @@ public class AdminLiveClassManagementService {
                   .build());
       return toDetail(liveClass);
     } catch (RuntimeException persistenceFailure) {
-      compensateCreatedMeeting(request.provider(), meeting.meetingId(), persistenceFailure);
+      compensateCreatedMeeting(request.provider(), meeting, persistenceFailure);
       throw persistenceFailure;
     }
   }
@@ -261,6 +279,7 @@ public class AdminLiveClassManagementService {
                 .course(course)
                 .slot(slot)
                 .provider(request.provider())
+                .leadInstructor(scheduling.primaryInstructor(course))
                 .providerMeetingId(meetingId)
                 .hostStartUrl(hostStartUrl)
                 .participantJoinUrl(participantJoinUrl)
@@ -277,9 +296,8 @@ public class AdminLiveClassManagementService {
     LiveClassSlot slot =
         liveClassSlotRepository
             .findByIdForUpdate(liveClassItemId)
-            .orElseThrow(
-                () ->
-                    new ResponseStatusException(HttpStatus.NOT_FOUND, "Live class item not found"));
+            .orElseThrow(() ->
+                new ResponseStatusException(HttpStatus.NOT_FOUND, "Live class item not found"));
     validateHierarchy(course, slot.getSection());
     if (liveClassRepository.existsByCourseIdAndSlotId(courseId, slot.getId())) {
       throw new ResponseStatusException(
@@ -320,7 +338,7 @@ public class AdminLiveClassManagementService {
   public AdminLiveClassDetailResponse update(UUID liveClassId, UpdateLiveClassRequest request) {
     LiveClass liveClass =
         liveClassRepository
-            .findById(liveClassId)
+            .findByIdForUpdate(liveClassId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Live class not found"));
     final Course course =
@@ -355,7 +373,12 @@ public class AdminLiveClassManagementService {
       validateTimeRange(startsAt, endsAt);
       validateOfferingWindow(course, startsAt, endsAt);
       if (isApiProvisioned(liveClass)) {
-        ensureNoProviderOverlap(liveClass.getProvider(), startsAt, endsAt, liveClass.getId());
+        scheduling.ensureAvailable(
+            liveClass.getProvider(),
+            liveClass.getLeadInstructor(),
+            startsAt,
+            endsAt,
+            liveClass.getId());
       }
       syncProviderUpdate(
           liveClass,
@@ -383,6 +406,9 @@ public class AdminLiveClassManagementService {
     if (request.status() != null) {
       LiveClassStatus nextStatus = parseStatus(request.status());
       validateStatusTransitionForUpdate(liveClass.getStatus(), nextStatus);
+      if (nextStatus == LiveClassStatus.CANCELLED) {
+        syncProviderCancel(liveClass);
+      }
       liveClass.setStatus(nextStatus);
       if (nextStatus == LiveClassStatus.COMPLETED
           || nextStatus == LiveClassStatus.CANCELLED
@@ -400,7 +426,7 @@ public class AdminLiveClassManagementService {
   public AdminLiveClassStartResponse start(UUID liveClassId) {
     LiveClass liveClass =
         liveClassRepository
-            .findById(liveClassId)
+            .findByIdForUpdate(liveClassId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Live class not found"));
     if (liveClass.getStatus() != LiveClassStatus.SCHEDULED) {
@@ -413,6 +439,7 @@ public class AdminLiveClassManagementService {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "Live class meeting is not provisioned");
     }
+    scheduling.prepareGoogle(liveClass);
     liveClass.setStatus(LiveClassStatus.LIVE);
     LiveClass saved = liveClassRepository.save(liveClass);
     long approvedRegistrants =
@@ -435,7 +462,7 @@ public class AdminLiveClassManagementService {
   public AdminLiveClassDetailResponse cancel(UUID liveClassId) {
     LiveClass liveClass =
         liveClassRepository
-            .findById(liveClassId)
+            .findByIdForUpdate(liveClassId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Live class not found"));
     if (liveClass.getStatus() != LiveClassStatus.SCHEDULED) {
@@ -462,6 +489,8 @@ public class AdminLiveClassManagementService {
         LiveMeetingUpdateRequest.builder()
             .provider(liveClass.getProvider())
             .providerMeetingId(liveClass.effectiveMeetingId())
+            .metadata(liveClass.getProviderMetadata())
+            .calendarGuestEmails(scheduling.calendarGuests(liveClass))
             .title(title)
             .description(description)
             .startsAt(startsAt)
@@ -481,16 +510,20 @@ public class AdminLiveClassManagementService {
         LiveMeetingCancelRequest.builder()
             .provider(liveClass.getProvider())
             .providerMeetingId(liveClass.effectiveMeetingId())
+            .metadata(liveClass.getProviderMetadata())
             .build());
   }
 
   private void compensateCreatedMeeting(
-      LiveClassProvider provider, String meetingId, RuntimeException persistenceFailure) {
+      LiveClassProvider provider,
+      LiveMeetingCreateResult meeting,
+      RuntimeException persistenceFailure) {
     try {
       liveMeetingProvisioningService.cancelMeeting(
           LiveMeetingCancelRequest.builder()
               .provider(provider)
-              .providerMeetingId(meetingId)
+              .providerMeetingId(meeting.meetingId())
+              .metadata(meeting.metadata())
               .build());
     } catch (RuntimeException compensationFailure) {
       persistenceFailure.addSuppressed(compensationFailure);
@@ -498,7 +531,10 @@ public class AdminLiveClassManagementService {
   }
 
   private AdminLiveClassSummaryResponse toSummary(LiveClass liveClass, int approvedRegistrants) {
-    User instructor = primaryInstructor(liveClass.getCourse());
+    User instructor =
+        (liveClass.getLeadInstructor() != null
+            ? liveClass.getLeadInstructor()
+            : primaryInstructor(liveClass.getCourse()));
     String instructorName = instructor != null ? instructor.getFullName() : null;
     return AdminLiveClassSummaryResponse.builder()
         .liveClassId(liveClass.getId())
@@ -532,8 +568,14 @@ public class AdminLiveClassManagementService {
         .sectionTitle(liveClass.getSection().getTitle())
         .sectionTitleEn(liveClass.getSection().getTitleEn())
         .position(positionOf(liveClass.getId()))
-        .instructorId(primaryInstructorId(liveClass.getCourse()))
-        .instructorName(primaryInstructorName(liveClass.getCourse()))
+        .instructorId(
+            liveClass.getLeadInstructor() != null
+                ? liveClass.getLeadInstructor().getId()
+                : primaryInstructorId(liveClass.getCourse()))
+        .instructorName(
+            liveClass.getLeadInstructor() != null
+                ? liveClass.getLeadInstructor().getFullName()
+                : primaryInstructorName(liveClass.getCourse()))
         .startsAt(liveClass.getStartsAt())
         .endsAt(liveClass.getEndsAt())
         .provider(liveClass.getProvider())
@@ -585,10 +627,9 @@ public class AdminLiveClassManagementService {
     SectionItem item =
         sectionItemRepository
             .findByItemTypeAndItemId(SectionItemType.LIVE_CLASS, liveClass.getSlot().getId())
-            .orElseThrow(
-                () ->
-                    new ResponseStatusException(
-                        HttpStatus.INTERNAL_SERVER_ERROR, "Section item missing"));
+            .orElseThrow(() ->
+                new ResponseStatusException(
+                    HttpStatus.INTERNAL_SERVER_ERROR, "Section item missing"));
     item.setPosition(requestedPosition);
     sectionItemRepository.save(item);
   }
@@ -600,17 +641,16 @@ public class AdminLiveClassManagementService {
     }
     sectionItemRepository
         .findBySectionIdAndPosition(sectionId, requestedPosition)
-        .ifPresent(
-            item -> {
-              boolean sameLiveClass =
-                  item.getItemType() == SectionItemType.LIVE_CLASS
-                      && currentLiveClassId != null
-                      && currentLiveClassId.equals(item.getItemId());
-              if (!sameLiveClass) {
-                throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST, "Position is already used in this section");
-              }
-            });
+        .ifPresent(item -> {
+          boolean sameLiveClass =
+              item.getItemType() == SectionItemType.LIVE_CLASS
+                  && currentLiveClassId != null
+                  && currentLiveClassId.equals(item.getItemId());
+          if (!sameLiveClass) {
+            throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST, "Position is already used in this section");
+          }
+        });
   }
 
   private Integer positionOf(UUID liveClassId) {
@@ -703,36 +743,6 @@ public class AdminLiveClassManagementService {
 
   private boolean isApiProvisioned(LiveClass liveClass) {
     return liveClass.getProvisioningMode() == LiveClassProvisioningMode.API_PROVISIONED;
-  }
-
-  private void ensureNoProviderOverlap(
-      LiveClassProvider provider, Instant startsAt, Instant endsAt) {
-    liveClassRepository.acquireProviderSchedulingLock(provider.ordinal());
-    boolean overlap =
-        liveClassRepository.existsOverlappingByProvider(
-            provider, List.of(LiveClassStatus.SCHEDULED, LiveClassStatus.LIVE), startsAt, endsAt);
-    if (overlap) {
-      throw new ResponseStatusException(
-          HttpStatus.BAD_REQUEST, "Provider host account already has overlapping live class");
-    }
-  }
-
-  private void ensureNoProviderOverlap(
-      LiveClassProvider provider, Instant startsAt, Instant endsAt, UUID excludingLiveClassId) {
-    liveClassRepository.acquireProviderSchedulingLock(provider.ordinal());
-    boolean overlap =
-        liveClassRepository.findAll().stream()
-            .filter(
-                lc ->
-                    !lc.getId().equals(excludingLiveClassId)
-                        && lc.getProvider() == provider
-                        && (lc.getStatus() == LiveClassStatus.SCHEDULED
-                            || lc.getStatus() == LiveClassStatus.LIVE))
-            .anyMatch(lc -> lc.getStartsAt().isBefore(endsAt) && lc.getEndsAt().isAfter(startsAt));
-    if (overlap) {
-      throw new ResponseStatusException(
-          HttpStatus.BAD_REQUEST, "Provider host account already has overlapping live class");
-    }
   }
 
   private void validateStatusTransitionForUpdate(LiveClassStatus current, LiveClassStatus next) {

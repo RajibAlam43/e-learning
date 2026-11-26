@@ -29,6 +29,7 @@ dependencies {
 
     // EMAIL (SES)
     implementation 'software.amazon.awssdk:ses'
+    implementation 'software.amazon.awssdk:s3'
 
     // OTHERS
     implementation 'org.projectlombok:lombok:1.18.46'

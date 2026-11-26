@@ -46,7 +46,7 @@ public class AdminThumbnailUploadService {
         baseName + "-" + uniqueSuffix + filename.substring(extensionStart).toLowerCase(Locale.ROOT);
     String objectKey = "thumbnails/" + request.ownerType().path() + "/" + storedFilename;
     R2PresignedUrlService.PresignedUpload upload =
-        r2PresignedUrlService.generateUploadUrl(
+        r2PresignedUrlService.generateThumbnailUploadUrl(
             objectKey, expectedContentType, request.sizeBytes());
     return ThumbnailUploadResponse.builder()
         .objectKey(objectKey)

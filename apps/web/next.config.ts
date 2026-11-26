@@ -51,6 +51,7 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       { source: '/(.*)', headers: securityHeaders },
+      { source: '/instructor/live-classes/:id/record', headers: [{ key: 'Permissions-Policy', value: 'camera=(), microphone=(self), display-capture=(self), geolocation=()' }] },
       ...noIndexRoutes.map((source) => ({
         source,
         headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }],

@@ -21,6 +21,37 @@ public interface LiveClassRepository extends JpaRepository<LiveClass, UUID> {
   @Query(value = "SELECT pg_advisory_xact_lock(:lockKey)", nativeQuery = true)
   Object acquireProviderSchedulingLock(@Param("lockKey") int lockKey);
 
+  @Query(value = "SELECT pg_advisory_xact_lock(1279873793, :lockKey)", nativeQuery = true)
+  Object acquireTeacherSchedulingLock(@Param("lockKey") int lockKey);
+
+  @Query(
+      """
+      SELECT COUNT(lc) > 0 FROM LiveClass lc
+      WHERE lc.leadInstructor.id = :instructorId AND lc.status IN :statuses
+        AND lc.startsAt < :endsAt AND lc.endsAt > :startsAt
+        AND (:excludingId IS NULL OR lc.id <> :excludingId)
+      """)
+  boolean existsTeacherOverlap(
+      @Param("instructorId") UUID instructorId,
+      @Param("statuses") List<LiveClassStatus> statuses,
+      @Param("startsAt") Instant startsAt,
+      @Param("endsAt") Instant endsAt,
+      @Param("excludingId") UUID excludingId);
+
+  @Query(
+      """
+      SELECT COUNT(lc) > 0 FROM LiveClass lc
+      WHERE lc.provider = :provider AND lc.status IN :statuses
+        AND lc.startsAt < :endsAt AND lc.endsAt > :startsAt
+        AND (:excludingId IS NULL OR lc.id <> :excludingId)
+      """)
+  boolean existsProviderOverlapExcluding(
+      @Param("provider") LiveClassProvider provider,
+      @Param("statuses") List<LiveClassStatus> statuses,
+      @Param("startsAt") Instant startsAt,
+      @Param("endsAt") Instant endsAt,
+      @Param("excludingId") UUID excludingId);
+
   @Query(
       value =
           """
@@ -64,6 +95,20 @@ public interface LiveClassRepository extends JpaRepository<LiveClass, UUID> {
         )
       """)
   Optional<LiveClass> findByIdAssignedToInstructor(
+      @Param("id") UUID id, @Param("instructorId") UUID instructorId);
+
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
+  @Query(
+      """
+        SELECT lc FROM LiveClass lc
+        WHERE lc.id = :id
+        AND EXISTS (
+          SELECT 1 FROM CourseInstructor ci
+          WHERE ci.course.id = lc.course.id
+          AND ci.instructor.id = :instructorId
+        )
+      """)
+  Optional<LiveClass> findByIdAssignedToInstructorForUpdate(
       @Param("id") UUID id, @Param("instructorId") UUID instructorId);
 
   @Query(

@@ -7,6 +7,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorState } from '@/components/shared/ErrorState'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { Video, Calendar } from 'lucide-react'
+import { GoogleMeetConnectionPanel } from '@/components/instructor/GoogleMeetConnectionPanel'
+import { RecordClassLink } from '@/components/instructor/RecordClassLink'
 
 function formatDateTime(iso?: string): { date: string; time: string } {
   if (!iso) return { date: '—', time: '' }
@@ -40,6 +42,8 @@ export default function InstructorLiveClassesPage() {
         </p>
       </div>
 
+      <GoogleMeetConnectionPanel />
+
       {isLoading && (
         <div className='grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4'>
           {Array.from({ length: 3 }).map((_, i) => (
@@ -68,7 +72,7 @@ export default function InstructorLiveClassesPage() {
               <div className='grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4'>
                 {live.map((lc) => {
                   const { date, time } = formatDateTime(lc.startsAt)
-                  return <ClassCard key={lc.liveClassId} title={lc.title} date={date} time={time} status='LIVE' joinUrl={lc.startUrl} />
+                  return <ClassCard key={lc.liveClassId} title={lc.title} date={date} time={time} status='LIVE' joinUrl={lc.startUrl} classId={lc.liveClassId} />
                 })}
               </div>
             </section>
@@ -79,7 +83,7 @@ export default function InstructorLiveClassesPage() {
               <div className='grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4'>
                 {upcoming.map((lc) => {
                   const { date, time } = formatDateTime(lc.startsAt)
-                  return <ClassCard key={lc.liveClassId} title={lc.title} date={date} time={time} status='SCHEDULED' />
+                  return <ClassCard key={lc.liveClassId} title={lc.title} date={date} time={time} status='SCHEDULED' joinUrl={lc.startUrl} classId={lc.liveClassId} />
                 })}
               </div>
             </section>
@@ -101,7 +105,8 @@ export default function InstructorLiveClassesPage() {
   )
 }
 
-function ClassCard({ title, date, time, status, joinUrl, recordingUrl }: {
+function ClassCard({ title, date, time, status, joinUrl, recordingUrl, classId }: {
+  classId?: string
   title?: string
   date: string
   time: string
@@ -135,6 +140,7 @@ function ClassCard({ title, date, time, status, joinUrl, recordingUrl }: {
             className='w-full h-10 flex items-center justify-center gap-2 rounded-md bg-red-500 text-white text-sm font-semibold hover:bg-red-600 transition-colors'>
             {ui('joinNow')}</a>
         )}
+        <RecordClassLink classId={classId} meetingUrl={joinUrl} />
         {status === 'COMPLETED' && recordingUrl && (
           <a href={recordingUrl} target='_blank' rel='noopener noreferrer'
             className='w-full h-10 flex items-center justify-center gap-2 rounded-md bg-green-50 text-green-600 text-sm font-semibold hover:bg-green-100 transition-colors'>
