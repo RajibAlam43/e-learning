@@ -46,6 +46,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${baseUrl}/collections`, changeFrequency: 'weekly', priority: 0.8 },
     { url: `${baseUrl}/verify-certificate`, changeFrequency: 'monthly', priority: 0.5 },
     { url: `${baseUrl}/contact`, changeFrequency: 'monthly', priority: 0.5 },
+    { url: `${baseUrl}/privacy-policy`, changeFrequency: 'monthly', priority: 0.3 },
+    { url: `${baseUrl}/terms`, changeFrequency: 'monthly', priority: 0.3 },
+    { url: `${baseUrl}/cookie-policy`, changeFrequency: 'monthly', priority: 0.3 },
   ]
 
   const [coursesResult, instructorsResult, collectionsResult] = await Promise.allSettled([

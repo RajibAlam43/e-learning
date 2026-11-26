@@ -19,6 +19,7 @@ import software.amazon.awssdk.services.ses.model.SendEmailRequest;
 public class EmailDeliveryService {
 
   private final SesClient sesClient;
+  private final VerificationEmailTemplateService templates;
 
   @Value("${aws.ses.from-domain:}")
   private String fromDomain;
@@ -46,6 +47,11 @@ public class EmailDeliveryService {
                     .body(
                         Body.builder()
                             .text(Content.builder().data(job.body()).charset("UTF-8").build())
+                            .html(
+                                Content.builder()
+                                    .data(templates.render(job))
+                                    .charset("UTF-8")
+                                    .build())
                             .build())
                     .build())
             .build();

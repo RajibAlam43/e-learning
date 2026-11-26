@@ -12,5 +12,5 @@ function policyUrl(value: unknown): string | undefined {
 export function getPolicyLinks(settings: readonly PublicSetting[] = []) {
   const value = settings.find(setting => setting.key === 'site.legal')?.value
   const legal = value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
-  return { terms: policyUrl(legal.termsUrl), privacy: policyUrl(legal.privacyPolicyUrl) }
+  return { terms: policyUrl(legal.termsUrl) ?? '/terms', privacy: policyUrl(legal.privacyPolicyUrl) ?? '/privacy-policy' }
 }

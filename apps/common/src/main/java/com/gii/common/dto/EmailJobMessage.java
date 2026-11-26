@@ -17,4 +17,5 @@ public record EmailJobMessage(
     VerificationPurpose verificationPurpose,
     VerificationChannel verificationChannel,
     String verificationCode,
-    Instant createdAt) {}
+    Instant createdAt,
+    Instant expiresAt) {}

@@ -13,7 +13,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -25,10 +24,12 @@ class EmailDeliveryServiceTest {
 
   @Mock private SesClient sesClient;
 
-  @InjectMocks private EmailDeliveryService emailDeliveryService;
+  private EmailDeliveryService emailDeliveryService;
 
   @BeforeEach
   void setUp() {
+    emailDeliveryService =
+        new EmailDeliveryService(sesClient, new VerificationEmailTemplateService());
     ReflectionTestUtils.setField(emailDeliveryService, "fromDomain", "notifications.example.com");
     ReflectionTestUtils.setField(emailDeliveryService, "fromLocalPart", "no-reply");
   }
@@ -61,6 +62,10 @@ class EmailDeliveryServiceTest {
         .isEqualTo("Verify email");
     org.assertj.core.api.Assertions.assertThat(request.message().body().text().data())
         .isEqualTo("Your OTP is 123456");
+    org.assertj.core.api.Assertions.assertThat(request.message().body().html().data())
+        .contains("Global Islamic Institute", "Your OTP is 123456", "<table");
+    org.assertj.core.api.Assertions.assertThat(request.message().body().html().charset())
+        .isEqualTo("UTF-8");
   }
 
   @Test

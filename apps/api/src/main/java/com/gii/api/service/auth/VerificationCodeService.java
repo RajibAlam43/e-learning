@@ -83,11 +83,10 @@ public class VerificationCodeService {
     // Revoke previous valid OTP for same purpose+channel
     verificationCodeRepository
         .findLatestValidOtp(userId, purpose, channel)
-        .ifPresent(
-            existingOtp -> {
-              existingOtp.setRevokedAt(now);
-              verificationCodeRepository.save(existingOtp);
-            });
+        .ifPresent(existingOtp -> {
+          existingOtp.setRevokedAt(now);
+          verificationCodeRepository.save(existingOtp);
+        });
 
     // Generate cryptographically secure 6-digit OTP
     String secureCode = generateSecureVerificationCode();
@@ -119,7 +118,13 @@ public class VerificationCodeService {
 
     verificationCodeRepository.save(verificationCode);
 
-    queueOtpSend(userId, channel, normalizedChannelValue, secureCode, purpose);
+    queueOtpSend(
+        userId,
+        channel,
+        normalizedChannelValue,
+        secureCode,
+        purpose,
+        verificationCode.getExpiresAt());
   }
 
   /** Verify OTP with comprehensive security checks. */
@@ -226,7 +231,8 @@ public class VerificationCodeService {
       VerificationChannel channel,
       String channelValue,
       String code,
-      VerificationPurpose purpose) {
+      VerificationPurpose purpose,
+      Instant expiresAt) {
     if (channel == VerificationChannel.EMAIL) {
       EmailJobMessage job =
           EmailJobMessage.builder()
@@ -241,6 +247,7 @@ public class VerificationCodeService {
               .verificationChannel(channel)
               .verificationCode(code)
               .createdAt(Instant.now())
+              .expiresAt(expiresAt)
               .build();
 
       emailJobPublisherService.publish(job);
