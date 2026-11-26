@@ -1,0 +1,263 @@
+{
+  "privacy": {
+    "title": "Privacy Policy",
+    "updated": "November 25, 2026",
+    "intro": "Global Islamic Institute operates the learning management system at globalislamicinstitute.com from Bangladesh. This policy explains how we handle information when you visit our website, use learning services, attend live classes or connect a Google account. Privacy questions and requests can be sent to rajibalam@globalislamicinstitute.com.",
+    "sections": [
+      {
+        "id": "information",
+        "title": "Information we handle",
+        "paragraphs": [
+          "We handle account information such as your name, email address or phone number, account roles and authentication records. Learning records include course enrollments, progress, assessments, submissions, certificates and communications with teachers or support. Course choices and communications may reveal religious interests.",
+          "Order and payment records include amounts, payment status and transaction references. Payment gateways handle payment credentials through their checkout services. We use transaction information to validate payments and provide course access.",
+          "We process operational and security information, which can include IP addresses, browser information, request logs and security events, to operate and protect the service."
+        ]
+      },
+      {
+        "id": "google-sign-in",
+        "title": "Google sign-in",
+        "paragraphs": [
+          "If you choose Google sign-in, Google supplies identity information such as a verified email address, a Google account identifier and, when available, your name. We use it to authenticate you and create or link your LMS account. Google sign-in alone does not grant access to Calendar events, Gmail messages or Drive files. Other LMS sign-in methods remain available."
+        ]
+      },
+      {
+        "id": "calendar-and-meet",
+        "title": "Google Calendar and Meet",
+        "paragraphs": [
+          "Teachers separately connect Google to authorize live-class scheduling. We verify the connected Google identity and request the permissions needed for the selected scheduling features.",
+          "With Calendar authorization, the LMS creates class events and Google Meet conferences on the authorized host’s primary calendar, invites course teachers, updates class schedules and deletes events when classes are cancelled. The calendar.events.owned permission covers events on calendars the account owns. Our scheduling feature uses it for LMS class events and does not provide a view of unrelated personal events.",
+          "With Meet authorization, the LMS creates Google Meet spaces and manages settings and metadata for spaces created by the application. The meetings.space.created permission supports these actions, including assigning and removing course teachers or manually designated accounts as co-hosts where the organizer’s Google edition permits it. An institute organizer can own shared meetings and optionally receive corresponding Calendar events.",
+          "We store the connected account identifier and email, granted permissions, an encrypted teacher refresh token and available expiry information. Class records can include event and meeting identifiers, organizer information, schedules, meeting links and assigned co-host information. Refresh tokens allow authorized management after the user leaves the consent screen. The LMS does not ask for your Google password.",
+          "The Google account used to create a meeting determines its ownership. Changing the institute organizer setting does not transfer ownership of existing teacher-owned meetings."
+        ]
+      },
+      {
+        "id": "sharing",
+        "title": "Class invitations and information sharing",
+        "paragraphs": [
+          "Scheduling can send class titles, descriptions, times, meeting links and invited teachers’ email addresses to Google and invited recipients. Google’s event and meeting interfaces can reveal organizer, guest or co-host information according to their settings. Enrolled students receive the relevant class information and joining links through the LMS.",
+          "Teachers and administrators can access information needed for their course and administrative responsibilities. We use providers for hosting, databases, file storage, video delivery, payments, email, SMS and security. These include Google for identity and meetings, Cloudflare for security and file delivery, AWS for messaging and recording infrastructure where enabled, Mux for lesson video, and the selected payment gateway. Infrastructure and service providers may process information outside Bangladesh.",
+          "We may disclose information where required by law or reasonably necessary to investigate misuse, protect users or respond to a legal claim. Any transfer associated with a business reorganization must remain subject to applicable privacy requirements."
+        ]
+      },
+      {
+        "id": "recordings",
+        "title": "Class recordings",
+        "paragraphs": [
+          "Where browser recording is enabled, a teacher explicitly selects a browser tab, shares its audio and grants microphone access. Recordings may include visible class content, participant names, voices, video and presented materials. Browser recording is separate from Google Meet’s native recording and does not require Google Drive authorization.",
+          "Recordings are saved temporarily in the teacher’s browser and uploaded to private recording storage. Validated recordings may be shared with authorized learners enrolled in the relevant course where playback is available. Teachers and administrators must provide the required notice and obtain any necessary consent before recording.",
+          "Local copies remain on the teacher’s device until removed, cleared or evicted. If browser storage fails, recovery bytes may remain only in the open page and must be downloaded before leaving or reloading. Removing a local copy does not delete an uploaded server recording."
+        ]
+      },
+      {
+        "id": "use",
+        "title": "How we use information",
+        "paragraphs": [
+          "We use information to manage accounts and course access, deliver learning and live classes, validate payments, record progress, issue certificates, communicate about the service, respond to requests and prevent misuse. We use Google data for the identity, scheduling and meeting features described here."
+        ]
+      },
+      {
+        "id": "limited-use",
+        "title": "Limits on Google user data",
+        "paragraphs": [
+          "We do not sell Google user data, use it to serve advertising, or use it to develop or train generalized artificial-intelligence or machine-learning models. Human access to Google data is limited to permitted purposes, such as a user’s specific affirmative permission, security investigation or legal obligations.",
+          "Our use and transfer of information received from Google APIs adheres to the Google API Services User Data Policy, including its Limited Use requirements: https://developers.google.com/terms/api-services-user-data-policy."
+        ]
+      },
+      {
+        "id": "security",
+        "title": "Security and browser storage",
+        "paragraphs": [
+          "We use HTTPS, access controls and encryption of stored teacher Google refresh tokens to protect account connections. No security measure eliminates all risk.",
+          "Cookies and browser storage support sign-in, preferences, cached learning information and local recording recovery. Google and other services apply their own policies when you interact with them. You can manage browser storage through your browser settings; clearing it can sign you out or remove local recordings."
+        ]
+      },
+      {
+        "id": "retention",
+        "title": "Retention and deletion requests",
+        "paragraphs": [
+          "Account profiles are retained on a long-term, indefinite basis. We have no automatic account-profile deletion schedule, and inactivity alone does not cause deletion. Learning and payment records may be retained to support continuing access, learning history, accounting, security or disputes. We have not established fixed deletion periods for every category of information, including recordings, logs and backups.",
+          "You can request access, correction or deletion by emailing rajibalam@globalislamicinstitute.com. We may verify your identity and review what can be provided or deleted. Some information may need to remain for applicable legal obligations, accounting, security or unresolved disputes. Approved deletion from active systems may not immediately remove copies in backups."
+        ]
+      },
+      {
+        "id": "disconnect",
+        "title": "Disconnecting Google",
+        "paragraphs": [
+          "Use Disconnect in the teacher Google connection controls to remove the stored teacher authorization from the LMS’s active connection store. You can separately revoke Google-side access through https://myaccount.google.com/connections.",
+          "Revoking access stops future authorized requests but does not itself erase existing LMS records. Disconnecting does not automatically delete existing Calendar events, course records or uploaded recordings and can prevent the LMS from managing meetings owned by that account until it is reconnected. Contact us for help with existing information or deletion requests."
+        ]
+      },
+      {
+        "id": "age",
+        "title": "Age requirement",
+        "paragraphs": [
+          "The LMS is intended for users aged 13 and older. By signing up, you confirm that you are at least 13. If you are not legally able to agree to the Terms of Service yourself, a parent or legal guardian must agree to the terms for your use. We do not knowingly enroll children under 13. If you believe a child under 13 has an account, contact rajibalam@globalislamicinstitute.com so we can investigate and take appropriate action."
+        ]
+      },
+      {
+        "id": "changes",
+        "title": "Changes and contact",
+        "paragraphs": [
+          "We publish updated wording and its update date when this policy changes. Where required, we notify users and obtain consent before using Google data for a new purpose. Contact Global Islamic Institute, Bangladesh, at rajibalam@globalislamicinstitute.com for privacy questions or requests."
+        ]
+      }
+    ]
+  },
+  "terms": {
+    "title": "Terms of Service",
+    "updated": "November 25, 2026",
+    "intro": "These terms govern use of Global Islamic Institute’s website and learning management system at globalislamicinstitute.com. Global Islamic Institute operates the service from Bangladesh. Contact rajibalam@globalislamicinstitute.com with questions. Our handling of personal information is described in the Privacy Policy at https://globalislamicinstitute.com/privacy-policy.",
+    "sections": [
+      {
+        "id": "accounts",
+        "title": "Accounts and eligibility",
+        "paragraphs": [
+          "By signing up, you confirm that you are at least 13 years old and agree to these terms. Users under 13 may not register for or use an LMS account. If you are not legally able to agree to these terms yourself, a parent or legal guardian must agree to them for your use. Google sign-in is optional and is not proof of age or guardian permission.",
+          "Provide accurate registration information and keep your credentials private. You are responsible for activity you authorize. Contact us promptly if you suspect unauthorized access. Do not share, sell or transfer an account without permission."
+        ]
+      },
+      {
+        "id": "enrollment",
+        "title": "Enrollment and course access",
+        "paragraphs": [
+          "The course or collection information describes the included services. Paid access depends on a successfully verified payment or another enrollment expressly approved by the institute. Free courses may have separate enrollment requirements.",
+          "Access is subject to the availability and enrollment period stated for the course. Enrollment does not imply lifetime access, automatic renewal or a recording of every live class. If an access period or renewal condition is unclear, contact us before purchasing.",
+          "Certificates depend on the completion and assessment requirements stated for the course. A certificate does not imply accreditation or recognition by an external institution unless that recognition is expressly stated."
+        ]
+      },
+      {
+        "id": "refunds",
+        "title": "Fees and refunds",
+        "paragraphs": [
+          "Checkout and course information identify the applicable price, currency and disclosed charges. Payments are processed through the available third-party gateways. Pending, unsuccessful or disputed payments may delay access while we investigate.",
+          "Course fees are non-refundable except where applicable law requires a refund or the institute expressly agrees otherwise in writing. We do not currently offer a standard voluntary refund program. Contact rajibalam@globalislamicinstitute.com about duplicate charges, payment errors or a service the institute cannot provide so we can investigate and determine an appropriate resolution.",
+          "If we introduce a voluntary refund policy later, its published conditions and effective date will determine when it applies. Nothing in these terms removes rights that applicable law does not allow us to exclude."
+        ]
+      },
+      {
+        "id": "live-classes",
+        "title": "Live classes and Google services",
+        "paragraphs": [
+          "Class schedules and joining requirements are provided through the LMS. Join using the account authorized for your participation and do not share private meeting links outside the class. We may need to reschedule a class and will communicate material changes through the available class or account channels. Contact support if a change prevents you from receiving a purchased service.",
+          "A teacher who connects Google authorizes the LMS to perform the Calendar and Meet actions described in the Privacy Policy and consent screen, including class event creation and updates, meeting-space management and eligible co-host assignments. The creating Google account determines meeting ownership. A Calendar invitation does not automatically grant co-host privileges.",
+          "Disconnecting Google can prevent management of meetings created under that account. Google’s terms, account restrictions and feature eligibility apply to its services."
+        ]
+      },
+      {
+        "id": "recordings",
+        "title": "Recordings and participant privacy",
+        "paragraphs": [
+          "Some classes may be recorded when recording is enabled. Teachers and administrators must provide the required notice and obtain any necessary participant or guardian consent before recording. Contact the teacher or support before a recorded session if you have questions or an objection so available arrangements can be discussed.",
+          "Teachers must select only the intended class tab and avoid capturing unrelated personal information. Learners must not independently record, redistribute or publish class recordings or other participants’ personal information without authorization. Recording availability is subject to the course arrangements and Privacy Policy."
+        ]
+      },
+      {
+        "id": "conduct",
+        "title": "Appropriate use",
+        "paragraphs": [
+          "Use the service lawfully and respectfully. Do not harass others, impersonate another person, disrupt teaching, submit work dishonestly, distribute harmful software, bypass access controls or attempt to access another user’s information. Do not upload content you lack permission to share."
+        ]
+      },
+      {
+        "id": "materials",
+        "title": "Learning materials and submissions",
+        "paragraphs": [
+          "Course materials and recordings remain subject to their owners’ rights. Enrollment permits personal learning use during the applicable access period. Reproduction, redistribution, resale or public posting requires permission unless applicable law permits it.",
+          "You retain rights in your submissions. You give the institute permission to host, process and display them to authorized teachers or assessors as needed to deliver the course and assess your work. This permission does not authorize unrelated advertising or public publication of private submissions."
+        ]
+      },
+      {
+        "id": "availability",
+        "title": "Availability and third parties",
+        "paragraphs": [
+          "We take reasonable steps to operate the LMS, but maintenance, internet issues and third-party failures can interrupt access or recording. Browser recordings can be lost through device failure or clearing browser data. A recording is not guaranteed until its availability has been confirmed.",
+          "Third-party websites, meeting services and payment gateways have their own terms and privacy policies. Nothing in these terms excludes an obligation or remedy that applicable law does not allow us to exclude."
+        ]
+      },
+      {
+        "id": "closure",
+        "title": "Restrictions and account closure",
+        "paragraphs": [
+          "We may restrict access where reasonably necessary to investigate security incidents, misuse, payment issues or serious breaches of these terms. We may act immediately to protect the service or other users. Contact support to challenge a restriction, request restoration or discuss the effect on paid access.",
+          "You can contact support to request account closure. Closing an account does not by itself erase all records; information is retained or deleted as explained in the Privacy Policy."
+        ]
+      },
+      {
+        "id": "changes",
+        "title": "Changes to these terms",
+        "paragraphs": [
+          "We may update these terms by publishing revised wording and an update date. We will communicate material changes affecting existing paid services through the available account channels and obtain agreement where required. Changes remain subject to mandatory rights that apply to you."
+        ]
+      },
+      {
+        "id": "disputes",
+        "title": "Contact and disputes",
+        "paragraphs": [
+          "Contact rajibalam@globalislamicinstitute.com to raise a complaint or seek resolution. These terms are governed by the laws of Bangladesh, subject to mandatory consumer or other rights that apply to you. These terms do not require arbitration or waive mandatory rights."
+        ]
+      }
+    ]
+  },
+  "cookies": {
+    "title": "Cookie Policy",
+    "updated": "November 25, 2026",
+    "intro": "Global Islamic Institute uses cookies and similar browser storage to run its learning management system. This policy explains their purposes and how you can manage them. Read it alongside our Privacy Policy at https://globalislamicinstitute.com/privacy-policy.",
+    "sections": [
+      {
+        "id": "about",
+        "title": "Cookies and browser storage",
+        "paragraphs": [
+          "Cookies are small pieces of information saved by your browser and sent with relevant requests. Local storage, session storage and IndexedDB also keep information on your device, but are not cookies. The LMS uses these technologies for the purposes described below."
+        ]
+      },
+      {
+        "id": "sign-in",
+        "title": "Sign-in and security",
+        "paragraphs": [
+          "The refresh_token cookie maintains your session and lets the service renew authentication. It is HttpOnly, so page JavaScript cannot read it. The session and user_roles cookies help the frontend route you to appropriate screens; they do not authorize access to protected API data. Authentication is checked by the server.",
+          "The Google connection process can use a short-lived cookie to bind an authorization response to the teacher who started it. These features support account security and sign-in rather than advertising. Cookie lifetimes depend on their purpose and the session configuration; logout clears the active sign-in cookies."
+        ]
+      },
+      {
+        "id": "preferences",
+        "title": "Preferences and cached information",
+        "paragraphs": [
+          "The locale cookie remembers your language preference. Local storage can retain basic account profile information and sign-in state under lms-auth. The LMS also uses IndexedDB to cache selected public course and site information, with a configured cache age of up to 24 hours. Quiz answers can be held in session storage while you complete an attempt.",
+          "Some cookies and local-storage entries can persist after the browser closes until they expire, are replaced or are cleared. Browser storage may also be removed by your browser or device."
+        ]
+      },
+      {
+        "id": "recordings",
+        "title": "Local class recordings",
+        "paragraphs": [
+          "When a teacher starts browser recording, IndexedDB stores recording details and captured chunks on that device to support uploading and recovery. Local recordings can remain until the teacher deletes them, clears site data or the browser removes them.",
+          "Clearing site data can permanently remove recordings that have not been uploaded. If browser storage fails during a recording, unwritten chunks may remain only in the open page. Save the available recovery copy before closing or reloading the page. Deleting a local copy does not delete an uploaded recording."
+        ]
+      },
+      {
+        "id": "providers",
+        "title": "Third-party services",
+        "paragraphs": [
+          "Google sign-in, meeting services, payment gateways and video providers may use their own cookies or storage when you interact with their services. Their privacy and cookie policies apply to that activity. Embedded content may also communicate with its provider when loaded.",
+          "This policy does not describe an advertising or optional analytics cookie program as currently enabled. If we introduce optional tracking, we will update this information and obtain any consent required before enabling it."
+        ]
+      },
+      {
+        "id": "controls",
+        "title": "Your controls",
+        "paragraphs": [
+          "Use your browser settings to inspect, block or delete cookies and site data. Blocking essential cookies can prevent sign-in and other account functions. Clearing local storage can remove preferences, cached information, quiz drafts and recording recovery copies.",
+          "The LMS does not currently provide a separate cookie-preferences popup. For questions about browser storage or personal information, contact rajibalam@globalislamicinstitute.com."
+        ]
+      },
+      {
+        "id": "updates",
+        "title": "Updates and contact",
+        "paragraphs": [
+          "We will publish changes to this policy with an updated date. Global Islamic Institute operates from Bangladesh. Contact rajibalam@globalislamicinstitute.com about this policy, or use the Privacy Policy for information about retention and privacy requests."
+        ]
+      }
+    ]
+  }
+}

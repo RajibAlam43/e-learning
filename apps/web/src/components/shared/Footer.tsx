@@ -69,7 +69,7 @@ export function Footer() {
       ? { label: 'WhatsApp', href: value('site.social.whatsappUrl'), icon: 'whatsapp' }
       : whatsappNumber ? { label: 'WhatsApp', href: `https://wa.me/${whatsappNumber}`, icon: 'whatsapp' } : null,
   ].filter((item): item is { label: string; href: string; icon: string } => item !== null)
-  const legalHref = (key: string) => value(key) || '/contact'
+  const legalHref = (key: string) => value(key) || ({ 'site.legal.privacyPolicyUrl': '/privacy-policy', 'site.legal.termsUrl': '/terms', 'site.legal.cookiePolicyUrl': '/cookie-policy' } as Record<string, string>)[key] || '/contact'
 
   const footerSections = [
     {
