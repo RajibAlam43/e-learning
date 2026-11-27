@@ -111,6 +111,14 @@ public class PaidOrderEnrollmentService {
               && (existing.getExpiresAt() == null || existing.getExpiresAt().isAfter(now));
       if (alreadyOccupiesSeat) {
         if (existing.isProgramAccessManaged()) {
+          // A pending payment may settle after an admin/free independent grant.
+          // Preserve that grant's provenance so refunding the payment cannot remove it.
+          if (existing.getSourceOrderItem() == null
+              && existing.isIndependentAccessAvailable()
+              && (existing.getIndependentAccessExpiresAt() == null
+                  || existing.getIndependentAccessExpiresAt().isAfter(now))) {
+            return;
+          }
           existing.setSourceOrderItem(sourceOrderItem);
           existing.setSourceCollection(sourceCollection);
           programAccess.independentGrant(

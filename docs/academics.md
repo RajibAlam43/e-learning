@@ -1,8 +1,8 @@
 # Semesters and academic credits
 
-Steps 1–4 provide institution semesters, course credits, reusable cohort offerings,
+Steps 1–5 provide institution semesters, course credits, reusable cohort offerings,
 academic achievements, prerequisites, credit waivers, program curricula and deferred
-course/cohort registration. Manual enrollment is the next step.
+course/cohort registration, and audited manual enrollment administration.
 
 ## Administration
 
@@ -249,7 +249,7 @@ reviewer, timestamp and reason are retained; new choices create separate history
 records. Withdrawal releases an unfinished elective reservation and any access
 provided solely by that choice. Completed courses or awarded academic credits cannot
 be withdrawn to release allowance. Students cannot withdraw their own choices.
-Date/capacity overrides and general manual enrollment remain step 5.
+Date/capacity overrides and general manual enrollment are described in step 5 below.
 
 | Method | Route | Purpose |
 | --- | --- | --- |
@@ -269,3 +269,63 @@ The final complete integration run passed on a disposable native PostgreSQL 17 d
 using the existing loopback test override after Docker's PostgreSQL 18 container failed
 to initialize with a local disk I/O error. Earlier registration/concurrency checks passed
 on PostgreSQL 18. No test configuration or hosted database setting was changed.
+
+## Manual enrollment administration (step 5)
+
+Open **Admin → Students → a student's name → Manual enrollment**. The new screen
+shows the student's name and email or phone, and offers three actions:
+
+- **Course access** grants an independent enrollment in a selected course offering.
+- **Program access** grants program entitlement with its curriculum snapshot and
+  configured access period. It does not take course seats; courses are selected later.
+- **Course through a program** selects an included, published offering against that
+  student's active program entitlement and elective allowance.
+
+Every action requires a reason. Administrators can explicitly override semester and
+course registration dates or course capacity for course admissions. Independent
+course/program grants also offer an explicit unpublished-access exception. Program-funded
+registrations still require a published, included offering and sufficient elective
+allowance. Prerequisites are enforced for new admissions even with overrides; approve
+the student's credit waiver through the existing review process first.
+
+Existing valid enrollments are returned unchanged, with an audit entry explaining
+that existing access was preserved. This action does not add a separate grant to an
+already active enrollment or extend its expiry. New/reactivated independent course
+access uses the offering's configured duration; absence of a duration means no expiry,
+as with ordinary course enrollment. Program access uses its configured duration, or
+expected duration plus 24 months for a credit-based program. Legacy bundles keep their
+existing unlimited-duration semantics. Reactivating a program retains its original
+graduation requirements and access-period configuration; later curriculum changes
+do not rewrite that academic contract. Completed work and academic achievements remain
+intact. Granting access alone creates no order, payment, completion or academic credit.
+
+Each successful action records the student, administrator, timestamp, target, reason,
+requested overrides, resulting expiry and whether access changed. The screen pages
+through 50 audit entries at a time. Clients send a UUID `requestId`; replaying the same
+action returns its original result without renewing access or adding an audit entry.
+Reusing that ID with different content is rejected. Failed admissions create no audit
+grant. Course locks serialize admissions against seat capacity, while the shared student
+mutation lock coordinates these actions with purchases, refunds and program choices.
+
+Manual independent access remains valid after withdrawal of a linked program selection.
+A pending payment settling after a valid independent manual/free grant cannot replace
+that grant's provenance, so refunding that payment cannot revoke the manual/free access.
+Program-funded choices use the existing audited withdrawal flow and preserve other
+valid access sources. Access grants do not bypass section publication or release rules.
+
+| Method | Route | Purpose |
+| --- | --- | --- |
+| GET | `/admin/students/{userId}/manual-enrollments?page=0` | Student identity, active program entitlements and manual audit history |
+| POST | `/admin/students/{userId}/manual-enrollments` | Grant or register access with an audit reason and explicit overrides |
+
+POST accepts `requestId`, `reason`, and either `courseId` or `programId`. For a
+program-funded course selection, provide both IDs and `programFunded: true`.
+`overrideDates`, `overrideCapacity` and `allowUnpublished` default to false. Date and
+capacity overrides apply only to course admissions; `allowUnpublished` applies only
+to independent course/program access. Both routes require ADMIN or SUPER_ADMIN.
+
+Apply **V28** after V27 using the existing migrator, then deploy matching API, worker
+and web images. It adds only the manual enrollment audit table and index. No new
+environment variables or cloud services are required. Existing frontend source changes
+are limited to the registration page's navigation link and regenerated API types;
+the screen, component and client hooks are new files. Nothing has been deployed.

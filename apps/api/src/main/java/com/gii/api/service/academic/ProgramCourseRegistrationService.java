@@ -47,6 +47,12 @@ public class ProgramCourseRegistrationService {
 
   @Transactional
   public ProgramRegistrationResponse register(UUID userId, UUID programId, UUID courseId) {
+    return register(userId, programId, courseId, false, false);
+  }
+
+  @Transactional
+  public ProgramRegistrationResponse register(
+      UUID userId, UUID programId, UUID courseId, boolean overrideDates, boolean overrideCapacity) {
     mutationLock.lock(userId);
     var course =
         courses
@@ -132,7 +138,7 @@ public class ProgramCourseRegistrationService {
     }
     if (!occupied) {
       try {
-        policy.validateCheckout(course, userId, now);
+        policy.validateManualAdmission(course, userId, now, overrideDates, overrideCapacity, false);
       } catch (EnrollmentPolicyViolationException exception) {
         throw new ResponseStatusException(HttpStatus.CONFLICT, exception.getMessage(), exception);
       }

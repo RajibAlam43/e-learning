@@ -1112,6 +1112,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/students/{userId}/manual-enrollments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read student identity, program entitlements and paged manual enrollment audit */
+        get: operations["overview"];
+        put?: never;
+        /**
+         * Manually enroll with an audit reason; prerequisites require approved waivers
+         * @description Select a course or program, or both with programFunded. requestId makes retries idempotent. Existing valid access is returned unchanged. Program-funded registrations retain curriculum and elective allowance checks.
+         */
+        post: operations["enroll"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/semesters": {
         parameters: {
             query?: never;
@@ -3913,6 +3934,50 @@ export interface components {
         WithdrawProgramRegistrationRequest: {
             reason: string;
         };
+        ManualEnrollmentRequest: {
+            /** Format: uuid */
+            requestId: string;
+            /** Format: uuid */
+            courseId?: string;
+            /** Format: uuid */
+            programId?: string;
+            programFunded?: boolean;
+            overrideDates?: boolean;
+            overrideCapacity?: boolean;
+            allowUnpublished?: boolean;
+            reason: string;
+        };
+        ManualEnrollmentResponse: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            requestId?: string;
+            /** Format: uuid */
+            userId?: string;
+            /** Format: uuid */
+            actorId?: string;
+            actorName?: string;
+            /** Format: uuid */
+            courseId?: string;
+            courseTitle?: string;
+            /** Format: uuid */
+            programId?: string;
+            programTitle?: string;
+            programFunded?: boolean;
+            overrideDates?: boolean;
+            overrideCapacity?: boolean;
+            allowUnpublished?: boolean;
+            reason?: string;
+            /** Format: uuid */
+            enrollmentId?: string;
+            /** Format: uuid */
+            registrationId?: string;
+            /** Format: date-time */
+            accessExpiresAt?: string;
+            changed?: boolean;
+            /** Format: date-time */
+            createdAt?: string;
+        };
         CreateQuizChoiceRequest: {
             choiceText: string;
             choiceTextEn?: string;
@@ -6269,6 +6334,23 @@ export interface components {
             /** Format: int32 */
             totalPages?: number;
         };
+        ManualEnrollmentOverviewResponse: {
+            /** Format: uuid */
+            userId?: string;
+            fullName?: string;
+            email?: string;
+            phone?: string;
+            programs?: components["schemas"]["ProgramAccess"][];
+            history?: components["schemas"]["ManualEnrollmentResponse"][];
+        };
+        ProgramAccess: {
+            /** Format: uuid */
+            programId?: string;
+            title?: string;
+            active?: boolean;
+            /** Format: date-time */
+            expiresAt?: string;
+        };
         AdminCourseReviewResponse: {
             /** Format: uuid */
             reviewId?: string;
@@ -6336,13 +6418,13 @@ export interface components {
             empty?: boolean;
         };
         PageableObject: {
+            sort?: components["schemas"]["SortObject"];
             paged?: boolean;
             /** Format: int32 */
             pageNumber?: number;
             /** Format: int32 */
             pageSize?: number;
             unpaged?: boolean;
-            sort?: components["schemas"]["SortObject"];
             /** Format: int64 */
             offset?: number;
         };
@@ -8763,6 +8845,56 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ProgramRegistrationResponse"];
+                };
+            };
+        };
+    };
+    overview: {
+        parameters: {
+            query?: {
+                page?: number;
+            };
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ManualEnrollmentOverviewResponse"];
+                };
+            };
+        };
+    };
+    enroll: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ManualEnrollmentRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ManualEnrollmentResponse"];
                 };
             };
         };
