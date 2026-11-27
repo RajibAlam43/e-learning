@@ -73,6 +73,39 @@ class ProgramCourseRegistrationApiIt extends AbstractAdminApiIntegrationTest {
   @Autowired CourseWaiverService waivers;
   @Autowired PlatformTransactionManager transactions;
 
+  @Test
+  void originalCourseCreditCostSurvivesLaterTemplateEditsAcrossPreviewCheckoutAndRegistration() {
+    final var admin = user("Admin", "registration-credit-admin@example.com");
+    final var learner = user("Learner", "registration-credit-student@example.com");
+    final var core = cohort(admin, "registration-credit-core");
+    final var elective = cohort(admin, "registration-credit-elective");
+    final var p = program(admin, "registration-credit-program", core, elective);
+    purchase(learner, p);
+    elective.getTemplate().setCredits(5);
+    courseTemplateRepository.saveAndFlush(elective.getTemplate());
+    final var item =
+        view.get(learner.getId(), p.getId()).availableCourses().stream()
+            .filter(c -> c.courseTemplateId().equals(elective.getTemplate().getId()))
+            .findFirst()
+            .orElseThrow();
+    assertThat(item.credits()).isEqualTo(3);
+    assertThat(item.offerings())
+        .allSatisfy(o -> {
+          assertThat(o.credits()).isEqualTo(3);
+          assertThat(o.canRegister()).isTrue();
+        });
+    assertThatThrownBy(() ->
+            checkout.execute(
+                new CreateCheckoutOrderRequest(
+                    List.of(
+                        new CreateCheckoutOrderItemRequest(
+                            OrderItemType.COURSE, elective.getId(), null))),
+                student(learner)))
+        .hasMessageContaining("Open My Programs");
+    assertThat(registration.register(learner.getId(), p.getId(), elective.getId()).credits())
+        .isEqualTo(3);
+  }
+
   Authentication student(User u) {
     return student(u.getId());
   }

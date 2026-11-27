@@ -22,4 +22,5 @@ public record ManualEnrollmentResponse(
     UUID registrationId,
     Instant accessExpiresAt,
     boolean changed,
-    Instant createdAt) {}
+    Instant createdAt,
+    Instant requestedExpiresAt) {}

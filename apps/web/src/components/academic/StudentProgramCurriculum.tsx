@@ -13,7 +13,7 @@ export function StudentProgramCurriculum({ id }: { id: string }) {
   {allowance?.limit != null && <p className="mt-2 text-sm text-slate-700">Elective allowance: {allowance.used} / {allowance.limit} credits reserved or credited · {allowance.remaining} remaining.</p>}
   <p className="mt-2 text-sm text-slate-600">{item.expiresAt ? `Program access ends ${new Date(item.expiresAt).toLocaleDateString()}.` : 'No program access end date.'}{!item.accessActive && ' Program access is inactive; new registrations are unavailable.'}</p>
   <ul className="mt-4 divide-y divide-slate-200">{item.availableCourses?.map(c => <li key={c.courseTemplateId} className="py-4">
-   <div className="flex flex-wrap items-center justify-between gap-3"><div className="min-w-0"><h3 className="break-words font-medium">{c.title}</h3><p className="mt-1 text-sm text-slate-600">{c.credits} credits · {c.mandatoryForGraduation ? 'Mandatory for your graduation' : 'Optional'}{!c.offerings?.length && !c.enrolled ? ' · Planned' : ''}</p></div>
+   <div className="flex flex-wrap items-center justify-between gap-3"><div className="min-w-0"><h3 className="break-words font-medium">{c.title}</h3><p className="mt-1 text-sm text-slate-600">{c.credits} credits · {c.mandatoryForGraduation ? 'Mandatory for your graduation' : 'Optional'}{!c.offerings?.length && !c.enrolled ? ' · Coming soon' : ''}</p></div>
     {c.enrolled && <Link href={`/student/courses/${c.courseId}`} className="text-sm text-[#1c3873] underline underline-offset-4">Continue course</Link>}
    </div>
    {c.earnedCredits != null && <p className="mt-2 text-sm text-slate-700">{c.earnedCredits} academic credits already awarded. No additional registration is required.</p>}

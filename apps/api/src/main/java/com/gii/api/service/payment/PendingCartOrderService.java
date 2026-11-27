@@ -207,7 +207,9 @@ public class PendingCartOrderService {
           if (item != null
               && (item.mandatory()
                   || budget.remaining() == null
-                  || course.getCredits() <= budget.remaining())) {
+                  || com.gii.common.service.payment.ProgramSnapshotService.courseCredits(
+                          entitlement, course)
+                      <= budget.remaining())) {
             throw new ResponseStatusException(
                 HttpStatus.CONFLICT,
                 "Open My Programs to register for this course using your program access");

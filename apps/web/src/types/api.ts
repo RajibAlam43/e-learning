@@ -4090,6 +4090,8 @@ export interface components {
             overrideCapacity?: boolean;
             allowUnpublished?: boolean;
             reason: string;
+            /** Format: date-time */
+            expiresAt?: string;
         };
         ManualEnrollmentResponse: {
             /** Format: uuid */
@@ -4121,6 +4123,8 @@ export interface components {
             changed?: boolean;
             /** Format: date-time */
             createdAt?: string;
+            /** Format: date-time */
+            requestedExpiresAt?: string;
         };
         CreateQuizChoiceRequest: {
             choiceText: string;
@@ -6563,19 +6567,19 @@ export interface components {
             empty?: boolean;
         };
         PageableObject: {
+            sort?: components["schemas"]["SortObject"];
             paged?: boolean;
             /** Format: int32 */
             pageNumber?: number;
             /** Format: int32 */
             pageSize?: number;
             unpaged?: boolean;
-            sort?: components["schemas"]["SortObject"];
             /** Format: int64 */
             offset?: number;
         };
         SortObject: {
-            unsorted?: boolean;
             sorted?: boolean;
+            unsorted?: boolean;
             empty?: boolean;
         };
         AdminCollectionSummaryResponse: {

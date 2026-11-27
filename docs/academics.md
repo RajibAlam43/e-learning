@@ -1,6 +1,6 @@
 # Semesters and academic credits
 
-Steps 1–6 provide institution semesters, course credits, reusable cohort offerings,
+Steps 1–7 provide institution semesters, course credits, reusable cohort offerings,
 academic achievements, prerequisites, credit waivers, program curricula and deferred
 course/cohort registration, audited manual enrollment administration, and graduation reporting.
 
@@ -249,7 +249,7 @@ reviewer, timestamp and reason are retained; new choices create separate history
 records. Withdrawal releases an unfinished elective reservation and any access
 provided solely by that choice. Completed courses or awarded academic credits cannot
 be withdrawn to release allowance. Students cannot withdraw their own choices.
-Date/capacity overrides and general manual enrollment are described in step 5 below.
+Date/capacity overrides and general manual enrollment are described in step 6 below.
 
 | Method | Route | Purpose |
 | --- | --- | --- |
@@ -270,7 +270,18 @@ using the existing loopback test override after Docker's PostgreSQL 18 container
 to initialize with a local disk I/O error. Earlier registration/concurrency checks passed
 on PostgreSQL 18. No test configuration or hosted database setting was changed.
 
-## Manual enrollment administration (step 5)
+## Courses added after purchase (step 5)
+
+Existing purchasers see later catalog additions as available choices during their
+original access period and within their original elective allowance. Original mandatory
+courses, required credit totals, saved course credit costs and access expiry remain fixed.
+A new mandatory course is optional for existing purchasers. Removing a course does not
+remove an original purchased entitlement or an active registered later addition. Earned
+academic credits and recorded graduation remain intact. Current catalog edits do not
+restart the access clock. These rules use the snapshots introduced by V26 and the
+registration/access ledger introduced by V27.
+
+## Manual enrollment administration (step 6)
 
 Open **Admin → Students → a student's name → Manual enrollment**. The new screen
 shows the student's name and email or phone, and offers three actions:
@@ -322,15 +333,20 @@ POST accepts `requestId`, `reason`, and either `courseId` or `programId`. For a
 program-funded course selection, provide both IDs and `programFunded: true`.
 `overrideDates`, `overrideCapacity` and `allowUnpublished` default to false. Date and
 capacity overrides apply only to course admissions; `allowUnpublished` applies only
-to independent course/program access. Both routes require ADMIN or SUPER_ADMIN.
+to independent course/program access. An optional future `expiresAt` ISO timestamp
+applies only to independent course enrollment; omitting it uses the configured course
+period. It cannot shorten an existing valid enrollment. V29 records the requested expiry
+separately from the effective resulting expiry and leaves historical audit entries intact.
+Both routes require ADMIN or SUPER_ADMIN.
 
-Apply **V28** after V27 using the existing migrator, then deploy matching API, worker
-and web images. It adds only the manual enrollment audit table and index. No new
+Apply **V28 and V29** after V27 using the existing migrator, then deploy matching API,
+worker and web images. V28 adds the manual enrollment audit table and index; V29 adds
+the optional requested-expiry field without changing existing grants. No new
 environment variables or cloud services are required. Existing frontend source changes
 are limited to the registration page's navigation link and regenerated API types;
 the screen, component and client hooks are new files. Nothing has been deployed.
 
-## Academic records and graduation (step 6)
+## Academic records and graduation (step 7)
 
 Students can open **My Programs → Academic record and graduation progress**, or the
 academic-record link inside an individual program. Administrators open **Students →
@@ -381,8 +397,27 @@ not impersonate the student to issue a certificate.
 
 Student routes require STUDENT and scope enrollment lookup to the authenticated account.
 Administration requires ADMIN or SUPER_ADMIN. Credit records survive loss of study access.
-No new migration, environment variables or external services are required for step 6;
-it uses the existing V24–V28 schema. Deploy matching API and web images after the prior
+Graduation reporting uses the V24–V28 schema. Final plan validation adds **V29** for
+the optional manual course expiry. No new environment variables or external services
+are required. Deploy matching API and web images after the prior
 migrations. Existing frontend changes are limited to navigation links and replacing the
 program certificate action with the graduation panel; the report screens and components
 are new files. This implementation has not been deployed to a hosted environment.
+
+## Final acceptance and migration review
+
+The supplied seven-step plan has been checked item by item in
+[Academic plan acceptance validation](academic-acceptance.md), including behavior,
+test evidence, compatibility and operator review steps.
+
+The final checks added optional manual expiry, whole-course elective feasibility,
+saved course credit costs across program admission and checkout, and completion refresh
+from the course-certificate fallback. Course certificate backfill now enforces the same
+active-access rules as a direct certificate request. Graduation uses the existing course
+completion criteria and the shared program requirements calculation.
+
+Apply **V29** with the earlier additive migrations before deploying the matching release.
+It adds only the requested-expiry audit column and preserves existing audit records.
+The read-only `deploy/db/academic-migration-review.sql` report supports review of historical
+completion-to-credit candidates on a restored copy. It does not apply a backfill.
+No hosted changes have been made.

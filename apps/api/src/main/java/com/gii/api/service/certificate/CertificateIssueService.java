@@ -60,6 +60,8 @@ public class CertificateIssueService {
   private final R2ObjectStorageService objectStorageService;
   private final LocalizedContentService localizedContentService;
   private final AcademicAchievementService academicAchievementService;
+  private final com.gii.api.service.progress.CollectionEnrollmentCompletionService
+      programCompletion;
 
   public CertificateIssueResponse executeCourse(UUID courseId, Authentication authentication) {
     User user = currentUserService.getCurrentUser(authentication);
@@ -108,6 +110,7 @@ public class CertificateIssueService {
         enrollment.setCompletedAt(Instant.now());
         enrollmentRepository.save(enrollment);
         academicAchievementService.awardCompletion(enrollment);
+        programCompletion.refreshCollectionsForCourse(user.getId(), courseId);
       }
     }
 
@@ -235,8 +238,11 @@ public class CertificateIssueService {
    */
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   public void tryIssueCourseCertificate(UUID enrollmentId) {
-    Enrollment enrollment = enrollmentRepository.findById(enrollmentId).orElse(null);
-    if (enrollment == null || enrollment.getCompletedAt() == null) {
+    Enrollment enrollment = enrollmentRepository.findByIdForUpdate(enrollmentId).orElse(null);
+    if (enrollment == null
+        || enrollment.getCompletedAt() == null
+        || enrollment.getStatus() != EnrollmentStatus.ACTIVE
+        || enrollment.getExpiresAt() != null && !enrollment.getExpiresAt().isAfter(Instant.now())) {
       return;
     }
     if (certificateRepository

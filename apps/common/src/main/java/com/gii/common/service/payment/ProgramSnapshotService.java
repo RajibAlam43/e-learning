@@ -3,12 +3,26 @@ package com.gii.common.service.payment;
 import com.gii.common.dto.academic.ProgramSnapshot;
 import com.gii.common.entity.collection.Collection;
 import com.gii.common.entity.collection.CollectionCourse;
+import java.math.BigInteger;
 import java.util.Comparator;
 import java.util.List;
 import org.springframework.stereotype.Service;
 
 @Service
 public class ProgramSnapshotService {
+  public static int courseCredits(
+      com.gii.common.entity.collection.CollectionEnrollment enrollment,
+      com.gii.common.entity.course.Course course) {
+    var snapshot = enrollment.getProgramSnapshot();
+    return snapshot == null
+        ? course.getCredits()
+        : snapshot.courses().stream()
+            .filter(c -> c.courseTemplateId().equals(course.getTemplate().getId()))
+            .mapToInt(c -> c.credits())
+            .findFirst()
+            .orElse(course.getCredits());
+  }
+
   public static java.time.Instant expiresAt(com.gii.common.entity.order.OrderItem item) {
     var snapshot = item.getProgramSnapshot();
     if (snapshot == null || !snapshot.creditBased()) {
@@ -74,17 +88,24 @@ public class ProgramSnapshotService {
             .filter(ProgramSnapshot.CourseRequirement::mandatory)
             .mapToLong(ProgramSnapshot.CourseRequirement::credits)
             .sum();
-    long electives =
-        snapshot.courses().stream()
-            .filter(c -> !c.mandatory())
-            .mapToLong(ProgramSnapshot.CourseRequirement::credits)
-            .sum();
     if (snapshot.requiredCredits() < mandatory) {
       throw new EnrollmentPolicyViolationException(
           "Required credits cannot be less than the mandatory course credits");
     }
-    if (snapshot.requiredCredits()
-        > mandatory + Math.min(electives, snapshot.electiveCreditLimit())) {
+    int cap = snapshot.electiveCreditLimit();
+    if (cap < 0 || cap > 100000) {
+      throw new EnrollmentPolicyViolationException(
+          "Elective allowance must be between 0 and 100000");
+    }
+    // A new student must be able to select whole courses within the allowance.
+    BigInteger reachable = BigInteger.ONE;
+    BigInteger mask = BigInteger.ONE.shiftLeft(cap + 1).subtract(BigInteger.ONE);
+    for (var c : snapshot.courses()) {
+      if (!c.mandatory() && c.credits() <= cap) {
+        reachable = reachable.or(reachable.shiftLeft(c.credits())).and(mask);
+      }
+    }
+    if (reachable.shiftRight((int) (snapshot.requiredCredits() - mandatory)).signum() == 0) {
       throw new EnrollmentPolicyViolationException(
           "Required credits cannot be reached within the elective credit allowance");
     }

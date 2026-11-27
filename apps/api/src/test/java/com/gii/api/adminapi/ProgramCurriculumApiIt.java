@@ -63,6 +63,18 @@ class ProgramCurriculumApiIt extends AbstractAdminApiIntegrationTest {
   @Autowired com.gii.common.service.payment.RefundedOrderEnrollmentService refunds;
   private final ObjectMapper json = new ObjectMapper();
 
+  @Test
+  void unreachableWholeCourseElectiveCombinationsAreRejected() {
+    final var admin = user("Admin", "program-combination-admin@example.com");
+    final var p = program(admin, "program-combination");
+    final var core = course("Core", "program-combination-core", admin, PublishStatus.DRAFT);
+    final var a = course("A", "program-combination-a", admin, PublishStatus.DRAFT);
+    final var b = course("B", "program-combination-b", admin, PublishStatus.DRAFT);
+    // Core 3 + a cap of 4 cannot fund both 3-credit electives to reach 7.
+    assertThatThrownBy(() -> curriculum.save(p.getId(), request(7, 4, core, a, b)))
+        .hasMessageContaining("cannot be reached");
+  }
+
   Authentication student(User u) {
     return new UsernamePasswordAuthenticationToken(
         u.getId(), null, List.of(new SimpleGrantedAuthority("ROLE_STUDENT")));

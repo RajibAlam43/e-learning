@@ -16,6 +16,7 @@ async page => {
   if(req.resourceType()==='document'||req.headers().rsc||req.headers()['next-router-prefetch'])return route.continue();
   if(path===`/student/collections/${programId}`)return reply({collectionId:programId,collectionName:'Islamic Studies Diploma',collectionType:'DIPLOMA',progressPercentage:0,courses:[]});
   if(path===`/student/collections/${programId}/curriculum`)return reply(curriculum());
+  if(path===`/student/collections/${programId}/graduation`)return reply({programId,title:'Islamic Studies Diploma',accessActive:true,status:'IN_PROGRESS',canCheckCompletion:true,canRequestCertificate:false,courses:[]});
   if(path===`/student/collections/${programId}/registrations`){
    const body=JSON.parse(req.postData());mutations.push({path,body});
    if(rejectOnce){rejectOnce=false;return reply({detail:'The last seat was just taken. Choose another offering or try again.'},409);}

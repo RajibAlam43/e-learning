@@ -50,6 +50,7 @@ public class ManualEnrollmentAudit extends CreatedOnlyUuidEntity {
 
   private UUID registrationId;
   private Instant accessExpiresAt;
+  private Instant requestedExpiresAt;
 
   @Column(nullable = false)
   private boolean changed;

@@ -21,6 +21,7 @@ export function ManualEnrollmentManager({ userId }: { userId: string }) {
   const [courseId, setCourseId] = useState('')
   const [programId, setProgramId] = useState('')
   const [reason, setReason] = useState('')
+  const [expiresAt, setExpiresAt] = useState('')
   const [overrideDates, setOverrideDates] = useState(false)
   const [overrideCapacity, setOverrideCapacity] = useState(false)
   const [allowUnpublished, setAllowUnpublished] = useState(false)
@@ -30,7 +31,7 @@ export function ManualEnrollmentManager({ userId }: { userId: string }) {
   const submitting = useRef(false)
 
   function changeMode(value: Mode) {
-    setMode(value); setCourseId(''); setProgramId(''); setOverrideDates(false)
+    setMode(value); setCourseId(''); setProgramId(''); setExpiresAt(''); setOverrideDates(false)
     setOverrideCapacity(false); setAllowUnpublished(false); setError(''); setSuccess('')
   }
 
@@ -40,7 +41,8 @@ export function ManualEnrollmentManager({ userId }: { userId: string }) {
     submitting.current = true; setError(''); setSuccess('')
     const body = { courseId: mode !== 'program' ? courseId : undefined,
       programId: mode !== 'course' ? programId : undefined, programFunded: mode === 'registration',
-      overrideDates, overrideCapacity, allowUnpublished, reason: reason.trim() }
+      overrideDates, overrideCapacity, allowUnpublished, reason: reason.trim(),
+      expiresAt: mode === 'course' && expiresAt ? new Date(expiresAt).toISOString() : undefined }
     const serialized = JSON.stringify(body)
     if (attempt.current?.body !== serialized) attempt.current = { body: serialized, requestId: crypto.randomUUID() }
     try {
@@ -48,7 +50,7 @@ export function ManualEnrollmentManager({ userId }: { userId: string }) {
       setSuccess(result.changed
         ? `Enrollment saved. Access ends: ${date(result.accessExpiresAt)}.`
         : 'This student already has this access. The existing enrollment and expiry were preserved.')
-      setPage(0); setReason(''); setCourseId(''); setProgramId(''); setOverrideDates(false)
+      setPage(0); setReason(''); setCourseId(''); setProgramId(''); setExpiresAt(''); setOverrideDates(false)
       setOverrideCapacity(false); setAllowUnpublished(false); attempt.current = null
     } catch (cause) {
       setError(programErrorMessage(cause, 'Unable to enroll. Check the selection and try again.'))
@@ -84,6 +86,7 @@ export function ManualEnrollmentManager({ userId }: { userId: string }) {
           ? 'Uses the program’s configured access period and preserves existing graduation requirements. Course seats are chosen separately. No payment or academic credits are created.'
           : mode === 'registration' ? 'Uses the student’s active program access and elective allowance. The course must be included and published. No additional payment or academic credits are created.'
           : 'Uses the course’s configured access period. Existing valid access stays unchanged. No payment or academic credits are created.'}</p>
+        {mode === 'course' && <label className="grid min-w-0 gap-1.5 text-sm font-medium">Access expiry (optional, your local time)<input type="datetime-local" className={input} value={expiresAt} onChange={e => setExpiresAt(e.target.value)} disabled={enroll.isPending} /><span className="font-normal text-slate-600">Leave empty to use the course access period. This is recorded with your reason and cannot shorten existing valid access.</span></label>}
         {mode !== 'program' && <div className="grid gap-3"><label className="flex items-start gap-3 text-sm"><input className="mt-1 size-4 shrink-0 accent-[#1c3873]" type="checkbox" checked={overrideDates} onChange={e => setOverrideDates(e.target.checked)} disabled={enroll.isPending} />Override semester and course registration dates</label>
           <label className="flex items-start gap-3 text-sm"><input className="mt-1 size-4 shrink-0 accent-[#1c3873]" type="checkbox" checked={overrideCapacity} onChange={e => setOverrideCapacity(e.target.checked)} disabled={enroll.isPending} />Override course capacity</label></div>}
         {mode !== 'registration' && <label className="flex items-start gap-3 text-sm"><input className="mt-1 size-4 shrink-0 accent-[#1c3873]" type="checkbox" checked={allowUnpublished} onChange={e => setAllowUnpublished(e.target.checked)} disabled={enroll.isPending} />Allow an unpublished {mode}</label>}
@@ -101,6 +104,7 @@ export function ManualEnrollmentManager({ userId }: { userId: string }) {
           {a.programFunded && <p className="break-words text-slate-600">Through {a.programTitle}</p>}
           <p className="text-slate-600">{a.changed ? 'Access granted' : 'Existing access preserved'} · {date(a.createdAt)} · {a.actorName}</p>
           <p className="text-slate-600">Access ends: {date(a.accessExpiresAt)}</p>
+          {a.requestedExpiresAt && <p className="text-slate-600">Requested expiry: {date(a.requestedExpiresAt)}</p>}
           {(a.overrideDates || a.overrideCapacity || a.allowUnpublished) && <p className="text-slate-700">Overrides: {[a.overrideDates && 'registration dates', a.overrideCapacity && 'capacity', a.allowUnpublished && 'unpublished access'].filter(Boolean).join(', ')}</p>}
           <p className="max-w-prose whitespace-pre-wrap break-words text-slate-700">{a.reason}</p>
         </li>)}</ul>}

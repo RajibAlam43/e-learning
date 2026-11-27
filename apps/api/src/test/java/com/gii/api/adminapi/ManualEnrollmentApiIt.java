@@ -72,7 +72,10 @@ class ManualEnrollmentApiIt extends AbstractAdminApiIntegrationTest {
   @Autowired PaidOrderEnrollmentService paid;
   @Autowired RefundedOrderEnrollmentService refunds;
   @Autowired PlatformTransactionManager transactions;
-  private final ObjectMapper json = new ObjectMapper();
+  private final ObjectMapper json =
+      new ObjectMapper()
+          .findAndRegisterModules()
+          .disable(com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
   private String route(User student) {
     return "/admin/students/" + student.getId() + "/manual-enrollments";
@@ -502,5 +505,79 @@ class ManualEnrollmentApiIt extends AbstractAdminApiIntegrationTest {
         userRepository.deleteAllById(ids.subList(0, 3));
       });
     }
+  }
+
+  @Test
+  void optionalManualExpiryIsAuditedAndRetrySafeWithoutShorteningExistingAccess() throws Exception {
+    final var admin = user("Admin", "manual-expiry-admin@example.com");
+    final var learner = user("Learner", "manual-expiry-student@example.com");
+    final var c = course("Course", "manual-expiry-course", admin, PublishStatus.PUBLISHED);
+    c.setAccessDurationDays(30);
+    courseRepository.saveAndFlush(c);
+    final var expiry =
+        Instant.now().plusSeconds(86400).truncatedTo(java.time.temporal.ChronoUnit.MICROS);
+    final var body =
+        new ManualEnrollmentRequest(
+            UUID.randomUUID(),
+            c.getId(),
+            null,
+            false,
+            false,
+            false,
+            false,
+            "One-day access approved",
+            expiry);
+    enroll(admin, learner, body).andExpect(status().isOk());
+    final var e =
+        enrollmentRepository.findByUserIdAndCourseId(learner.getId(), c.getId()).orElseThrow();
+    assertThat(e.getExpiresAt()).isEqualTo(expiry);
+    final var originalAudit = audits.findByRequestId(body.requestId()).orElseThrow();
+    assertThat(originalAudit.getRequestedExpiresAt()).isEqualTo(expiry);
+    enroll(admin, learner, body).andExpect(status().isOk());
+    assertThat(audits.findAll()).hasSize(1);
+    enroll(
+            admin,
+            learner,
+            new ManualEnrollmentRequest(
+                UUID.randomUUID(),
+                c.getId(),
+                null,
+                false,
+                false,
+                false,
+                false,
+                "Shorter requested period",
+                expiry.minusSeconds(3600)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.changed").value(false));
+    assertThat(e.getExpiresAt()).isEqualTo(expiry);
+    enroll(
+            admin,
+            learner,
+            new ManualEnrollmentRequest(
+                UUID.randomUUID(),
+                c.getId(),
+                null,
+                false,
+                false,
+                false,
+                false,
+                "Invalid date",
+                Instant.now().minusSeconds(10)))
+        .andExpect(status().isBadRequest());
+    enroll(
+            admin,
+            learner,
+            new ManualEnrollmentRequest(
+                body.requestId(),
+                c.getId(),
+                null,
+                false,
+                false,
+                false,
+                false,
+                body.reason(),
+                expiry.plusSeconds(3600)))
+        .andExpect(status().isConflict());
   }
 }

@@ -58,6 +58,7 @@ class GraduationApiIt extends AbstractAdminApiIntegrationTest {
   @Autowired CertificateIssueService certificates;
   @Autowired StudentCollectionsService studentPrograms;
   @Autowired StudentCollectionDetailsService studentProgram;
+  @Autowired com.gii.common.repository.enrollment.LessonProgressRepository lessonProgressRepository;
   @MockitoBean CertificateDocumentService documents;
 
   private Authentication student(User user) {
@@ -141,8 +142,12 @@ class GraduationApiIt extends AbstractAdminApiIntegrationTest {
     final var elective =
         course("Elective", "graduation-cap-elective", admin, PublishStatus.PUBLISHED);
     final var unrelated = course("Other", "graduation-unrelated", admin, PublishStatus.PUBLISHED);
+    elective.getTemplate().setCredits(2);
+    courseTemplateRepository.saveAndFlush(elective.getTemplate());
     final var p = program(admin, "graduation-cap-program", 5, 2, core, elective);
     join(learner, p);
+    elective.getTemplate().setCredits(3);
+    courseTemplateRepository.saveAndFlush(elective.getTemplate());
     award(learner, core);
     award(learner, elective);
     award(learner, unrelated);
@@ -352,5 +357,62 @@ class GraduationApiIt extends AbstractAdminApiIntegrationTest {
     assertThat(progress.check(learner.getId(), p.getId()).completedAt()).isNull();
     award(learner, core);
     assertThat(progress.check(learner.getId(), p.getId()).completedAt()).isNotNull();
+  }
+
+  @Test
+  void courseCertificateCompletionFallbackAwardsCreditsAndRefreshesProgramGraduation()
+      throws Exception {
+    final var admin = user("Admin", "graduation-fallback-admin@example.com");
+    final var learner = user("Learner", "graduation-fallback-student@example.com");
+    final var core = course("Core", "graduation-fallback-core", admin, PublishStatus.PUBLISHED);
+    final var p = program(admin, "graduation-fallback-program", 3, 0, core);
+    final var programEnrollment = join(learner, p);
+    final var courseEnrollment = enrollment(learner, core, EnrollmentStatus.ACTIVE);
+    final var section = section(core, 1);
+    section.setStatus(PublishStatus.PUBLISHED);
+    courseSectionRepository.saveAndFlush(section);
+    final var lesson = lesson(core, section, 1);
+    lesson.setStatus(PublishStatus.PUBLISHED);
+    lesson.setIsMandatory(true);
+    lessonRepository.saveAndFlush(lesson);
+    lessonProgressRepository.saveAndFlush(
+        com.gii.common.entity.enrollment.LessonProgress.builder()
+            .enrollment(courseEnrollment)
+            .lesson(lesson)
+            .completedAt(Instant.now())
+            .build());
+    when(documents.generateAndUpload(any(), any(), any()))
+        .thenReturn(
+            new CertificateDocumentService.StoredCertificateDocument(
+                null, "test/fallback.pdf", 100));
+    mvc.perform(
+            post("/student/courses/{c}/certificate/generate", core.getId())
+                .with(authentication(student(learner))))
+        .andExpect(status().isOk());
+    assertThat(courseEnrollment.getCompletedAt()).isNotNull();
+    assertThat(programEnrollment.getCompletedAt()).isNotNull();
+    assertThat(progress.getProgram(learner.getId(), p.getId()).requirementsMet()).isTrue();
+    assertThat(awards.findByUserIdOrderByAchievedAtDesc(learner.getId())).hasSize(1);
+  }
+
+  @Test
+  void courseCertificateBackfillHonorsAccessExpiryAndRevocation() {
+    final var admin = user("Admin", "graduation-course-expired-admin@example.com");
+    final var learner = user("Learner", "graduation-course-expired-student@example.com");
+    final var core = course("Core", "graduation-course-expired", admin, PublishStatus.PUBLISHED);
+    final var e = enrollment(learner, core, EnrollmentStatus.ACTIVE);
+    e.setCompletedAt(Instant.now().minusSeconds(60));
+    e.setExpiresAt(Instant.now().minusSeconds(30));
+    enrollmentRepository.saveAndFlush(e);
+    final var target = AopTestUtils.<CertificateIssueService>getTargetObject(certificates);
+    target.tryIssueCourseCertificate(e.getId());
+    assertThat(certificateRepository.findByUserIdAndCourseId(learner.getId(), core.getId()))
+        .isEmpty();
+    e.setExpiresAt(Instant.now().plusSeconds(86400));
+    e.setStatus(EnrollmentStatus.REVOKED);
+    enrollmentRepository.saveAndFlush(e);
+    target.tryIssueCourseCertificate(e.getId());
+    assertThat(certificateRepository.findByUserIdAndCourseId(learner.getId(), core.getId()))
+        .isEmpty();
   }
 }

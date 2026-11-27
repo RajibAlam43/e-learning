@@ -129,9 +129,11 @@ public class ProgramCourseRegistrationService {
           HttpStatus.CONFLICT, "You are already enrolled in another cohort of this course");
     }
     var budget = allowance.get(program, selections);
+    int admissionCredits =
+        com.gii.common.service.payment.ProgramSnapshotService.courseCredits(program, course);
     if (!allowed.mandatory()
         && budget.remaining() != null
-        && course.getCredits() > budget.remaining()) {
+        && admissionCredits > budget.remaining()) {
       throw new ResponseStatusException(
           HttpStatus.CONFLICT, "This course exceeds your remaining elective credit allowance");
     }
@@ -168,7 +170,7 @@ public class ProgramCourseRegistrationService {
                 .courseTemplateId(template)
                 .courseId(courseId)
                 .enrollment(existing)
-                .credits(course.getCredits())
+                .credits(admissionCredits)
                 .mandatory(allowed.mandatory())
                 .status(ProgramRegistrationStatus.ACTIVE)
                 .accessExpiresAt(expiry)

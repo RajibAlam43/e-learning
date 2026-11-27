@@ -26,7 +26,8 @@ async page => {
       const result = { ...body, id: `audit-${history.length}`, changed: true, actorName: 'Academic Admin',
         courseTitle: body.courseId ? 'Islamic Studies · Spring 2027' : null,
         programTitle: body.programId ? 'Islamic Studies Diploma' : null,
-        accessExpiresAt: '2029-11-26T15:00:00Z', createdAt: '2026-11-26T15:00:00Z' };
+        accessExpiresAt: body.expiresAt || '2029-11-26T15:00:00Z', requestedExpiresAt: body.expiresAt,
+        createdAt: '2026-11-26T15:00:00Z' };
       history.unshift(result); return reply(result);
     }
     if (path === `/admin/students/${studentId}/program-registrations`) return reply([]);
@@ -42,6 +43,12 @@ async page => {
   if (!await form.getByRole('button', { name: 'Save enrollment', exact: true }).isDisabled()) throw Error('Empty reason must disable submit');
   await form.getByRole('combobox', { name: 'Course offering', exact: true }).selectOption(courseId);
   await form.getByLabel('Enrollment reason', { exact: true }).fill('Admissions approved after external study review');
+  await form.getByLabel('Access expiry (optional, your local time)', { exact: false }).fill('2031-01-15T10:30');
+  await page.setViewportSize({ width: 390, height: 900 });
+  await form.getByLabel('Access expiry (optional, your local time)', { exact: false }).scrollIntoViewIfNeeded();
+  if (await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)) throw Error('Custom expiry field overflows on mobile');
+  await page.screenshot({ path: '/tmp/gii-step7-ui/manual-expiry-390.png', animations: 'disabled' });
+  await page.setViewportSize({ width: 1280, height: 900 });
   await form.getByLabel('Override course capacity', { exact: true }).check();
   await form.getByRole('button', { name: 'Save enrollment', exact: true }).click();
   await page.getByRole('alert').filter({ hasText: 'Arabic Foundation' }).waitFor();
@@ -49,6 +56,8 @@ async page => {
   await form.getByRole('button', { name: 'Save enrollment', exact: true }).click();
   await page.getByRole('status').filter({ hasText: 'Enrollment saved' }).waitFor();
   if (mutations[0].requestId !== mutations[1].requestId) throw Error('Unchanged retry must reuse request ID');
+  if (!mutations[1].expiresAt || new Date(mutations[1].expiresAt).getFullYear() !== 2031) throw Error('Custom expiry missing from request');
+  if (await form.getByLabel('Access expiry (optional, your local time)', { exact: false }).inputValue()) throw Error('Successful grant must reset the expiry field');
   await page.getByRole('region', { name: 'Manual enrollment history', exact: true }).getByText('Overrides: capacity', { exact: true }).waitFor();
   if (await form.getByLabel('Override course capacity', { exact: true }).isChecked()) throw Error('Successful action must reset exceptions');
   await form.getByRole('combobox', { name: 'Enrollment type', exact: true }).selectOption('program');

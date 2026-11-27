@@ -85,6 +85,10 @@ public class ManualEnrollmentService {
       return response(previous);
     }
     users.findById(userId).orElseThrow(() -> missing("Student not found"));
+    if (r.expiresAt() != null && !r.expiresAt().isAfter(Instant.now())) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Access expiry must be in the future");
+    }
     Grant grant;
     try {
       grant =
@@ -110,6 +114,7 @@ public class ManualEnrollmentService {
                 .enrollmentId(grant.enrollmentId())
                 .registrationId(grant.registrationId())
                 .accessExpiresAt(grant.expiresAt())
+                .requestedExpiresAt(r.expiresAt())
                 .changed(grant.changed())
                 .build()));
   }
@@ -142,7 +147,8 @@ public class ManualEnrollmentService {
     e.setEnrolledAt(now);
     e.setSourceOrderItem(null);
     e.setSourceCollection(null);
-    access.independentGrant(e, policy.calculateExpiry(course, now));
+    access.independentGrant(
+        e, r.expiresAt() == null ? policy.calculateExpiry(course, now) : r.expiresAt());
     return new Grant(e.getId(), null, e.getExpiresAt(), true);
   }
 
@@ -208,6 +214,11 @@ public class ManualEnrollmentService {
   }
 
   private void validateTarget(ManualEnrollmentRequest r) {
+    if (r.expiresAt() != null && (r.courseId() == null || r.programFunded())) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST,
+          "A custom expiry is available only for independent course enrollment");
+    }
     if (r.programFunded()
         ? r.courseId() == null || r.programId() == null
         : (r.courseId() == null) == (r.programId() == null)) {
@@ -232,7 +243,8 @@ public class ManualEnrollmentService {
         && a.isOverrideDates() == r.overrideDates()
         && a.isOverrideCapacity() == r.overrideCapacity()
         && a.isAllowUnpublished() == r.allowUnpublished()
-        && a.getReason().equals(r.reason().trim());
+        && a.getReason().equals(r.reason().trim())
+        && Objects.equals(a.getRequestedExpiresAt(), r.expiresAt());
   }
 
   private ManualEnrollmentResponse response(ManualEnrollmentAudit a) {
@@ -262,7 +274,8 @@ public class ManualEnrollmentService {
         a.getRegistrationId(),
         a.getAccessExpiresAt(),
         a.isChanged(),
-        a.getCreatedAt());
+        a.getCreatedAt(),
+        a.getRequestedExpiresAt());
   }
 
   private ResponseStatusException missing(String message) {

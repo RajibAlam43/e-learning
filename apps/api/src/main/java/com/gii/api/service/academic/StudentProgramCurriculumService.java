@@ -74,6 +74,9 @@ public class StudentProgramCurriculumService {
             .map(c -> {
               var representative = c.course();
               UUID template = representative.getTemplate().getId();
+              int admissionCredits =
+                  com.gii.common.service.payment.ProgramSnapshotService.courseCredits(
+                      e, representative);
               var chosen = selectedByTemplate.get(template);
               var owned =
                   enrolled.stream()
@@ -106,7 +109,7 @@ public class StudentProgramCurriculumService {
                           blocked = "You are already enrolled in a cohort of this course";
                         } else if (!c.mandatory()
                             && budget.remaining() != null
-                            && o.getCredits() > budget.remaining()) {
+                            && admissionCredits > budget.remaining()) {
                           blocked = "Insufficient elective credit allowance";
                         } else if (owned == null) {
                           try {
@@ -134,7 +137,7 @@ public class StudentProgramCurriculumService {
                             o.getStartsAt(),
                             o.getEndsAt(),
                             o.getTimezone(),
-                            o.getCredits(),
+                            admissionCredits,
                             ProgramCourseAccessService.earlier(
                                 e.getExpiresAt(), policy.calculateExpiry(o, now)),
                             seats,
@@ -151,7 +154,7 @@ public class StudentProgramCurriculumService {
                       ? representative.getTitleEn()
                       : representative.getTitle(),
                   display.getStatus() == PublishStatus.PUBLISHED ? display.getSlug() : null,
-                  representative.getCredits(),
+                  admissionCredits,
                   display.getStatus(),
                   c.mandatory(),
                   owned != null,

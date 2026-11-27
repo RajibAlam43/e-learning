@@ -13,6 +13,10 @@ import org.springframework.data.repository.query.Param;
 
 public interface EnrollmentRepository extends JpaRepository<Enrollment, UUID> {
 
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
+  @Query("SELECT e FROM Enrollment e WHERE e.id = :id")
+  Optional<Enrollment> findByIdForUpdate(@Param("id") UUID id);
+
   Optional<Enrollment> findByUserIdAndCourseId(UUID userId, UUID courseId);
 
   @Lock(LockModeType.PESSIMISTIC_WRITE)

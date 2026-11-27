@@ -26,6 +26,7 @@ async page => {
   }
   if(path==='/admin/collections/'+id+'/publish'){program.status='PUBLISHED';return reply({});}
   if(path==='/student/collections/'+id)return reply({collectionId:id,collectionName:program.title,collectionType:'DIPLOMA',courses:[],progressPercentage:50});
+  if(path==='/student/collections/'+id+'/graduation')return reply({programId:id,title:'Islamic Studies Diploma',accessActive:true,status:'IN_PROGRESS',canCheckCompletion:true,canRequestCertificate:false,courses:[]});
   if(path==='/student/collections/'+id+'/curriculum')return reply({graduationRequirements:original,creditProgress:{requiredCredits:6,earnedCredits:3,electiveCreditsCounted:0,electiveCreditLimit:3,mandatoryCoursesCompleted:1,mandatoryCoursesRequired:1},expiresAt:'2030-05-26T12:00:00Z',accessActive:true,availableCourses:courses.map(c=>({courseId:c.courseId,courseTemplateId:c.courseTemplateId,title:c.title,slug:c.status==='PUBLISHED'?'arabic-elective':null,credits:3,status:c.status,mandatoryForGraduation:c.courseId===core,enrolled:false}))});
   if(path==='/public/settings')return reply([]);
   if(url.origin===origin)return route.continue();return route.abort();
