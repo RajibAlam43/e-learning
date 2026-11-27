@@ -29,7 +29,7 @@ public class CollectionEnrollmentCompletionService {
             .findByUserIdAndCollectionIdForUpdate(userId, collectionId)
             .orElse(null);
     if (enrollment == null
-        || enrollment.getStatus() != EnrollmentStatus.ACTIVE
+        || !enrollment.isAccessActiveAt(Instant.now())
         || enrollment.getCompletedAt() != null) {
       return;
     }

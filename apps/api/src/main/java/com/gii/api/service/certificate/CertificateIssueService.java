@@ -177,11 +177,9 @@ public class CertificateIssueService {
       return toResponse(existing, true, "CERTIFICATE_ALREADY_EXISTS");
     }
 
-    if (enrollment.getStatus() != EnrollmentStatus.ACTIVE) {
-      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Enrollment is not active");
-    }
-    if (enrollment.getExpiresAt() != null && !enrollment.getExpiresAt().isAfter(Instant.now())) {
-      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Enrollment has expired");
+    if (!enrollment.isAccessActiveAt(Instant.now())) {
+      throw new ResponseStatusException(
+          HttpStatus.FORBIDDEN, "Program access is inactive or expired");
     }
 
     boolean eligible = enrollment.getCompletedAt() != null;
@@ -253,8 +251,10 @@ public class CertificateIssueService {
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   public void tryIssueCollectionCertificate(UUID collectionEnrollmentId) {
     CollectionEnrollment enrollment =
-        collectionEnrollmentRepository.findById(collectionEnrollmentId).orElse(null);
-    if (enrollment == null || enrollment.getCompletedAt() == null) {
+        collectionEnrollmentRepository.findByIdForUpdate(collectionEnrollmentId).orElse(null);
+    if (enrollment == null
+        || enrollment.getCompletedAt() == null
+        || !enrollment.isAccessActiveAt(Instant.now())) {
       return;
     }
     Collection collection = enrollment.getCollection();

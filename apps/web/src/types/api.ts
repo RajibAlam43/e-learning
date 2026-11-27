@@ -353,6 +353,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/student/collections/{programId}/graduation/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Check requirements and record program completion when eligible */
+        post: operations["check"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/student/collections/{id}/registrations": {
         parameters: {
             query?: never;
@@ -1089,6 +1106,23 @@ export interface paths {
         put?: never;
         /** Create a direct R2 thumbnail upload URL */
         post: operations["createThumbnailUpload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/students/{userId}/programs/{programId}/graduation/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Recheck graduation using original requirements; no academic override */
+        post: operations["check_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2269,6 +2303,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/student/collections/{programId}/graduation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read your original graduation requirements and counted credit breakdown */
+        get: operations["program"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/student/collections/{id}/curriculum": {
         parameters: {
             query?: never;
@@ -2395,6 +2446,23 @@ export interface paths {
         };
         /** Read your own awarded academic credits */
         get: operations["academicRecord"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/student/academic-progress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read your transcript and program graduation progress */
+        get: operations["progress"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3146,6 +3214,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/students/{userId}/academic-progress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read a student's transcript and program graduation progress */
+        get: operations["progress_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/settings": {
         parameters: {
             query?: never;
@@ -3491,6 +3576,65 @@ export interface components {
             wasEligible?: boolean;
             eligibilityReason?: string;
             message?: string;
+        };
+        ProgramCreditCourseResponse: {
+            /** Format: uuid */
+            courseTemplateId?: string;
+            title?: string;
+            mandatory?: boolean;
+            /** Format: int32 */
+            expectedCredits?: number;
+            /** Format: int32 */
+            awardedCredits?: number;
+            /** Format: int32 */
+            countedCredits?: number;
+            /** @enum {string} */
+            source?: "COMPLETION" | "EXEMPTION";
+            /** Format: date-time */
+            achievedAt?: string;
+        };
+        ProgramCreditProgressResponse: {
+            /** Format: int32 */
+            requiredCredits?: number;
+            /** Format: int64 */
+            earnedCredits?: number;
+            /** Format: int64 */
+            electiveCreditsCounted?: number;
+            /** Format: int32 */
+            electiveCreditLimit?: number;
+            /** Format: int32 */
+            mandatoryCoursesCompleted?: number;
+            /** Format: int32 */
+            mandatoryCoursesRequired?: number;
+            complete?: boolean;
+        };
+        ProgramGraduationResponse: {
+            /** Format: uuid */
+            programId?: string;
+            title?: string;
+            /** @enum {string} */
+            programType?: "PACK" | "TRACK" | "DIPLOMA" | "DEGREE";
+            /** @enum {string} */
+            enrollmentStatus?: "ACTIVE" | "REFUNDED" | "REVOKED";
+            accessActive?: boolean;
+            /** Format: date-time */
+            expiresAt?: string;
+            /** Format: date-time */
+            completedAt?: string;
+            /** @enum {string} */
+            status?: "COMPLETED" | "ELIGIBLE" | "IN_PROGRESS" | "ACCESS_INACTIVE";
+            requirementsMet?: boolean;
+            canCheckCompletion?: boolean;
+            canRequestCertificate?: boolean;
+            requirements?: components["schemas"]["ProgramSnapshot"];
+            creditProgress?: components["schemas"]["ProgramCreditProgressResponse"];
+            courses?: components["schemas"]["ProgramCreditCourseResponse"][];
+            /** Format: int64 */
+            creditsRemaining?: number;
+            /** Format: uuid */
+            certificateId?: string;
+            certificateCode?: string;
+            certificateRevoked?: boolean;
         };
         RegisterProgramCourseRequest: {
             /** Format: uuid */
@@ -5556,21 +5700,6 @@ export interface components {
             /** Format: int64 */
             remaining?: number;
         };
-        ProgramCreditProgressResponse: {
-            /** Format: int32 */
-            requiredCredits?: number;
-            /** Format: int64 */
-            earnedCredits?: number;
-            /** Format: int64 */
-            electiveCreditsCounted?: number;
-            /** Format: int32 */
-            electiveCreditLimit?: number;
-            /** Format: int32 */
-            mandatoryCoursesCompleted?: number;
-            /** Format: int32 */
-            mandatoryCoursesRequired?: number;
-            complete?: boolean;
-        };
         ProgramOfferingResponse: {
             /** Format: uuid */
             courseId?: string;
@@ -5738,6 +5867,22 @@ export interface components {
             source?: "COMPLETION" | "EXEMPTION";
             /** Format: date-time */
             achievedAt?: string;
+        };
+        AcademicProgressResponse: {
+            /** Format: uuid */
+            userId?: string;
+            fullName?: string;
+            email?: string;
+            phone?: string;
+            academicRecord?: components["schemas"]["AcademicRecordResponse"];
+            semesters?: components["schemas"]["SemesterLabel"][];
+            programs?: components["schemas"]["ProgramGraduationResponse"][];
+        };
+        SemesterLabel: {
+            /** Format: uuid */
+            id?: string;
+            code?: string;
+            name?: string;
         };
         Playback: {
             url?: string;
@@ -6418,19 +6563,19 @@ export interface components {
             empty?: boolean;
         };
         PageableObject: {
-            sort?: components["schemas"]["SortObject"];
             paged?: boolean;
             /** Format: int32 */
             pageNumber?: number;
             /** Format: int32 */
             pageSize?: number;
             unpaged?: boolean;
+            sort?: components["schemas"]["SortObject"];
             /** Format: int64 */
             offset?: number;
         };
         SortObject: {
-            sorted?: boolean;
             unsorted?: boolean;
+            sorted?: boolean;
             empty?: boolean;
         };
         AdminCollectionSummaryResponse: {
@@ -7336,6 +7481,28 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["CertificateIssueResponse"];
+                };
+            };
+        };
+    };
+    check: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                programId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ProgramGraduationResponse"];
                 };
             };
         };
@@ -8818,6 +8985,29 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ThumbnailUploadResponse"];
+                };
+            };
+        };
+    };
+    check_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+                programId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ProgramGraduationResponse"];
                 };
             };
         };
@@ -11078,6 +11268,28 @@ export interface operations {
             };
         };
     };
+    program: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                programId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ProgramGraduationResponse"];
+                };
+            };
+        };
+    };
     curriculum: {
         parameters: {
             query?: never;
@@ -11287,6 +11499,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["AcademicRecordResponse"];
+                };
+            };
+        };
+    };
+    progress: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AcademicProgressResponse"];
                 };
             };
         };
@@ -12492,6 +12724,28 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["AcademicRecordResponse"];
+                };
+            };
+        };
+    };
+    progress_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AcademicProgressResponse"];
                 };
             };
         };

@@ -1,8 +1,8 @@
 # Semesters and academic credits
 
-Steps 1–5 provide institution semesters, course credits, reusable cohort offerings,
+Steps 1–6 provide institution semesters, course credits, reusable cohort offerings,
 academic achievements, prerequisites, credit waivers, program curricula and deferred
-course/cohort registration, and audited manual enrollment administration.
+course/cohort registration, audited manual enrollment administration, and graduation reporting.
 
 ## Administration
 
@@ -329,3 +329,60 @@ and web images. It adds only the manual enrollment audit table and index. No new
 environment variables or cloud services are required. Existing frontend source changes
 are limited to the registration page's navigation link and regenerated API types;
 the screen, component and client hooks are new files. Nothing has been deployed.
+
+## Academic records and graduation (step 6)
+
+Students can open **My Programs → Academic record and graduation progress**, or the
+academic-record link inside an individual program. Administrators open **Students →
+a student's name → Academic record**. Both views show the student's awarded credits,
+completion versus approved-waiver source, semester when assigned, and program progress.
+The transcript counts each course template once, even after multiple completed cohorts.
+It includes earned credits outside a program's syllabus; individual program reports count
+only their eligible courses. The same eligible academic award may satisfy several programs.
+
+Each credit-based program shows its original mandatory courses and credit target,
+credits still needed, and a per-course breakdown of awarded and counted credits. Mandatory
+requirements remain fixed by the original enrollment snapshot. Current additions and retained
+active selections are optional for existing students. Eligible elective awards are allocated
+to the original elective cap in achievement-time order, with template ID breaking ties.
+A partially counted award or excess elective credits stay on the academic record. Waivers
+satisfy mandatory academic requirements and contribute their awarded credits without faking
+lessons, exams, attendance or a course-completion certificate.
+
+**Check graduation** evaluates the existing rules and records `completedAt` when eligible.
+Students and administrators use the same check; it cannot waive requirements or add credits.
+New completion requires active, unexpired program access backed by a paid order or an
+independent admin grant. Award/completion events still refresh program completion automatically.
+Reading progress does not mutate enrollment. Checks are idempotent, and already recorded
+completion remains intact after later catalog edits, refunds or access expiry. Reports expose
+current credit allocation separately from that permanent completion timestamp. Legacy programs
+continue to use their original mandatory-course requirements rather than a new credit target.
+
+Program percentage now considers both counted credits and mandatory courses, so enough
+elective credits alone cannot display 100 percent when mandatory courses are missing.
+Recorded completion continues to display 100 percent. The new reports distinguish requirements
+remaining, requirements met, recorded completion and inactive access.
+
+The program certificate action follows these eligibility results and uses the existing
+certificate issuance, private storage, download and public-verification routes. New program
+certificates require active access; the automatic backfill path now applies that same access
+check and enrollment lock. Issued certificates remain retrievable after access expiry unless
+revoked. Revocation is displayed and prevents certificate retrieval through the issue action.
+Administrators can inspect certificate status and open public verification; this screen does
+not impersonate the student to issue a certificate.
+
+| Method | Route | Purpose |
+| --- | --- | --- |
+| GET | `/student/academic-progress` | Own transcript, semesters and all program reports |
+| GET | `/student/collections/{programId}/graduation` | Own original requirements and credit breakdown |
+| POST | `/student/collections/{programId}/graduation/check` | Check and record own eligible completion |
+| GET | `/admin/students/{userId}/academic-progress` | Student transcript and program reports |
+| POST | `/admin/students/{userId}/programs/{programId}/graduation/check` | Recheck using the same academic rules |
+
+Student routes require STUDENT and scope enrollment lookup to the authenticated account.
+Administration requires ADMIN or SUPER_ADMIN. Credit records survive loss of study access.
+No new migration, environment variables or external services are required for step 6;
+it uses the existing V24–V28 schema. Deploy matching API and web images after the prior
+migrations. Existing frontend changes are limited to navigation links and replacing the
+program certificate action with the graduation panel; the report screens and components
+are new files. This implementation has not been deployed to a hosted environment.

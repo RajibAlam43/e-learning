@@ -71,4 +71,11 @@ public class CollectionEnrollment extends CreatedOnlyUuidEntity {
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "source_order_item_id")
   private OrderItem sourceOrderItem;
+
+  public boolean isAccessActiveAt(Instant now) {
+    return status == EnrollmentStatus.ACTIVE
+        && (expiresAt == null || expiresAt.isAfter(now))
+        && (sourceOrderItem == null
+            || sourceOrderItem.getOrder().getStatus() == com.gii.common.enums.OrderStatus.PAID);
+  }
 }

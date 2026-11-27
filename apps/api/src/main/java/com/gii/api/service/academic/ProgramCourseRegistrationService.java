@@ -7,7 +7,6 @@ import com.gii.common.entity.academic.ProgramCourseRegistration;
 import com.gii.common.entity.collection.CollectionEnrollment;
 import com.gii.common.entity.enrollment.Enrollment;
 import com.gii.common.enums.EnrollmentStatus;
-import com.gii.common.enums.OrderStatus;
 import com.gii.common.enums.ProgramRegistrationStatus;
 import com.gii.common.enums.PublishStatus;
 import com.gii.common.repository.academic.ProgramCourseRegistrationRepository;
@@ -262,9 +261,6 @@ public class ProgramCourseRegistrationService {
   }
 
   public static boolean active(CollectionEnrollment e, Instant now) {
-    return e.getStatus() == EnrollmentStatus.ACTIVE
-        && (e.getExpiresAt() == null || e.getExpiresAt().isAfter(now))
-        && (e.getSourceOrderItem() == null
-            || e.getSourceOrderItem().getOrder().getStatus() == OrderStatus.PAID);
+    return e.isAccessActiveAt(now);
   }
 }

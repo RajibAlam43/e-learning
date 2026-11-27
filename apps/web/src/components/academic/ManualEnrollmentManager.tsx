@@ -62,6 +62,7 @@ export function ManualEnrollmentManager({ userId }: { userId: string }) {
     <nav aria-label="Student administration" className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-[#1c3873]">
       <Link className="underline underline-offset-4" href="/admin/students">Back to students</Link>
       <Link className="underline underline-offset-4" href={`/admin/students/${userId}/registrations`}>Program registrations</Link>
+      <Link className="underline underline-offset-4" href={`/admin/students/${userId}/academics`}>Academic record</Link>
     </nav>
     <AdminPageHeader title="Manual enrollment" description="Grant course or program access, or register a student using their program entitlement." />
     {overview.isLoading ? <p role="status">Loading student…</p> : overview.isError ? <p role="alert" className="text-red-700">Unable to load this student. <button className="underline" onClick={() => overview.refetch()}>Retry</button></p> : <>

@@ -102,14 +102,11 @@ public class StudentCollectionDetailsService {
             .mapToInt(course -> completionByCourseId.get(course.getId()).completedItems())
             .sum();
     double progress =
-        enrollment.getProgramSnapshot() != null && enrollment.getProgramSnapshot().creditBased()
-            ? Math.min(
-                100.0,
-                100.0
-                    * programProgress.get(enrollment).earnedCredits()
-                    / enrollment.getProgramSnapshot().requiredCredits())
-            : enrollment.getCompletedAt() != null
-                ? 100.0
+        enrollment.getCompletedAt() != null
+            ? 100.0
+            : enrollment.getProgramSnapshot() != null
+                    && enrollment.getProgramSnapshot().creditBased()
+                ? programProgress.get(enrollment).completionPercentage()
                 : totalItems == 0 ? 0.0 : Math.round(completedItems * 10000.0 / totalItems) / 100.0;
 
     return StudentCollectionDetailsResponse.builder()
