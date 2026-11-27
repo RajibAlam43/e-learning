@@ -16,6 +16,10 @@ public interface CollectionEnrollmentRepository extends JpaRepository<Collection
   Optional<CollectionEnrollment> findByUserIdAndCollectionId(UUID userId, UUID collectionId);
 
   @Lock(LockModeType.PESSIMISTIC_WRITE)
+  @Query("SELECT ce FROM CollectionEnrollment ce WHERE ce.id = :id")
+  Optional<CollectionEnrollment> findByIdForUpdate(@Param("id") UUID id);
+
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
   @Query(
       """
         SELECT ce
@@ -37,6 +41,8 @@ public interface CollectionEnrollmentRepository extends JpaRepository<Collection
       UUID userId, UUID collectionId, EnrollmentStatus status);
 
   List<CollectionEnrollment> findByUserIdAndStatus(UUID userId, EnrollmentStatus status);
+
+  List<CollectionEnrollment> findByUserIdOrderByEnrolledAtDesc(UUID userId);
 
   List<CollectionEnrollment> findByUserIdAndStatusAndCompletedAtIsNotNull(
       UUID userId, EnrollmentStatus status);

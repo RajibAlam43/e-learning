@@ -167,6 +167,116 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/semesters/{semesterId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update a semester without invalidating assigned offerings */
+        put: operations["updateSemester"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/faculty/members/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Edit faculty profile, group, visibility and order */
+        put: operations["updateFacultyMember"];
+        post?: never;
+        /** Remove a faculty entry without deleting a teacher account */
+        delete: operations["deleteFacultyMember"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/faculty/groups/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Edit faculty group details, visibility and order */
+        put: operations["updateFacultyGroup"];
+        post?: never;
+        /** Remove an empty faculty group */
+        delete: operations["deleteFacultyGroup"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/courses/{courseId}/prerequisites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** prerequisites */
+        get: operations["prerequisites"];
+        /** savePrerequisites */
+        put: operations["savePrerequisites"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/courses/{courseId}/live-classes/{liveClassItemId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read a live class curriculum item for editing */
+        get: operations["getLiveClassItem"];
+        /** Edit live class curriculum metadata and position */
+        put: operations["updateLiveClassItem"];
+        post?: never;
+        /**
+         * Remove an unused or cancelled live class item from the shared curriculum
+         * @description Scheduled meetings must be cancelled first. Ongoing/completed meetings cannot be removed. Cancelled/failed meeting history is preserved.
+         */
+        delete: operations["removeLiveClassItem"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/collections/{id}/curriculum": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Save program graduation requirements and mandatory/elective courses */
+        put: operations["saveCurriculum"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/webhooks/mux": {
         parameters: {
             query?: never;
@@ -181,6 +291,41 @@ export interface paths {
          * @description Verify and reconcile Mux direct-upload and asset lifecycle events.
          */
         post: operations["receiveMuxWebhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/student/waivers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** waivers */
+        get: operations["waivers"];
+        put?: never;
+        /** request */
+        post: operations["request"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/student/waivers/evidence-upload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** upload */
+        post: operations["upload"];
         delete?: never;
         options?: never;
         head?: never;
@@ -266,6 +411,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/student/collections/{programId}/graduation/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Check requirements and record program completion when eligible */
+        post: operations["check"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/student/collections/{id}/registrations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Register for an included course offering using your active program */
+        post: operations["register"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/student/collections/{collectionId}/certificate/generate": {
         parameters: {
             query?: never;
@@ -300,6 +479,57 @@ export interface paths {
          * @description Check eligibility and issue collection certificate if qualified; return existing if already issued. Idempotent operation.
          */
         post: operations["issueOrGetCollectionCertificate_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/recording-uploads/{id}/parts/{number}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Authorize one recording part using a scoped upload token */
+        post: operations["part"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/recording-uploads/{id}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Verify uploaded parts and queue recording validation */
+        post: operations["complete"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/recording-uploads/{id}/abort": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel an unfinished recording upload */
+        post: operations["abort"];
         delete?: never;
         options?: never;
         head?: never;
@@ -455,7 +685,7 @@ export interface paths {
          * Register a new user
          * @description Register with email/phone and password. At least one of email or phone is required.
          */
-        post: operations["register"];
+        post: operations["register_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -814,6 +1044,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/instructor/recordings/{id}/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Renew the owner's recording upload authorization */
+        post: operations["resume"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/instructor/live-classes/{classId}/recordings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List recordings for an assigned class */
+        get: operations["list"];
+        put?: never;
+        /** Start a private multipart recording upload */
+        post: operations["start_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/instructor/google-meet/connection/authorize": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Begin Google consent for the authenticated teacher */
+        post: operations["authorize"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/instructor/courses/{courseId}/announcements": {
         parameters: {
             query?: never;
@@ -854,6 +1136,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/waivers/{id}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** review */
+        post: operations["review"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/thumbnails/upload-url": {
         parameters: {
             query?: never;
@@ -865,6 +1164,79 @@ export interface paths {
         put?: never;
         /** Create a direct R2 thumbnail upload URL */
         post: operations["createThumbnailUpload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/students/{userId}/programs/{programId}/graduation/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Recheck graduation using original requirements; no academic override */
+        post: operations["check_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/students/{userId}/program-registrations/{id}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Withdraw an unfinished course choice with an audit reason */
+        post: operations["withdraw"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/students/{userId}/manual-enrollments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read student identity, program entitlements and paged manual enrollment audit */
+        get: operations["overview"];
+        put?: never;
+        /**
+         * Manually enroll with an audit reason; prerequisites require approved waivers
+         * @description Select a course or program, or both with programFunded. requestId makes retries idempotent. Existing valid access is returned unchanged. Program-funded registrations retain curriculum and elective allowance checks.
+         */
+        post: operations["enroll"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/semesters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List institution-wide semesters */
+        get: operations["listSemesters"];
+        put?: never;
+        /** Create an institution-wide semester */
+        post: operations["createSemester"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1024,6 +1396,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/live-classes/{liveClassId}/co-hosts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add a Google Meet co-host; omit email to add the current admin
+         * @description Preserves course teachers and existing manual co-hosts. Requires organizer Meet API authorization.
+         */
+        post: operations["add"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/lessons/{lessonId}/video/upload-url": {
         parameters: {
             query?: never;
@@ -1121,6 +1513,40 @@ export interface paths {
         put?: never;
         /** Create instructor */
         post: operations["createInstructor"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/faculty/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add a teacher or manual faculty profile */
+        post: operations["createFacultyMember"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/faculty/groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create a faculty group */
+        post: operations["createFacultyGroup"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1244,6 +1670,24 @@ export interface paths {
         put?: never;
         /** Publish course */
         post: operations["publishCourse"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/courses/{courseId}/offerings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List offerings sharing the same academic course curriculum */
+        get: operations["listOfferings"];
+        put?: never;
+        /** Create another cohort using the same curriculum and academic credit identity */
+        post: operations["createOffering"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1546,7 +1990,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** Read quiz settings, questions and answer choices for editing */
+        get: operations["getQuiz"];
         put?: never;
         post?: never;
         /** Delete quiz when no student attempts exist */
@@ -1698,6 +2143,40 @@ export interface paths {
         head?: never;
         /** Update category */
         patch: operations["updateCategory"];
+        trace?: never;
+    };
+    "/student/waivers/{id}/evidence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** evidence */
+        get: operations["evidence"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/student/waivers/courses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** courses */
+        get: operations["courses"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/student/progress/streak": {
@@ -1880,6 +2359,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/student/courses/{courseId}/eligibility": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** eligibility */
+        get: operations["eligibility"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/student/collections": {
         parameters: {
             query?: never;
@@ -1892,6 +2388,40 @@ export interface paths {
          * @description Get all enrolled collections with overall progress and status.
          */
         get: operations["getMyCollections"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/student/collections/{programId}/graduation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read your original graduation requirements and counted credit breakdown */
+        get: operations["program"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/student/collections/{id}/curriculum": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read your original graduation requirements and available program courses */
+        get: operations["curriculum"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1992,6 +2522,57 @@ export interface paths {
          * @description List newest announcements from the student's active, unexpired course enrollments.
          */
         get: operations["getCourseAnnouncements"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/student/academic-record": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read your own awarded academic credits */
+        get: operations["academicRecord"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/student/academic-progress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read your transcript and program graduation progress */
+        get: operations["progress"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/recordings/{id}/playback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Authorize private HLS playback after enrollment or teacher checks */
+        get: operations["playback"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2102,6 +2683,57 @@ export interface paths {
          * @description Get detailed instructor profile including courses taught and credentials.
          */
         get: operations["getInstructorDetails"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/public/google-meet/oauth/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Complete Google consent using a single-use browser-bound state */
+        get: operations["callback"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/public/faculty": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List visible faculty grouped in display order */
+        get: operations["publicFaculty"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/public/faculty/featured": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List homepage faculty independent of directory visibility */
+        get: operations["featuredFaculty"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2276,6 +2908,23 @@ export interface paths {
          * @description Retrieve authenticated user's profile information including roles and stats.
          */
         get: operations["getMe"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/live-classes/{classId}/recordings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List automatically published recordings after class access checks */
+        get: operations["published"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2529,6 +3178,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/instructor/google-meet/connection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get the current user's Google Meet connection and organizer mode */
+        get: operations["status"];
+        put?: never;
+        post?: never;
+        /** Delete this user's stored Google authorization */
+        delete: operations["disconnect"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/instructor/dashboard": {
         parameters: {
             query?: never;
@@ -2569,6 +3236,60 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/waivers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** waivers */
+        get: operations["waivers_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/waivers/{id}/evidence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** evidence */
+        get: operations["evidence_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List students with pagination
+         * @description Includes accounts with the STUDENT role, even if they also have other roles, and all account statuses, with or without orders. Searches name, email, or phone by literal substring, ignoring case for name/email. Blank search lists all students. Ordered by registration date descending, then user ID descending.
+         */
+        get: operations["listUsers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/support/tickets": {
         parameters: {
             query?: never;
@@ -2578,6 +3299,57 @@ export interface paths {
         };
         /** List support tickets */
         get: operations["listSupportTickets"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/students/{userId}/program-registrations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read a student's latest program registration history */
+        get: operations["history"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/students/{userId}/academic-record": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read a student's academic credit achievements */
+        get: operations["academicRecord_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/students/{userId}/academic-progress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read a student's transcript and program graduation progress */
+        get: operations["progress_1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2671,6 +3443,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/faculty": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List faculty groups and people, including hidden entries */
+        get: operations["listFaculty"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/reviews/{reviewId}": {
         parameters: {
             query?: never;
@@ -2712,6 +3501,292 @@ export interface components {
             createdAt?: string;
             /** Format: date-time */
             updatedAt?: string;
+        };
+        SaveSemesterRequest: {
+            code: string;
+            name: string;
+            /** Format: date-time */
+            startsAt: string;
+            /** Format: date-time */
+            endsAt: string;
+            /** Format: date-time */
+            registrationStartsAt: string;
+            /** Format: date-time */
+            registrationEndsAt: string;
+        };
+        SemesterResponse: {
+            /** Format: uuid */
+            semesterId?: string;
+            code?: string;
+            name?: string;
+            /** Format: date-time */
+            startsAt?: string;
+            /** Format: date-time */
+            endsAt?: string;
+            /** Format: date-time */
+            registrationStartsAt?: string;
+            /** Format: date-time */
+            registrationEndsAt?: string;
+            status?: string;
+        };
+        FacultyProfileDetailsRequest: {
+            credentialsText?: string;
+            credentialsTextEn?: string;
+            institution?: string;
+            institutionEn?: string;
+            expertiseArea?: string;
+            expertiseAreaEn?: string;
+            specialties?: string[];
+            specialtiesEn?: string[];
+            /** Format: int32 */
+            yearsExperience?: number;
+        };
+        SaveFacultyMemberRequest: {
+            /** Format: uuid */
+            groupId: string;
+            /** Format: uuid */
+            instructorId?: string;
+            name: string;
+            title?: string;
+            titleEn?: string;
+            bio?: string;
+            bioEn?: string;
+            photoObjectKey?: string;
+            /** Format: int32 */
+            position: number;
+            /** Format: int32 */
+            homepagePosition: number;
+            showOnFaculty: boolean;
+            showOnHomepage: boolean;
+            profileDetails?: components["schemas"]["FacultyProfileDetailsRequest"];
+        };
+        FacultyMemberResponse: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            groupId?: string;
+            /** Format: uuid */
+            instructorId?: string;
+            name?: string;
+            title?: string;
+            titleEn?: string;
+            bio?: string;
+            bioEn?: string;
+            photoUrl?: string;
+            photoObjectKey?: string;
+            /** Format: int32 */
+            position?: number;
+            /** Format: int32 */
+            homepagePosition?: number;
+            showOnFaculty?: boolean;
+            showOnHomepage?: boolean;
+            profilePublic?: boolean;
+            credentialsText?: string;
+            institution?: string;
+            expertiseArea?: string;
+            specialties?: string[];
+            /** Format: int32 */
+            yearsExperience?: number;
+            credentialsTextEn?: string;
+            institutionEn?: string;
+            expertiseAreaEn?: string;
+            specialtiesEn?: string[];
+        };
+        SaveFacultyGroupRequest: {
+            name: string;
+            nameEn?: string;
+            /** Format: int32 */
+            position: number;
+            visible: boolean;
+        };
+        FacultyGroupResponse: {
+            /** Format: uuid */
+            id?: string;
+            name?: string;
+            nameEn?: string;
+            /** Format: int32 */
+            position?: number;
+            visible?: boolean;
+            members?: components["schemas"]["FacultyMemberResponse"][];
+        };
+        SavePrerequisitesRequest: {
+            courseTemplateIds: string[];
+        };
+        CourseOption: {
+            /** Format: uuid */
+            courseTemplateId?: string;
+            title?: string;
+            /** Format: int32 */
+            credits?: number;
+        };
+        PrerequisiteResponse: {
+            /** Format: uuid */
+            courseTemplateId?: string;
+            requiredCourses?: components["schemas"]["CourseOption"][];
+        };
+        CreateLiveClassItemRequest: {
+            /** Format: uuid */
+            sectionId: string;
+            /** Format: int32 */
+            position?: number;
+            title: string;
+            titleEn?: string;
+            description?: string;
+            descriptionEn?: string;
+            /** Format: int32 */
+            expectedDurationMinutes?: number;
+            isMandatory?: boolean;
+        };
+        AdminLiveClassItemResponse: {
+            /** Format: uuid */
+            liveClassItemId?: string;
+            /** Format: uuid */
+            liveClassId?: string;
+            /** Format: uuid */
+            sectionId?: string;
+            /** Format: int32 */
+            position?: number;
+            title?: string;
+            titleEn?: string;
+            description?: string;
+            descriptionEn?: string;
+            /** Format: int32 */
+            expectedDurationMinutes?: number;
+            isMandatory?: boolean;
+            scheduled?: boolean;
+        };
+        Item: {
+            /** Format: uuid */
+            courseId: string;
+            /** Format: int32 */
+            position: number;
+            isMandatory?: boolean;
+        };
+        SaveProgramCurriculumRequest: {
+            /** Format: int32 */
+            requiredCredits: number;
+            /** Format: int32 */
+            electiveCreditLimit: number;
+            /** Format: int32 */
+            expectedDurationMonths: number;
+            /** Format: int32 */
+            accessDurationMonths?: number;
+            items: components["schemas"]["Item"][];
+        };
+        AdminCollectionCourseResponse: {
+            /** Format: uuid */
+            courseId?: string;
+            courseTitle?: string;
+            courseSlug?: string;
+            /** Format: int32 */
+            position?: number;
+            isMandatory?: boolean;
+            /** Format: uuid */
+            courseTemplateId?: string;
+            /** Format: int32 */
+            credits?: number;
+            /** @enum {string} */
+            status?: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+        };
+        AdminCollectionDetailResponse: {
+            /** Format: uuid */
+            collectionId?: string;
+            programRequirements?: components["schemas"]["ProgramSnapshot"];
+            /** Format: int32 */
+            accessDurationMonths?: number;
+            title?: string;
+            titleEn?: string;
+            slug?: string;
+            /** @enum {string} */
+            collectionType?: "PACK" | "TRACK" | "DIPLOMA" | "DEGREE";
+            thumbnailObjectKey?: string;
+            thumbnailUrl?: string;
+            shortDescription?: string;
+            shortDescriptionEn?: string;
+            description?: string;
+            descriptionEn?: string;
+            priceBdt?: number;
+            /** @enum {string} */
+            status?: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+            /** Format: date-time */
+            publishedAt?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            updatedAt?: string;
+            courses?: components["schemas"]["AdminCollectionCourseResponse"][];
+        };
+        CourseRequirement: {
+            /** Format: uuid */
+            courseId?: string;
+            /** Format: uuid */
+            courseTemplateId?: string;
+            title?: string;
+            /** Format: int32 */
+            credits?: number;
+            mandatory?: boolean;
+            /** Format: int32 */
+            position?: number;
+        };
+        ProgramSnapshot: {
+            /** @enum {string} */
+            collectionType?: "PACK" | "TRACK" | "DIPLOMA" | "DEGREE";
+            /** Format: int32 */
+            requiredCredits?: number;
+            /** Format: int32 */
+            electiveCreditLimit?: number;
+            /** Format: int32 */
+            expectedDurationMonths?: number;
+            /** Format: int32 */
+            accessDurationMonths?: number;
+            courses?: components["schemas"]["CourseRequirement"][];
+        };
+        CreateWaiverRequest: {
+            /** Format: uuid */
+            courseTemplateId: string;
+            reason: string;
+            evidenceObjectKey?: string;
+        };
+        WaiverResponse: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            userId?: string;
+            studentName?: string;
+            studentContact?: string;
+            /** Format: uuid */
+            courseTemplateId?: string;
+            courseTitle?: string;
+            /** Format: int32 */
+            requestedCredits?: number;
+            /** Format: int32 */
+            currentCredits?: number;
+            reason?: string;
+            hasEvidence?: boolean;
+            /** @enum {string} */
+            status?: "PENDING" | "APPROVED" | "REJECTED";
+            reviewReason?: string;
+            reviewerName?: string;
+            /** Format: date-time */
+            reviewedAt?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: uuid */
+            achievementId?: string;
+            /** Format: int32 */
+            awardedCredits?: number;
+        };
+        WaiverEvidenceUploadRequest: {
+            fileName: string;
+            contentType: string;
+            /** Format: int64 */
+            sizeBytes?: number;
+        };
+        Upload: {
+            objectKey?: string;
+            uploadUrl?: string;
+            /** Format: date-time */
+            expiresAt?: string;
         };
         CreateCourseReviewRequest: {
             /** Format: int32 */
@@ -2756,6 +3831,112 @@ export interface components {
             wasEligible?: boolean;
             eligibilityReason?: string;
             message?: string;
+        };
+        ProgramCreditCourseResponse: {
+            /** Format: uuid */
+            courseTemplateId?: string;
+            title?: string;
+            mandatory?: boolean;
+            /** Format: int32 */
+            expectedCredits?: number;
+            /** Format: int32 */
+            awardedCredits?: number;
+            /** Format: int32 */
+            countedCredits?: number;
+            /** @enum {string} */
+            source?: "COMPLETION" | "EXEMPTION";
+            /** Format: date-time */
+            achievedAt?: string;
+        };
+        ProgramCreditProgressResponse: {
+            /** Format: int32 */
+            requiredCredits?: number;
+            /** Format: int64 */
+            earnedCredits?: number;
+            /** Format: int64 */
+            electiveCreditsCounted?: number;
+            /** Format: int32 */
+            electiveCreditLimit?: number;
+            /** Format: int32 */
+            mandatoryCoursesCompleted?: number;
+            /** Format: int32 */
+            mandatoryCoursesRequired?: number;
+            complete?: boolean;
+        };
+        ProgramGraduationResponse: {
+            /** Format: uuid */
+            programId?: string;
+            title?: string;
+            /** @enum {string} */
+            programType?: "PACK" | "TRACK" | "DIPLOMA" | "DEGREE";
+            /** @enum {string} */
+            enrollmentStatus?: "ACTIVE" | "REFUNDED" | "REVOKED";
+            accessActive?: boolean;
+            /** Format: date-time */
+            expiresAt?: string;
+            /** Format: date-time */
+            completedAt?: string;
+            /** @enum {string} */
+            status?: "COMPLETED" | "ELIGIBLE" | "IN_PROGRESS" | "ACCESS_INACTIVE";
+            requirementsMet?: boolean;
+            canCheckCompletion?: boolean;
+            canRequestCertificate?: boolean;
+            requirements?: components["schemas"]["ProgramSnapshot"];
+            creditProgress?: components["schemas"]["ProgramCreditProgressResponse"];
+            courses?: components["schemas"]["ProgramCreditCourseResponse"][];
+            /** Format: int64 */
+            creditsRemaining?: number;
+            /** Format: uuid */
+            certificateId?: string;
+            certificateCode?: string;
+            certificateRevoked?: boolean;
+        };
+        RegisterProgramCourseRequest: {
+            /** Format: uuid */
+            courseId: string;
+        };
+        ProgramRegistrationResponse: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            programId?: string;
+            programTitle?: string;
+            /** Format: uuid */
+            courseTemplateId?: string;
+            /** Format: uuid */
+            courseId?: string;
+            courseTitle?: string;
+            cohortName?: string;
+            /** Format: int32 */
+            credits?: number;
+            mandatory?: boolean;
+            /** @enum {string} */
+            status?: "ACTIVE" | "WITHDRAWN";
+            /** Format: date-time */
+            registeredAt?: string;
+            /** Format: date-time */
+            accessExpiresAt?: string;
+            /** Format: date-time */
+            withdrawnAt?: string;
+            withdrawnByName?: string;
+            withdrawalReason?: string;
+            canWithdraw?: boolean;
+        };
+        PartUrl: {
+            url?: string;
+        };
+        RecordingResponse: {
+            /** Format: uuid */
+            id?: string;
+            /** @enum {string} */
+            method?: "BROWSER" | "EXTENSION";
+            /** @enum {string} */
+            status?: "UPLOADING" | "QUEUED" | "PROCESSING" | "READY" | "FAILED";
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: double */
+            durationSeconds?: number;
+            failureMessage?: string;
         };
         WebhookAckResponse: {
             acknowledged?: boolean;
@@ -3042,6 +4223,28 @@ export interface components {
             /** Format: int32 */
             lastPositionSec?: number;
         };
+        UploadSession: {
+            /** Format: uuid */
+            id?: string;
+            uploadToken?: string;
+            /** Format: date-time */
+            expiresAt?: string;
+            mimeType?: string;
+            /** Format: int64 */
+            partSizeBytes?: number;
+            /** Format: int64 */
+            maxBytes?: number;
+        };
+        StartRecordingRequest: {
+            /** @enum {string} */
+            method: "BROWSER" | "EXTENSION";
+            mimeType: string;
+        };
+        Authorization: {
+            authorizationUrl?: string;
+            /** Format: date-time */
+            expiresAt?: string;
+        };
         CreateCourseAnnouncementRequest: {
             title: string;
             content: string;
@@ -3100,9 +4303,18 @@ export interface components {
             customerPhone?: string;
             nextAction?: string;
         };
+        ReviewWaiverRequest: {
+            /** @enum {string} */
+            decision: "PENDING" | "APPROVED" | "REJECTED";
+            reason: string;
+            /** Format: int32 */
+            expectedCredits: number;
+            /** Format: uuid */
+            semesterId?: string;
+        };
         CreateThumbnailUploadRequest: {
             /** @enum {string} */
-            ownerType: "COURSE" | "COLLECTION" | "MEDIA_ASSET";
+            ownerType: "COURSE" | "COLLECTION" | "MEDIA_ASSET" | "FACULTY";
             filename: string;
             contentType: string;
             /** Format: int64 */
@@ -3117,6 +4329,57 @@ export interface components {
             sizeBytes?: number;
             /** Format: date-time */
             expiresAt?: string;
+        };
+        WithdrawProgramRegistrationRequest: {
+            reason: string;
+        };
+        ManualEnrollmentRequest: {
+            /** Format: uuid */
+            requestId: string;
+            /** Format: uuid */
+            courseId?: string;
+            /** Format: uuid */
+            programId?: string;
+            programFunded?: boolean;
+            overrideDates?: boolean;
+            overrideCapacity?: boolean;
+            allowUnpublished?: boolean;
+            reason: string;
+            /** Format: date-time */
+            expiresAt?: string;
+        };
+        ManualEnrollmentResponse: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            requestId?: string;
+            /** Format: uuid */
+            userId?: string;
+            /** Format: uuid */
+            actorId?: string;
+            actorName?: string;
+            /** Format: uuid */
+            courseId?: string;
+            courseTitle?: string;
+            /** Format: uuid */
+            programId?: string;
+            programTitle?: string;
+            programFunded?: boolean;
+            overrideDates?: boolean;
+            overrideCapacity?: boolean;
+            allowUnpublished?: boolean;
+            reason?: string;
+            /** Format: uuid */
+            enrollmentId?: string;
+            /** Format: uuid */
+            registrationId?: string;
+            /** Format: date-time */
+            accessExpiresAt?: string;
+            changed?: boolean;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            requestedExpiresAt?: string;
         };
         CreateQuizChoiceRequest: {
             choiceText: string;
@@ -3311,6 +4574,18 @@ export interface components {
             durationSec?: number;
             preferredPlaybackMode?: string;
         };
+        AddCoHostRequest: {
+            /** Format: email */
+            email?: string;
+        };
+        LiveClassCoHostResponse: {
+            /** Format: uuid */
+            liveClassId?: string;
+            email?: string;
+            role?: string;
+            coHostEmails?: string[];
+            joinUrl?: string;
+        };
         CreateLessonVideoUploadRequest: {
             filename: string;
             contentType: string;
@@ -3400,6 +4675,12 @@ export interface components {
             publishedAt?: string;
             /** Format: date-time */
             createdAt?: string;
+            /** Format: uuid */
+            courseTemplateId?: string;
+            /** Format: int32 */
+            credits?: number;
+            /** Format: uuid */
+            semesterId?: string;
         };
         AdminInstructorDetailResponse: {
             /** Format: uuid */
@@ -3480,6 +4761,10 @@ export interface components {
             capacity?: number;
             /** Format: int32 */
             accessDurationDays?: number;
+            /** Format: int32 */
+            credits?: number;
+            /** Format: uuid */
+            semesterId?: string;
         };
         AdminCategoryResponse: {
             /** Format: uuid */
@@ -3562,6 +4847,11 @@ export interface components {
             updatedAt?: string;
             sections?: components["schemas"]["AdminCourseSectionResponse"][];
             instructors?: components["schemas"]["AdminInstructorSummaryResponse"][];
+            /** Format: uuid */
+            courseTemplateId?: string;
+            /** Format: int32 */
+            credits?: number;
+            semester?: components["schemas"]["SemesterResponse"];
         };
         AdminCourseSectionResponse: {
             /** Format: uuid */
@@ -3737,37 +5027,8 @@ export interface components {
             capacity?: number;
             /** Format: int32 */
             accessDurationDays?: number;
-        };
-        CreateLiveClassItemRequest: {
             /** Format: uuid */
-            sectionId: string;
-            /** Format: int32 */
-            position?: number;
-            title: string;
-            titleEn?: string;
-            description?: string;
-            descriptionEn?: string;
-            /** Format: int32 */
-            expectedDurationMinutes?: number;
-            isMandatory?: boolean;
-        };
-        AdminLiveClassItemResponse: {
-            /** Format: uuid */
-            liveClassItemId?: string;
-            /** Format: uuid */
-            liveClassId?: string;
-            /** Format: uuid */
-            sectionId?: string;
-            /** Format: int32 */
-            position?: number;
-            title?: string;
-            titleEn?: string;
-            description?: string;
-            descriptionEn?: string;
-            /** Format: int32 */
-            expectedDurationMinutes?: number;
-            isMandatory?: boolean;
-            scheduled?: boolean;
+            semesterId?: string;
         };
         ScheduleLiveClassRequest: {
             /** Format: date-time */
@@ -3868,47 +5129,6 @@ export interface components {
             description?: string;
             descriptionEn?: string;
             priceBdt: number;
-        };
-        AdminCollectionCourseResponse: {
-            /** Format: uuid */
-            courseId?: string;
-            courseTitle?: string;
-            courseSlug?: string;
-            /** Format: int32 */
-            position?: number;
-            isMandatory?: boolean;
-        };
-        AdminCollectionDetailResponse: {
-            /** Format: uuid */
-            collectionId?: string;
-            title?: string;
-            titleEn?: string;
-            slug?: string;
-            /** @enum {string} */
-            collectionType?: "PACK" | "TRACK" | "DIPLOMA" | "DEGREE";
-            thumbnailObjectKey?: string;
-            thumbnailUrl?: string;
-            shortDescription?: string;
-            shortDescriptionEn?: string;
-            description?: string;
-            descriptionEn?: string;
-            priceBdt?: number;
-            /** @enum {string} */
-            status?: "DRAFT" | "PUBLISHED" | "ARCHIVED";
-            /** Format: date-time */
-            publishedAt?: string;
-            /** Format: date-time */
-            createdAt?: string;
-            /** Format: date-time */
-            updatedAt?: string;
-            courses?: components["schemas"]["AdminCollectionCourseResponse"][];
-        };
-        Item: {
-            /** Format: uuid */
-            courseId: string;
-            /** Format: int32 */
-            position: number;
-            isMandatory?: boolean;
         };
         SetCollectionCoursesRequest: {
             items: components["schemas"]["Item"][];
@@ -4209,6 +5429,10 @@ export interface components {
             yearsExperience?: number;
         };
         UpdateCourseRequest: {
+            /** Format: int32 */
+            credits?: number;
+            /** Format: uuid */
+            semesterId?: string;
             title?: string;
             titleEn?: string;
             slug?: string;
@@ -4246,9 +5470,9 @@ export interface components {
             /** Format: date-time */
             endsAt?: string;
             /** Format: int32 */
-            capacity?: number;
+            capacity?: number | null;
             /** Format: int32 */
-            accessDurationDays?: number;
+            accessDurationDays?: number | null;
         };
         UpdateCollectionRequest: {
             title?: string;
@@ -4269,6 +5493,11 @@ export interface components {
             slug?: string;
             /** Format: uuid */
             parentId?: string;
+        };
+        PresignedDownload: {
+            downloadUrl?: string;
+            /** Format: date-time */
+            expiresAt?: string;
         };
         StudentLearningStreakResponse: {
             /** Format: int32 */
@@ -4637,6 +5866,13 @@ export interface components {
             quiz?: components["schemas"]["StudentQuizHomeResponse"];
             liveClass?: components["schemas"]["StudentLiveClassHomeResponse"];
         };
+        Requirement: {
+            /** Format: uuid */
+            courseTemplateId?: string;
+            title?: string;
+            /** Format: int32 */
+            credits?: number;
+        };
         StudentCollectionSummaryResponse: {
             /** Format: uuid */
             collectionId?: string;
@@ -4665,6 +5901,64 @@ export interface components {
             completedAt?: string;
             /** Format: date-time */
             expiresAt?: string;
+        };
+        AvailableProgramCourse: {
+            /** Format: uuid */
+            courseId?: string;
+            /** Format: uuid */
+            courseTemplateId?: string;
+            title?: string;
+            slug?: string;
+            /** Format: int32 */
+            credits?: number;
+            /** @enum {string} */
+            status?: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+            mandatoryForGraduation?: boolean;
+            enrolled?: boolean;
+            /** Format: int32 */
+            earnedCredits?: number;
+            registration?: components["schemas"]["ProgramRegistrationResponse"];
+            offerings?: components["schemas"]["ProgramOfferingResponse"][];
+        };
+        ProgramAllowanceResponse: {
+            /** Format: int32 */
+            limit?: number;
+            /** Format: int64 */
+            used?: number;
+            /** Format: int64 */
+            remaining?: number;
+        };
+        ProgramOfferingResponse: {
+            /** Format: uuid */
+            courseId?: string;
+            name?: string;
+            slug?: string;
+            /** @enum {string} */
+            studyMode?: "COHORT_BASED" | "SELF_PACED";
+            semester?: components["schemas"]["SemesterResponse"];
+            /** Format: date-time */
+            startsAt?: string;
+            /** Format: date-time */
+            endsAt?: string;
+            timezone?: string;
+            /** Format: int32 */
+            credits?: number;
+            /** Format: date-time */
+            accessExpiresAt?: string;
+            /** Format: int64 */
+            seatsAvailable?: number;
+            canRegister?: boolean;
+            blockedReason?: string;
+            missingPrerequisites?: components["schemas"]["Requirement"][];
+        };
+        StudentProgramCurriculumResponse: {
+            graduationRequirements?: components["schemas"]["ProgramSnapshot"];
+            creditProgress?: components["schemas"]["ProgramCreditProgressResponse"];
+            /** Format: date-time */
+            expiresAt?: string;
+            accessActive?: boolean;
+            electiveAllowance?: components["schemas"]["ProgramAllowanceResponse"];
+            availableCourses?: components["schemas"]["AvailableProgramCourse"][];
         };
         StudentCollectionCourseProgressResponse: {
             /** Format: uuid */
@@ -4778,6 +6072,52 @@ export interface components {
             /** Format: int32 */
             totalPages?: number;
         };
+        AcademicRecordResponse: {
+            /** Format: uuid */
+            userId?: string;
+            /** Format: int64 */
+            totalCredits?: number;
+            achievements?: components["schemas"]["Achievement"][];
+        };
+        Achievement: {
+            /** Format: uuid */
+            achievementId?: string;
+            /** Format: uuid */
+            courseTemplateId?: string;
+            /** Format: uuid */
+            courseId?: string;
+            /** Format: uuid */
+            semesterId?: string;
+            courseTitle?: string;
+            /** Format: int32 */
+            credits?: number;
+            /** @enum {string} */
+            source?: "COMPLETION" | "EXEMPTION";
+            /** Format: date-time */
+            achievedAt?: string;
+        };
+        AcademicProgressResponse: {
+            /** Format: uuid */
+            userId?: string;
+            fullName?: string;
+            email?: string;
+            phone?: string;
+            academicRecord?: components["schemas"]["AcademicRecordResponse"];
+            semesters?: components["schemas"]["SemesterLabel"][];
+            programs?: components["schemas"]["ProgramGraduationResponse"][];
+        };
+        SemesterLabel: {
+            /** Format: uuid */
+            id?: string;
+            code?: string;
+            name?: string;
+        };
+        Playback: {
+            url?: string;
+            fileUrl?: string;
+            /** Format: date-time */
+            expiresAt?: string;
+        };
         PublicPlatformStatsResponse: {
             /** Format: int64 */
             students?: number;
@@ -4846,6 +6186,9 @@ export interface components {
             averageRating?: number;
             /** Format: int64 */
             totalReviews?: number;
+            /** Format: int32 */
+            credits?: number;
+            semester?: components["schemas"]["SemesterResponse"];
         };
         InstructorDetailsResponse: {
             /** Format: uuid */
@@ -4932,6 +6275,9 @@ export interface components {
             averageRating?: number;
             /** Format: int64 */
             totalReviews?: number;
+            /** Format: int32 */
+            credits?: number;
+            semester?: components["schemas"]["SemesterResponse"];
         };
         CourseLiveClassSummaryResponse: {
             /** Format: uuid */
@@ -5037,10 +6383,16 @@ export interface components {
             /** Format: int32 */
             position?: number;
             isMandatory?: boolean;
+            /** Format: uuid */
+            courseTemplateId?: string;
+            /** Format: int32 */
+            credits?: number;
+            available?: boolean;
         };
         CollectionDetailsResponse: {
             /** Format: uuid */
             id?: string;
+            programRequirements?: components["schemas"]["ProgramSnapshot"];
             title?: string;
             slug?: string;
             /** @enum {string} */
@@ -5201,6 +6553,7 @@ export interface components {
             /** Format: int32 */
             position?: number;
             downloadUrl?: string;
+            viewUrl?: string;
         };
         MediaPlaybackResponse: {
             /** @enum {string} */
@@ -5220,6 +6573,19 @@ export interface components {
             courseId?: string;
             /** Format: double */
             completionPercentage?: number;
+        };
+        ClassRecordings: {
+            enabled?: boolean;
+            title?: string;
+            meetingUrl?: string;
+            recordings?: components["schemas"]["RecordingResponse"][];
+            classStatus?: string;
+        };
+        Status: {
+            connected?: boolean;
+            email?: string;
+            sharedOrganizerEnabled?: boolean;
+            calendarSyncEnabled?: boolean;
         };
         InstructorCourseSnapshotResponse: {
             /** Format: uuid */
@@ -5317,6 +6683,47 @@ export interface components {
             actionUrl?: string;
             message?: string;
         };
+        AdminUserSummaryResponse: {
+            /** Format: uuid */
+            userId?: string;
+            fullName?: string;
+            email?: string;
+            phone?: string;
+            phoneCountryCode?: string;
+            roles?: string[];
+            /** @enum {string} */
+            status?: "ACTIVE" | "SUSPENDED" | "DELETED";
+            /** Format: date-time */
+            createdAt?: string;
+        };
+        PageResponseAdminUserSummaryResponse: {
+            content?: components["schemas"]["AdminUserSummaryResponse"][];
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            size?: number;
+            /** Format: int64 */
+            totalElements?: number;
+            /** Format: int32 */
+            totalPages?: number;
+        };
+        ManualEnrollmentOverviewResponse: {
+            /** Format: uuid */
+            userId?: string;
+            fullName?: string;
+            email?: string;
+            phone?: string;
+            programs?: components["schemas"]["ProgramAccess"][];
+            history?: components["schemas"]["ManualEnrollmentResponse"][];
+        };
+        ProgramAccess: {
+            /** Format: uuid */
+            programId?: string;
+            title?: string;
+            active?: boolean;
+            /** Format: date-time */
+            expiresAt?: string;
+        };
         AdminCourseReviewResponse: {
             /** Format: uuid */
             reviewId?: string;
@@ -5384,8 +6791,6 @@ export interface components {
             empty?: boolean;
         };
         PageableObject: {
-            /** Format: int64 */
-            offset?: number;
             sort?: components["schemas"]["SortObject"];
             paged?: boolean;
             /** Format: int32 */
@@ -5393,11 +6798,13 @@ export interface components {
             /** Format: int32 */
             pageSize?: number;
             unpaged?: boolean;
+            /** Format: int64 */
+            offset?: number;
         };
         SortObject: {
-            empty?: boolean;
             sorted?: boolean;
             unsorted?: boolean;
+            empty?: boolean;
         };
         AdminCollectionSummaryResponse: {
             /** Format: uuid */
@@ -5894,6 +7301,269 @@ export interface operations {
             };
         };
     };
+    updateSemester: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                semesterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveSemesterRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SemesterResponse"];
+                };
+            };
+        };
+    };
+    updateFacultyMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveFacultyMemberRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FacultyMemberResponse"];
+                };
+            };
+        };
+    };
+    deleteFacultyMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updateFacultyGroup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveFacultyGroupRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FacultyGroupResponse"];
+                };
+            };
+        };
+    };
+    deleteFacultyGroup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    prerequisites: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PrerequisiteResponse"];
+                };
+            };
+        };
+    };
+    savePrerequisites: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SavePrerequisitesRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PrerequisiteResponse"];
+                };
+            };
+        };
+    };
+    getLiveClassItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+                liveClassItemId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminLiveClassItemResponse"];
+                };
+            };
+        };
+    };
+    updateLiveClassItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+                liveClassItemId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateLiveClassItemRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminLiveClassItemResponse"];
+                };
+            };
+        };
+    };
+    removeLiveClassItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+                liveClassItemId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    saveCurriculum: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveProgramCurriculumRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminCollectionDetailResponse"];
+                };
+            };
+        };
+    };
     receiveMuxWebhook: {
         parameters: {
             query?: never;
@@ -5929,6 +7599,76 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    waivers: {
+        parameters: {
+            query?: {
+                page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["WaiverResponse"][];
+                };
+            };
+        };
+    };
+    request: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateWaiverRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["WaiverResponse"];
+                };
+            };
+        };
+    };
+    upload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WaiverEvidenceUploadRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Upload"];
+                };
             };
         };
     };
@@ -6136,6 +7876,54 @@ export interface operations {
             };
         };
     };
+    check: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                programId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ProgramGraduationResponse"];
+                };
+            };
+        };
+    };
+    register: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegisterProgramCourseRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ProgramRegistrationResponse"];
+                };
+            };
+        };
+    };
     issueOrGetCollectionCertificate: {
         parameters: {
             query?: never;
@@ -6230,6 +8018,84 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["CertificateIssueResponse"];
+                };
+            };
+        };
+    };
+    part: {
+        parameters: {
+            query: {
+                bytes: number;
+            };
+            header: {
+                "X-Recording-Token": string;
+            };
+            path: {
+                id: string;
+                number: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PartUrl"];
+                };
+            };
+        };
+    };
+    complete: {
+        parameters: {
+            query: {
+                parts: number;
+                bytes: number;
+            };
+            header: {
+                "X-Recording-Token": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RecordingResponse"];
+                };
+            };
+        };
+    };
+    abort: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Recording-Token": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RecordingResponse"];
                 };
             };
         };
@@ -6490,7 +8356,7 @@ export interface operations {
             };
         };
     };
-    register: {
+    register_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -7261,6 +9127,96 @@ export interface operations {
             };
         };
     };
+    resume: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["UploadSession"];
+                };
+            };
+        };
+    };
+    list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                classId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ClassRecordings"];
+                };
+            };
+        };
+    };
+    start_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                classId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StartRecordingRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["UploadSession"];
+                };
+            };
+        };
+    };
+    authorize: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Authorization"];
+                };
+            };
+        };
+    };
     createCourseAnnouncement: {
         parameters: {
             query?: never;
@@ -7374,6 +9330,32 @@ export interface operations {
             };
         };
     };
+    review: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewWaiverRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["WaiverResponse"];
+                };
+            };
+        };
+    };
     createThumbnailUpload: {
         parameters: {
             query?: never;
@@ -7394,6 +9376,150 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ThumbnailUploadResponse"];
+                };
+            };
+        };
+    };
+    check_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+                programId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ProgramGraduationResponse"];
+                };
+            };
+        };
+    };
+    withdraw: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WithdrawProgramRegistrationRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ProgramRegistrationResponse"];
+                };
+            };
+        };
+    };
+    overview: {
+        parameters: {
+            query?: {
+                page?: number;
+            };
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ManualEnrollmentOverviewResponse"];
+                };
+            };
+        };
+    };
+    enroll: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ManualEnrollmentRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ManualEnrollmentResponse"];
+                };
+            };
+        };
+    };
+    listSemesters: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SemesterResponse"][];
+                };
+            };
+        };
+    };
+    createSemester: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveSemesterRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SemesterResponse"];
                 };
             };
         };
@@ -7612,6 +9738,32 @@ export interface operations {
             };
         };
     };
+    add: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                liveClassId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["AddCoHostRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["LiveClassCoHostResponse"];
+                };
+            };
+        };
+    };
     createLessonVideoUpload: {
         parameters: {
             query?: never;
@@ -7770,6 +9922,54 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["AdminInstructorDetailResponse"];
+                };
+            };
+        };
+    };
+    createFacultyMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveFacultyMemberRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FacultyMemberResponse"];
+                };
+            };
+        };
+    };
+    createFacultyGroup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveFacultyGroupRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FacultyGroupResponse"];
                 };
             };
         };
@@ -8024,6 +10224,54 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    listOfferings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminCourseDetailResponse"][];
+                };
+            };
+        };
+    };
+    createOffering: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RepeatCourseRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminCourseDetailResponse"];
+                };
             };
         };
     };
@@ -8600,6 +10848,28 @@ export interface operations {
             };
         };
     };
+    getQuiz: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                quizId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminQuizDetailResponse"];
+                };
+            };
+        };
+    };
     deleteQuiz: {
         parameters: {
             query?: never;
@@ -9063,6 +11333,48 @@ export interface operations {
             };
         };
     };
+    evidence: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PresignedDownload"];
+                };
+            };
+        };
+    };
+    courses: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CourseOption"][];
+                };
+            };
+        };
+    };
     getLearningStreak: {
         parameters: {
             query?: never;
@@ -9366,6 +11678,28 @@ export interface operations {
             };
         };
     };
+    eligibility: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Requirement"][];
+                };
+            };
+        };
+    };
     getMyCollections: {
         parameters: {
             query?: never;
@@ -9391,6 +11725,50 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["StudentCollectionSummaryResponse"][];
+                };
+            };
+        };
+    };
+    program: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                programId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ProgramGraduationResponse"];
+                };
+            };
+        };
+    };
+    curriculum: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["StudentProgramCurriculumResponse"];
                 };
             };
         };
@@ -9566,6 +11944,68 @@ export interface operations {
             };
         };
     };
+    academicRecord: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AcademicRecordResponse"];
+                };
+            };
+        };
+    };
+    progress: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AcademicProgressResponse"];
+                };
+            };
+        };
+    };
+    playback: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Playback"];
+                };
+            };
+        };
+    };
     getPlatformStats: {
         parameters: {
             query?: never;
@@ -9696,6 +12136,72 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["InstructorDetailsResponse"];
+                };
+            };
+        };
+    };
+    callback: {
+        parameters: {
+            query?: {
+                state?: string;
+                code?: string;
+                error?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                google_meet_oauth?: string;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": Record<string, never>;
+                };
+            };
+        };
+    };
+    publicFaculty: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FacultyGroupResponse"][];
+                };
+            };
+        };
+    };
+    featuredFaculty: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FacultyMemberResponse"][];
                 };
             };
         };
@@ -9948,6 +12454,28 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["MeResponse"];
+                };
+            };
+        };
+    };
+    published: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                classId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RecordingResponse"][];
                 };
             };
         };
@@ -10446,6 +12974,44 @@ export interface operations {
             };
         };
     };
+    status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Status"];
+                };
+            };
+        };
+    };
+    disconnect: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     getDashboard_1: {
         parameters: {
             query?: never;
@@ -10524,6 +13090,77 @@ export interface operations {
             };
         };
     };
+    waivers_1: {
+        parameters: {
+            query?: {
+                status?: "PENDING" | "APPROVED" | "REJECTED";
+                page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["WaiverResponse"][];
+                };
+            };
+        };
+    };
+    evidence_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PresignedDownload"];
+                };
+            };
+        };
+    };
+    listUsers: {
+        parameters: {
+            query?: {
+                search?: string;
+                /** @description Zero-based page number, at least 0 */
+                page?: number;
+                /** @description Students per page, from 1 to 100 */
+                size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PageResponseAdminUserSummaryResponse"];
+                };
+            };
+        };
+    };
     listSupportTickets: {
         parameters: {
             query?: {
@@ -10542,6 +13179,74 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["AdminSupportTicketResponse"][];
+                };
+            };
+        };
+    };
+    history: {
+        parameters: {
+            query?: {
+                page?: number;
+            };
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ProgramRegistrationResponse"][];
+                };
+            };
+        };
+    };
+    academicRecord_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AcademicRecordResponse"];
+                };
+            };
+        };
+    };
+    progress_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AcademicProgressResponse"];
                 };
             };
         };
@@ -10668,6 +13373,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ResourceDownloadUrlResponse"];
+                };
+            };
+        };
+    };
+    listFaculty: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FacultyGroupResponse"][];
                 };
             };
         };

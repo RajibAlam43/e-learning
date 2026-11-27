@@ -6,10 +6,15 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface CourseSectionRepository extends JpaRepository<CourseSection, UUID> {
+  // Let database cascades remove the unused curriculum and clear stale managed child references.
+  @Modifying(flushAutomatically = true, clearAutomatically = true)
+  @Query("DELETE FROM CourseSection s WHERE s.id = :sectionId")
+  void deleteCurriculumById(@Param("sectionId") UUID sectionId);
 
   @Query(
       """

@@ -109,11 +109,12 @@ class AdminCourseCategoriesApiIt extends AbstractAdminApiIntegrationTest {
                       "level":"BEGINNER",
                       "language":"BN",
                       "studyMode":"COHORT_BASED",
+                      "semesterId":"%s",
                       "timezone":"Asia/Dhaka",
                       "capacity":20
                     }
                     """
-                        .formatted(category.getId())))
+                        .formatted(category.getId(), academicSemester().getId())))
         .andExpect(status().isOk());
     var course = courseRepository.findAll().getFirst();
 

@@ -26,6 +26,7 @@ export default function StudentLayout({
     { href: '/student/dashboard', icon: '/images/dashboard-icon.png', label: t('dashboard') },
     { href: '/student/courses', icon: '/images/book-icon.png', label: t('myCourses') },
     { href: '/student/collections', icon: Library, label: t('myPrograms') },
+    { href: '/student/waivers', icon: Library, label: 'Credit Waivers' },
     { href: '/student/live-classes', icon: '/images/live-icon.png', label: t('liveClasses') },
     { href: '/student/assignments', icon: '/images/clipboard-icon.png', label: t('assignments') },
     { href: '/student/certificates', icon: '/images/badge-icon.png', label: t('certificates') },

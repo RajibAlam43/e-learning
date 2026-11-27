@@ -38,6 +38,7 @@ public class StudentCollectionDetailsService {
   private final AssetUrlService assetUrlService;
   private final LocalizedContentService localizedContentService;
   private final PurchasedCollectionCoursesService purchasedCollectionCoursesService;
+  private final com.gii.api.service.progress.ProgramCreditProgressService programProgress;
 
   public StudentCollectionDetailsResponse execute(
       UUID collectionId, Authentication authentication) {
@@ -45,10 +46,9 @@ public class StudentCollectionDetailsService {
     CollectionEnrollment enrollment =
         collectionEnrollmentRepository
             .findByUserIdAndCollectionIdAndStatus(userId, collectionId, EnrollmentStatus.ACTIVE)
-            .orElseThrow(
-                () ->
-                    new ResponseStatusException(
-                        HttpStatus.NOT_FOUND, "Collection not found or not enrolled"));
+            .orElseThrow(() ->
+                new ResponseStatusException(
+                    HttpStatus.NOT_FOUND, "Collection not found or not enrolled"));
 
     Collection collection = enrollment.getCollection();
     List<PurchasedCourse> collectionCourses =
@@ -64,24 +64,22 @@ public class StudentCollectionDetailsService {
     int completedLessons = 0;
     List<StudentCollectionCourseProgressResponse> courses =
         collectionCourses.stream()
-            .map(
-                item -> {
-                  Course course = item.course();
-                  UUID courseId = course.getId();
-                  CourseCompletion completion = completionByCourseId.get(courseId);
-                  return StudentCollectionCourseProgressResponse.builder()
-                      .courseId(courseId)
-                      .courseName(
-                          localizedContentService.text(course.getTitle(), course.getTitleEn()))
-                      .courseSlug(course.getSlug())
-                      .courseThumbnailUrl(assetUrlService.publicUrl(course.getThumbnailObjectKey()))
-                      .completionPercentage(completion.completionPercentage())
-                      .completedLessons(completion.completedLessons())
-                      .totalLessons(completion.totalLessons())
-                      .completedItems(completion.completedItems())
-                      .totalItems(completion.totalItems())
-                      .build();
-                })
+            .map(item -> {
+              Course course = item.course();
+              UUID courseId = course.getId();
+              CourseCompletion completion = completionByCourseId.get(courseId);
+              return StudentCollectionCourseProgressResponse.builder()
+                  .courseId(courseId)
+                  .courseName(localizedContentService.text(course.getTitle(), course.getTitleEn()))
+                  .courseSlug(course.getSlug())
+                  .courseThumbnailUrl(assetUrlService.publicUrl(course.getThumbnailObjectKey()))
+                  .completionPercentage(completion.completionPercentage())
+                  .completedLessons(completion.completedLessons())
+                  .totalLessons(completion.totalLessons())
+                  .completedItems(completion.completedItems())
+                  .totalItems(completion.totalItems())
+                  .build();
+            })
             .toList();
 
     for (PurchasedCourse item : collectionCourses) {
@@ -106,7 +104,10 @@ public class StudentCollectionDetailsService {
     double progress =
         enrollment.getCompletedAt() != null
             ? 100.0
-            : totalItems == 0 ? 0.0 : Math.round(completedItems * 10000.0 / totalItems) / 100.0;
+            : enrollment.getProgramSnapshot() != null
+                    && enrollment.getProgramSnapshot().creditBased()
+                ? programProgress.get(enrollment).completionPercentage()
+                : totalItems == 0 ? 0.0 : Math.round(completedItems * 10000.0 / totalItems) / 100.0;
 
     return StudentCollectionDetailsResponse.builder()
         .collectionId(collection.getId())

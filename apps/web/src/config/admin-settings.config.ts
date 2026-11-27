@@ -1,12 +1,14 @@
+import { HOMEPAGE_DEFAULTS, HOMEPAGE_SETTING_KEY, partnerDrafts, validPublicUrl, type HomepagePartner } from './homepage-settings'
 import { Building2, FileText, Globe2, Mail, Search, Share2 } from 'lucide-react'
 
-export type SettingsGroup = 'general' | 'contact' | 'social' | 'seo' | 'legal'
-export type SettingsValues = Record<string, string | boolean>
+export type SettingsGroup = 'general' | 'contact' | 'social' | 'seo' | 'legal' | 'homepage'
+export type SettingsValue = string | boolean | HomepagePartner[]
+export type SettingsValues = Record<string, SettingsValue>
 
 export interface FieldDefinition {
   name: string
   label: string
-  type?: 'text' | 'email' | 'tel' | 'url' | 'textarea'
+  type?: 'text' | 'email' | 'tel' | 'url' | 'textarea' | 'toggle' | 'partners'
   placeholder?: string
   required?: boolean
 }
@@ -22,6 +24,19 @@ export interface GroupDefinition {
 }
 
 export const GROUPS: GroupDefinition[] = [
+  {
+    id: 'homepage', key: HOMEPAGE_SETTING_KEY, label: 'Homepage', icon: Globe2,
+    description: 'Homepage stat-card visibility and partner logos',
+    defaults: HOMEPAGE_DEFAULTS,
+    fields: [
+      { name: 'showCoursesCount', label: 'Show Courses count', type: 'toggle' },
+      { name: 'showStudentsCount', label: 'Show Students count', type: 'toggle' },
+      { name: 'showScholarsCount', label: 'Show Scholars count', type: 'toggle' },
+      { name: 'showDiplomasCount', label: 'Show Diplomas count', type: 'toggle' },
+      { name: 'partners', label: 'Partners', type: 'partners' },
+    ],
+  },
+
   {
     id: 'general',
     key: 'site.general',
@@ -145,16 +160,30 @@ export const GROUPS: GroupDefinition[] = [
 
 export function valueObject(value: unknown): SettingsValues {
   if (!value || Array.isArray(value) || typeof value !== 'object') return {}
-  return Object.fromEntries(
+  const scalarValues = Object.fromEntries(
     Object.entries(value).filter((entry): entry is [string, string | boolean] =>
       typeof entry[1] === 'string' || typeof entry[1] === 'boolean',
     ),
   )
+  const partners = (value as Record<string, unknown>).partners
+  return { ...scalarValues, ...(Array.isArray(partners) ? { partners: partnerDrafts(partners) } : {}) }
 }
 
 export function validateGroup(group: GroupDefinition, values: SettingsValues) {
   const errors: Record<string, string> = {}
   for (const field of group.fields) {
+    if (field.type === 'toggle') {
+      if (typeof values[field.name] !== 'boolean') errors[field.name] = 'Choose on or off'
+      continue
+    }
+    if (field.type === 'partners') {
+      const partners = partnerDrafts(values[field.name])
+      if (partners.length > 50) errors[field.name] = 'Add at most 50 partners'
+      partners.forEach((p, index) => {
+        if (!p.name.trim() || !validPublicUrl(p.logoUrl.trim(), true) || (p.websiteUrl.trim() && !validPublicUrl(p.websiteUrl.trim()))) errors[field.name] = `Partner ${index + 1} needs a name, a public logo URL and a valid optional HTTPS website URL`
+      })
+      continue
+    }
     const value = String(values[field.name] ?? '').trim()
     if (field.required && !value) errors[field.name] = `${field.label} is required`
     if (value && field.type === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {

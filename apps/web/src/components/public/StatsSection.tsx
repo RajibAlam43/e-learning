@@ -1,9 +1,10 @@
 'use client'
 
-import { useRef, useEffect, useState, useCallback, useMemo } from 'react'
+import { useRef, useEffect, useState, useCallback } from 'react'
 import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 import { usePlatformStats } from '@/hooks/useCourses'
+import { useHomepageSettings } from '@/hooks/useHomepageSettings'
 
 const iconMap = {
   BookOpen: '/images/book-icon.svg',
@@ -28,13 +29,13 @@ function useCounter(target: number, shouldStart: boolean) {
     const frameDuration = 1000 / 60
     const totalFrames = Math.round(duration / frameDuration)
     let frame = 0
-    const raf = requestAnimationFrame(function tick() {
+    let raf = requestAnimationFrame(function tick() {
       frame++
       const progress = frame / totalFrames
       const eased = 1 - Math.pow(1 - progress, 3)
       setCount(Math.round(eased * target))
       if (frame < totalFrames) {
-        requestAnimationFrame(tick)
+        raf = requestAnimationFrame(tick)
       } else {
         setCount(target)
       }
@@ -42,7 +43,7 @@ function useCounter(target: number, shouldStart: boolean) {
     return () => cancelAnimationFrame(raf)
   }, [target, shouldStart])
 
-  return count
+  return target === 0 ? 0 : Math.min(count, target)
 }
 
 function StatCard({
@@ -86,19 +87,18 @@ function StatCard({
 
 export function StatsSection() {
   const t = useTranslations('stats')
-  const { data: platformStats } = usePlatformStats()
+  const { data: platformStats, isLoading: statsLoading, isError: statsError } = usePlatformStats()
+  const { settings, isLoading: settingsLoading, isError: settingsError } = useHomepageSettings()
   const sectionRef = useRef<HTMLElement>(null)
   const [isVisible, setIsVisible] = useState(false)
 
-  const statsData = useMemo(
-    () => [
-      { icon: 'BookOpen' as const, quantity: platformStats?.courses != null ? `${platformStats.courses}+` : '20+', label: t('courses') },
-      { icon: 'Users' as const, quantity: platformStats?.students != null ? `${platformStats.students}+` : '10k+', label: t('students') },
-      { icon: 'GraduationCap' as const, quantity: platformStats?.instructors != null ? `${platformStats.instructors}+` : '10+', label: t('scholars') },
-      { icon: 'Award' as const, quantity: platformStats?.programs != null ? `${platformStats.programs}+` : '5+', label: t('diplomas') },
-    ],
-    [t, platformStats]
-  )
+  const statsData = [
+    { icon: 'BookOpen' as const, count: platformStats?.courses, label: t('courses'), visible: settings.showCoursesCount },
+    { icon: 'Users' as const, count: platformStats?.students, label: t('students'), visible: settings.showStudentsCount },
+    { icon: 'GraduationCap' as const, count: platformStats?.instructors, label: t('scholars'), visible: settings.showScholarsCount },
+    { icon: 'Award' as const, count: platformStats?.programs, label: t('diplomas'), visible: settings.showDiplomasCount },
+  ].filter(stat => stat.visible && typeof stat.count === 'number' && Number.isFinite(stat.count) && stat.count >= 0)
+  const canRender = !statsLoading && !statsError && !settingsLoading && !settingsError && statsData.length > 0
 
   const handleIntersection = useCallback(
     (entries: IntersectionObserverEntry[]) => {
@@ -112,13 +112,15 @@ export function StatsSection() {
 
   useEffect(() => {
     const el = sectionRef.current
-    if (!el) return
+    if (!el || !canRender) return
     const observer = new IntersectionObserver(handleIntersection, {
       threshold: 0.3,
     })
     observer.observe(el)
     return () => observer.disconnect()
-  }, [handleIntersection])
+  }, [handleIntersection, canRender])
+
+  if (!canRender) return null
 
   return (
     <section
@@ -126,12 +128,12 @@ export function StatsSection() {
       aria-label="Platform statistics"
       className="content-auto-section stats-gradient relative z-10 -mt-24 w-full flex items-end justify-center pt-24 pb-12 max-md:-mt-16 max-md:pt-16 max-md:pb-8"
     >
-      <div className="grid w-full container mx-auto px-5 grid-cols-2 gap-4 lg:flex">
+      <div className={`grid w-full container mx-auto px-5 gap-4 lg:flex ${statsData.length === 1 ? 'grid-cols-1' : statsData.length === 3 ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-2'}`}>
         {statsData.map((stat) => (
           <StatCard
             key={stat.label}
             icon={stat.icon}
-            quantity={stat.quantity}
+            quantity={`${stat.count}+`}
             label={stat.label}
             shouldAnimate={isVisible}
           />

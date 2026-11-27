@@ -19,6 +19,9 @@ public interface QuizAttemptRepository extends JpaRepository<QuizAttempt, UUID> 
 
   boolean existsByQuizId(UUID quizId);
 
+  @Query("SELECT count(a) > 0 FROM QuizAttempt a WHERE a.quiz.section.id = :sectionId")
+  boolean existsForSection(@Param("sectionId") UUID sectionId);
+
   @Query(
       """
         SELECT qa.enrollment.course.id, COUNT(DISTINCT qa.quiz.id)

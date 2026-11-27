@@ -11,6 +11,8 @@ import lombok.Builder;
 @Builder
 public record AdminCollectionDetailResponse(
     UUID collectionId,
+    com.gii.common.dto.academic.ProgramSnapshot programRequirements,
+    Integer accessDurationMonths,
     String title,
     String titleEn,
     String slug,

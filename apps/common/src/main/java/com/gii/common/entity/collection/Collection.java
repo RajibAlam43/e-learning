@@ -30,6 +30,19 @@ import lombok.experimental.SuperBuilder;
 @Table(name = "collections")
 public class Collection extends BaseUuidEntity {
 
+  private Integer requiredCredits;
+
+  @Column(nullable = false)
+  @Builder.Default
+  private Integer electiveCreditLimit = 0;
+
+  private Integer expectedDurationMonths;
+  private Integer accessDurationMonths;
+
+  public boolean isCreditBased() {
+    return requiredCredits != null;
+  }
+
   @Column(name = "title", nullable = false)
   private String title;
 

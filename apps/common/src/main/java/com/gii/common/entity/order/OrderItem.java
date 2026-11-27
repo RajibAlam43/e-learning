@@ -36,6 +36,10 @@ public class OrderItem {
   @Column(name = "id", nullable = false, updatable = false)
   private java.util.UUID id;
 
+  @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
+  @Column(name = "program_snapshot", columnDefinition = "jsonb")
+  private com.gii.common.dto.academic.ProgramSnapshot programSnapshot;
+
   @JsonIgnore
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
   @JoinColumn(name = "order_id", nullable = false)

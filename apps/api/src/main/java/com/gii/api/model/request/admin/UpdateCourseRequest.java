@@ -2,6 +2,7 @@ package com.gii.api.model.request.admin;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonSetter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -19,6 +20,26 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 public class UpdateCourseRequest {
+  @Positive private Integer credits;
+
+  @Setter(AccessLevel.NONE)
+  private UUID semesterId;
+
+  @Setter(AccessLevel.NONE)
+  @Getter(AccessLevel.NONE)
+  private boolean semesterIdPresent;
+
+  @JsonIgnore
+  public boolean isSemesterIdPresent() {
+    return semesterIdPresent;
+  }
+
+  @JsonSetter("semesterId")
+  public void setSemesterIdValue(UUID value) {
+    semesterId = value;
+    semesterIdPresent = true;
+  }
+
   private String title;
   private String titleEn;
   private String slug;
@@ -71,10 +92,12 @@ public class UpdateCourseRequest {
 
   @Positive
   @Setter(AccessLevel.NONE)
+  @Schema(types = {"integer", "null"})
   private Integer capacity;
 
   @Positive
   @Setter(AccessLevel.NONE)
+  @Schema(types = {"integer", "null"})
   private Integer accessDurationDays;
 
   @Setter(AccessLevel.NONE)

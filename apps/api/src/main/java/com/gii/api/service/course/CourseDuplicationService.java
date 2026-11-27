@@ -49,6 +49,8 @@ import org.springframework.web.server.ResponseStatusException;
 public class CourseDuplicationService {
 
   private final CourseTemplateRepository templateRepository;
+  private final com.gii.common.repository.academic.CoursePrerequisiteRepository
+      prerequisiteRepository;
   private final CourseRepository courseRepository;
   private final CourseCategoryRepository categoryRepository;
   private final CourseSectionRepository sectionRepository;
@@ -64,6 +66,15 @@ public class CourseDuplicationService {
   public Course duplicate(Course source, String slug, User createdBy) {
     CourseTemplate target = templateRepository.save(copyTemplate(source.getTemplate()));
     copyCategories(source, target);
+    UUID targetId = target.getId();
+    prerequisiteRepository.saveAll(
+        prerequisiteRepository.findByCourseTemplateId(source.getTemplate().getId()).stream()
+            .map(link ->
+                com.gii.common.entity.academic.CoursePrerequisite.builder()
+                    .courseTemplateId(targetId)
+                    .prerequisiteTemplateId(link.getPrerequisiteTemplateId())
+                    .build())
+            .toList());
 
     Map<UUID, UUID> itemIds = new HashMap<>();
     Map<UUID, Lesson> lessons = new HashMap<>();
@@ -82,7 +93,12 @@ public class CourseDuplicationService {
     }
 
     return courseRepository.save(
-        Course.builder().template(target).slug(slug).name(source.getTitle()).createdBy(createdBy).build());
+        Course.builder()
+            .template(target)
+            .slug(slug)
+            .name(source.getTitle())
+            .createdBy(createdBy)
+            .build());
   }
 
   private CourseTemplate copyTemplate(CourseTemplate source) {
@@ -101,6 +117,7 @@ public class CourseDuplicationService {
         .courseOutcomesEn(copyList(source.getCourseOutcomesEn()))
         .requirements(copyList(source.getRequirements()))
         .requirementsEn(copyList(source.getRequirementsEn()))
+        .credits(source.getCredits())
         .prerequisites(copyList(source.getPrerequisites()))
         .prerequisitesEn(copyList(source.getPrerequisitesEn()))
         .level(source.getLevel())
@@ -117,12 +134,11 @@ public class CourseDuplicationService {
   private void copyCategories(Course source, CourseTemplate target) {
     categoryRepository.saveAll(
         categoryRepository.findByCourseId(source.getId()).stream()
-            .map(
-                sourceCategory ->
-                    CourseCategory.builder()
-                        .template(target)
-                        .category(sourceCategory.getCategory())
-                        .build())
+            .map(sourceCategory ->
+                CourseCategory.builder()
+                    .template(target)
+                    .category(sourceCategory.getCategory())
+                    .build())
             .toList());
   }
 
@@ -141,7 +157,8 @@ public class CourseDuplicationService {
         .isFree(source.getIsFree())
         .releaseType(copiedReleaseType(source.getReleaseType()))
         .releaseAt(copiedReleaseAt(source.getReleaseType(), source.getReleaseAt()))
-        .unlockAfterDays(copiedUnlockAfterDays(source.getReleaseType(), source.getUnlockAfterDays()))
+        .unlockAfterDays(
+            copiedUnlockAfterDays(source.getReleaseType(), source.getUnlockAfterDays()))
         .build();
   }
 
@@ -181,52 +198,50 @@ public class CourseDuplicationService {
   private void copyLessonResources(Lesson source, Lesson target) {
     resourceRepository.saveAll(
         resourceRepository.findByLessonIdOrderByPositionAsc(source.getId()).stream()
-            .map(
-                resource ->
-                    LessonResource.builder()
-                        .lesson(target)
-                        .resourceType(resource.getResourceType())
-                        .purpose(resource.getPurpose())
-                        .title(resource.getTitle())
-                        .titleEn(resource.getTitleEn())
-                        .fileUrl(resource.getFileUrl())
-                        .fileObjectKey(resource.getFileObjectKey())
-                        .mimeType(resource.getMimeType())
-                        .position(resource.getPosition())
-                        .build())
+            .map(resource ->
+                LessonResource.builder()
+                    .lesson(target)
+                    .resourceType(resource.getResourceType())
+                    .purpose(resource.getPurpose())
+                    .title(resource.getTitle())
+                    .titleEn(resource.getTitleEn())
+                    .fileUrl(resource.getFileUrl())
+                    .fileObjectKey(resource.getFileObjectKey())
+                    .mimeType(resource.getMimeType())
+                    .position(resource.getPosition())
+                    .build())
             .toList());
   }
 
   private void copyMediaAsset(Lesson source, Lesson target) {
     mediaAssetRepository
         .findByLessonId(source.getId())
-        .ifPresent(
-            media -> {
-              if (media.getStatus() != MediaStatus.READY) {
-                throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Course cannot be copied while a lesson media asset is still processing");
-              }
-              mediaAssetRepository.save(
-                  MediaAsset.builder()
-                      .lesson(target)
-                      .provider(media.getProvider())
-                      .assetType(media.getAssetType())
-                      .providerAssetId(media.getProviderAssetId())
-                      .providerLibraryId(media.getProviderLibraryId())
-                      .playbackId(media.getPlaybackId())
-                      .playbackPolicy(media.getPlaybackPolicy())
-                      .fileUrl(media.getFileUrl())
-                      .title(media.getTitle())
-                      .titleEn(media.getTitleEn())
-                      .thumbnailObjectKey(media.getThumbnailObjectKey())
-                      .maxResolution(media.getMaxResolution())
-                      .durationSec(media.getDurationSec())
-                      .status(media.getStatus())
-                      .createdBy(media.getCreatedBy())
-                      .preferredPlaybackMode(media.getPreferredPlaybackMode())
-                      .build());
-            });
+        .ifPresent(media -> {
+          if (media.getStatus() != MediaStatus.READY) {
+            throw new ResponseStatusException(
+                HttpStatus.CONFLICT,
+                "Course cannot be copied while a lesson media asset is still processing");
+          }
+          mediaAssetRepository.save(
+              MediaAsset.builder()
+                  .lesson(target)
+                  .provider(media.getProvider())
+                  .assetType(media.getAssetType())
+                  .providerAssetId(media.getProviderAssetId())
+                  .providerLibraryId(media.getProviderLibraryId())
+                  .playbackId(media.getPlaybackId())
+                  .playbackPolicy(media.getPlaybackPolicy())
+                  .fileUrl(media.getFileUrl())
+                  .title(media.getTitle())
+                  .titleEn(media.getTitleEn())
+                  .thumbnailObjectKey(media.getThumbnailObjectKey())
+                  .maxResolution(media.getMaxResolution())
+                  .durationSec(media.getDurationSec())
+                  .status(media.getStatus())
+                  .createdBy(media.getCreatedBy())
+                  .preferredPlaybackMode(media.getPreferredPlaybackMode())
+                  .build());
+        });
   }
 
   private void copyQuizzes(

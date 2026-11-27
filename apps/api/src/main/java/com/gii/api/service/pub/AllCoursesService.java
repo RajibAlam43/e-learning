@@ -2,6 +2,7 @@ package com.gii.api.service.pub;
 
 import com.gii.api.model.response.CourseSummaryResponse;
 import com.gii.api.model.response.PageResponse;
+import com.gii.api.model.response.academic.SemesterResponse;
 import com.gii.api.service.localization.LocalizedContentService;
 import com.gii.api.service.storage.AssetUrlService;
 import com.gii.common.entity.course.Course;
@@ -68,13 +69,12 @@ public class AllCoursesService {
 
     List<CourseSummaryResponse> courses =
         courseList.stream()
-            .map(
-                course ->
-                    toCourseSummaryResponse(
-                        course,
-                        categoryNamesByCourseId.getOrDefault(course.getId(), List.of()),
-                        instructorNamesByCourseId.getOrDefault(course.getId(), List.of()),
-                        reviewsByCourseId.getOrDefault(course.getId(), ReviewAggregate.EMPTY)))
+            .map(course ->
+                toCourseSummaryResponse(
+                    course,
+                    categoryNamesByCourseId.getOrDefault(course.getId(), List.of()),
+                    instructorNamesByCourseId.getOrDefault(course.getId(), List.of()),
+                    reviewsByCourseId.getOrDefault(course.getId(), ReviewAggregate.EMPTY)))
             .toList();
 
     return PageResponse.<CourseSummaryResponse>builder()
@@ -105,13 +105,12 @@ public class AllCoursesService {
     Map<UUID, List<String>> instructors = getInstructorNamesByCourseId(courseIds);
     Map<UUID, ReviewAggregate> reviews = getReviewAggregates(courseIds);
     return courses.stream()
-        .map(
-            course ->
-                toCourseSummaryResponse(
-                    course,
-                    categories.getOrDefault(course.getId(), List.of()),
-                    instructors.getOrDefault(course.getId(), List.of()),
-                    reviews.getOrDefault(course.getId(), ReviewAggregate.EMPTY)))
+        .map(course ->
+            toCourseSummaryResponse(
+                course,
+                categories.getOrDefault(course.getId(), List.of()),
+                instructors.getOrDefault(course.getId(), List.of()),
+                reviews.getOrDefault(course.getId(), ReviewAggregate.EMPTY)))
         .toList();
   }
 
@@ -132,11 +131,10 @@ public class AllCoursesService {
     List<Sort.Order> safeOrders =
         requestedSort.stream()
             .filter(order -> ALLOWED_SORT_FIELDS.contains(order.getProperty()))
-            .map(
-                order ->
-                    order.getProperty().equals("title")
-                        ? new Sort.Order(order.getDirection(), "template.title")
-                        : order)
+            .map(order ->
+                order.getProperty().equals("title")
+                    ? new Sort.Order(order.getDirection(), "template.title")
+                    : order)
             .toList();
 
     if (safeOrders.isEmpty()) {
@@ -211,6 +209,8 @@ public class AllCoursesService {
         .thumbnailUrl(assetUrlService.publicUrl(course.getThumbnailObjectKey()))
         .priceBdt(course.getPriceBdt())
         .studyMode(course.getStudyMode())
+        .credits(course.getCredits())
+        .semester(course.getSemester() == null ? null : SemesterResponse.from(course.getSemester()))
         .startsAt(course.getStartsAt())
         .endsAt(course.getEndsAt())
         .level(course.getLevel())

@@ -1,5 +1,6 @@
 'use client'
 
+import { PartnerListEditor } from '@/components/admin/shared/PartnerListEditor'
 import { useMemo, useState } from 'react'
 import {
   Check,
@@ -20,7 +21,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useAdminSettings, useUpsertSetting } from '@/hooks/useAdmin'
-import { GROUPS, valueObject, validateGroup, type SettingsGroup, type SettingsValues, type FieldDefinition } from '@/config/admin-settings.config'
+import { GROUPS, valueObject, validateGroup, type SettingsGroup, type SettingsValues, type SettingsValue, type FieldDefinition } from '@/config/admin-settings.config'
 
 export default function SettingsPage() {
   const query = useAdminSettings()
@@ -51,7 +52,7 @@ export default function SettingsPage() {
   const savedValues = savedForms[group.id]
   const isDirty = JSON.stringify(values) !== JSON.stringify(savedValues)
 
-  function updateField(name: string, value: string | boolean) {
+  function updateField(name: string, value: SettingsValue) {
     setDrafts((current) => ({
       ...current,
       [group.id]: { ...forms[group.id], [name]: value },
@@ -165,7 +166,7 @@ export default function SettingsPage() {
                     <SettingsField
                       key={field.name}
                       field={field}
-                      value={String(forms[item.id][field.name] ?? '')}
+                      value={forms[item.id][field.name] ?? ''}
                       error={item.id === activeGroup ? errors[field.name] : undefined}
                       onChange={(value) => updateField(field.name, value)}
                     />
@@ -205,11 +206,11 @@ function SettingsField({
   onChange,
 }: {
   field: FieldDefinition
-  value: string
+  value: SettingsValue
   error?: string
-  onChange: (value: string) => void
+  onChange: (value: SettingsValue) => void
 }) {
-  const isWide = field.type === 'textarea'
+  const isWide = field.type === 'textarea' || field.type === 'partners'
   const inputId = `setting-${field.name}`
   const Icon = field.type === 'email'
     ? Mail
@@ -221,6 +222,9 @@ function SettingsField({
           ? MapPin
           : null
 
+  if (field.type === 'toggle') return <label className="flex items-center gap-3 rounded-lg border border-slate-200 px-4 py-3 text-sm font-medium text-[#344054]"><input id={inputId} type="checkbox" role="switch" checked={value === true} onChange={e => onChange(e.target.checked)} className="h-4 w-4 accent-[#1c3873]" />{field.label}</label>
+  if (field.type === 'partners') return <div className="grid gap-3 md:col-span-2"><h3 className="font-heading text-lg font-semibold text-[#1c3873]">{field.label}</h3><PartnerListEditor value={value} onChange={onChange} />{error && <p role="alert" className="text-sm text-red-600">{error}</p>}</div>
+
   return (
     <div className={`grid gap-2 ${isWide ? 'md:col-span-2' : ''}`}>
       <Label htmlFor={inputId} className="text-sm font-medium text-[#344054]">
@@ -231,7 +235,7 @@ function SettingsField({
         {field.type === 'textarea' ? (
           <Textarea
             id={inputId}
-            value={value}
+            value={String(value)}
             onChange={(event) => onChange(event.target.value)}
             placeholder={field.placeholder}
             rows={4}
@@ -243,7 +247,7 @@ function SettingsField({
           <Input
             id={inputId}
             type={field.type ?? 'text'}
-            value={value}
+            value={String(value)}
             onChange={(event) => onChange(event.target.value)}
             placeholder={field.placeholder}
             aria-invalid={!!error}

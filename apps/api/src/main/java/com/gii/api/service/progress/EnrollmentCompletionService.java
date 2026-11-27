@@ -1,5 +1,6 @@
 package com.gii.api.service.progress;
 
+import com.gii.api.service.academic.AcademicAchievementService;
 import com.gii.api.service.progress.CourseCompletionService.CourseCompletion;
 import com.gii.common.entity.enrollment.Enrollment;
 import com.gii.common.enums.EnrollmentStatus;
@@ -19,6 +20,7 @@ public class EnrollmentCompletionService {
   private final CourseCompletionService courseCompletionService;
   private final CourseRepository courseRepository;
   private final CollectionEnrollmentCompletionService collectionEnrollmentCompletionService;
+  private final AcademicAchievementService academicAchievementService;
 
   @Transactional
   public void refresh(UUID userId, UUID courseId) {
@@ -33,6 +35,7 @@ public class EnrollmentCompletionService {
     if (completion.totalItems() > 0 && completion.completedItems() >= completion.totalItems()) {
       enrollment.setCompletedAt(Instant.now());
       enrollmentRepository.save(enrollment);
+      academicAchievementService.awardCompletion(enrollment);
       // This course just flipped to complete; any collection built around it may now be
       // complete too.
       collectionEnrollmentCompletionService.refreshCollectionsForCourse(userId, courseId);
@@ -47,11 +50,11 @@ public class EnrollmentCompletionService {
   }
 
   /**
-   * Re-checks completion for every active, not-yet-completed enrollment across every offering
-   * built on the given template. Call this after a curriculum mutation that can shrink the
-   * completion denominator (deleting/unpublishing a lesson, quiz, section, or live-class slot;
-   * demoting a mandatory item to optional) so learners who now satisfy the reduced requirements
-   * are marked complete immediately rather than on their next unrelated progress event.
+   * Re-checks completion for every active, not-yet-completed enrollment across every offering built
+   * on the given template. Call this after a curriculum mutation that can shrink the completion
+   * denominator (deleting/unpublishing a lesson, quiz, section, or live-class slot; demoting a
+   * mandatory item to optional) so learners who now satisfy the reduced requirements are marked
+   * complete immediately rather than on their next unrelated progress event.
    */
   @Transactional
   public void refreshCoursesForTemplate(UUID templateId) {

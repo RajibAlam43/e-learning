@@ -10,6 +10,7 @@ import lombok.Builder;
 @Builder
 public record CollectionDetailsResponse(
     UUID id,
+    com.gii.common.dto.academic.ProgramSnapshot programRequirements,
     String title,
     String slug,
     CollectionType collectionType,

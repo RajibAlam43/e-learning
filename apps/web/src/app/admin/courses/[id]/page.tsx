@@ -1,5 +1,7 @@
 'use client'
 
+import { CourseOfferings } from '@/components/admin/course/CourseOfferings'
+
 import { use } from 'react'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -111,6 +113,7 @@ export default function CourseDetailPage({
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="curriculum">Curriculum</TabsTrigger>
           <TabsTrigger value="instructors">Instructors</TabsTrigger>
+          <TabsTrigger value="cohorts">Cohorts</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">
@@ -120,6 +123,8 @@ export default function CourseDetailPage({
         <TabsContent value="curriculum">
           <CourseCurriculumTab course={course} />
         </TabsContent>
+
+        <TabsContent value="cohorts"><CourseOfferings course={course} /></TabsContent>
 
         <TabsContent value="instructors">
           <InstructorsTabContent courseId={course.courseId ?? id} instructors={course.instructors ?? []} />

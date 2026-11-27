@@ -30,6 +30,7 @@ public class CollectionDetailsService {
   private final CourseInstructorRepository courseInstructorRepository;
   private final AssetUrlService assetUrlService;
   private final LocalizedContentService localizedContentService;
+  private final com.gii.common.service.payment.ProgramSnapshotService programSnapshots;
 
   public CollectionDetailsResponse execute(String slug) {
     Collection collection =
@@ -39,10 +40,17 @@ public class CollectionDetailsService {
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Collection not found"));
 
     List<CollectionCourse> collectionCourses =
-        collectionCourseRepository.findByCollection_IdOrderByPositionAscWithCourseStatus(
-            collection.getId(), PublishStatus.PUBLISHED);
+        collection.isCreditBased()
+            ? collectionCourseRepository.findByCollection_IdOrderByPositionAscWithCourse(
+                collection.getId())
+            : collectionCourseRepository.findByCollection_IdOrderByPositionAscWithCourseStatus(
+                collection.getId(), PublishStatus.PUBLISHED);
 
-    List<UUID> courseIds = collectionCourses.stream().map(cc -> cc.getCourse().getId()).toList();
+    List<UUID> courseIds =
+        collectionCourses.stream()
+            .filter(c -> c.getCourse().getStatus() == PublishStatus.PUBLISHED)
+            .map(cc -> cc.getCourse().getId())
+            .toList();
     List<CourseInstructor> instructors =
         courseIds.isEmpty() ? List.of() : courseInstructorRepository.findByCourseIds(courseIds);
 
@@ -53,25 +61,34 @@ public class CollectionDetailsService {
 
     List<CollectionCourseSummaryResponse> courses =
         collectionCourses.stream()
-            .map(
-                collectionCourse ->
-                    CollectionCourseSummaryResponse.builder()
-                        .id(collectionCourse.getCourse().getId())
-                        .title(
-                            localizedContentService.text(
-                                collectionCourse.getCourse().getTitle(),
-                                collectionCourse.getCourse().getTitleEn()))
-                        .slug(collectionCourse.getCourse().getSlug())
-                        .thumbnailUrl(
-                            assetUrlService.publicUrl(
-                                collectionCourse.getCourse().getThumbnailObjectKey()))
-                        .position(collectionCourse.getPosition())
-                        .isMandatory(collectionCourse.getIsMandatory())
-                        .build())
+            .map(collectionCourse ->
+                CollectionCourseSummaryResponse.builder()
+                    .id(collectionCourse.getCourse().getId())
+                    .title(
+                        localizedContentService.text(
+                            collectionCourse.getCourse().getTitle(),
+                            collectionCourse.getCourse().getTitleEn()))
+                    .slug(
+                        collectionCourse.getCourse().getStatus() == PublishStatus.PUBLISHED
+                            ? collectionCourse.getCourse().getSlug()
+                            : null)
+                    .available(collectionCourse.getCourse().getStatus() == PublishStatus.PUBLISHED)
+                    .courseTemplateId(collectionCourse.getCourse().getTemplate().getId())
+                    .credits(collectionCourse.getCourse().getCredits())
+                    .thumbnailUrl(
+                        assetUrlService.publicUrl(
+                            collectionCourse.getCourse().getThumbnailObjectKey()))
+                    .position(collectionCourse.getPosition())
+                    .isMandatory(collectionCourse.getIsMandatory())
+                    .build())
             .toList();
 
     return CollectionDetailsResponse.builder()
         .id(collection.getId())
+        .programRequirements(
+            collection.isCreditBased()
+                ? programSnapshots.capture(collection, collectionCourses)
+                : null)
         .title(localizedContentService.text(collection.getTitle(), collection.getTitleEn()))
         .slug(collection.getSlug())
         .collectionType(collection.getType())

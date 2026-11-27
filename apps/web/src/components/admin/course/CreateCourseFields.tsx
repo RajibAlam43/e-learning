@@ -14,6 +14,7 @@ import {
 import { ThumbnailUploader } from '@/components/admin/shared/ThumbnailUploader'
 import type { useAdminCategories } from '@/hooks/useAdmin'
 import type { CourseFormValues } from '@/lib/course-create-schema'
+import { CreateCourseAcademicFields } from './CourseAcademicFields'
 import { TIMEZONES } from '@/lib/timezones'
 
 type Props = Pick<UseFormReturn<CourseFormValues>, 'register' | 'control'> & {
@@ -25,6 +26,7 @@ type Props = Pick<UseFormReturn<CourseFormValues>, 'register' | 'control'> & {
 
 export function CreateCourseFields({ register, control, errors, categories, isFree, slugHint }: Props) {
   return <>
+        <CreateCourseAcademicFields control={control} />
         <FormSection title="Basic Info">
           <FieldRow>
             <Field label="Title (English)" error={errors.titleEn?.message}>

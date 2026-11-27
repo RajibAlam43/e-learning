@@ -35,6 +35,10 @@ class RefundedOrderEnrollmentServiceTest {
   @Mock private EnrollmentRepository enrollmentRepository;
   @Mock private CollectionEnrollmentRepository collectionEnrollmentRepository;
 
+  @Mock private com.gii.common.service.payment.EnrollmentMutationLockService mutationLock;
+  @Mock private com.gii.common.service.payment.ProgramCourseAccessService programAccess;
+  @Mock private com.gii.common.service.payment.CourseEnrollmentPolicyService commonPolicy;
+
   @InjectMocks private RefundedOrderEnrollmentService service;
 
   @Test

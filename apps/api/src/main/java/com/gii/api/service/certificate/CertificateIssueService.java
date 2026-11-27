@@ -1,8 +1,8 @@
 package com.gii.api.service.certificate;
 
 import com.gii.api.model.response.certificate.CertificateIssueResponse;
+import com.gii.api.service.academic.AcademicAchievementService;
 import com.gii.api.service.certificate.CertificateDocumentService.StoredCertificateDocument;
-import com.gii.api.service.collection.PurchasedCollectionCoursesService;
 import com.gii.api.service.enrollment.CurrentUserService;
 import com.gii.api.service.localization.LocalizedContentService;
 import com.gii.api.service.progress.CourseCompletionService;
@@ -52,12 +52,16 @@ public class CertificateIssueService {
   private final CollectionEnrollmentRepository collectionEnrollmentRepository;
   private final EnrollmentRepository enrollmentRepository;
   private final CourseCompletionService courseCompletionService;
+  private final com.gii.api.service.progress.CollectionRequirementsCompletionService
+      collectionRequirements;
   private final CertificateRepository certificateRepository;
   private final CourseInstructorRepository courseInstructorRepository;
   private final CertificateDocumentService certificateDocumentService;
   private final R2ObjectStorageService objectStorageService;
   private final LocalizedContentService localizedContentService;
-  private final PurchasedCollectionCoursesService purchasedCollectionCoursesService;
+  private final AcademicAchievementService academicAchievementService;
+  private final com.gii.api.service.progress.CollectionEnrollmentCompletionService
+      programCompletion;
 
   public CertificateIssueResponse executeCourse(UUID courseId, Authentication authentication) {
     User user = currentUserService.getCurrentUser(authentication);
@@ -76,10 +80,8 @@ public class CertificateIssueService {
     Enrollment enrollment =
         enrollmentRepository
             .findByUserIdAndCourseIdForUpdate(user.getId(), courseId)
-            .orElseThrow(
-                () ->
-                    new ResponseStatusException(
-                        HttpStatus.FORBIDDEN, "Not enrolled in this course"));
+            .orElseThrow(() ->
+                new ResponseStatusException(HttpStatus.FORBIDDEN, "Not enrolled in this course"));
 
     // Re-check after lock so concurrent issue requests become idempotent.
     existing = certificateRepository.findByUserIdAndCourseId(user.getId(), courseId).orElse(null);
@@ -99,13 +101,16 @@ public class CertificateIssueService {
     boolean eligible = enrollment.getCompletedAt() != null;
     if (!eligible) {
       CourseCompletion completion = courseCompletionService.get(user.getId(), courseId);
-      eligible = completion.totalItems() > 0 && completion.completedItems() >= completion.totalItems();
+      eligible =
+          completion.totalItems() > 0 && completion.completedItems() >= completion.totalItems();
       if (eligible) {
         // The learner just crossed 100% but no progress event has persisted completedAt yet
         // (e.g. this request raced ahead of EnrollmentCompletionService.refresh). Persist it now
         // so completion stays sticky from this point on, same as the normal completion path.
         enrollment.setCompletedAt(Instant.now());
         enrollmentRepository.save(enrollment);
+        academicAchievementService.awardCompletion(enrollment);
+        programCompletion.refreshCollectionsForCourse(user.getId(), courseId);
       }
     }
 
@@ -163,10 +168,9 @@ public class CertificateIssueService {
     CollectionEnrollment enrollment =
         collectionEnrollmentRepository
             .findByUserIdAndCollectionIdForUpdate(user.getId(), collectionId)
-            .orElseThrow(
-                () ->
-                    new ResponseStatusException(
-                        HttpStatus.FORBIDDEN, "Not enrolled in this collection"));
+            .orElseThrow(() ->
+                new ResponseStatusException(
+                    HttpStatus.FORBIDDEN, "Not enrolled in this collection"));
 
     existing =
         certificateRepository.findByUserIdAndCollectionId(user.getId(), collectionId).orElse(null);
@@ -176,30 +180,14 @@ public class CertificateIssueService {
       return toResponse(existing, true, "CERTIFICATE_ALREADY_EXISTS");
     }
 
-    if (enrollment.getStatus() != EnrollmentStatus.ACTIVE) {
-      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Enrollment is not active");
-    }
-    if (enrollment.getExpiresAt() != null && !enrollment.getExpiresAt().isAfter(Instant.now())) {
-      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Enrollment has expired");
+    if (!enrollment.isAccessActiveAt(Instant.now())) {
+      throw new ResponseStatusException(
+          HttpStatus.FORBIDDEN, "Program access is inactive or expired");
     }
 
     boolean eligible = enrollment.getCompletedAt() != null;
     if (!eligible) {
-      var courseIds =
-          purchasedCollectionCoursesService.resolveItems(enrollment).stream()
-              .filter(
-                  com.gii.api.service.collection.PurchasedCollectionCoursesService.PurchasedCourse
-                      ::mandatory)
-              .map(item -> item.course().getId())
-              .distinct()
-              .toList();
-      if (!courseIds.isEmpty()) {
-        var completions = courseCompletionService.getByCourseIds(user.getId(), courseIds);
-        int totalItems = completions.values().stream().mapToInt(CourseCompletion::totalItems).sum();
-        int completedItems =
-            completions.values().stream().mapToInt(CourseCompletion::completedItems).sum();
-        eligible = totalItems > 0 && completedItems >= totalItems;
-      }
+      eligible = collectionRequirements.isComplete(enrollment);
       if (eligible) {
         // Same race as the course path: persist completedAt now so it stays sticky from here on.
         enrollment.setCompletedAt(Instant.now());
@@ -250,8 +238,11 @@ public class CertificateIssueService {
    */
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   public void tryIssueCourseCertificate(UUID enrollmentId) {
-    Enrollment enrollment = enrollmentRepository.findById(enrollmentId).orElse(null);
-    if (enrollment == null || enrollment.getCompletedAt() == null) {
+    Enrollment enrollment = enrollmentRepository.findByIdForUpdate(enrollmentId).orElse(null);
+    if (enrollment == null
+        || enrollment.getCompletedAt() == null
+        || enrollment.getStatus() != EnrollmentStatus.ACTIVE
+        || enrollment.getExpiresAt() != null && !enrollment.getExpiresAt().isAfter(Instant.now())) {
       return;
     }
     if (certificateRepository
@@ -266,8 +257,10 @@ public class CertificateIssueService {
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   public void tryIssueCollectionCertificate(UUID collectionEnrollmentId) {
     CollectionEnrollment enrollment =
-        collectionEnrollmentRepository.findById(collectionEnrollmentId).orElse(null);
-    if (enrollment == null || enrollment.getCompletedAt() == null) {
+        collectionEnrollmentRepository.findByIdForUpdate(collectionEnrollmentId).orElse(null);
+    if (enrollment == null
+        || enrollment.getCompletedAt() == null
+        || !enrollment.isAccessActiveAt(Instant.now())) {
       return;
     }
     Collection collection = enrollment.getCollection();

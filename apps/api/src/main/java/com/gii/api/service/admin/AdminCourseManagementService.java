@@ -7,11 +7,13 @@ import com.gii.api.model.request.admin.ReorderCourseStructureRequest;
 import com.gii.api.model.request.admin.RepeatCourseRequest;
 import com.gii.api.model.request.admin.UpdateCourseRequest;
 import com.gii.api.model.response.LessonVideoResponse;
+import com.gii.api.model.response.academic.SemesterResponse;
 import com.gii.api.model.response.admin.AdminCategoryResponse;
 import com.gii.api.model.response.admin.AdminCourseDetailResponse;
 import com.gii.api.model.response.admin.AdminCourseSectionResponse;
 import com.gii.api.model.response.admin.AdminCourseSummaryResponse;
 import com.gii.api.model.response.admin.AdminInstructorSummaryResponse;
+import com.gii.api.service.academic.SemesterService;
 import com.gii.api.service.course.CourseDuplicationService;
 import com.gii.api.service.enrollment.CurrentUserService;
 import com.gii.api.service.storage.AssetUrlService;
@@ -31,7 +33,7 @@ import com.gii.common.enums.MediaProvider;
 import com.gii.common.enums.PublishStatus;
 import com.gii.common.enums.SectionItemType;
 import com.gii.common.enums.StudyMode;
-import com.gii.common.repository.collection.CollectionCourseRepository;
+import com.gii.common.repository.collection.CollectionRepository;
 import com.gii.common.repository.course.CategoryRepository;
 import com.gii.common.repository.course.CourseCategoryRepository;
 import com.gii.common.repository.course.CourseInstructorRepository;
@@ -76,11 +78,12 @@ public class AdminCourseManagementService {
   private final CourseInstructorRepository instructorRepository;
   private final EnrollmentRepository enrollmentRepository;
   private final LiveClassRepository liveClassRepository;
-  private final CollectionCourseRepository collectionCourseRepository;
+  private final CollectionRepository collectionRepository;
   private final CurrentUserService currentUserService;
   private final AdminSectionManagementService sectionManagementService;
   private final AssetUrlService assetUrlService;
   private final CourseDuplicationService courseDuplicationService;
+  private final SemesterService semesterService;
 
   @Transactional(readOnly = true)
   public List<AdminCourseSummaryResponse> list() {
@@ -94,25 +97,27 @@ public class AdminCourseManagementService {
                 enrollmentRepository.countByCourseIdsAndStatus(courseIds, EnrollmentStatus.ACTIVE));
 
     return courses.stream()
-        .map(
-            course -> {
-              return AdminCourseSummaryResponse.builder()
-                  .courseId(course.getId())
-                  .title(course.getTitle())
-                  .slug(course.getSlug())
-                  .thumbnailUrl(assetUrlService.publicUrl(course.getThumbnailObjectKey()))
-                  .status(course.getStatus())
-                  .priceBdt(course.getPriceBdt())
-                  .isFree(course.getIsFree())
-                  .instructorName(instructorNameByCourseId.get(course.getId()))
-                  .totalEnrolled(activeEnrollmentCountByCourseId.getOrDefault(course.getId(), 0))
-                  .isFeatured(course.getIsFeatured())
-                  .featuredPosition(course.getFeaturedPosition())
-                  .featuredAt(course.getFeaturedAt())
-                  .publishedAt(course.getPublishedAt())
-                  .createdAt(course.getCreatedAt())
-                  .build();
-            })
+        .map(course -> {
+          return AdminCourseSummaryResponse.builder()
+              .courseId(course.getId())
+              .courseTemplateId(course.getTemplate().getId())
+              .credits(course.getCredits())
+              .semesterId(course.getSemester() == null ? null : course.getSemester().getId())
+              .title(course.getTitle())
+              .slug(course.getSlug())
+              .thumbnailUrl(assetUrlService.publicUrl(course.getThumbnailObjectKey()))
+              .status(course.getStatus())
+              .priceBdt(course.getPriceBdt())
+              .isFree(course.getIsFree())
+              .instructorName(instructorNameByCourseId.get(course.getId()))
+              .totalEnrolled(activeEnrollmentCountByCourseId.getOrDefault(course.getId(), 0))
+              .isFeatured(course.getIsFeatured())
+              .featuredPosition(course.getFeaturedPosition())
+              .featuredAt(course.getFeaturedAt())
+              .publishedAt(course.getPublishedAt())
+              .createdAt(course.getCreatedAt())
+              .build();
+        })
         .toList();
   }
 
@@ -122,6 +127,7 @@ public class AdminCourseManagementService {
     CourseTemplate template =
         courseTemplateRepository.save(
             CourseTemplate.builder()
+                .credits(request.credits() == null ? 3 : request.credits())
                 .title(request.title().trim())
                 .titleEn(request.titleEn())
                 .thumbnailObjectKey(
@@ -166,6 +172,7 @@ public class AdminCourseManagementService {
             .accessDurationDays(request.accessDurationDays())
             .createdBy(user)
             .build();
+    semesterService.assignNewOffering(course, request.semesterId());
     validateOfferingWindow(course);
     Course savedCourse = courseRepository.save(course);
     replaceCategories(savedCourse, request.categoryIds());
@@ -187,6 +194,42 @@ public class AdminCourseManagementService {
     course.setEndsAt(request.endsAt());
     course.setCapacity(request.capacity());
     course.setAccessDurationDays(request.accessDurationDays());
+    semesterService.assignNewOffering(course, request.semesterId());
+    validateOfferingWindow(course);
+    return getResponse(courseRepository.save(course));
+  }
+
+  @Transactional(readOnly = true)
+  public List<AdminCourseDetailResponse> listOfferings(UUID courseId) {
+    Course source = findCourse(courseId);
+    return courseRepository.findByTemplateId(source.getTemplate().getId()).stream()
+        .sorted(Comparator.comparing(Course::getCreatedAt).reversed())
+        .map(this::getResponse)
+        .toList();
+  }
+
+  public AdminCourseDetailResponse createOffering(
+      UUID sourceCourseId, RepeatCourseRequest request, Authentication authentication) {
+    Course source = findCourse(sourceCourseId);
+    Course course =
+        Course.builder()
+            .template(source.getTemplate())
+            .name(source.getTitle())
+            .slug(request.slug().trim())
+            .priceBdt(request.priceBdt())
+            .studyMode(request.studyMode())
+            .status(PublishStatus.DRAFT)
+            .isFree(Boolean.TRUE.equals(request.isFree()))
+            .timezone(normalizeTimezone(request.timezone()))
+            .enrollmentStartsAt(request.enrollmentStartsAt())
+            .enrollmentEndsAt(request.enrollmentEndsAt())
+            .startsAt(request.startsAt())
+            .endsAt(request.endsAt())
+            .capacity(request.capacity())
+            .accessDurationDays(request.accessDurationDays())
+            .createdBy(currentUserService.getCurrentUser(authentication))
+            .build();
+    semesterService.assignNewOffering(course, request.semesterId());
     validateOfferingWindow(course);
     return getResponse(courseRepository.save(course));
   }
@@ -207,6 +250,10 @@ public class AdminCourseManagementService {
             .findByIdForUpdate(courseId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found"));
+    final StudyMode previousStudyMode = course.getStudyMode();
+    if (request.getCredits() != null) {
+      course.setCredits(request.getCredits());
+    }
     if (request.getTitle() != null) {
       course.setTitle(request.getTitle().trim());
     }
@@ -307,6 +354,22 @@ public class AdminCourseManagementService {
     if (request.isAccessDurationDaysPresent()) {
       course.setAccessDurationDays(request.getAccessDurationDays());
     }
+    if (request.isSemesterIdPresent()) {
+      if (request.getSemesterId() == null
+          && course.getStudyMode() == StudyMode.COHORT_BASED
+          && course.getSemester() != null) {
+        throw new ResponseStatusException(
+            HttpStatus.BAD_REQUEST, "A cohort-based course must keep its semester assignment");
+      }
+      semesterService.assign(course, request.getSemesterId());
+    }
+    if (course.getStudyMode() != previousStudyMode
+        && course.getStudyMode() == StudyMode.COHORT_BASED
+        && course.getSemester() == null) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Select a semester for a cohort-based course");
+    }
+    semesterService.validate(course);
     validateOfferingWindow(course);
     validateScheduledLiveClassesWithinOffering(course);
     return getResponse(courseRepository.save(course));
@@ -338,8 +401,7 @@ public class AdminCourseManagementService {
             .findById(courseId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found"));
-    if (collectionCourseRepository.existsByCourseIdAndCollectionStatus(
-        courseId, PublishStatus.PUBLISHED)) {
+    if (collectionRepository.existsLegacyPublishedMembership(courseId, PublishStatus.PUBLISHED)) {
       throw new ResponseStatusException(
           HttpStatus.CONFLICT, "Course belongs to a published collection");
     }
@@ -464,9 +526,8 @@ public class AdminCourseManagementService {
       SectionItem sectionItem =
           sectionItemRepository
               .findByItemTypeAndItemId(itemType, persistedItemId)
-              .orElseThrow(
-                  () ->
-                      new ResponseStatusException(HttpStatus.NOT_FOUND, "Section item not found"));
+              .orElseThrow(() ->
+                  new ResponseStatusException(HttpStatus.NOT_FOUND, "Section item not found"));
       if (!sectionItem.getSection().getId().equals(sec.getId())) {
         throw new ResponseStatusException(
             HttpStatus.BAD_REQUEST, "Section item does not belong to section");
@@ -518,22 +579,24 @@ public class AdminCourseManagementService {
     List<AdminInstructorSummaryResponse> instructors =
         instructorRepository.findByCourseId(course.getId()).stream()
             .map(CourseInstructor::getInstructor)
-            .map(
-                i ->
-                    AdminInstructorSummaryResponse.builder()
-                        .userId(i.getId())
-                        .fullName(i.getFullName())
-                        .email(i.getEmail())
-                        .displayName(i.getFullName())
-                        .headline(null)
-                        .isPublic(true)
-                        .assignedCoursesCount(0)
-                        .createdAt(i.getCreatedAt())
-                        .build())
+            .map(i ->
+                AdminInstructorSummaryResponse.builder()
+                    .userId(i.getId())
+                    .fullName(i.getFullName())
+                    .email(i.getEmail())
+                    .displayName(i.getFullName())
+                    .headline(null)
+                    .isPublic(true)
+                    .assignedCoursesCount(0)
+                    .createdAt(i.getCreatedAt())
+                    .build())
             .toList();
 
     return AdminCourseDetailResponse.builder()
         .courseId(course.getId())
+        .courseTemplateId(course.getTemplate().getId())
+        .credits(course.getCredits())
+        .semester(course.getSemester() == null ? null : SemesterResponse.from(course.getSemester()))
         .title(course.getTitle())
         .titleEn(course.getTitleEn())
         .slug(course.getSlug())
@@ -656,12 +719,8 @@ public class AdminCourseManagementService {
     }
     courseCategoryRepository.saveAll(
         categories.stream()
-            .map(
-                category ->
-                    CourseCategory.builder()
-                        .template(course.getTemplate())
-                        .category(category)
-                        .build())
+            .map(category ->
+                CourseCategory.builder().template(course.getTemplate()).category(category).build())
             .toList());
   }
 

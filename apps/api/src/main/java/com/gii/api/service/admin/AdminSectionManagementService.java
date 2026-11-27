@@ -55,6 +55,7 @@ public class AdminSectionManagementService {
   private final LiveClassRepository liveClassRepository;
   private final LiveClassSlotRepository liveClassSlotRepository;
   private final EnrollmentCompletionService enrollmentCompletionService;
+  private final com.gii.common.repository.quiz.QuizAttemptRepository quizAttemptRepository;
 
   public AdminCourseSectionResponse create(UUID courseId, CreateSectionRequest request) {
     Course course =
@@ -105,7 +106,7 @@ public class AdminSectionManagementService {
     if (request.descriptionEn() != null) {
       section.setDescriptionEn(request.descriptionEn());
     }
-    boolean demotedFromMandatory =
+    final boolean demotedFromMandatory =
         request.isMandatory() != null
             && Boolean.TRUE.equals(section.getIsMandatory())
             && !request.isMandatory();
@@ -138,9 +139,19 @@ public class AdminSectionManagementService {
             .findById(sectionId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Section not found"));
-    UUID templateId = section.getTemplate().getId();
-    sectionRepository.delete(section);
-    sectionRepository.flush();
+    if (liveClassRepository.existsForSection(sectionId)
+        || quizAttemptRepository.existsForSection(sectionId)) {
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT,
+          "This section has meeting or quiz-attempt history. Unpublish it to hide it, "
+              + "or remove unused items individually");
+    }
+    final UUID templateId = section.getTemplate().getId();
+    // Versioned curriculum no longer has section foreign keys for lessons/quizzes.
+    // Delete those explicitly; remaining child records use database cascades.
+    lessonRepository.deleteCurriculumForSection(sectionId);
+    quizRepository.deleteCurriculumForSection(sectionId);
+    sectionRepository.deleteCurriculumById(sectionId);
     enrollmentCompletionService.refreshCoursesForTemplate(templateId);
   }
 
@@ -189,12 +200,11 @@ public class AdminSectionManagementService {
             .collect(Collectors.groupingBy(resource -> resource.getLesson().getId()));
     List<AdminLessonSummaryResponse> lessons =
         lessonEntities.stream()
-            .map(
-                lesson ->
-                    toLessonSummary(
-                        lesson,
-                        positionByItemId.get(lesson.getId()),
-                        resourcesByLessonId.getOrDefault(lesson.getId(), List.of())))
+            .map(lesson ->
+                toLessonSummary(
+                    lesson,
+                    positionByItemId.get(lesson.getId()),
+                    resourcesByLessonId.getOrDefault(lesson.getId(), List.of())))
             .toList();
     List<AdminQuizSummaryResponse> quizzes =
         quizRepository.findBySectionIdOrderByPositionAsc(section.getId()).stream()
@@ -221,10 +231,8 @@ public class AdminSectionManagementService {
             .collect(Collectors.toMap(LiveClassSlot::getId, Function.identity()));
     List<AdminSectionItemResponse> items =
         orderedItems.stream()
-            .map(
-                item ->
-                    toSectionItemResponse(
-                        item, lessonById, quizById, liveClassById, liveClassSlotById))
+            .map(item ->
+                toSectionItemResponse(item, lessonById, quizById, liveClassById, liveClassSlotById))
             .toList();
 
     return AdminCourseSectionResponse.builder()
@@ -324,8 +332,8 @@ public class AdminSectionManagementService {
             AdminLiveClassSectionItemResponse.builder()
                 .liveClassItemId(value.getSlot().getId())
                 .liveClassId(value.getId())
-                .title(value.getTitle())
-                .titleEn(value.getTitleEn())
+                .title(value.getSlot().getTitle())
+                .titleEn(value.getSlot().getTitleEn())
                 .startsAt(value.getStartsAt())
                 .endsAt(value.getEndsAt())
                 .provider(value.getProvider())

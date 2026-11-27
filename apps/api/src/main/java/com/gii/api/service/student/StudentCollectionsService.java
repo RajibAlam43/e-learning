@@ -36,6 +36,7 @@ public class StudentCollectionsService {
   private final AssetUrlService assetUrlService;
   private final LocalizedContentService localizedContentService;
   private final PurchasedCollectionCoursesService purchasedCollectionCoursesService;
+  private final com.gii.api.service.progress.ProgramCreditProgressService programProgress;
 
   public List<StudentCollectionSummaryResponse> execute(Authentication authentication) {
     UUID userId = currentUserService.getCurrentUserId(authentication);
@@ -64,51 +65,53 @@ public class StudentCollectionsService {
         courseCompletionService.getByCourseIds(userId, allCourseIds);
 
     return enrollments.stream()
-        .map(
-            enrollment -> {
-              Collection collection = enrollment.getCollection();
-              List<PurchasedCourse> collectionCourses =
-                  coursesByCollectionId.getOrDefault(collection.getId(), List.of());
-              int totalLessons = 0;
-              int completedLessons = 0;
-              int totalItems = 0;
-              int completedItems = 0;
-              for (PurchasedCourse item : collectionCourses) {
-                Course course = item.course();
-                UUID courseId = course.getId();
-                CourseCompletion courseCompletion = completionByCourseId.get(courseId);
-                if (item.mandatory()) {
-                  totalLessons += courseCompletion.totalLessons();
-                  completedLessons += courseCompletion.completedLessons();
-                  totalItems += courseCompletion.totalItems();
-                  completedItems += courseCompletion.completedItems();
-                }
-              }
-              double progress =
-                  enrollment.getCompletedAt() != null
-                      ? 100.0
+        .map(enrollment -> {
+          Collection collection = enrollment.getCollection();
+          List<PurchasedCourse> collectionCourses =
+              coursesByCollectionId.getOrDefault(collection.getId(), List.of());
+          int totalLessons = 0;
+          int completedLessons = 0;
+          int totalItems = 0;
+          int completedItems = 0;
+          for (PurchasedCourse item : collectionCourses) {
+            Course course = item.course();
+            UUID courseId = course.getId();
+            CourseCompletion courseCompletion = completionByCourseId.get(courseId);
+            if (item.mandatory()) {
+              totalLessons += courseCompletion.totalLessons();
+              completedLessons += courseCompletion.completedLessons();
+              totalItems += courseCompletion.totalItems();
+              completedItems += courseCompletion.completedItems();
+            }
+          }
+          double progress =
+              enrollment.getCompletedAt() != null
+                  ? 100.0
+                  : enrollment.getProgramSnapshot() != null
+                          && enrollment.getProgramSnapshot().creditBased()
+                      ? programProgress.get(enrollment).completionPercentage()
                       : totalItems == 0
                           ? 0.0
                           : Math.round(completedItems * 10000.0 / totalItems) / 100.0;
-              return StudentCollectionSummaryResponse.builder()
-                  .collectionId(collection.getId())
-                  .collectionName(
-                      localizedContentService.text(collection.getTitle(), collection.getTitleEn()))
-                  .collectionSlug(collection.getSlug())
-                  .collectionType(collection.getType())
-                  .thumbnailUrl(assetUrlService.publicUrl(collection.getThumbnailObjectKey()))
-                  .progressPercentage(progress)
-                  .completedLessons(completedLessons)
-                  .totalLessons(totalLessons)
-                  .completedItems(completedItems)
-                  .totalItems(totalItems)
-                  .courseCount(collectionCourses.size())
-                  .enrollmentStatus(enrollment.getStatus())
-                  .enrolledAt(enrollment.getEnrolledAt())
-                  .completedAt(enrollment.getCompletedAt())
-                  .expiresAt(enrollment.getExpiresAt())
-                  .build();
-            })
+          return StudentCollectionSummaryResponse.builder()
+              .collectionId(collection.getId())
+              .collectionName(
+                  localizedContentService.text(collection.getTitle(), collection.getTitleEn()))
+              .collectionSlug(collection.getSlug())
+              .collectionType(collection.getType())
+              .thumbnailUrl(assetUrlService.publicUrl(collection.getThumbnailObjectKey()))
+              .progressPercentage(progress)
+              .completedLessons(completedLessons)
+              .totalLessons(totalLessons)
+              .completedItems(completedItems)
+              .totalItems(totalItems)
+              .courseCount(collectionCourses.size())
+              .enrollmentStatus(enrollment.getStatus())
+              .enrolledAt(enrollment.getEnrolledAt())
+              .completedAt(enrollment.getCompletedAt())
+              .expiresAt(enrollment.getExpiresAt())
+              .build();
+        })
         .toList();
   }
 }

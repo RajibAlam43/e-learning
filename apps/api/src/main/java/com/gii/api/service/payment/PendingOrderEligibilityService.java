@@ -39,6 +39,9 @@ public class PendingOrderEligibilityService {
       if (item.getCollection().getStatus() != PublishStatus.PUBLISHED) {
         throw new ResponseStatusException(HttpStatus.CONFLICT, "Collection is not available");
       }
+      if (item.getProgramSnapshot() != null && item.getProgramSnapshot().creditBased()) {
+        continue;
+      }
       List<Course> purchasedCourses =
           orderItemCourseRepository.findByOrderItemIdOrderByPositionAsc(item.getId()).stream()
               .map(snapshot -> snapshot.getCourse())
@@ -56,10 +59,9 @@ public class PendingOrderEligibilityService {
         .distinct()
         .sorted(Comparator.naturalOrder())
         .map(this::lockCourse)
-        .forEach(
-            course ->
-                offeringEnrollmentPolicyService.validateCheckout(
-                    course, order.getUser().getId(), now));
+        .forEach(course ->
+            offeringEnrollmentPolicyService.validateCheckout(
+                course, order.getUser().getId(), now, order.getId()));
   }
 
   private Course lockCourse(UUID courseId) {

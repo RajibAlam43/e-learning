@@ -45,6 +45,11 @@ public class AdminQuizManagementService {
   private final QuizChoiceRepository choiceRepository;
   private final EnrollmentCompletionService enrollmentCompletionService;
 
+  @Transactional(readOnly = true)
+  public AdminQuizDetailResponse get(UUID quizId) {
+    return toDetail(quizId);
+  }
+
   public AdminQuizDetailResponse create(UUID sectionId, CreateQuizRequest request) {
     CourseSection section =
         sectionRepository
@@ -77,6 +82,11 @@ public class AdminQuizManagementService {
   }
 
   public AdminQuizDetailResponse update(UUID quizId, UpdateQuizRequest request) {
+    if (request.questions() != null && quizAttemptRepository.existsByQuizId(quizId)) {
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT,
+          "Quiz questions with recorded student attempts cannot be replaced; create another quiz");
+    }
     Quiz quiz =
         quizRepository
             .findById(quizId)
@@ -84,10 +94,9 @@ public class AdminQuizManagementService {
     SectionItem sectionItem =
         sectionItemRepository
             .findByItemTypeAndItemId(SectionItemType.QUIZ, quiz.getId())
-            .orElseThrow(
-                () ->
-                    new ResponseStatusException(
-                        HttpStatus.INTERNAL_SERVER_ERROR, "Section item missing"));
+            .orElseThrow(() ->
+                new ResponseStatusException(
+                    HttpStatus.INTERNAL_SERVER_ERROR, "Section item missing"));
     boolean sectionChanged =
         request.sectionId() != null && !request.sectionId().equals(quiz.getSection().getId());
     if (sectionChanged) {
@@ -181,8 +190,9 @@ public class AdminQuizManagementService {
       throw new ResponseStatusException(
           HttpStatus.CONFLICT, "Quiz with student attempts cannot be deleted");
     }
-    UUID templateId = quiz.getSection().getTemplate().getId();
+    final UUID templateId = quiz.getSection().getTemplate().getId();
     sectionItemRepository.deleteByItemTypeAndItemId(SectionItemType.QUIZ, quizId);
+    deleteQuestions(quiz);
     quizRepository.delete(quiz);
     quizRepository.flush();
     enrollmentCompletionService.refreshCoursesForTemplate(templateId);
@@ -219,13 +229,18 @@ public class AdminQuizManagementService {
     }
   }
 
-  private void replaceQuestions(Quiz quiz, List<UpdateQuizQuestionRequest> questionRequests) {
+  private void deleteQuestions(Quiz quiz) {
     List<QuizQuestion> existingQuestions =
         questionRepository.findByQuizIdOrderByPositionAsc(quiz.getId());
     for (QuizQuestion existing : existingQuestions) {
       choiceRepository.deleteAll(choiceRepository.findByQuestionId(existing.getId()));
     }
     questionRepository.deleteAll(existingQuestions);
+    questionRepository.flush();
+  }
+
+  private void replaceQuestions(Quiz quiz, List<UpdateQuizQuestionRequest> questionRequests) {
+    deleteQuestions(quiz);
 
     for (UpdateQuizQuestionRequest request : questionRequests) {
       QuizQuestion question =
@@ -271,10 +286,9 @@ public class AdminQuizManagementService {
             sectionItemRepository
                 .findByItemTypeAndItemId(SectionItemType.QUIZ, quiz.getId())
                 .map(SectionItem::getPosition)
-                .orElseThrow(
-                    () ->
-                        new ResponseStatusException(
-                            HttpStatus.INTERNAL_SERVER_ERROR, "Section item missing")))
+                .orElseThrow(() ->
+                    new ResponseStatusException(
+                        HttpStatus.INTERNAL_SERVER_ERROR, "Section item missing")))
         .title(quiz.getTitle())
         .titleEn(quiz.getTitleEn())
         .passingScorePct(quiz.getPassingScorePct())
@@ -294,30 +308,28 @@ public class AdminQuizManagementService {
     }
     sectionItemRepository
         .findBySectionIdAndPosition(sectionId, requestedPosition)
-        .ifPresent(
-            item -> {
-              boolean sameQuiz =
-                  item.getItemType() == SectionItemType.QUIZ
-                      && currentQuizId != null
-                      && currentQuizId.equals(item.getItemId());
-              if (!sameQuiz) {
-                throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST, "Position is already used in this section");
-              }
-            });
+        .ifPresent(item -> {
+          boolean sameQuiz =
+              item.getItemType() == SectionItemType.QUIZ
+                  && currentQuizId != null
+                  && currentQuizId.equals(item.getItemId());
+          if (!sameQuiz) {
+            throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST, "Position is already used in this section");
+          }
+        });
   }
 
   private AdminQuizQuestionResponse toQuestionResponse(QuizQuestion question) {
     List<AdminQuizChoiceResponse> choices =
         choiceRepository.findByQuestionId(question.getId()).stream()
-            .map(
-                choice ->
-                    AdminQuizChoiceResponse.builder()
-                        .choiceId(choice.getId())
-                        .choiceText(choice.getChoiceText())
-                        .choiceTextEn(choice.getChoiceTextEn())
-                        .isCorrect(choice.getIsCorrect())
-                        .build())
+            .map(choice ->
+                AdminQuizChoiceResponse.builder()
+                    .choiceId(choice.getId())
+                    .choiceText(choice.getChoiceText())
+                    .choiceTextEn(choice.getChoiceTextEn())
+                    .isCorrect(choice.getIsCorrect())
+                    .build())
             .toList();
     return AdminQuizQuestionResponse.builder()
         .questionId(question.getId())

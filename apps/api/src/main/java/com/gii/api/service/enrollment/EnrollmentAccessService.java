@@ -30,10 +30,12 @@ public class EnrollmentAccessService {
     }
 
     boolean hasAccess =
-        !enrollmentRepository
+        enrollmentRepository
             .findByUserIdAndTemplateIdAndStatus(
                 userId, lesson.getSection().getTemplate().getId(), EnrollmentStatus.ACTIVE)
-            .isEmpty();
+            .stream()
+            .anyMatch(
+                e -> e.getExpiresAt() == null || e.getExpiresAt().isAfter(java.time.Instant.now()));
 
     if (!hasAccess) {
       throw new ForbiddenApiException("You do not have access to this lesson");

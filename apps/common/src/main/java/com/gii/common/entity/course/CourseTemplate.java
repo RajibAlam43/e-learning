@@ -31,6 +31,10 @@ import org.hibernate.type.SqlTypes;
 @Table(name = "course_templates")
 public class CourseTemplate extends BaseUuidEntity {
 
+  @Column(nullable = false)
+  @Builder.Default
+  private Integer credits = 3;
+
   @Column(name = "title", nullable = false)
   private String title;
 

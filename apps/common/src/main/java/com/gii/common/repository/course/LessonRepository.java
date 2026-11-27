@@ -5,10 +5,14 @@ import com.gii.common.enums.PublishStatus;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface LessonRepository extends JpaRepository<Lesson, UUID> {
+  @Modifying(flushAutomatically = true, clearAutomatically = true)
+  @Query("DELETE FROM Lesson l WHERE l.section.id = :sectionId")
+  void deleteCurriculumForSection(@Param("sectionId") UUID sectionId);
 
   @Query(
       """

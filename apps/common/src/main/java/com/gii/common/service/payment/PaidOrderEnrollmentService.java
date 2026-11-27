@@ -36,6 +36,8 @@ public class PaidOrderEnrollmentService {
   private final CollectionCourseRepository collectionCourseRepository;
   private final CourseRepository courseRepository;
   private final CourseEnrollmentPolicyService enrollmentPolicyService;
+  private final EnrollmentMutationLockService mutationLock;
+  private final ProgramCourseAccessService programAccess;
 
   @Transactional
   public void grant(UUID orderId) {
@@ -43,13 +45,14 @@ public class PaidOrderEnrollmentService {
     if (order.getStatus() != OrderStatus.PAID) {
       return;
     }
+    mutationLock.lock(order.getUser().getId());
     Instant now = Instant.now();
     List<OrderItem> items = orderItemRepository.findByOrderId(order.getId());
     Map<UUID, Course> purchasedCourseById = new LinkedHashMap<>();
     for (OrderItem item : items) {
       if (item.getItemType() == OrderItemType.COURSE) {
         purchasedCourseById.put(item.getCourse().getId(), item.getCourse());
-      } else if (item.getItemType() == OrderItemType.COLLECTION) {
+      } else if (item.getItemType() == OrderItemType.COLLECTION && !deferredProgram(item)) {
         purchasedCourses(item).forEach(course -> purchasedCourseById.put(course.getId(), course));
       }
     }
@@ -62,13 +65,18 @@ public class PaidOrderEnrollmentService {
         activateOrCreateCourseEnrollment(order, item, item.getCourse(), now, item.getCollection());
       } else if (item.getItemType() == OrderItemType.COLLECTION) {
         activateOrCreateCollectionEnrollment(order, item, now);
+        if (deferredProgram(item)) {
+          continue;
+        }
         purchasedCourses(item)
-            .forEach(
-                course ->
-                    activateOrCreateCourseEnrollment(
-                        order, item, course, now, item.getCollection()));
+            .forEach(course ->
+                activateOrCreateCourseEnrollment(order, item, course, now, item.getCollection()));
       }
     }
+  }
+
+  private boolean deferredProgram(OrderItem item) {
+    return item.getProgramSnapshot() != null && item.getProgramSnapshot().creditBased();
   }
 
   private List<Course> purchasedCourses(OrderItem item) {
@@ -102,20 +110,39 @@ public class PaidOrderEnrollmentService {
           existing.getStatus() == EnrollmentStatus.ACTIVE
               && (existing.getExpiresAt() == null || existing.getExpiresAt().isAfter(now));
       if (alreadyOccupiesSeat) {
+        if (existing.isProgramAccessManaged()) {
+          // A pending payment may settle after an admin/free independent grant.
+          // Preserve that grant's provenance so refunding the payment cannot remove it.
+          if (existing.getSourceOrderItem() == null
+              && existing.isIndependentAccessAvailable()
+              && (existing.getIndependentAccessExpiresAt() == null
+                  || existing.getIndependentAccessExpiresAt().isAfter(now))) {
+            return;
+          }
+          existing.setSourceOrderItem(sourceOrderItem);
+          existing.setSourceCollection(sourceCollection);
+          programAccess.independentGrant(
+              existing, enrollmentPolicyService.calculateExpiry(lockedCourse, now));
+        }
         return;
       }
-      enrollmentPolicyService.validateActivation(lockedCourse, order.getCreatedAt(), now);
+      enrollmentPolicyService.validateActivation(
+          lockedCourse, order.getUser().getId(), order.getId(), order.getCreatedAt(), now);
       existing.setStatus(EnrollmentStatus.ACTIVE);
       existing.setEnrolledAt(now);
       existing.setRevokedAt(null);
       existing.setExpiresAt(enrollmentPolicyService.calculateExpiry(lockedCourse, now));
       existing.setSourceOrderItem(sourceOrderItem);
       existing.setSourceCollection(sourceCollection);
+      if (existing.isProgramAccessManaged()) {
+        programAccess.independentGrant(existing, existing.getExpiresAt());
+      }
       enrollmentRepository.save(existing);
       return;
     }
 
-    enrollmentPolicyService.validateActivation(lockedCourse, order.getCreatedAt(), now);
+    enrollmentPolicyService.validateActivation(
+        lockedCourse, order.getUser().getId(), order.getId(), order.getCreatedAt(), now);
     enrollmentRepository.saveAndFlush(
         Enrollment.builder()
             .user(order.getUser())
@@ -136,10 +163,23 @@ public class PaidOrderEnrollmentService {
                 order.getUser().getId(), sourceOrderItem.getCollection().getId())
             .orElse(null);
     if (existing != null) {
+      // Retries must not renew access or replace the original academic contract.
+      if (existing.getSourceOrderItem() != null
+          && existing.getSourceOrderItem().getId().equals(sourceOrderItem.getId())) {
+        return;
+      }
+      if (existing.getProgramSnapshot() != null
+          && existing.getStatus() == EnrollmentStatus.ACTIVE
+          && (existing.getExpiresAt() == null || existing.getExpiresAt().isAfter(now))) {
+        return;
+      }
       existing.setStatus(EnrollmentStatus.ACTIVE);
-      existing.setEnrolledAt(now);
+      existing.setEnrolledAt(deferredProgram(sourceOrderItem) ? order.getPaidAt() : now);
       existing.setRevokedAt(null);
-      existing.setExpiresAt(null);
+      existing.setExpiresAt(ProgramSnapshotService.expiresAt(sourceOrderItem));
+      if (existing.getProgramSnapshot() == null) {
+        existing.setProgramSnapshot(sourceOrderItem.getProgramSnapshot());
+      }
       existing.setSourceOrderItem(sourceOrderItem);
       collectionEnrollmentRepository.save(existing);
       return;
@@ -148,9 +188,11 @@ public class PaidOrderEnrollmentService {
         CollectionEnrollment.builder()
             .user(order.getUser())
             .collection(sourceOrderItem.getCollection())
+            .programSnapshot(sourceOrderItem.getProgramSnapshot())
+            .expiresAt(ProgramSnapshotService.expiresAt(sourceOrderItem))
             .sourceOrderItem(sourceOrderItem)
             .status(EnrollmentStatus.ACTIVE)
-            .enrolledAt(now)
+            .enrolledAt(deferredProgram(sourceOrderItem) ? order.getPaidAt() : now)
             .build());
   }
 }

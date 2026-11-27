@@ -9,22 +9,20 @@ import static org.mockito.Mockito.when;
 import com.gii.api.service.collection.PurchasedCollectionCoursesService;
 import com.gii.api.testsupport.CourseTestData;
 import com.gii.common.entity.collection.Collection;
-import com.gii.common.entity.collection.CollectionCourse;
 import com.gii.common.entity.collection.CollectionEnrollment;
 import com.gii.common.entity.course.Course;
 import com.gii.common.entity.user.User;
 import com.gii.common.enums.CollectionType;
 import com.gii.common.enums.EnrollmentStatus;
-import com.gii.common.repository.collection.CollectionCourseRepository;
 import com.gii.common.repository.collection.CollectionEnrollmentRepository;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -32,21 +30,34 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class CollectionEnrollmentCompletionServiceTest {
 
   @Mock private CollectionEnrollmentRepository collectionEnrollmentRepository;
-  @Mock private CollectionCourseRepository collectionCourseRepository;
   @Mock private CourseCompletionService courseCompletionService;
   @Mock private PurchasedCollectionCoursesService purchasedCollectionCoursesService;
 
-  @InjectMocks private CollectionEnrollmentCompletionService service;
+  @Mock private com.gii.common.service.payment.CoursePrerequisiteEligibilityService eligibility;
+  private CollectionEnrollmentCompletionService service;
+
+  @BeforeEach
+  void setupRequirements() {
+    service =
+        new CollectionEnrollmentCompletionService(
+            collectionEnrollmentRepository,
+            new CollectionRequirementsCompletionService(
+                purchasedCollectionCoursesService,
+                courseCompletionService,
+                eligibility,
+                org.mockito.Mockito.mock(ProgramCreditProgressService.class)));
+  }
 
   @Test
   void refreshSetsCompletedAtWhenEveryMandatoryCourseIsComplete() {
-    UUID userId = UUID.randomUUID();
+    final UUID userId = UUID.randomUUID();
     UUID collectionId = UUID.randomUUID();
     User user = User.builder().fullName("Student").email("student@example.com").build();
     user.setId(userId);
     Course courseA = CourseTestData.course("Course A", "course-a", user);
     courseA.setId(UUID.randomUUID());
-    Collection collection = Collection.builder().title("Pack").slug("pack").type(CollectionType.PACK).build();
+    Collection collection =
+        Collection.builder().title("Pack").slug("pack").type(CollectionType.PACK).build();
     collection.setId(collectionId);
     CollectionEnrollment enrollment =
         CollectionEnrollment.builder()
@@ -58,7 +69,7 @@ class CollectionEnrollmentCompletionServiceTest {
 
     when(collectionEnrollmentRepository.findByUserIdAndCollectionIdForUpdate(userId, collectionId))
         .thenReturn(Optional.of(enrollment));
-    when(purchasedCollectionCoursesService.resolveItems(enrollment))
+    when(purchasedCollectionCoursesService.resolveRequiredItems(enrollment))
         .thenReturn(List.of(new PurchasedCollectionCoursesService.PurchasedCourse(courseA, true)));
     when(courseCompletionService.getByCourseIds(userId, List.of(courseA.getId())))
         .thenReturn(
@@ -68,18 +79,20 @@ class CollectionEnrollmentCompletionServiceTest {
 
     service.refresh(userId, collectionId);
 
-    ArgumentCaptor<CollectionEnrollment> captor = ArgumentCaptor.forClass(CollectionEnrollment.class);
+    ArgumentCaptor<CollectionEnrollment> captor =
+        ArgumentCaptor.forClass(CollectionEnrollment.class);
     verify(collectionEnrollmentRepository).save(captor.capture());
     assertThat(captor.getValue().getCompletedAt()).isNotNull();
   }
 
   @Test
   void refreshIsNoOpWhenAlreadyCompleted() {
-    UUID userId = UUID.randomUUID();
+    final UUID userId = UUID.randomUUID();
     UUID collectionId = UUID.randomUUID();
     User user = User.builder().fullName("Student").email("student@example.com").build();
     user.setId(userId);
-    Collection collection = Collection.builder().title("Pack").slug("pack").type(CollectionType.PACK).build();
+    Collection collection =
+        Collection.builder().title("Pack").slug("pack").type(CollectionType.PACK).build();
     collection.setId(collectionId);
     CollectionEnrollment enrollment =
         CollectionEnrollment.builder()
@@ -100,13 +113,17 @@ class CollectionEnrollmentCompletionServiceTest {
 
   @Test
   void refreshCollectionsForCourseOnlyRefreshesActiveEnrollments() {
-    UUID userId = UUID.randomUUID();
-    UUID courseId = UUID.randomUUID();
+    final UUID userId = UUID.randomUUID();
+    final UUID courseId = UUID.randomUUID();
     UUID activeCollectionId = UUID.randomUUID();
     UUID inactiveCollectionId = UUID.randomUUID();
 
     Collection activeCollection =
-        Collection.builder().title("Active Pack").slug("active-pack").type(CollectionType.PACK).build();
+        Collection.builder()
+            .title("Active Pack")
+            .slug("active-pack")
+            .type(CollectionType.PACK)
+            .build();
     activeCollection.setId(activeCollectionId);
     Collection inactiveCollection =
         Collection.builder()
@@ -116,20 +133,10 @@ class CollectionEnrollmentCompletionServiceTest {
             .build();
     inactiveCollection.setId(inactiveCollectionId);
 
-    CollectionCourse activeMembership =
-        CollectionCourse.builder().collection(activeCollection).build();
-    CollectionCourse inactiveMembership =
-        CollectionCourse.builder().collection(inactiveCollection).build();
-
-    when(collectionCourseRepository.findByCourse_Id(courseId))
-        .thenReturn(List.of(activeMembership, inactiveMembership));
-    when(collectionEnrollmentRepository.existsByUserIdAndCollectionIdAndStatus(
-            userId, activeCollectionId, EnrollmentStatus.ACTIVE))
-        .thenReturn(true);
-    when(collectionEnrollmentRepository.existsByUserIdAndCollectionIdAndStatus(
-            userId, inactiveCollectionId, EnrollmentStatus.ACTIVE))
-        .thenReturn(false);
-    when(collectionEnrollmentRepository.findByUserIdAndCollectionIdForUpdate(userId, activeCollectionId))
+    when(collectionEnrollmentRepository.findByUserIdAndStatus(userId, EnrollmentStatus.ACTIVE))
+        .thenReturn(List.of(CollectionEnrollment.builder().collection(activeCollection).build()));
+    when(collectionEnrollmentRepository.findByUserIdAndCollectionIdForUpdate(
+            userId, activeCollectionId))
         .thenReturn(Optional.empty());
 
     service.refreshCollectionsForCourse(userId, courseId);

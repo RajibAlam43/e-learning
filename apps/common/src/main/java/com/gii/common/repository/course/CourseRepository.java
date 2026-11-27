@@ -25,6 +25,8 @@ public interface CourseRepository
 
   List<Course> findByTemplateId(UUID templateId);
 
+  List<Course> findBySemesterId(UUID semesterId);
+
   @Lock(LockModeType.PESSIMISTIC_WRITE)
   @Query("SELECT c FROM Course c WHERE c.id = :id")
   Optional<Course> findByIdForUpdate(@Param("id") UUID id);

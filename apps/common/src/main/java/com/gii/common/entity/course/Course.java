@@ -1,6 +1,7 @@
 package com.gii.common.entity.course;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.gii.common.entity.academic.Semester;
 import com.gii.common.entity.common.BaseUuidEntity;
 import com.gii.common.entity.user.User;
 import com.gii.common.enums.CourseLanguage;
@@ -27,8 +28,8 @@ import lombok.Setter;
 import lombok.experimental.SuperBuilder;
 
 /**
- * A concrete, purchasable delivery of a course template. Public APIs intentionally expose
- * this entity as a course and expose its UUID as {@code courseId}.
+ * A concrete, purchasable delivery of a course template. Public APIs intentionally expose this
+ * entity as a course and expose its UUID as {@code courseId}.
  */
 @SuperBuilder
 @Getter
@@ -37,6 +38,19 @@ import lombok.experimental.SuperBuilder;
 @Entity
 @Table(name = "course_offerings")
 public class Course extends BaseUuidEntity {
+
+  @JsonIgnore
+  @ManyToOne(fetch = FetchType.EAGER)
+  @JoinColumn(name = "semester_id")
+  private Semester semester;
+
+  public Integer getCredits() {
+    return template.getCredits();
+  }
+
+  public void setCredits(Integer value) {
+    template.setCredits(value);
+  }
 
   @JsonIgnore
   @ManyToOne(

@@ -19,8 +19,9 @@ public class OfferingEnrollmentPolicyService {
     invoke(() -> delegate.validateCheckout(course, userId, now));
   }
 
-  public void validateActivation(Course course, Instant purchasedAt, Instant now) {
-    invoke(() -> delegate.validateActivation(course, purchasedAt, now));
+  public void validateCheckout(
+      Course course, java.util.UUID userId, Instant now, java.util.UUID orderId) {
+    invoke(() -> delegate.validateCheckout(course, userId, now, orderId));
   }
 
   public Instant calculateExpiry(Course course, Instant enrolledAt) {

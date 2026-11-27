@@ -1,5 +1,6 @@
 package com.gii.api.model.response;
 
+import com.gii.api.model.response.academic.SemesterResponse;
 import com.gii.common.enums.CourseLanguage;
 import com.gii.common.enums.CourseLevel;
 import com.gii.common.enums.StudyMode;
@@ -42,4 +43,6 @@ public record CourseDetailsResponse(
     Integer recordedHoursCount,
     Boolean isFree,
     Double averageRating,
-    Long totalReviews) {}
+    Long totalReviews,
+    Integer credits,
+    SemesterResponse semester) {}

@@ -40,6 +40,7 @@ public class AdminCollectionManagementService {
   private final CourseRepository courseRepository;
   private final CurrentUserService currentUserService;
   private final AssetUrlService assetUrlService;
+  private final com.gii.common.service.payment.ProgramSnapshotService programSnapshots;
 
   @Transactional(readOnly = true)
   public List<AdminCollectionSummaryResponse> list() {
@@ -52,20 +53,19 @@ public class AdminCollectionManagementService {
       }
     }
     return collections.stream()
-        .map(
-            c ->
-                AdminCollectionSummaryResponse.builder()
-                    .collectionId(c.getId())
-                    .title(c.getTitle())
-                    .slug(c.getSlug())
-                    .collectionType(c.getType())
-                    .thumbnailUrl(assetUrlService.publicUrl(c.getThumbnailObjectKey()))
-                    .status(c.getStatus())
-                    .priceBdt(c.getPriceBdt())
-                    .courseCount(courseCountByCollectionId.getOrDefault(c.getId(), 0))
-                    .publishedAt(c.getPublishedAt())
-                    .createdAt(c.getCreatedAt())
-                    .build())
+        .map(c ->
+            AdminCollectionSummaryResponse.builder()
+                .collectionId(c.getId())
+                .title(c.getTitle())
+                .slug(c.getSlug())
+                .collectionType(c.getType())
+                .thumbnailUrl(assetUrlService.publicUrl(c.getThumbnailObjectKey()))
+                .status(c.getStatus())
+                .priceBdt(c.getPriceBdt())
+                .courseCount(courseCountByCollectionId.getOrDefault(c.getId(), 0))
+                .publishedAt(c.getPublishedAt())
+                .createdAt(c.getCreatedAt())
+                .build())
         .toList();
   }
 
@@ -104,7 +104,7 @@ public class AdminCollectionManagementService {
   public AdminCollectionDetailResponse update(UUID collectionId, UpdateCollectionRequest request) {
     Collection collection =
         collectionRepository
-            .findById(collectionId)
+            .findByIdForUpdate(collectionId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Collection not found"));
     if (request.title() != null) {
@@ -144,7 +144,7 @@ public class AdminCollectionManagementService {
   public void publish(UUID collectionId) {
     Collection collection =
         collectionRepository
-            .findById(collectionId)
+            .findByIdForUpdate(collectionId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Collection not found"));
     List<CollectionCourse> includedCourses =
@@ -153,8 +153,10 @@ public class AdminCollectionManagementService {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "Collection must have at least one course before publishing");
     }
-    if (includedCourses.stream()
-        .anyMatch(row -> row.getCourse().getStatus() != PublishStatus.PUBLISHED)) {
+    validateProgram(collection, includedCourses);
+    if (!collection.isCreditBased()
+        && includedCourses.stream()
+            .anyMatch(row -> row.getCourse().getStatus() != PublishStatus.PUBLISHED)) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "Published collections may contain only published courses");
     }
@@ -166,7 +168,7 @@ public class AdminCollectionManagementService {
   public void unpublish(UUID collectionId) {
     Collection collection =
         collectionRepository
-            .findById(collectionId)
+            .findByIdForUpdate(collectionId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Collection not found"));
     collection.setStatus(PublishStatus.DRAFT);
@@ -177,11 +179,11 @@ public class AdminCollectionManagementService {
       UUID collectionId, SetCollectionCoursesRequest request) {
     Collection collection =
         collectionRepository
-            .findById(collectionId)
+            .findByIdForUpdate(collectionId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Collection not found"));
 
-    if (collection.getStatus() == PublishStatus.PUBLISHED) {
+    if (collection.getStatus() == PublishStatus.PUBLISHED && !collection.isCreditBased()) {
       throw new ResponseStatusException(
           HttpStatus.CONFLICT, "Unpublish the collection before changing its courses");
     }
@@ -210,7 +212,8 @@ public class AdminCollectionManagementService {
     if (courseById.size() != request.items().size()) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "One or more courses not found");
     }
-    if (collection.getStatus() == PublishStatus.PUBLISHED
+    if (!collection.isCreditBased()
+        && collection.getStatus() == PublishStatus.PUBLISHED
         && courses.stream().anyMatch(course -> course.getStatus() != PublishStatus.PUBLISHED)) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "Published collections may contain only published courses");
@@ -219,24 +222,34 @@ public class AdminCollectionManagementService {
     collectionCourseRepository.deleteAll(
         collectionCourseRepository.findByCollection_IdOrderByPositionAsc(collectionId));
 
+    collectionCourseRepository.flush();
+
     List<CollectionCourse> newRows =
         request.items().stream()
-            .map(
-                item ->
-                    CollectionCourse.builder()
-                        .id(
-                            CollectionCourseId.builder()
-                                .collectionId(collectionId)
-                                .courseOfferingId(item.courseId())
-                                .build())
-                        .collection(collection)
-                        .course(courseById.get(item.courseId()))
-                        .position(item.position())
-                        .isMandatory(!Boolean.FALSE.equals(item.isMandatory()))
-                        .build())
+            .map(item ->
+                CollectionCourse.builder()
+                    .id(
+                        CollectionCourseId.builder()
+                            .collectionId(collectionId)
+                            .courseOfferingId(item.courseId())
+                            .build())
+                    .collection(collection)
+                    .course(courseById.get(item.courseId()))
+                    .position(item.position())
+                    .isMandatory(!Boolean.FALSE.equals(item.isMandatory()))
+                    .build())
             .toList();
-    collectionCourseRepository.saveAll(newRows);
+    validateProgram(collection, newRows);
+    collectionCourseRepository.saveAllAndFlush(newRows);
     return toDetail(collection);
+  }
+
+  private void validateProgram(Collection collection, List<CollectionCourse> courses) {
+    try {
+      programSnapshots.validate(programSnapshots.capture(collection, courses));
+    } catch (com.gii.common.service.payment.EnrollmentPolicyViolationException exception) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, exception.getMessage(), exception);
+    }
   }
 
   private AdminCollectionDetailResponse toDetail(Collection collection) {
@@ -244,18 +257,26 @@ public class AdminCollectionManagementService {
         collectionCourseRepository
             .findByCollection_IdOrderByPositionAscWithCourse(collection.getId())
             .stream()
-            .map(
-                row ->
-                    AdminCollectionCourseResponse.builder()
-                        .courseId(row.getCourse().getId())
-                        .courseTitle(row.getCourse().getTitle())
-                        .courseSlug(row.getCourse().getSlug())
-                        .position(row.getPosition())
-                        .isMandatory(row.getIsMandatory())
-                        .build())
+            .map(row ->
+                AdminCollectionCourseResponse.builder()
+                    .courseId(row.getCourse().getId())
+                    .courseTemplateId(row.getCourse().getTemplate().getId())
+                    .credits(row.getCourse().getCredits())
+                    .status(row.getCourse().getStatus())
+                    .courseTitle(row.getCourse().getTitle())
+                    .courseSlug(row.getCourse().getSlug())
+                    .position(row.getPosition())
+                    .isMandatory(row.getIsMandatory())
+                    .build())
             .toList();
     return AdminCollectionDetailResponse.builder()
         .collectionId(collection.getId())
+        .accessDurationMonths(collection.getAccessDurationMonths())
+        .programRequirements(
+            programSnapshots.capture(
+                collection,
+                collectionCourseRepository.findByCollection_IdOrderByPositionAscWithCourse(
+                    collection.getId())))
         .title(collection.getTitle())
         .titleEn(collection.getTitleEn())
         .slug(collection.getSlug())

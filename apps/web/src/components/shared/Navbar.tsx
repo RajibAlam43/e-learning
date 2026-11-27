@@ -77,6 +77,7 @@ export function Navbar() {
     { label: t('home'), href: ROUTES.home },
     { label: t('courses'), href: ROUTES.courses },
     { label: t('programs'), href: ROUTES.programs },
+    { label: t('faculty'), href: '/faculty' },
     { label: t('aboutUs'), href: '#about' },
     { label: t('contact'), href: ROUTES.contact },
   ]

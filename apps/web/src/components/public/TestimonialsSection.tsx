@@ -1,25 +1,21 @@
 'use client'
 
 import { useRef, useEffect, useCallback, useState, forwardRef } from 'react'
-import Image from 'next/image'
-import Link from 'next/link'
+import { StudentMilestoneJoinLink } from './StudentMilestone'
 import { Star, ChevronRight, ChevronLeft } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { usePublicReviews } from '@/hooks/useCourses'
 
-const TESTIMONIAL_AVATARS = [
-  '/images/testimonial-1.png',
-  '/images/testimonial-2.png',
-  '/images/testimonial-3.png',
-] as const
+type Testimonial = { quote: string; author: string; role: string; rating?: number }
 
 const TestimonialCard = forwardRef<HTMLDivElement, {
   quote: string
   author: string
   role: string
-  avatar: string
+  rating?: number
   variant: 'primary' | 'secondary'
-}>(({ quote, author, role, avatar, variant }, ref) => {
+}>(({ quote, author, role, rating, variant }, ref) => {
+  const t = useTranslations('testimonials')
   return (
     <section ref={ref}
       className={`flex min-h-[350px] w-[340px] shrink-0 flex-col items-center justify-center gap-[60px] rounded-3xl px-8 py-10 text-center transition-all duration-300 hover:scale-[1.02] hover:shadow-lg sm:h-[468px] sm:w-auto sm:p-[60px] ${
@@ -28,11 +24,10 @@ const TestimonialCard = forwardRef<HTMLDivElement, {
           : 'bg-white shadow-[0px_6px_15px_-2px_rgba(16,24,40,0.08)]'
       }`}
     >
-      <div className="flex items-center gap-1">
-        {Array.from({ length: 5 }, (_, i) => (
-          <Star key={i} className="h-5 w-5 fill-[#BFDBFE] text-[#BFDBFE]" />
-        ))}
-      </div>
+      {rating != null && <div role="img" aria-label={t('ratingLabel', { rating })} className="flex items-center gap-1">
+        {Array.from({ length: 5 }, (_, i) => <Star aria-hidden="true" key={i} className={`h-5 w-5 ${i < rating ? 'fill-[#BFDBFE] text-[#BFDBFE]' : 'text-slate-300'}`} />)}
+      </div>}
+
       <p
         className={`w-[900px] max-w-full font-sans text-[28px] leading-[36px] tracking-[-1px] max-sm:text-[22px] max-sm:leading-[29px] ${
           variant === 'primary' ? 'text-black' : 'text-[#1b1c1a]'
@@ -41,13 +36,7 @@ const TestimonialCard = forwardRef<HTMLDivElement, {
         {quote}
       </p>
       <div className="flex flex-col items-center gap-3">
-        <Image
-          src={avatar}
-          alt={author}
-          width={40}
-          height={40}
-          className="h-10 w-10 rounded-full object-cover"
-        />
+        <span aria-hidden="true" className="grid h-10 w-10 place-items-center rounded-full bg-[#edf2fc] text-sm font-semibold text-[#1c3873]">{author.trim().charAt(0)}</span>
         <div className="flex flex-col items-center">
           <span
             className={`font-sans text-lg font-semibold leading-6 ${
@@ -70,11 +59,25 @@ TestimonialCard.displayName = 'TestimonialCard'
 
 export function TestimonialsSection() {
   const t = useTranslations('testimonials')
-  const { data: publicReviews } = usePublicReviews()
-  const title = t('title')
-  const ctaText = t('cta')
-  const ctaLink = '/signup'
-  const sectionRef = useRef<HTMLElement>(null)
+  const { data: publicReviews, isError } = usePublicReviews()
+  const reviews = (isError ? [] : publicReviews ?? []).filter(review => review.reviewText?.trim()).slice(0, 6)
+  const testimonials = reviews.map(review => ({
+    quote: review.reviewText!.trim(),
+    author: review.studentName?.trim() || t('student'),
+    role: t('learner'),
+    rating: review.rating != null && Number.isFinite(review.rating) ? Math.min(5, Math.max(0, Math.round(review.rating))) : undefined,
+  }))
+  return <section aria-labelledby="testimonials-heading" className="relative isolate overflow-hidden bg-[#f5f5f5] py-12 sm:py-16 lg:py-20">
+    <div className="container mx-auto px-5"><div className="relative z-10 flex items-center justify-between gap-5 max-lg:flex-wrap max-lg:gap-5">
+      <h2 id="testimonials-heading" className="w-[544px] max-w-full font-heading text-[40px] font-semibold leading-[48px] tracking-[-1px] text-[#2563eb] max-sm:text-[24px] max-sm:leading-[29px] max-md:text-[32px] max-md:leading-[38px]">{t('title')}</h2>
+      <StudentMilestoneJoinLink />
+    </div></div>
+    {testimonials.length > 0 && <TestimonialsCarousel key={reviews.map(review => review.reviewId).join(',')} testimonials={testimonials} />}
+  </section>
+}
+
+function TestimonialsCarousel({ testimonials }: { testimonials: Testimonial[] }) {
+  const sectionRef = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const cardRefs = useRef<(HTMLDivElement | null)[]>([])
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -97,36 +100,6 @@ export function TestimonialsSection() {
     observer.observe(section)
     return () => observer.disconnect()
   }, [])
-
-  const fallbackTestimonials = [
-    {
-      quote: t('items.0.quote'),
-      author: t('items.0.author'),
-      role: t('items.0.role'),
-      avatar: TESTIMONIAL_AVATARS[0],
-    },
-    {
-      quote: t('items.1.quote'),
-      author: t('items.1.author'),
-      role: t('items.1.role'),
-      avatar: TESTIMONIAL_AVATARS[1],
-    },
-    {
-      quote: t('items.2.quote'),
-      author: t('items.2.author'),
-      role: t('items.2.role'),
-      avatar: TESTIMONIAL_AVATARS[2],
-    },
-  ]
-
-  const testimonials = publicReviews && publicReviews.length > 0
-    ? publicReviews.slice(0, 6).map((review, index) => ({
-        quote: review.reviewText ?? '',
-        author: review.studentName ?? 'Student',
-        role: 'GII learner',
-        avatar: TESTIMONIAL_AVATARS[index % TESTIMONIAL_AVATARS.length]!,
-      }))
-    : fallbackTestimonials
 
   const total = testimonials.length
 
@@ -253,22 +226,7 @@ export function TestimonialsSection() {
   }
 
   return (
-    <section ref={sectionRef} className="relative isolate overflow-hidden bg-[#f5f5f5] py-12 sm:py-16 lg:py-20">
-      <div className="container mx-auto px-5">
-        <div className="relative z-10 flex items-center justify-between gap-5 max-lg:flex-wrap max-lg:gap-5">
-          <h2 className="w-[544px] max-w-full font-heading text-[40px] font-semibold leading-[48px] tracking-[-1px] text-[#2563eb] max-sm:text-[24px] max-sm:leading-[29px] max-md:text-[32px] max-md:leading-[38px]">
-            {title}
-          </h2>
-          <Link
-            href={ctaLink}
-            className="btn-blue-gradient inline-flex h-[46px] items-center justify-center gap-2 rounded-md border-none px-5 py-2.5 font-sans text-base font-semibold leading-6 text-white no-underline transition-all duration-200 hover:opacity-90 hover:scale-[1.02]"
-          >
-            {ctaText}
-            <ChevronRight className="h-6 w-6" />
-          </Link>
-        </div>
-      </div>
-
+    <div ref={sectionRef}>
       {/* Dot indicators */}
       <div className="mt-8 flex items-center justify-center gap-2">
         {testimonials.map((_, idx) => (
@@ -333,13 +291,13 @@ export function TestimonialsSection() {
                 quote={item.quote}
                 author={item.author}
                 role={item.role}
-                avatar={item.avatar}
+                rating={item.rating}
                 variant={realIdx === activeIdx ? 'secondary' : 'primary'}
               />
             )
           })}
         </div>
       </div>
-    </section>
+    </div>
   )
 }

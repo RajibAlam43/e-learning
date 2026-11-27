@@ -3,7 +3,8 @@ package com.gii.api.model.request.admin;
 public enum ThumbnailOwnerType {
   COURSE("courses"),
   COLLECTION("collections"),
-  MEDIA_ASSET("media-assets");
+  MEDIA_ASSET("media-assets"),
+  FACULTY("faculty");
 
   private final String path;
 

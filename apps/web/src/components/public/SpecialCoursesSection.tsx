@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
-import { useFeaturedCourses } from '@/hooks/useCourses'
+import { useCourses } from '@/hooks/useCourses'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Star, Clock, MonitorPlay, Users, ChevronRight } from 'lucide-react'
 
@@ -97,7 +97,9 @@ function CourseCard({
 
 export function SpecialCoursesSection() {
   const t = useTranslations('specialCourses')
-  const { data: apiCourses = [], isLoading, isError, refetch } = useFeaturedCourses(3)
+  const { data, isLoading, isError, refetch } = useCourses({ page: 0, size: 3 })
+  const apiCourses = data?.content ?? []
+  if (!isLoading && !isError && apiCourses.length === 0) return null
 
   return (
     <section className="content-auto-section bg-white py-12 max-md:py-8">

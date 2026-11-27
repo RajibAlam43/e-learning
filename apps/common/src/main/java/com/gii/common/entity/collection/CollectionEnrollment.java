@@ -36,6 +36,10 @@ import lombok.experimental.SuperBuilder;
     })
 public class CollectionEnrollment extends CreatedOnlyUuidEntity {
 
+  @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
+  @Column(name = "program_snapshot", columnDefinition = "jsonb")
+  private com.gii.common.dto.academic.ProgramSnapshot programSnapshot;
+
   @JsonIgnore
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
   @JoinColumn(name = "user_id", nullable = false)
@@ -67,4 +71,11 @@ public class CollectionEnrollment extends CreatedOnlyUuidEntity {
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "source_order_item_id")
   private OrderItem sourceOrderItem;
+
+  public boolean isAccessActiveAt(Instant now) {
+    return status == EnrollmentStatus.ACTIVE
+        && (expiresAt == null || expiresAt.isAfter(now))
+        && (sourceOrderItem == null
+            || sourceOrderItem.getOrder().getStatus() == com.gii.common.enums.OrderStatus.PAID);
+  }
 }

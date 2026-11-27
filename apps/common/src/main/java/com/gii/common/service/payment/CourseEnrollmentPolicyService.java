@@ -20,9 +20,43 @@ public class CourseEnrollmentPolicyService {
   private final EnrollmentRepository enrollmentRepository;
   private final OrderItemRepository orderItemRepository;
 
+  private final CoursePrerequisiteEligibilityService prerequisites;
+
   public void validateCheckout(Course course, UUID userId, Instant now) {
-    validatePublishedAndWindow(course, now);
-    if (course.getCapacity() == null) {
+    validateCheckout(course, userId, now, null);
+  }
+
+  public void validateCheckout(Course course, UUID userId, Instant now, UUID orderId) {
+    validateAdmission(course, userId, now, orderId, false, false, false);
+  }
+
+  /** Admin exceptions never bypass prerequisite requirements. */
+  public void validateManualAdmission(
+      Course course,
+      UUID userId,
+      Instant now,
+      boolean overrideDates,
+      boolean overrideCapacity,
+      boolean allowUnpublished) {
+    validateAdmission(course, userId, now, null, overrideDates, overrideCapacity, allowUnpublished);
+  }
+
+  private void validateAdmission(
+      Course course,
+      UUID userId,
+      Instant now,
+      UUID orderId,
+      boolean overrideDates,
+      boolean overrideCapacity,
+      boolean allowUnpublished) {
+    prerequisites.validate(userId, course, orderId);
+    if (!allowUnpublished && course.getStatus() != PublishStatus.PUBLISHED) {
+      throw new EnrollmentPolicyViolationException("Course is not available");
+    }
+    if (!overrideDates) {
+      validateWindow(course, now);
+    }
+    if (overrideCapacity || course.getCapacity() == null) {
       return;
     }
     long occupied =
@@ -35,7 +69,9 @@ public class CourseEnrollmentPolicyService {
     }
   }
 
-  public void validateActivation(Course course, Instant purchasedAt, Instant now) {
+  public void validateActivation(
+      Course course, UUID userId, UUID orderId, Instant purchasedAt, Instant now) {
+    prerequisites.validate(userId, course, orderId);
     validatePublishedAndWindow(course, purchasedAt);
     if (course.getCapacity() == null) {
       return;
@@ -56,6 +92,18 @@ public class CourseEnrollmentPolicyService {
   private void validatePublishedAndWindow(Course course, Instant at) {
     if (course.getStatus() != PublishStatus.PUBLISHED) {
       throw new EnrollmentPolicyViolationException("Course is not available");
+    }
+    validateWindow(course, at);
+  }
+
+  private void validateWindow(Course course, Instant at) {
+    if (course.getSemester() != null) {
+      if (at.isBefore(course.getSemester().getRegistrationStartsAt())) {
+        throw new EnrollmentPolicyViolationException("Semester registration has not opened");
+      }
+      if (!at.isBefore(course.getSemester().getRegistrationEndsAt())) {
+        throw new EnrollmentPolicyViolationException("Semester registration has closed");
+      }
     }
     if (course.getEnrollmentStartsAt() != null && at.isBefore(course.getEnrollmentStartsAt())) {
       throw new EnrollmentPolicyViolationException("Course enrollment has not opened");

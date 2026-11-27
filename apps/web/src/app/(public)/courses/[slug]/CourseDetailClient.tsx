@@ -21,6 +21,7 @@ import { CTASection } from '@/components/public/CTASection'
 import { Star } from 'lucide-react'
 import { useCreateCourseReview } from '@/hooks/useStudentDashboard'
 import { useState } from 'react'
+import { CourseEligibilityNotice } from '@/components/academic/CourseEligibilityNotice'
 import { useTranslations } from 'next-intl'
 import {
   HeroSkeleton,
@@ -243,6 +244,7 @@ export default function CourseDetailClient({ slug, initialData }: CourseDetailCl
           </DialogContent>
         </Dialog>
       )}
+      {course.id && <CourseEligibilityNotice courseId={course.id} enrolled={isEnrolled} />}
       <CourseOverviewRequirements description={course.description ?? undefined} requirements={course.requirements ?? undefined} />
       <CourseOutcomes outcomes={course.courseOutcomes ?? undefined} />
       <CourseContents recordedHoursCount={course.recordedHoursCount ?? undefined} liveSessionCount={course.liveSessionCount ?? undefined} />

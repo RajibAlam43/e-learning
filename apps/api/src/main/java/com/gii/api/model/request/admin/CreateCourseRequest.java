@@ -49,4 +49,6 @@ public record CreateCourseRequest(
     Instant startsAt,
     Instant endsAt,
     @Positive Integer capacity,
-    @Positive Integer accessDurationDays) {}
+    @Positive Integer accessDurationDays,
+    @Positive Integer credits,
+    UUID semesterId) {}

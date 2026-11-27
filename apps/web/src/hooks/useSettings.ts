@@ -9,5 +9,7 @@ export function usePublicSettings() {
     queryFn: settingsService.getPublicSettings,
     staleTime: 5 * 60 * 1000,
     retry: 1,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: 'always',
   })
 }

@@ -255,6 +255,113 @@ public class AdminLiveClassManagementService {
     }
   }
 
+  public void removeItem(UUID courseId, UUID liveClassItemId) {
+    final Course course = requireCourse(courseId);
+    final LiveClassSlot slot =
+        liveClassSlotRepository
+            .findByIdForUpdate(liveClassItemId)
+            .orElseThrow(() ->
+                new ResponseStatusException(HttpStatus.NOT_FOUND, "Live class item not found"));
+    validateHierarchy(course, slot.getSection());
+    final var sessions = liveClassRepository.findBySlotId(slot.getId());
+    if (sessions.stream().anyMatch(s -> s.getStatus() == LiveClassStatus.SCHEDULED)) {
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT,
+          "Cancel scheduled meetings for this curriculum item before removing it, "
+              + "including meetings in other cohorts");
+    }
+    if (sessions.stream()
+        .anyMatch(s ->
+            s.getStatus() == LiveClassStatus.LIVE || s.getStatus() == LiveClassStatus.COMPLETED)) {
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT,
+          "A live class with an ongoing or completed meeting cannot be removed");
+    }
+    sectionItemRepository.deleteByItemTypeAndItemId(SectionItemType.LIVE_CLASS, slot.getId());
+    if (sessions.isEmpty()) {
+      liveClassSlotRepository.delete(slot);
+    } else {
+      // Retain cancelled/failed meetings, registrations and recordings as history.
+      slot.setIsMandatory(false);
+      liveClassSlotRepository.save(slot);
+    }
+    sectionItemRepository.flush();
+    liveClassSlotRepository.flush();
+    enrollmentCompletionService.refreshCoursesForTemplate(course.getTemplate().getId());
+  }
+
+  @Transactional(readOnly = true)
+  public AdminLiveClassItemResponse getItem(UUID courseId, UUID liveClassItemId) {
+    final var course =
+        courseRepository
+            .findById(courseId)
+            .orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found"));
+    final var slot =
+        liveClassSlotRepository
+            .findById(liveClassItemId)
+            .orElseThrow(() ->
+                new ResponseStatusException(HttpStatus.NOT_FOUND, "Live class item not found"));
+    validateHierarchy(course, slot.getSection());
+    final var item =
+        sectionItemRepository
+            .findByItemTypeAndItemId(SectionItemType.LIVE_CLASS, slot.getId())
+            .orElseThrow(() ->
+                new ResponseStatusException(HttpStatus.NOT_FOUND, "Live class item was removed"));
+    return toItemResponse(
+        slot,
+        item.getPosition(),
+        liveClassRepository.existsByCourseIdAndSlotId(courseId, slot.getId()));
+  }
+
+  public AdminLiveClassItemResponse updateItem(
+      UUID courseId, UUID liveClassItemId, CreateLiveClassItemRequest request) {
+    final var course = requireCourse(courseId);
+    final var slot =
+        liveClassSlotRepository
+            .findByIdForUpdate(liveClassItemId)
+            .orElseThrow(() ->
+                new ResponseStatusException(HttpStatus.NOT_FOUND, "Live class item not found"));
+    validateHierarchy(course, slot.getSection());
+    if (!slot.getSection().getId().equals(request.sectionId())) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "The live class must remain in its existing section");
+    }
+    final var item =
+        sectionItemRepository
+            .findByItemTypeAndItemId(SectionItemType.LIVE_CLASS, slot.getId())
+            .orElseThrow(() ->
+                new ResponseStatusException(HttpStatus.NOT_FOUND, "Live class item was removed"));
+    if (request.position() != null && !request.position().equals(item.getPosition())) {
+      if (sectionItemRepository.existsBySectionIdAndPosition(
+          request.sectionId(), request.position())) {
+        throw new ResponseStatusException(
+            HttpStatus.CONFLICT,
+            "This position is already used; use the move controls to reorder items");
+      }
+      item.setPosition(request.position());
+      sectionItemRepository.save(item);
+    }
+    final boolean demoted =
+        Boolean.TRUE.equals(slot.getIsMandatory()) && Boolean.FALSE.equals(request.isMandatory());
+    slot.setTitle(request.title().trim());
+    slot.setTitleEn(request.titleEn());
+    slot.setDescription(request.description());
+    slot.setDescriptionEn(request.descriptionEn());
+    slot.setExpectedDurationMinutes(request.expectedDurationMinutes());
+    if (request.isMandatory() != null) {
+      slot.setIsMandatory(request.isMandatory());
+    }
+    liveClassSlotRepository.saveAndFlush(slot);
+    if (demoted) {
+      enrollmentCompletionService.refreshCoursesForTemplate(course.getTemplate().getId());
+    }
+    return toItemResponse(
+        slot,
+        item.getPosition(),
+        liveClassRepository.existsByCourseIdAndSlotId(courseId, slot.getId()));
+  }
+
   public AdminLiveClassDetailResponse scheduleExternal(
       UUID courseId, UUID liveClassItemId, ScheduleExternalLiveClassRequest request) {
     Course course = requireCourse(courseId);
@@ -299,6 +406,11 @@ public class AdminLiveClassManagementService {
             .orElseThrow(() ->
                 new ResponseStatusException(HttpStatus.NOT_FOUND, "Live class item not found"));
     validateHierarchy(course, slot.getSection());
+    if (sectionItemRepository
+        .findByItemTypeAndItemId(SectionItemType.LIVE_CLASS, slot.getId())
+        .isEmpty()) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Live class item was removed");
+    }
     if (liveClassRepository.existsByCourseIdAndSlotId(courseId, slot.getId())) {
       throw new ResponseStatusException(
           HttpStatus.CONFLICT, "Live class item is already scheduled for this course");

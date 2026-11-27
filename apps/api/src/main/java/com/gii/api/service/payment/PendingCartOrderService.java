@@ -67,6 +67,13 @@ public class PendingCartOrderService {
   private final LocalizedContentService localizedContentService;
   private final OfferingEnrollmentPolicyService offeringEnrollmentPolicyService;
   private final PendingOrderEligibilityService pendingOrderEligibilityService;
+  private final com.gii.api.service.academic.ProgramRegistrationAllowanceService programAllowance;
+  private final com.gii.common.repository.academic.ProgramCourseRegistrationRepository
+      programRegistrations;
+  private final com.gii.api.service.collection.PurchasedCollectionCoursesService
+      purchasedCurriculum;
+  private final com.gii.common.service.payment.ProgramSnapshotService programSnapshots;
+  private final com.gii.common.service.payment.CoursePrerequisiteEligibilityService prerequisites;
 
   public CheckoutOrderResponse execute(
       CreateCheckoutOrderRequest request, Authentication authentication) {
@@ -107,14 +114,18 @@ public class PendingCartOrderService {
     final Map<UUID, List<CollectionCourse>> collectionCoursesByCollectionId =
         groupByCollection(collectionCoursesForCart);
     if (collectionCoursesForCart.stream()
-        .anyMatch(row -> row.getCourse().getStatus() != PublishStatus.PUBLISHED)) {
+        .anyMatch(row ->
+            !row.getCollection().isCreditBased()
+                && row.getCourse().getStatus() != PublishStatus.PUBLISHED)) {
       throw new ResponseStatusException(
           HttpStatus.CONFLICT, "A selected collection contains an unavailable course");
     }
 
     Set<UUID> collectionCourseIdsInCart = new HashSet<>();
     for (CollectionCourse cc : collectionCoursesForCart) {
-      collectionCourseIdsInCart.add(cc.getCourse().getId());
+      if (!cc.getCollection().isCreditBased()) {
+        collectionCourseIdsInCart.add(cc.getCourse().getId());
+      }
     }
 
     // Case 3: block course+collection overlap inside the same cart.
@@ -126,6 +137,25 @@ public class PendingCartOrderService {
             "Course \""
                 + courseTitle
                 + "\" is already included in a selected collection. Remove individual course.");
+      }
+    }
+
+    for (UUID requested : requestedCourseIds) {
+      var course = coursesById.get(requested);
+      if (prerequisites.hasCredit(user.getId(), course.getTemplate().getId())) {
+        continue;
+      }
+      for (var row : collectionCoursesForCart) {
+        var program = row.getCollection();
+        if (program.isCreditBased()
+            && row.getCourse().getTemplate().getId().equals(course.getTemplate().getId())
+            && (!Boolean.FALSE.equals(row.getIsMandatory())
+                || course.getCredits() <= program.getElectiveCreditLimit())) {
+          throw new ResponseStatusException(
+              HttpStatus.CONFLICT,
+              "This course can be registered through the selected program; "
+                  + "remove its separate purchase");
+        }
       }
     }
 
@@ -144,8 +174,48 @@ public class PendingCartOrderService {
               new ArrayList<>(ownedCollectionIds));
       Set<UUID> blockedCourseIds =
           ownedCollectionCourses.stream()
+              .filter(cc -> !cc.getCollection().isCreditBased())
               .map(cc -> cc.getCourse().getId())
               .collect(java.util.stream.Collectors.toSet());
+      for (var entitlement :
+          collectionEnrollmentRepository.findByUserIdAndStatus(
+              user.getId(), EnrollmentStatus.ACTIVE)) {
+        if (!com.gii.api.service.academic.ProgramCourseRegistrationService.active(
+            entitlement, now)) {
+          continue;
+        }
+        var selected =
+            programRegistrations.findByProgramEnrollmentIdAndStatus(
+                entitlement.getId(), com.gii.common.enums.ProgramRegistrationStatus.ACTIVE);
+        var budget = programAllowance.get(entitlement, selected);
+        var included = purchasedCurriculum.resolveItems(entitlement);
+        for (UUID requested : requestedCourseIds) {
+          if (blockedCourseIds.contains(requested)) {
+            continue;
+          }
+          var course = coursesById.get(requested);
+          var template = course.getTemplate().getId();
+          if (prerequisites.hasCredit(user.getId(), template)
+              || selected.stream().anyMatch(r -> r.getCourseTemplateId().equals(template))) {
+            continue;
+          }
+          var item =
+              included.stream()
+                  .filter(c -> c.course().getTemplate().getId().equals(template))
+                  .findFirst()
+                  .orElse(null);
+          if (item != null
+              && (item.mandatory()
+                  || budget.remaining() == null
+                  || com.gii.common.service.payment.ProgramSnapshotService.courseCredits(
+                          entitlement, course)
+                      <= budget.remaining())) {
+            throw new ResponseStatusException(
+                HttpStatus.CONFLICT,
+                "Open My Programs to register for this course using your program access");
+          }
+        }
+      }
       for (UUID courseId : requestedCourseIds) {
         if (blockedCourseIds.contains(courseId)) {
           throw new ResponseStatusException(
@@ -153,6 +223,10 @@ public class PendingCartOrderService {
               "This course is already covered by one of your owned collections.");
         }
       }
+    }
+
+    if (requestedCollectionIds.stream().anyMatch(ownedCollectionIds::contains)) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, "Already enrolled in this program");
     }
 
     // Case 1: collection price is reduced by already-owned included courses.
@@ -163,29 +237,25 @@ public class PendingCartOrderService {
             .map(Course::getId)
             .collect(java.util.stream.Collectors.toSet());
 
+    Order reusablePendingOrder = findReusablePendingOrder(user.getId(), requestedItems);
+    if (reusablePendingOrder != null) {
+      pendingOrderEligibilityService.validate(reusablePendingOrder);
+      return toCheckoutResponse(reusablePendingOrder, user);
+    }
+
     Set<UUID> offeringsToReserve = new HashSet<>(requestedCourseIds);
     offeringsToReserve.addAll(collectionCourseIdsInCart);
     offeringsToReserve.removeAll(ownedCourseIds);
     Instant checkoutTime = now;
     offeringsToReserve.stream()
         .sorted()
-        .map(
-            courseId ->
-                courseRepository
-                    .findByIdForUpdate(courseId)
-                    .orElseThrow(
-                        () ->
-                            new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found")))
-        .forEach(
-            course ->
-                offeringEnrollmentPolicyService.validateCheckout(
-                    course, user.getId(), checkoutTime));
-
-    Order reusablePendingOrder = findReusablePendingOrder(user.getId(), requestedItems);
-    if (reusablePendingOrder != null) {
-      pendingOrderEligibilityService.validate(reusablePendingOrder);
-      return toCheckoutResponse(reusablePendingOrder, user);
-    }
+        .map(courseId ->
+            courseRepository
+                .findByIdForUpdate(courseId)
+                .orElseThrow(
+                    () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found")))
+        .forEach(course ->
+            offeringEnrollmentPolicyService.validateCheckout(course, user.getId(), checkoutTime));
 
     Order order =
         orderRepository.save(
@@ -242,9 +312,15 @@ public class PendingCartOrderService {
       Collection collection = collectionsById.get(requestedItem.collectionId());
       List<CollectionCourse> includedCourses =
           collectionCoursesByCollectionId.getOrDefault(collection.getId(), List.of());
+      try {
+        programSnapshots.validate(programSnapshots.capture(collection, includedCourses));
+      } catch (com.gii.common.service.payment.EnrollmentPolicyViolationException exception) {
+        throw new ResponseStatusException(HttpStatus.CONFLICT, exception.getMessage(), exception);
+      }
       BigDecimal discount = BigDecimal.ZERO;
       boolean hasCollectionOverlapDiscount = false;
-      for (CollectionCourse included : includedCourses) {
+      for (CollectionCourse included :
+          collection.isCreditBased() ? List.<CollectionCourse>of() : includedCourses) {
         UUID includedCourseId = included.getCourse().getId();
         if (ownedCourseIds.contains(includedCourseId)
             || coursesCoveredByEarlierCollection.contains(includedCourseId)) {
@@ -267,6 +343,7 @@ public class PendingCartOrderService {
               .order(order)
               .itemType(OrderItemType.COLLECTION)
               .collection(collection)
+              .programSnapshot(programSnapshots.capture(collection, includedCourses))
               .titleSnapshot(collection.getTitle())
               .titleSnapshotEn(collection.getTitleEn())
               .priceBdt(price)
@@ -293,9 +370,10 @@ public class PendingCartOrderService {
               .build());
       subtotal = subtotal.add(price);
       totalDiscount = totalDiscount.add(discount);
-      includedCourses.stream()
-          .map(included -> included.getCourse().getId())
-          .forEach(coursesCoveredByEarlierCollection::add);
+      (collection.isCreditBased() ? List.<CollectionCourse>of() : includedCourses)
+          .stream()
+              .map(included -> included.getCourse().getId())
+              .forEach(coursesCoveredByEarlierCollection::add);
     }
 
     List<OrderItem> savedOrderItems = orderItemRepository.saveAll(orderItems);
@@ -316,6 +394,15 @@ public class PendingCartOrderService {
       }
     }
     orderItemCourseRepository.saveAll(collectionSnapshots);
+    orderRepository.flush();
+    prerequisites.recordForOrder(
+        order,
+        java.util.stream.Stream.concat(
+                requestedCourseIds.stream(), collectionCourseIdsInCart.stream())
+            .distinct()
+            .sorted()
+            .map(id -> courseRepository.findById(id).orElseThrow())
+            .toList());
 
     BigDecimal totalAmount = subtotal.subtract(totalDiscount);
     order.setAmountBdt(totalAmount);
@@ -386,7 +473,16 @@ public class PendingCartOrderService {
       return Map.of();
     }
     List<Collection> collections =
-        collectionRepository.findByIdInAndStatus(ids, PublishStatus.PUBLISHED);
+        ids.stream()
+            .distinct()
+            .sorted()
+            .map(id ->
+                collectionRepository
+                    .findByIdForUpdate(id)
+                    .orElseThrow(() ->
+                        new ResponseStatusException(HttpStatus.NOT_FOUND, "Collection not found")))
+            .filter(c -> c.getStatus() == PublishStatus.PUBLISHED)
+            .toList();
     Map<UUID, Collection> map =
         collections.stream().collect(java.util.stream.Collectors.toMap(Collection::getId, c -> c));
     if (map.size() != new HashSet<>(ids).size()) {
@@ -447,30 +543,29 @@ public class PendingCartOrderService {
     BigDecimal totalAmount = subtotal.subtract(totalDiscount);
     List<CheckoutOrderItemResponse> responseItems =
         items.stream()
-            .map(
-                item ->
-                    CheckoutOrderItemResponse.builder()
-                        .itemType(item.getItemType())
-                        .courseId(item.getCourse() != null ? item.getCourse().getId() : null)
-                        .collectionId(
-                            item.getCollection() != null ? item.getCollection().getId() : null)
-                        .courseName(
-                            localizedContentService.text(
-                                item.getTitleSnapshot(), item.getTitleSnapshotEn()))
-                        .courseSlug(
+            .map(item ->
+                CheckoutOrderItemResponse.builder()
+                    .itemType(item.getItemType())
+                    .courseId(item.getCourse() != null ? item.getCourse().getId() : null)
+                    .collectionId(
+                        item.getCollection() != null ? item.getCollection().getId() : null)
+                    .courseName(
+                        localizedContentService.text(
+                            item.getTitleSnapshot(), item.getTitleSnapshotEn()))
+                    .courseSlug(
+                        item.getCourse() != null
+                            ? item.getCourse().getSlug()
+                            : item.getCollection().getSlug())
+                    .courseThumbnailUrl(
+                        assetUrlService.publicUrl(
                             item.getCourse() != null
-                                ? item.getCourse().getSlug()
-                                : item.getCollection().getSlug())
-                        .courseThumbnailUrl(
-                            assetUrlService.publicUrl(
-                                item.getCourse() != null
-                                    ? item.getCourse().getThumbnailObjectKey()
-                                    : item.getCollection().getThumbnailObjectKey()))
-                        .originalPrice(item.getPriceBdt())
-                        .discountAmount(item.getDiscountBdt())
-                        .finalPrice(item.getPriceBdt().subtract(item.getDiscountBdt()))
-                        .discountReason(null)
-                        .build())
+                                ? item.getCourse().getThumbnailObjectKey()
+                                : item.getCollection().getThumbnailObjectKey()))
+                    .originalPrice(item.getPriceBdt())
+                    .discountAmount(item.getDiscountBdt())
+                    .finalPrice(item.getPriceBdt().subtract(item.getDiscountBdt()))
+                    .discountReason(null)
+                    .build())
             .toList();
 
     Instant expiresAt = order.getCreatedAt().plusSeconds(ORDER_EXPIRY_SECONDS);

@@ -4,7 +4,7 @@ import { useRef, useEffect, useCallback, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
-import { useCourses } from '@/hooks/useCourses'
+import { useFeaturedCourses } from '@/hooks/useCourses'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Star,
@@ -109,7 +109,8 @@ function CarouselCard({
 
 export function CourseCarouselSection() {
   const t = useTranslations('courseCarousel')
-  const { data: coursesData, isLoading } = useCourses({ page: 0, size: 6 })
+  const { data: coursesData, isLoading, isError, refetch } = useFeaturedCourses(6)
+  const sectionPresent = isLoading || isError || (coursesData?.length ?? 0) > 0
   const sectionRef = useRef<HTMLElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -130,11 +131,11 @@ export function CourseCarouselSection() {
     )
     observer.observe(section)
     return () => observer.disconnect()
-  }, [])
+  }, [sectionPresent])
 
   // Keep the card count in sync for timers and navigation.
   useEffect(() => {
-    countRef.current = coursesData?.content?.length ?? 0
+    countRef.current = coursesData?.length ?? 0
   }, [coursesData])
 
   const stopAutoplay = useCallback(() => {
@@ -193,7 +194,7 @@ export function CourseCarouselSection() {
       el.removeEventListener('scroll', handleScroll)
       clearTimeout(settleTimer)
     }
-  }, [nearestCenterIndex])
+  }, [nearestCenterIndex, sectionPresent])
 
   /** Move to an index (wraps in both directions), always centering the card. */
   const goTo = useCallback((idx: number) => {
@@ -230,15 +231,17 @@ export function CourseCarouselSection() {
   }, [stopAutoplay, goTo])
 
   useEffect(() => {
-    if (isVisible) startAutoplay()
+    if (isVisible && coursesData?.length) startAutoplay()
     else stopAutoplay()
     return stopAutoplay
-  }, [isVisible, startAutoplay, stopAutoplay])
+  }, [isVisible, coursesData?.length, startAutoplay, stopAutoplay])
 
   const handleNav = (dir: 'left' | 'right') => {
     goTo(nearestCenterIndex() + (dir === 'left' ? -1 : 1))
     startAutoplay()
   }
+
+  if (!sectionPresent) return null
 
   return (
     <section ref={sectionRef} className="relative overflow-hidden bg-[var(--color-neutral-50)] py-12 px-5 xl:px-32 max-md:py-8">
@@ -277,7 +280,7 @@ export function CourseCarouselSection() {
                   <Skeleton key={i} className="shrink-0 w-full snap-center md:w-[400px] h-[450px] rounded-lg" />
                 ))}
               </>
-            ) : (coursesData?.content ?? []).map((course, idx) => {
+            ) : isError ? <div role="alert" className="w-full rounded-lg border border-red-200 bg-red-50 p-6 text-center text-sm text-red-800">Special courses could not be loaded. <button type="button" className="font-semibold underline" onClick={() => refetch()}>Try again</button></div> : (coursesData ?? []).map((course, idx) => {
               const isFree = (course.priceBdt ?? -1) === 0
               return (
                 <CarouselCard

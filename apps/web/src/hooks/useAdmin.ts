@@ -178,7 +178,7 @@ export function useUpdateLiveClass() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateLiveClassRequest }) =>
       adminService.updateLiveClass(id, data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: QUERY_KEYS.adminLiveClasses() }) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: QUERY_KEYS.adminLiveClasses() }); qc.invalidateQueries({ queryKey: QUERY_KEYS.adminCourses() }) },
   })
 }
 
@@ -378,8 +378,8 @@ export function useReviewAction() { const qc=useQueryClient(); return { publish:
 export function useAdminSupportTickets() { return useQuery({queryKey:QUERY_KEYS.adminSupportTickets(),queryFn:adminService.listSupportTickets}) }
 export function useUpdateSupportTicket() { const qc=useQueryClient(); return useMutation({mutationFn:({id,data}:{id:string;data:UpdateSupportTicketRequest})=>adminService.updateSupportTicket(id,data),onSuccess:()=>qc.invalidateQueries({queryKey:QUERY_KEYS.adminSupportTickets()})}) }
 export function useAdminSettings() { return useQuery({queryKey:QUERY_KEYS.adminSettings(),queryFn:adminService.listSettings}) }
-export function useUpsertSetting() { const qc=useQueryClient(); return useMutation({mutationFn:({key,data}:{key:string;data:UpsertAppSettingRequest})=>adminService.upsertSetting(key,data),onSuccess:()=>qc.invalidateQueries({queryKey:QUERY_KEYS.adminSettings()})}) }
-export function useDeleteSetting() { const qc=useQueryClient(); return useMutation({mutationFn:adminService.deleteSetting,onSuccess:()=>qc.invalidateQueries({queryKey:QUERY_KEYS.adminSettings()})}) }
+export function useUpsertSetting() { const qc=useQueryClient(); return useMutation({mutationFn:({key,data}:{key:string;data:UpsertAppSettingRequest})=>adminService.upsertSetting(key,data),onSuccess:()=>{qc.invalidateQueries({queryKey:QUERY_KEYS.adminSettings()});qc.invalidateQueries({queryKey:['public','settings']})}}) }
+export function useDeleteSetting() { const qc=useQueryClient(); return useMutation({mutationFn:adminService.deleteSetting,onSuccess:()=>{qc.invalidateQueries({queryKey:QUERY_KEYS.adminSettings()});qc.invalidateQueries({queryKey:['public','settings']})}}) }
 export function useCreateLessonResource() { const qc=useQueryClient(); return useMutation({mutationFn:({lessonId,data}:{lessonId:string;data:CreateLessonResourceRequest})=>adminService.createLessonResource(lessonId,data),onSuccess:(_,v)=>{qc.invalidateQueries({queryKey:QUERY_KEYS.adminCourses()});qc.invalidateQueries({queryKey:['admin','lessons',v.lessonId]})}}) }
 export function useLessonResourceUpload() { return useMutation({mutationFn:({lessonId,data}:{lessonId:string;data:CreateLessonResourceUploadRequest})=>adminService.requestLessonResourceUpload(lessonId,data)}) }
 export function useUpdateLessonResource() { const qc=useQueryClient(); return useMutation({mutationFn:({id,data}:{id:string;data:UpdateLessonResourceRequest})=>adminService.updateLessonResource(id,data),onSuccess:()=>qc.invalidateQueries({queryKey:QUERY_KEYS.adminCourses()})}) }

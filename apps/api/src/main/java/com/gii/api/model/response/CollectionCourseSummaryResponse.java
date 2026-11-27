@@ -10,4 +10,7 @@ public record CollectionCourseSummaryResponse(
     String slug,
     String thumbnailUrl,
     Integer position,
-    Boolean isMandatory) {}
+    Boolean isMandatory,
+    UUID courseTemplateId,
+    Integer credits,
+    Boolean available) {}

@@ -7,12 +7,10 @@ function SideCard({
   image,
   heading,
   supportingText,
-  supportingText1,
 }: {
   image: string
   heading: string
   supportingText: string
-  supportingText1: string
 }) {
   return (
     <div className="flex items-start gap-4 rounded-lg p-2 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg sm:gap-6">
@@ -28,12 +26,9 @@ function SideCard({
           <div className="self-stretch font-sans text-base font-semibold leading-6 text-[#1c3873] sm:text-lg">
             {heading}
           </div>
-          <div className="hidden self-stretch font-sans text-sm leading-[150%] text-[#6b6b68]">
-            {supportingText}
-          </div>
         </div>
         <div className="self-stretch font-sans text-sm leading-[150%] text-[#5e5f5c]">
-          {supportingText1}
+          {supportingText}
         </div>
       </div>
     </div>
@@ -41,12 +36,12 @@ function SideCard({
 }
 
 export async function BlogSection() {
-  const t = await getTranslations('blog')
+  const t = await getTranslations('learningJourney')
 
   const posts = [
-    { image: POST_IMAGES[0], title: t('posts.0.title'), excerpt: t('posts.0.excerpt'), author: t('posts.0.author') },
-    { image: POST_IMAGES[1], title: t('posts.1.title'), excerpt: t('posts.1.excerpt'), author: t('posts.1.author') },
-    { image: POST_IMAGES[2], title: t('posts.2.title'), excerpt: t('posts.2.excerpt'), author: t('posts.2.author') },
+    { image: POST_IMAGES[0], title: t('items.0.title'), excerpt: t('items.0.description') },
+    { image: POST_IMAGES[1], title: t('items.1.title'), excerpt: t('items.1.description') },
+    { image: POST_IMAGES[2], title: t('items.2.title'), excerpt: t('items.2.description') },
   ]
 
   const title = t('title')
@@ -54,14 +49,14 @@ export async function BlogSection() {
   const sideCards = posts.slice(1)
 
   return (
-    <section className="content-auto-section w-full bg-white py-12 px-5 xl:px-32 max-md:py-8">
+    <section aria-labelledby="learning-journey-heading" className="content-auto-section w-full bg-white py-12 px-5 xl:px-32 max-md:py-8">
       <div className="container mx-auto">
-        <h2 className="m-0 self-stretch font-heading text-[40px] font-semibold leading-[48px] tracking-[-1px] text-[#3b82f6] max-md:text-[32px] max-md:leading-[38px] max-sm:text-[24px] max-sm:leading-[29px]">
+        <h2 id="learning-journey-heading" className="m-0 scroll-mt-24 self-stretch font-heading text-[40px] font-semibold leading-[48px] tracking-[-1px] text-[#3b82f6] max-md:text-[32px] max-md:leading-[38px] max-sm:text-[24px] max-sm:leading-[29px]">
           {title}
         </h2>
 
         <div className="mt-8 flex flex-col gap-8 lg:flex-row lg:gap-6">
-          {/* Featured story - left column */}
+          {/* Featured learning topic - left column */}
           <section className="flex w-full flex-1 flex-col items-start gap-4 rounded-lg p-2 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg lg:min-w-0">
             <Image
               src={featured.image}
@@ -77,13 +72,10 @@ export async function BlogSection() {
               <div className="self-stretch font-sans text-sm leading-[150%] text-[#5e5f5c]">
                 {featured.excerpt}
               </div>
-              <div className="self-stretch font-sans text-sm leading-[150%] text-[#5e5f5c]">
-                {featured.author}
-              </div>
             </div>
           </section>
 
-          {/* Side stories - right column */}
+          {/* Supporting learning topics - right column */}
           <section className="flex w-full flex-1 flex-col items-start gap-6 lg:min-w-0 sm:gap-8">
             {sideCards.map((card) => (
               <SideCard
@@ -91,7 +83,6 @@ export async function BlogSection() {
                 image={card.image}
                 heading={card.title}
                 supportingText={card.excerpt}
-                supportingText1={card.author}
               />
             ))}
           </section>

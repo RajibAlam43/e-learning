@@ -9,6 +9,7 @@ import com.gii.api.model.response.CourseSectionResponse;
 import com.gii.api.model.response.InstructorSummaryResponse;
 import com.gii.api.model.response.LessonSummaryResponse;
 import com.gii.api.model.response.LessonVideoResponse;
+import com.gii.api.model.response.academic.SemesterResponse;
 import com.gii.api.model.response.lesson.LessonResourceSummaryResponse;
 import com.gii.api.service.localization.LocalizedContentService;
 import com.gii.api.service.storage.AssetUrlService;
@@ -115,11 +116,11 @@ public class CourseDetailsService {
     Map<UUID, Long> questionCountByQuizId =
         quizzes.isEmpty()
             ? Map.of()
-            : quizQuestionRepository.countByQuizIds(quizzes.stream().map(Quiz::getId).toList())
+            : quizQuestionRepository
+                .countByQuizIds(quizzes.stream().map(Quiz::getId).toList())
                 .stream()
                 .collect(
-                    Collectors.toMap(
-                        row -> (UUID) row[0], row -> ((Number) row[1]).longValue()));
+                    Collectors.toMap(row -> (UUID) row[0], row -> ((Number) row[1]).longValue()));
     Map<UUID, LiveClassSlot> liveClassSlotById =
         sectionIds.isEmpty()
             ? Map.of()
@@ -135,18 +136,17 @@ public class CourseDetailsService {
 
     List<CourseSectionResponse> sectionResponses =
         sections.stream()
-            .map(
-                section ->
-                    toSectionResponse(
-                        section,
-                        lessonsBySectionId.getOrDefault(section.getId(), List.of()),
-                        resourcesByLessonId,
-                        itemsBySectionId.getOrDefault(section.getId(), List.of()),
-                        lessonById,
-                        quizById,
-                        questionCountByQuizId,
-                        liveClassSlotById,
-                        liveClassBySlotId))
+            .map(section ->
+                toSectionResponse(
+                    section,
+                    lessonsBySectionId.getOrDefault(section.getId(), List.of()),
+                    resourcesByLessonId,
+                    itemsBySectionId.getOrDefault(section.getId(), List.of()),
+                    lessonById,
+                    quizById,
+                    questionCountByQuizId,
+                    liveClassSlotById,
+                    liveClassBySlotId))
             .toList();
 
     List<CategoryResponse> categoryResponses =
@@ -196,6 +196,8 @@ public class CourseDetailsService {
         .prerequisites(
             localizedContentService.list(course.getPrerequisites(), course.getPrerequisitesEn()))
         .studyMode(course.getStudyMode())
+        .credits(course.getCredits())
+        .semester(course.getSemester() == null ? null : SemesterResponse.from(course.getSemester()))
         .timezone(course.getTimezone())
         .enrollmentStartsAt(course.getEnrollmentStartsAt())
         .enrollmentEndsAt(course.getEnrollmentEndsAt())
@@ -240,25 +242,23 @@ public class CourseDetailsService {
             .collect(Collectors.toMap(SectionItem::getItemId, SectionItem::getPosition));
     List<LessonSummaryResponse> lessons =
         lessonsForSection.stream()
-            .map(
-                lesson ->
-                    toLessonSummaryResponse(
-                        lesson,
-                        positions.get(lesson.getId()),
-                        resourcesByLessonId.getOrDefault(lesson.getId(), List.of())))
+            .map(lesson ->
+                toLessonSummaryResponse(
+                    lesson,
+                    positions.get(lesson.getId()),
+                    resourcesByLessonId.getOrDefault(lesson.getId(), List.of())))
             .toList();
     List<CourseSectionItemResponse> items =
         orderedItems.stream()
-            .map(
-                item ->
-                    toSectionItemResponse(
-                        item,
-                        lessonById,
-                        resourcesByLessonId,
-                        quizById,
-                        questionCountByQuizId,
-                        liveClassSlotById,
-                        liveClassBySlotId))
+            .map(item ->
+                toSectionItemResponse(
+                    item,
+                    lessonById,
+                    resourcesByLessonId,
+                    quizById,
+                    questionCountByQuizId,
+                    liveClassSlotById,
+                    liveClassBySlotId))
             .filter(java.util.Objects::nonNull)
             .toList();
 

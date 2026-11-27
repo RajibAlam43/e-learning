@@ -214,6 +214,30 @@ public interface AdminApi {
   ResponseEntity<AdminLiveClassItemResponse> createLiveClassItem(
       @PathVariable UUID courseId, @RequestBody @Valid CreateLiveClassItemRequest request);
 
+  @DeleteMapping("/courses/{courseId}/live-classes/{liveClassItemId}")
+  @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+  @Operation(
+      summary = "Remove an unused or cancelled live class item from the shared curriculum",
+      description =
+          "Scheduled meetings must be cancelled first. Ongoing/completed meetings "
+              + "cannot be removed. Cancelled/failed meeting history is preserved.")
+  ResponseEntity<Void> removeLiveClassItem(
+      @PathVariable UUID courseId, @PathVariable UUID liveClassItemId);
+
+  @GetMapping("/courses/{courseId}/live-classes/{liveClassItemId}")
+  @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+  @Operation(summary = "Read a live class curriculum item for editing")
+  ResponseEntity<AdminLiveClassItemResponse> getLiveClassItem(
+      @PathVariable UUID courseId, @PathVariable UUID liveClassItemId);
+
+  @PutMapping("/courses/{courseId}/live-classes/{liveClassItemId}")
+  @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+  @Operation(summary = "Edit live class curriculum metadata and position")
+  ResponseEntity<AdminLiveClassItemResponse> updateLiveClassItem(
+      @PathVariable UUID courseId,
+      @PathVariable UUID liveClassItemId,
+      @RequestBody @Valid CreateLiveClassItemRequest request);
+
   @PostMapping("/courses/{courseId}/live-classes/{liveClassId}/schedule")
   @Operation(summary = "Schedule a course live class")
   ResponseEntity<AdminLiveClassDetailResponse> scheduleLiveClass(
@@ -496,6 +520,10 @@ public interface AdminApi {
   @Operation(summary = "Update quiz")
   ResponseEntity<AdminQuizDetailResponse> updateQuiz(
       @PathVariable UUID quizId, @Valid @RequestBody UpdateQuizRequest request);
+
+  @GetMapping("/quizzes/{quizId}")
+  @Operation(summary = "Read quiz settings, questions and answer choices for editing")
+  ResponseEntity<AdminQuizDetailResponse> getQuiz(@PathVariable UUID quizId);
 
   @PostMapping("/quizzes/{quizId}/publish")
   @Operation(summary = "Publish quiz")
