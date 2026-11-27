@@ -233,6 +233,30 @@ public class AdminApiController implements AdminApi {
   }
 
   @Override
+  public ResponseEntity<Void> removeLiveClassItem(UUID courseId, UUID liveClassItemId) {
+    liveClassManagementService.removeItem(courseId, liveClassItemId);
+    return ResponseEntity.noContent().build();
+  }
+
+  @Override
+  public ResponseEntity<AdminLiveClassItemResponse> getLiveClassItem(
+      UUID courseId, UUID liveClassItemId) {
+    return ResponseEntity.ok(liveClassManagementService.getItem(courseId, liveClassItemId));
+  }
+
+  @Override
+  public ResponseEntity<AdminLiveClassItemResponse> updateLiveClassItem(
+      UUID courseId, UUID liveClassItemId, CreateLiveClassItemRequest request) {
+    return ResponseEntity.ok(
+        liveClassManagementService.updateItem(courseId, liveClassItemId, request));
+  }
+
+  @Override
+  public ResponseEntity<AdminQuizDetailResponse> getQuiz(UUID quizId) {
+    return ResponseEntity.ok(quizManagementService.get(quizId));
+  }
+
+  @Override
   public ResponseEntity<AdminLiveClassDetailResponse> scheduleLiveClass(
       UUID courseId, UUID liveClassId, ScheduleLiveClassRequest request) {
     return ResponseEntity.ok(liveClassManagementService.schedule(courseId, liveClassId, request));

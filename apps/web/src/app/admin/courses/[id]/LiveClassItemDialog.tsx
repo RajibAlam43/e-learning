@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { curriculumError } from '@/services/curriculum-items.service'
 import { toast } from 'sonner'
 import { X } from 'lucide-react'
 import type { AdminCourseSection, CreateLiveClassItemRequest } from '@/types'
@@ -13,6 +14,7 @@ export function LiveClassItemDialog({ courseId, sections, onClose }: { courseId:
     title: '',
     titleEn: '',
     expectedDurationMinutes: 60,
+    position: Math.max(0, ...(sections[0]?.items ?? []).map(i => i.position ?? 0)) + 1,
     isMandatory: true,
   })
   const [error, setError] = useState('')
@@ -45,7 +47,7 @@ export function LiveClassItemDialog({ courseId, sections, onClose }: { courseId:
       toast.success('Live class item created')
       onClose()
     } catch (cause) {
-      const message = cause instanceof Error ? cause.message : 'Could not create live class item'
+      const message = curriculumError(cause)
       setError(message)
       toast.error(message)
     }
@@ -53,7 +55,7 @@ export function LiveClassItemDialog({ courseId, sections, onClose }: { courseId:
 
   return (
     <div role='dialog' aria-modal='true' aria-labelledby='add-live-class-title' className='fixed inset-0 z-50 grid place-items-center bg-black/40 p-4'>
-      <form onSubmit={submit} className='w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl'>
+      <form onSubmit={submit} className='max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl'>
         <div className='mb-5 flex items-center justify-between'>
           <h2 id='add-live-class-title' className='font-heading text-xl text-[#1c3873]'>Add live class</h2>
           <button type='button' onClick={onClose} aria-label='Close' className='rounded-lg p-2 text-slate-500 hover:bg-slate-100'>
@@ -66,7 +68,7 @@ export function LiveClassItemDialog({ courseId, sections, onClose }: { courseId:
         <div className='grid gap-3'>
           <label className='grid gap-1 text-sm font-medium'>
             Section
-            <select required value={form.sectionId} onChange={(event) => setForm({ ...form, sectionId: event.target.value })} className='h-10 rounded-lg border px-3'>
+            <select required value={form.sectionId} onChange={(event) => setForm({ ...form, sectionId: event.target.value, position: Math.max(0, ...(sections.find(s => s.sectionId === event.target.value)?.items ?? []).map(i => i.position ?? 0)) + 1 })} className='h-10 rounded-lg border px-3'>
               {sections.map((section) => <option key={section.sectionId} value={section.sectionId}>{section.title ?? section.titleEn ?? 'Section'}</option>)}
             </select>
           </label>
@@ -82,6 +84,7 @@ export function LiveClassItemDialog({ courseId, sections, onClose }: { courseId:
             Expected duration (minutes)
             <input required min={1} type='number' value={form.expectedDurationMinutes ?? 60} onChange={(event) => setForm({ ...form, expectedDurationMinutes: Math.max(1, Number(event.target.value) || 1) })} className='h-10 rounded-lg border px-3' />
           </label>
+          <label className='grid gap-1 text-sm font-medium'>Position in section<input required min={1} type='number' value={form.position ?? ''} onChange={e => setForm({ ...form, position: Number(e.target.value) })} className='h-10 w-full min-w-0 rounded-lg border px-3' /></label>
           <label className='flex items-center gap-2 text-sm'>
             <input type='checkbox' checked={form.isMandatory ?? true} onChange={(event) => setForm({ ...form, isMandatory: event.target.checked })} />
             Mandatory item

@@ -34,12 +34,14 @@ export function QuizBuilder({
   saving,
   onSubmit,
   positionAvailable,
+  submitLabel = 'Create quiz',
 }: {
   value: CreateQuizRequest
   onChange: (value: CreateQuizRequest) => void
   saving: boolean
   onSubmit: (event: React.FormEvent) => void
   positionAvailable: boolean
+  submitLabel?: string
 }) {
   const updateQuestion = (index: number, patch: Partial<Question>) => {
     onChange({
@@ -174,7 +176,7 @@ export function QuizBuilder({
       ))}
 
       <button disabled={saving || !positionAvailable} className="inline-flex h-11 items-center justify-center rounded-lg bg-[#1c3873] px-5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">
-        {saving ? 'Creating...' : 'Create quiz'}
+        {saving ? 'Saving...' : submitLabel}
       </button>
     </form>
   )

@@ -29,11 +29,12 @@ export interface ThumbnailUploaderProps {
   /** Called when upload succeeds with the objectKey the parent should send. */
   onChange: (objectKey: string | undefined) => void
   /** Which entity this thumbnail is for. Backend uses this for the R2 path. */
-  ownerType: 'COURSE' | 'COLLECTION' | 'MEDIA_ASSET'
+  ownerType: 'COURSE' | 'COLLECTION' | 'MEDIA_ASSET' | 'FACULTY'
   /** Optional preview URL — if the parent already has a thumbnailUrl (e.g. from
    *  the API response), pass it so the user sees the current image. */
   previewUrl?: string
   label?: string
+  onUploadingChange?: (uploading: boolean) => void
 }
 
 export function ThumbnailUploader({
@@ -42,6 +43,7 @@ export function ThumbnailUploader({
   ownerType,
   previewUrl,
   label = 'Thumbnail',
+  onUploadingChange,
 }: ThumbnailUploaderProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [localPreview, setLocalPreview] = useState<string | null>(null)
@@ -65,6 +67,7 @@ export function ThumbnailUploader({
     const objectUrl = URL.createObjectURL(normalized.file)
     setLocalPreview(objectUrl)
     setIsUploading(true)
+    onUploadingChange?.(true)
 
     try {
       // Step 2: ask backend for a presigned URL
@@ -125,9 +128,9 @@ export function ThumbnailUploader({
       // Revert preview on failure
       if (localPreview) URL.revokeObjectURL(localPreview)
       setLocalPreview(null)
-      onChange(undefined)
     } finally {
       setIsUploading(false)
+      onUploadingChange?.(false)
     }
   }
 

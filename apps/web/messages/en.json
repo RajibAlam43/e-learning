@@ -25,6 +25,7 @@
     "errorDetails": "An unexpected error occurred. Please try again."
   },
   "nav": {
+    "faculty": "Faculty",
     "home": "Home",
     "courses": "Courses",
     "instructors": "Instructors",
@@ -151,7 +152,7 @@
     }
   },
   "hero": {
-    "tagline": "Trusted by 10k+ students worldwide",
+    "tagline": "Trusted by students worldwide",
     "motto": "Education. Unity. Revolution.",
     "title": "Enlightening Lives Through Authentic Islamic Knowledge.",
     "description": "Develop deep Islamic knowledge and a meaningful understanding of life through a modern online learning system, guidance from qualified Islamic scholars and teachers, and a well-structured five-year curriculum.",
@@ -288,9 +289,14 @@
     "startCourse": "Start a course",
     "nextSlide": "Next slide"
   },
+  "studentMilestone": { "count": "{count}k+" },
   "testimonials": {
-    "title": "Trusted By Devoted Muslims From 20+ Countries",
-    "cta": "Join 10K+ learners",
+    "ctaWithCount": "Join {count} learners",
+    "student": "Student",
+    "learner": "GII learner",
+    "ratingLabel": "{rating} out of 5 stars",
+    "title": "Trusted by devoted Muslims",
+    "cta": "Join us",
     "items": [
       {
         "quote": "What I appreciated most was the calm. There was no pressure, no flashy countdown timers. Just a clear path forward and the tools to walk it.",
@@ -314,6 +320,23 @@
   "quote": {
     "text": "If Allah intends goodness for a person, He gives him the understanding of the religion",
     "source": "- Sahih Bukhari"
+  },
+  "learningJourney": {
+    "title": "Your Learning Journey",
+    "items": [
+      {
+        "title": "Build your foundation in Islamic knowledge",
+        "description": "Explore Quran, Arabic and Islamic Studies courses, and choose the starting point that suits you."
+      },
+      {
+        "title": "Make learning part of your routine",
+        "description": "Follow recorded lessons at your pace and join scheduled live classes when your course includes them."
+      },
+      {
+        "title": "Learn, practise and track your progress",
+        "description": "Use lesson resources, quizzes and course progress to stay engaged with what you study."
+      }
+    ]
   },
   "blog": {
     "title": "Alumni Stories",
@@ -997,5 +1020,26 @@
     "performancePractice": "Keep Practicing",
     "performanceImprove": "Needs Improvement",
     "courseAnnouncements": "Updates for students enrolled in your courses."
+  },
+  "faculty": {
+    "experienceYears": "{count, plural, one {# year experience} other {# years experience}}",
+    "qualifications": "Qualifications",
+    "institution": "Institution",
+    "expertise": "Expertise",
+    "specialties": "Specialties",
+    "experience": "Experience",
+    "yearsExperience": "{count, plural, one {# year} other {# years}}",
+    "previousProfiles": "Previous profiles",
+    "nextProfiles": "Next profiles",
+    "title": "Faculty",
+    "description": "Meet our teachers, staff and the boards supporting the institute.",
+    "viewProfile": "View teacher profile",
+    "viewAll": "Meet our faculty",
+    "featuredTitle": "Our Scholars and Leaders",
+    "groups": "Faculty groups",
+    "loading": "Loading faculty profiles…",
+    "error": "Faculty profiles could not be loaded. Please try again.",
+    "retry": "Try again",
+    "empty": "Faculty profiles will be added soon."
   }
 }

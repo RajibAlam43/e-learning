@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { APP_CONFIG } from './app.config'
 
 type SeoPageKey =
+  | 'faculty'
   | 'home'
   | 'courses'
   | 'instructors'
@@ -29,6 +30,7 @@ const seoDefaults: Record<SeoPageKey, SeoDefaults> = {
     description: 'Browse Islamic courses at Global Islamic Institute - Quran, Arabic, Fiqh, and more.',
     path: '/courses',
   },
+  faculty: { title: 'Faculty', description: 'Meet the teachers, staff and boards of Global Islamic Institute.', path: '/faculty' },
   instructors: {
     title: 'Our Instructors',
     description: 'Meet our qualified and experienced Islamic education instructors.',

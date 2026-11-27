@@ -1,0 +1,50 @@
+'use client'
+import { useState } from 'react'
+import { FacultyProfileDetailsFields, profileDetailsFrom } from './FacultyProfileDetailsFields'
+import { apiClient } from '@/lib/api-client'
+import { useAdminInstructors } from '@/hooks/useAdmin'
+import { ThumbnailUploader } from '@/components/admin/shared/ThumbnailUploader'
+import { useFacultyMutation, facultyError, type FacultyGroup, type FacultyMember, type GroupInput, type MemberInput } from '@/services/faculty.service'
+import type { AdminInstructorDetail } from '@/types'
+
+const input = 'w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1c3873]'
+function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="grid min-w-0 gap-1.5 text-sm font-medium text-slate-700">{label}{children}</label> }
+function Notice({ error }: { error: string }) { return error ? <p role="alert" className="text-sm text-red-700">{error}</p> : null }
+function Buttons({ busy, close }: { busy: boolean; close: () => void }) { return <div className="flex gap-3"><button disabled={busy} className="rounded-lg bg-[#1c3873] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50">{busy ? 'Saving…' : 'Save'}</button><button type="button" disabled={busy} onClick={close} className="rounded-lg border border-slate-300 px-4 py-2 text-sm">Cancel</button></div> }
+
+export function FacultyGroupEditor({ group, nextPosition, close }: { group?: FacultyGroup; nextPosition: number; close: () => void }) {
+  const mutation = useFacultyMutation(), [error, setError] = useState('')
+  const [form, setForm] = useState<GroupInput>({ name: group?.name ?? '', nameEn: group?.nameEn ?? '', position: group?.position ?? nextPosition, visible: group?.visible ?? true })
+  async function submit(e: React.FormEvent) { e.preventDefault(); setError(''); try { await mutation.mutateAsync({ kind: 'groups', id: group?.id, data: form }); close() } catch (cause) { setError(facultyError(cause)) } }
+  return <form onSubmit={submit} className="grid gap-4 rounded-xl border border-slate-200 bg-white p-5"><h2 className="font-heading text-lg font-semibold text-[#1c3873]">{group ? 'Edit group' : 'Add group'}</h2><div className="grid gap-4 sm:grid-cols-2"><Field label="Group name"><input autoFocus required maxLength={200} className={input} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></Field><Field label="Group name (English)"><input maxLength={200} className={input} value={form.nameEn ?? ''} onChange={e => setForm({ ...form, nameEn: e.target.value })} /></Field><Field label="Group position"><input required type="number" min={1} className={input} value={form.position} onChange={e => setForm({ ...form, position: Number(e.target.value) })} /></Field></div><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.visible} onChange={e => setForm({ ...form, visible: e.target.checked })} />Show group publicly</label><p className="text-xs text-slate-500">Hiding a group hides all its people from the faculty page and homepage.</p><Notice error={error} /><Buttons busy={mutation.isPending} close={close} /></form>
+}
+
+export function FacultyPersonEditor({ person, groups, groupId, close }: { person?: FacultyMember; groups: FacultyGroup[]; groupId?: string; close: () => void }) {
+  const mutation = useFacultyMutation(), teachers = useAdminInstructors()
+  const [source, setSource] = useState(person?.instructorId ? 'teacher' : 'manual')
+  const [photoUploading, setPhotoUploading] = useState(false)
+  const [loading, setLoading] = useState(false), [error, setError] = useState(''), [photoChanged, setPhotoChanged] = useState(false), [photoUrl, setPhotoUrl] = useState(person?.photoUrl)
+  const [form, setForm] = useState<MemberInput>({ groupId: person?.groupId ?? groupId ?? groups[0]?.id ?? '', instructorId: person?.instructorId, name: person?.name ?? '', title: person?.title ?? '', titleEn: person?.titleEn ?? '', bio: person?.bio ?? '', bioEn: person?.bioEn ?? '', photoObjectKey: person?.photoObjectKey, position: person?.position ?? Math.max(0, ...(groups.find(g => g.id === groupId)?.members ?? []).map(p => p.position ?? 0)) + 1, homepagePosition: person?.homepagePosition ?? 1, showOnFaculty: person?.showOnFaculty ?? false, showOnHomepage: person?.showOnHomepage ?? false, profileDetails: profileDetailsFrom(person) })
+  async function selectTeacher(id: string) {
+    setError(''); if (!id) { setForm({ ...form, instructorId: undefined }); return }
+    setLoading(true)
+    try { const { data: teacher } = await apiClient.get<AdminInstructorDetail>(`/admin/instructors/${id}`); setForm(f => ({ ...f, instructorId: id, name: teacher.displayName || teacher.fullName || '', title: teacher.headline ?? '', titleEn: teacher.headlineEn ?? '', bio: teacher.about ?? '', bioEn: teacher.aboutEn ?? '', profileDetails: profileDetailsFrom(teacher), photoObjectKey: undefined })); setPhotoUrl(teacher.photoUrl); setPhotoChanged(false) }
+    catch (cause) { setError(facultyError(cause)) } finally { setLoading(false) }
+  }
+  async function submit(e: React.FormEvent) {
+    e.preventDefault(); setError('')
+    if (source === 'teacher' && !form.instructorId) { setError('Choose a teacher profile.'); return }
+    try { await mutation.mutateAsync({ kind: 'members', id: person?.id, data: { ...form, instructorId: source === 'teacher' ? form.instructorId : undefined, photoObjectKey: photoChanged ? form.photoObjectKey ?? '' : undefined } }); close() }
+    catch (cause) { setError(facultyError(cause)) }
+  }
+  return <form onSubmit={submit} className="grid min-w-0 gap-5 rounded-xl border border-slate-200 bg-white p-5"><h2 className="font-heading text-lg font-semibold text-[#1c3873]">{person ? 'Edit person' : 'Add person'}</h2>
+    <div className="grid gap-4 sm:grid-cols-2"><Field label="Profile source"><select disabled={!!person || loading} className={input} value={source} onChange={e => { setSource(e.target.value); setForm({ ...form, instructorId: undefined, name: '', title: '', titleEn: '', bio: '', bioEn: '', profileDetails: profileDetailsFrom(), photoObjectKey: undefined }); setPhotoUrl(undefined); setPhotoChanged(false) }}><option value="manual">Manual profile (no LMS account)</option><option value="teacher">Existing teacher profile</option></select></Field><Field label="Group"><select required className={input} value={form.groupId} onChange={e => setForm({ ...form, groupId: e.target.value })}>{groups.map(g => <option key={g.id} value={g.id}>{g.nameEn || g.name}</option>)}</select></Field></div>
+    {source === 'teacher' && <div className="grid gap-2"><Field label="Teacher"><select required disabled={!!person || loading || teachers.isLoading || teachers.isError} value={form.instructorId ?? ''} onChange={e => void selectTeacher(e.target.value)} className={input}><option value="">Choose a teacher</option>{teachers.data?.map(t => <option key={t.userId} value={t.userId}>{t.displayName || t.fullName}</option>)}</select></Field><p className="text-xs text-slate-500">Edits update the teacher’s existing public profile everywhere. Private or inactive teachers stay hidden. Manage teacher privacy in the Teachers screen.</p>{teachers.isError && <p role="alert" className="text-sm text-red-700">Teachers could not be loaded. <button type="button" className="underline" onClick={() => teachers.refetch()}>Retry</button></p>}</div>}
+    {loading && <p role="status">Loading teacher profile…</p>}
+    <fieldset disabled={loading || mutation.isPending || photoUploading} className="grid min-w-0 gap-4 disabled:opacity-60"><Field label="Name"><input autoFocus required maxLength={200} className={input} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></Field><div className="grid gap-4 sm:grid-cols-2"><Field label="Title or role"><input maxLength={300} className={input} value={form.title ?? ''} onChange={e => setForm({ ...form, title: e.target.value })} /></Field><Field label="Title or role (English)"><input maxLength={300} className={input} value={form.titleEn ?? ''} onChange={e => setForm({ ...form, titleEn: e.target.value })} /></Field></div><FacultyProfileDetailsFields key={`${source}-${form.instructorId ?? 'manual'}`} value={form.profileDetails ?? profileDetailsFrom()} onChange={profileDetails => setForm({ ...form, profileDetails })} /><Field label="Biography"><textarea rows={4} maxLength={5000} className={input} value={form.bio ?? ''} onChange={e => setForm({ ...form, bio: e.target.value })} /></Field><Field label="Biography (English)"><textarea rows={4} maxLength={5000} className={input} value={form.bioEn ?? ''} onChange={e => setForm({ ...form, bioEn: e.target.value })} /></Field>
+      <ThumbnailUploader key={`${person?.id ?? 'new'}-${form.instructorId ?? 'manual'}`} ownerType="FACULTY" label="Profile photo" onUploadingChange={setPhotoUploading} value={form.photoObjectKey} previewUrl={photoUrl} onChange={key => { setForm(f => ({ ...f, photoObjectKey: key })); setPhotoChanged(true); if (!key) setPhotoUrl(undefined) }} />
+      <div className="grid gap-4 sm:grid-cols-2"><Field label="Position in group"><input required type="number" min={1} className={input} value={form.position} onChange={e => setForm({ ...form, position: Number(e.target.value) })} /></Field><Field label="Homepage position"><input required type="number" min={1} className={input} value={form.homepagePosition} onChange={e => setForm({ ...form, homepagePosition: Number(e.target.value) })} /></Field></div>
+      <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.showOnFaculty} onChange={e => setForm({ ...form, showOnFaculty: e.target.checked })} />Show on faculty page</label><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.showOnHomepage} onChange={e => setForm({ ...form, showOnHomepage: e.target.checked })} />Show on homepage</label>
+    </fieldset><Notice error={error} /><Buttons busy={mutation.isPending || loading || photoUploading} close={close} />
+  </form>
+}

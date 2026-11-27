@@ -1,8 +1,9 @@
 'use client'
 
 import { useState } from 'react'
+import { curriculumError } from '@/services/curriculum-items.service'
 import { toast } from 'sonner'
-import { useScheduleExternalLiveClass, useScheduleLiveClass } from '@/hooks/useAdmin'
+import { useScheduleExternalLiveClass, useScheduleLiveClass, useUpdateLiveClass } from '@/hooks/useAdmin'
 import type { AdminSectionItem, ScheduleExternalLiveClassRequest, ScheduleLiveClassRequest } from '@/types'
 
 type Provider = ScheduleLiveClassRequest['provider']
@@ -25,6 +26,8 @@ export function LiveClassScheduleDialog({ courseId, item, onClose }: LiveClassSc
   const liveClass = item.liveClass
   const liveClassId = liveClass?.liveClassId ?? liveClass?.liveClassItemId
   const schedule = useScheduleLiveClass()
+  const update = useUpdateLiveClass()
+  const rescheduling = !!liveClass?.scheduled && !!liveClass?.liveClassId
   const scheduleExternal = useScheduleExternalLiveClass()
   const [mode, setMode] = useState<Mode>('PROVISIONED')
   const [startsAt, setStartsAt] = useState(toDateTimeLocal(liveClass?.startsAt))
@@ -36,7 +39,7 @@ export function LiveClassScheduleDialog({ courseId, item, onClose }: LiveClassSc
   const [meetingId, setMeetingId] = useState('')
   const [error, setError] = useState('')
 
-  const isSaving = schedule.isPending || scheduleExternal.isPending
+  const isSaving = schedule.isPending || scheduleExternal.isPending || update.isPending
 
   async function submit(event: React.FormEvent) {
     event.preventDefault()
@@ -54,13 +57,15 @@ export function LiveClassScheduleDialog({ courseId, item, onClose }: LiveClassSc
       setError('End time must be later than start time.')
       return
     }
-    if (mode === 'EXTERNAL_URL' && !participantJoinUrl.trim()) {
+    if (!rescheduling && mode === 'EXTERNAL_URL' && !participantJoinUrl.trim()) {
       setError('Participant join URL is required for an external meeting.')
       return
     }
 
     try {
-      if (mode === 'EXTERNAL_URL') {
+      if (rescheduling) {
+        await update.mutateAsync({ id: liveClassId, data: { startsAt: new Date(startsAt).toISOString(), endsAt: new Date(endsAt).toISOString() } })
+      } else if (mode === 'EXTERNAL_URL') {
         const data: ScheduleExternalLiveClassRequest = {
           startsAt: new Date(startsAt).toISOString(),
           endsAt: new Date(endsAt).toISOString(),
@@ -80,10 +85,10 @@ export function LiveClassScheduleDialog({ courseId, item, onClose }: LiveClassSc
         }
         await schedule.mutateAsync({ courseId, liveClassId, data })
       }
-      toast.success('Live class scheduled')
+      toast.success(rescheduling ? 'Live class rescheduled' : 'Live class scheduled')
       onClose()
     } catch (cause) {
-      const message = cause instanceof Error ? cause.message : 'Could not schedule the live class.'
+      const message = curriculumError(cause)
       setError(message)
       toast.error(message)
     }
@@ -94,7 +99,7 @@ export function LiveClassScheduleDialog({ courseId, item, onClose }: LiveClassSc
       <form onSubmit={submit} className='max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl'>
         <div className='mb-5 flex items-start justify-between gap-4'>
           <div>
-            <h2 id='live-class-schedule-title' className='font-heading text-xl font-semibold text-[#1c3873]'>Schedule live class</h2>
+            <h2 id='live-class-schedule-title' className='font-heading text-xl font-semibold text-[#1c3873]'>{rescheduling ? 'Reschedule live class' : 'Schedule live class'}</h2>
             <p className='mt-1 text-sm text-slate-500'>{liveClass?.title ?? 'Live class'}</p>
           </div>
           <button type='button' onClick={onClose} className='rounded-lg p-2 text-slate-500 hover:bg-slate-100' aria-label='Close'>×</button>
@@ -103,7 +108,7 @@ export function LiveClassScheduleDialog({ courseId, item, onClose }: LiveClassSc
         {error && <div role='alert' className='mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800'>{error}</div>}
 
         <div className='grid gap-4 sm:grid-cols-2'>
-          <Field label='Meeting mode'>
+          {!rescheduling && <><Field label='Meeting mode'>
             <select value={mode} onChange={(event) => setMode(event.target.value as Mode)} className='h-10 rounded-lg border border-slate-200 px-3'>
               <option value='PROVISIONED'>Provision with provider</option>
               <option value='EXTERNAL_URL'>Use external meeting URL</option>
@@ -113,17 +118,17 @@ export function LiveClassScheduleDialog({ courseId, item, onClose }: LiveClassSc
             <select value={provider} onChange={(event) => setProvider(event.target.value as Provider)} className='h-10 rounded-lg border border-slate-200 px-3'>
               {providers.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
             </select>
-          </Field>
+          </Field></>}
           <Field label='Start time' required>
             <input required type='datetime-local' value={startsAt} onChange={(event) => setStartsAt(event.target.value)} className='h-10 rounded-lg border border-slate-200 px-3' />
           </Field>
           <Field label='End time' required>
             <input required type='datetime-local' value={endsAt} onChange={(event) => setEndsAt(event.target.value)} className='h-10 rounded-lg border border-slate-200 px-3' />
           </Field>
-          <Field label='Maximum capacity'>
+          {!rescheduling && <Field label='Maximum capacity'>
             <input type='number' min={0} value={maxCapacity} onChange={(event) => setMaxCapacity(event.target.value)} className='h-10 rounded-lg border border-slate-200 px-3' />
-          </Field>
-          {mode === 'EXTERNAL_URL' && (
+          </Field>}
+          {!rescheduling && mode === 'EXTERNAL_URL' && (
             <>
               <Field label='Participant join URL' required>
                 <input required type='url' value={participantJoinUrl} onChange={(event) => setParticipantJoinUrl(event.target.value)} className='h-10 rounded-lg border border-slate-200 px-3' placeholder='https://...' />
@@ -141,7 +146,7 @@ export function LiveClassScheduleDialog({ courseId, item, onClose }: LiveClassSc
         <div className='mt-6 flex justify-end gap-3 border-t pt-4'>
           <button type='button' onClick={onClose} className='rounded-lg border border-slate-200 px-4 py-2 text-sm' disabled={isSaving}>Cancel</button>
           <button type='submit' disabled={isSaving} className='inline-flex items-center justify-center rounded-lg bg-[#1c3873] px-5 py-2 text-sm font-semibold text-white disabled:opacity-50'>
-            {isSaving ? 'Scheduling...' : 'Schedule live class'}
+            {isSaving ? 'Scheduling...' : rescheduling ? 'Save schedule' : 'Schedule live class'}
           </button>
         </div>
       </form>

@@ -84,6 +84,11 @@ public interface LiveClassRepository extends JpaRepository<LiveClass, UUID> {
 
   boolean existsByCourseIdAndSlotId(UUID courseId, UUID slotId);
 
+  List<LiveClass> findBySlotId(UUID slotId);
+
+  @Query("SELECT count(lc) > 0 FROM LiveClass lc WHERE lc.slot.section.id = :sectionId")
+  boolean existsForSection(@Param("sectionId") UUID sectionId);
+
   @Query(
       """
         SELECT lc FROM LiveClass lc

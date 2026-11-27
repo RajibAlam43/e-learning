@@ -1,3 +1,4 @@
+import { FeaturedFacultySection } from '@/components/public/faculty/FeaturedFacultySection'
 import type { Metadata } from 'next'
 import { HeroSection } from '@/components/public/HeroSection'
 import { StatsSection } from '@/components/public/StatsSection'
@@ -27,6 +28,7 @@ export default function HomePage() {
       <CourseCarouselSection />
       <LearningSystemSection />
       <QuoteSection />
+      <FeaturedFacultySection />
       <PartnersSection />
       <PlatformFeaturesSection />
       <BlogSection />

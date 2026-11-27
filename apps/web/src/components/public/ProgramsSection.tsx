@@ -75,6 +75,8 @@ export function ProgramsSection() {
     href: `/collections/${c.slug ?? c.id}`,
   }))
 
+  if (!isLoading && !isError && programs.length === 0) return null
+
   return (
     <section className="content-auto-section relative bg-[var(--color-neutral-100)] py-12 max-md:py-8">
       {/* Dotted pattern background */}

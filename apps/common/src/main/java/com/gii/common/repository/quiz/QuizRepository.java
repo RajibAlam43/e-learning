@@ -6,10 +6,14 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface QuizRepository extends JpaRepository<Quiz, UUID> {
+  @Modifying(flushAutomatically = true, clearAutomatically = true)
+  @Query("DELETE FROM Quiz q WHERE q.section.id = :sectionId")
+  void deleteCurriculumForSection(@Param("sectionId") UUID sectionId);
 
   Optional<Quiz> findByIdAndStatus(UUID id, PublishStatus status);
 

@@ -12,6 +12,7 @@ const adminPrimaryMenu = [
   { href: '/admin/dashboard', icon: '/images/dashboard-icon.png', label: 'Dashboard' },
   { href: '/admin/students', icon: Users, label: 'Students' },
   { href: '/admin/teachers', icon: SquareUser, label: 'Teachers' },
+  { href: '/admin/faculty', icon: Users, label: 'Faculty' },
   { href: '/admin/courses', icon: '/images/book-icon.png', label: 'Courses' },
   { href: '/admin/categories', icon: BookOpen, label: 'Categories' },
   { href: '/admin/semesters', icon: BookOpen, label: 'Semesters' },

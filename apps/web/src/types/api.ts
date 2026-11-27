@@ -184,6 +184,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/faculty/members/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Edit faculty profile, group, visibility and order */
+        put: operations["updateFacultyMember"];
+        post?: never;
+        /** Remove a faculty entry without deleting a teacher account */
+        delete: operations["deleteFacultyMember"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/faculty/groups/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Edit faculty group details, visibility and order */
+        put: operations["updateFacultyGroup"];
+        post?: never;
+        /** Remove an empty faculty group */
+        delete: operations["deleteFacultyGroup"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/courses/{courseId}/prerequisites": {
         parameters: {
             query?: never;
@@ -197,6 +233,28 @@ export interface paths {
         put: operations["savePrerequisites"];
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/courses/{courseId}/live-classes/{liveClassItemId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read a live class curriculum item for editing */
+        get: operations["getLiveClassItem"];
+        /** Edit live class curriculum metadata and position */
+        put: operations["updateLiveClassItem"];
+        post?: never;
+        /**
+         * Remove an unused or cancelled live class item from the shared curriculum
+         * @description Scheduled meetings must be cancelled first. Ongoing/completed meetings cannot be removed. Cancelled/failed meeting history is preserved.
+         */
+        delete: operations["removeLiveClassItem"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1461,6 +1519,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/faculty/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add a teacher or manual faculty profile */
+        post: operations["createFacultyMember"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/faculty/groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create a faculty group */
+        post: operations["createFacultyGroup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/courses": {
         parameters: {
             query?: never;
@@ -1898,7 +1990,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** Read quiz settings, questions and answer choices for editing */
+        get: operations["getQuiz"];
         put?: never;
         post?: never;
         /** Delete quiz when no student attempts exist */
@@ -2615,6 +2708,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/public/faculty": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List visible faculty grouped in display order */
+        get: operations["publicFaculty"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/public/faculty/featured": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List homepage faculty independent of directory visibility */
+        get: operations["featuredFaculty"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/public/courses": {
         parameters: {
             query?: never;
@@ -3316,6 +3443,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/faculty": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List faculty groups and people, including hidden entries */
+        get: operations["listFaculty"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/reviews/{reviewId}": {
         parameters: {
             query?: never;
@@ -3385,6 +3529,86 @@ export interface components {
             registrationEndsAt?: string;
             status?: string;
         };
+        FacultyProfileDetailsRequest: {
+            credentialsText?: string;
+            credentialsTextEn?: string;
+            institution?: string;
+            institutionEn?: string;
+            expertiseArea?: string;
+            expertiseAreaEn?: string;
+            specialties?: string[];
+            specialtiesEn?: string[];
+            /** Format: int32 */
+            yearsExperience?: number;
+        };
+        SaveFacultyMemberRequest: {
+            /** Format: uuid */
+            groupId: string;
+            /** Format: uuid */
+            instructorId?: string;
+            name: string;
+            title?: string;
+            titleEn?: string;
+            bio?: string;
+            bioEn?: string;
+            photoObjectKey?: string;
+            /** Format: int32 */
+            position: number;
+            /** Format: int32 */
+            homepagePosition: number;
+            showOnFaculty: boolean;
+            showOnHomepage: boolean;
+            profileDetails?: components["schemas"]["FacultyProfileDetailsRequest"];
+        };
+        FacultyMemberResponse: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            groupId?: string;
+            /** Format: uuid */
+            instructorId?: string;
+            name?: string;
+            title?: string;
+            titleEn?: string;
+            bio?: string;
+            bioEn?: string;
+            photoUrl?: string;
+            photoObjectKey?: string;
+            /** Format: int32 */
+            position?: number;
+            /** Format: int32 */
+            homepagePosition?: number;
+            showOnFaculty?: boolean;
+            showOnHomepage?: boolean;
+            profilePublic?: boolean;
+            credentialsText?: string;
+            institution?: string;
+            expertiseArea?: string;
+            specialties?: string[];
+            /** Format: int32 */
+            yearsExperience?: number;
+            credentialsTextEn?: string;
+            institutionEn?: string;
+            expertiseAreaEn?: string;
+            specialtiesEn?: string[];
+        };
+        SaveFacultyGroupRequest: {
+            name: string;
+            nameEn?: string;
+            /** Format: int32 */
+            position: number;
+            visible: boolean;
+        };
+        FacultyGroupResponse: {
+            /** Format: uuid */
+            id?: string;
+            name?: string;
+            nameEn?: string;
+            /** Format: int32 */
+            position?: number;
+            visible?: boolean;
+            members?: components["schemas"]["FacultyMemberResponse"][];
+        };
         SavePrerequisitesRequest: {
             courseTemplateIds: string[];
         };
@@ -3399,6 +3623,37 @@ export interface components {
             /** Format: uuid */
             courseTemplateId?: string;
             requiredCourses?: components["schemas"]["CourseOption"][];
+        };
+        CreateLiveClassItemRequest: {
+            /** Format: uuid */
+            sectionId: string;
+            /** Format: int32 */
+            position?: number;
+            title: string;
+            titleEn?: string;
+            description?: string;
+            descriptionEn?: string;
+            /** Format: int32 */
+            expectedDurationMinutes?: number;
+            isMandatory?: boolean;
+        };
+        AdminLiveClassItemResponse: {
+            /** Format: uuid */
+            liveClassItemId?: string;
+            /** Format: uuid */
+            liveClassId?: string;
+            /** Format: uuid */
+            sectionId?: string;
+            /** Format: int32 */
+            position?: number;
+            title?: string;
+            titleEn?: string;
+            description?: string;
+            descriptionEn?: string;
+            /** Format: int32 */
+            expectedDurationMinutes?: number;
+            isMandatory?: boolean;
+            scheduled?: boolean;
         };
         Item: {
             /** Format: uuid */
@@ -4059,7 +4314,7 @@ export interface components {
         };
         CreateThumbnailUploadRequest: {
             /** @enum {string} */
-            ownerType: "COURSE" | "COLLECTION" | "MEDIA_ASSET";
+            ownerType: "COURSE" | "COLLECTION" | "MEDIA_ASSET" | "FACULTY";
             filename: string;
             contentType: string;
             /** Format: int64 */
@@ -4774,37 +5029,6 @@ export interface components {
             accessDurationDays?: number;
             /** Format: uuid */
             semesterId?: string;
-        };
-        CreateLiveClassItemRequest: {
-            /** Format: uuid */
-            sectionId: string;
-            /** Format: int32 */
-            position?: number;
-            title: string;
-            titleEn?: string;
-            description?: string;
-            descriptionEn?: string;
-            /** Format: int32 */
-            expectedDurationMinutes?: number;
-            isMandatory?: boolean;
-        };
-        AdminLiveClassItemResponse: {
-            /** Format: uuid */
-            liveClassItemId?: string;
-            /** Format: uuid */
-            liveClassId?: string;
-            /** Format: uuid */
-            sectionId?: string;
-            /** Format: int32 */
-            position?: number;
-            title?: string;
-            titleEn?: string;
-            description?: string;
-            descriptionEn?: string;
-            /** Format: int32 */
-            expectedDurationMinutes?: number;
-            isMandatory?: boolean;
-            scheduled?: boolean;
         };
         ScheduleLiveClassRequest: {
             /** Format: date-time */
@@ -7103,6 +7327,98 @@ export interface operations {
             };
         };
     };
+    updateFacultyMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveFacultyMemberRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FacultyMemberResponse"];
+                };
+            };
+        };
+    };
+    deleteFacultyMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updateFacultyGroup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveFacultyGroupRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FacultyGroupResponse"];
+                };
+            };
+        };
+    };
+    deleteFacultyGroup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     prerequisites: {
         parameters: {
             query?: never;
@@ -7148,6 +7464,77 @@ export interface operations {
                 content: {
                     "*/*": components["schemas"]["PrerequisiteResponse"];
                 };
+            };
+        };
+    };
+    getLiveClassItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+                liveClassItemId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminLiveClassItemResponse"];
+                };
+            };
+        };
+    };
+    updateLiveClassItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+                liveClassItemId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateLiveClassItemRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminLiveClassItemResponse"];
+                };
+            };
+        };
+    };
+    removeLiveClassItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+                liveClassItemId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -9539,6 +9926,54 @@ export interface operations {
             };
         };
     };
+    createFacultyMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveFacultyMemberRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FacultyMemberResponse"];
+                };
+            };
+        };
+    };
+    createFacultyGroup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveFacultyGroupRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FacultyGroupResponse"];
+                };
+            };
+        };
+    };
     listCourses: {
         parameters: {
             query?: never;
@@ -10409,6 +10844,28 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["AdminCourseSectionResponse"];
+                };
+            };
+        };
+    };
+    getQuiz: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                quizId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminQuizDetailResponse"];
                 };
             };
         };
@@ -11709,6 +12166,46 @@ export interface operations {
             };
         };
     };
+    publicFaculty: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FacultyGroupResponse"][];
+                };
+            };
+        };
+    };
+    featuredFaculty: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FacultyMemberResponse"][];
+                };
+            };
+        };
+    };
     getAllCourses: {
         parameters: {
             query: {
@@ -12876,6 +13373,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ResourceDownloadUrlResponse"];
+                };
+            };
+        };
+    };
+    listFaculty: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FacultyGroupResponse"][];
                 };
             };
         };

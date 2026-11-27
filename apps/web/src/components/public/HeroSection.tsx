@@ -1,14 +1,8 @@
+import { StudentMilestoneBadge } from './StudentMilestone'
 import Image from 'next/image'
 import Link from 'next/link'
 import { ChevronRight } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
-
-const avatars = [
-  '/images/avatar-1.jpg',
-  '/images/avatar-2.jpg',
-  '/images/avatar-3.jpg',
-  '/images/avatar-4.jpg',
-]
 
 export async function HeroSection() {
   const t = await getTranslations('hero')
@@ -35,23 +29,7 @@ export async function HeroSection() {
               <p className="absolute inset-x-0 -top-12 text-center font-sans text-xl font-medium leading-7 text-white max-sm:-top-10 max-sm:text-base max-sm:leading-6">
                 {t('motto')}
               </p>
-              <div className="inline-flex items-center gap-2 rounded-full border border-solid border-white/20 bg-white/20 px-2 py-1 backdrop-blur-sm">
-                <div className="flex items-center -space-x-[5px]" aria-hidden="true">
-                  {avatars.map((src, i) => (
-                    <Image
-                      key={i}
-                      src={src}
-                      alt=""
-                      width={24}
-                      height={24}
-                      className="h-6 w-6 rounded-full border border-white object-cover"
-                    />
-                  ))}
-                </div>
-                <p className="whitespace-nowrap font-sans text-sm font-medium leading-5 text-[var(--color-secondary-blue-50)]">
-                  {t('tagline')}
-                </p>
-              </div>
+              <StudentMilestoneBadge />
 
               <h1
                 id="hero-heading"
